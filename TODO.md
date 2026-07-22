@@ -1,0 +1,1079 @@
+# ForgeGate Phased TODO
+
+This file is the primary work plan for ForgeGate. It is intentionally detailed so that work can be selected, implemented, tested, reviewed, and marked complete without losing the larger product direction.
+
+## Status convention
+
+- `[ ]` Work remains to be completed.
+- `[X}` Work is completed.
+
+The completed marker intentionally follows the project convention requested for this repository.
+
+## Working rules
+
+- A phase is not complete merely because code exists.
+- Every implemented feature must include documentation, tests, error handling, and acceptance evidence appropriate to the phase.
+- Framework-specific logic must live behind adapters unless the work is explicitly part of the initial Angular proof of concept.
+- Repository-controlled manifests and evidence exports remain the durable source of truth.
+- Local SQLite state is a cache and workflow aid, not the only copy of critical data.
+- Automated accessibility results must never be represented as complete legal compliance.
+- Remote Storybook and documentation content must be treated as untrusted content.
+- No process execution, filesystem write, credential use, or network access should occur without explicit capability boundaries and user-visible intent.
+
+---
+
+# Phase 0 — Product definition and repository foundation
+
+## Product definition
+
+- [X} Create the private ForgeGate repository.
+- [X} Establish the ForgeGate product name.
+- [X} Define the product as a local-first component assurance and governance platform.
+- [X} Define Storybook as an execution and preview surface rather than the center of truth.
+- [X} Define Astro Starlight as the preferred open documentation target.
+- [X} Define Zeroheight as an optional enterprise adapter.
+- [X} Define repository truth, execution truth, and review truth.
+- [X} Define the initial vertical slice around one Angular/Nx button component.
+- [X} Establish support for all major modern web frameworks through adapters.
+- [X} Establish Section 508 and WCAG-oriented compliance evidence as a core capability.
+- [X} Create a verbose root README.
+- [X} Create this phased TODO.
+
+## Repository governance
+
+- [ ] Select and document the repository license or proprietary licensing policy.
+- [ ] Add a code of conduct if external collaborators will be invited.
+- [ ] Add contribution guidelines.
+- [ ] Add a security policy and vulnerability-reporting process.
+- [ ] Add a decision-record template.
+- [ ] Add an issue template for product decisions.
+- [ ] Add an issue template for framework adapters.
+- [ ] Add an issue template for component blueprints.
+- [ ] Add a pull-request template with test and evidence requirements.
+- [ ] Add branch-protection rules after the first CI workflow exists.
+- [ ] Decide whether the default branch should remain `master` or be renamed to `main`.
+- [ ] Decide whether roadmap work should be tracked only in this file, in GitHub Issues, or in both.
+
+## Product validation
+
+- [ ] Interview at least five design-system engineers.
+- [ ] Interview at least three accessibility or Section 508 specialists.
+- [ ] Interview at least three frontend platform or developer-experience leads.
+- [ ] Interview at least two technical writers or design-system documentation owners.
+- [ ] Validate the cost of current manual evidence collection.
+- [ ] Validate whether stale approvals are a repeated and expensive problem.
+- [ ] Validate whether teams will permit a desktop application to run repository commands.
+- [ ] Validate the strongest initial buyer: design-system team, accessibility team, platform team, federal contractor, or consulting partner.
+- [ ] Define measurable success criteria for the proof of concept.
+
+### Phase 0 exit criteria
+
+- [ ] Product charter reviewed and accepted.
+- [ ] Initial buyer and primary user persona selected.
+- [ ] Initial vertical slice remains narrow enough for one developer.
+- [ ] No unresolved architectural decision blocks Phase 1.
+
+---
+
+# Phase 1 — Monorepo and desktop shell foundation
+
+## Workspace creation
+
+- [ ] Create a pnpm workspace.
+- [ ] Create an Nx monorepo or document the alternative workspace manager decision.
+- [ ] Create the desktop UI application.
+- [ ] Create the Tauri 2 desktop shell.
+- [ ] Create framework-neutral core libraries.
+- [ ] Create adapter contract libraries.
+- [ ] Create evidence-model libraries.
+- [ ] Create manifest-schema libraries.
+- [ ] Create policy-engine libraries.
+- [ ] Create shared test utilities.
+- [ ] Add strict TypeScript configuration.
+- [ ] Add linting, formatting, and dependency-boundary rules.
+- [ ] Add commit and branch conventions.
+
+## Desktop security foundation
+
+- [ ] Define Tauri capabilities for filesystem reads.
+- [ ] Define separate capabilities for filesystem writes.
+- [ ] Define process-execution capabilities.
+- [ ] Define network-access capabilities.
+- [ ] Define credential-vault capabilities.
+- [ ] Ensure remote preview windows have no privileged bridge.
+- [ ] Add an origin allowlist for remote Storybook previews.
+- [ ] Add a content-security policy.
+- [ ] Add audit logging for privileged operations.
+- [ ] Add user confirmation before writing or running commands.
+- [ ] Add cancellation and timeout behavior for long-running commands.
+
+## Local persistence
+
+- [ ] Add SQLite.
+- [ ] Define migrations.
+- [ ] Store connected-workspace metadata.
+- [ ] Store cached component indexes.
+- [ ] Store command history.
+- [ ] Store review drafts.
+- [ ] Store adapter configuration metadata.
+- [ ] Store no plaintext credentials.
+- [ ] Add export and reset controls.
+
+## Quality foundation
+
+- [ ] Add desktop unit tests.
+- [ ] Add Rust command tests.
+- [ ] Add desktop end-to-end smoke tests.
+- [ ] Add CI for lint, test, type-check, and build.
+- [ ] Produce unsigned development installers.
+
+### Phase 1 exit criteria
+
+- [ ] ForgeGate launches on Windows.
+- [ ] A user can select a local folder.
+- [ ] The application can read approved files without unrestricted filesystem access.
+- [ ] Privileged operations are visible, cancellable, and auditable.
+- [ ] CI passes from a clean checkout.
+
+---
+
+# Phase 2 — Framework-neutral domain model
+
+## Core entities
+
+- [ ] Define `Workspace`.
+- [ ] Define `Repository`.
+- [ ] Define `Project`.
+- [ ] Define `Package`.
+- [ ] Define `ComponentLibrary`.
+- [ ] Define `Component`.
+- [ ] Define `ComponentVersion`.
+- [ ] Define `ComponentContract`.
+- [ ] Define `ComponentState`.
+- [ ] Define `StoryReference`.
+- [ ] Define `TokenReference`.
+- [ ] Define `TestRequirement`.
+- [ ] Define `TestExecution`.
+- [ ] Define `Finding`.
+- [ ] Define `ManualReview`.
+- [ ] Define `Approval`.
+- [ ] Define `Exception`.
+- [ ] Define `DocumentationTarget`.
+- [ ] Define `ConsumerApplication`.
+- [ ] Define `ReleaseDecision`.
+- [ ] Define `EvidencePackage`.
+
+## Lifecycle and status
+
+- [ ] Define proposal status.
+- [ ] Define candidate status.
+- [ ] Define approved status.
+- [ ] Define deprecated status.
+- [ ] Define retired status.
+- [ ] Define blocked and warning states independently from lifecycle.
+- [ ] Define status transition rules.
+- [ ] Record who changed status and why.
+- [ ] Tie release decisions to commit, build, and version.
+
+## Internal result format
+
+- [ ] Define normalized statuses: passed, failed, warning, blocked, skipped, incomplete, not-applicable, and unknown.
+- [ ] Define severity levels.
+- [ ] Define evidence attachment types.
+- [ ] Define timestamps and source provenance.
+- [ ] Define tool and adapter version metadata.
+- [ ] Define deterministic identifiers.
+- [ ] Define JSON schemas for all portable records.
+
+### Phase 2 exit criteria
+
+- [ ] Domain contracts compile independently of Angular, React, Vue, or other framework packages.
+- [ ] Schemas validate example component and evidence records.
+- [ ] The domain model can represent one Angular button and one framework-neutral Web Component without special cases.
+
+---
+
+# Phase 3 — Repository and workspace discovery
+
+## Repository scanning
+
+- [ ] Detect Git repositories.
+- [ ] Read current branch and commit SHA.
+- [ ] Detect dirty working trees.
+- [ ] Detect package manager from lockfiles and metadata.
+- [ ] Detect npm, pnpm, Yarn, and Bun projects.
+- [ ] Detect Nx.
+- [ ] Detect Turborepo.
+- [ ] Detect Rush.
+- [ ] Detect Lage.
+- [ ] Detect conventional workspace layouts.
+- [ ] Detect framework packages and versions.
+- [ ] Detect Storybook configurations.
+- [ ] Detect Astro Starlight configurations.
+- [ ] Detect Zeroheight configuration files or project mappings.
+- [ ] Detect token files and formats.
+- [ ] Detect unit and browser test runners.
+- [ ] Detect visual-regression providers.
+- [ ] Detect CI provider files.
+
+## Workspace screen
+
+- [ ] Show repository path and Git state.
+- [ ] Show detected package manager and workspace manager.
+- [ ] Show detected frameworks.
+- [ ] Show component-library candidates.
+- [ ] Show Storybook targets.
+- [ ] Show documentation targets.
+- [ ] Show testing tools.
+- [ ] Show missing or unsupported configuration.
+- [ ] Allow user correction of discovery results.
+- [ ] Persist confirmed mappings in repository configuration.
+
+## Repository configuration
+
+- [ ] Define `.forgegate/config.yaml`.
+- [ ] Define project and package mappings.
+- [ ] Define command mappings.
+- [ ] Define documentation mappings.
+- [ ] Define adapter configuration.
+- [ ] Define ignore patterns.
+- [ ] Define safe write locations.
+- [ ] Validate configuration against schema.
+
+### Phase 3 exit criteria
+
+- [ ] ForgeGate opens Public Sector Federation or a replacement fixture workspace.
+- [ ] The app identifies its Angular/Nx project, Storybook, tests, tokens, and documentation targets.
+- [ ] Discovery errors are actionable rather than silent.
+
+---
+
+# Phase 4 — Component manifest and inventory
+
+## Manifest specification
+
+- [ ] Define `.forgegate/components/<component-id>.yaml`.
+- [ ] Support JSON and YAML serialization.
+- [ ] Define component identity and package location.
+- [ ] Define framework and adapter identity.
+- [ ] Define source files.
+- [ ] Define public inputs, outputs, events, slots, parts, attributes, and CSS properties.
+- [ ] Define states and variants.
+- [ ] Define themes, densities, viewports, and environments.
+- [ ] Define token mappings.
+- [ ] Define story mappings.
+- [ ] Define test requirements.
+- [ ] Define manual review requirements.
+- [ ] Define documentation targets.
+- [ ] Define consumer-application mappings.
+- [ ] Define ownership and reviewers.
+- [ ] Define release policy inheritance.
+- [ ] Define deprecation and replacement metadata.
+
+## Component discovery
+
+- [ ] Discover Angular components.
+- [ ] Discover React components.
+- [ ] Discover Vue components.
+- [ ] Discover Svelte components.
+- [ ] Discover Solid components.
+- [ ] Discover Lit and Web Components.
+- [ ] Discover Qwik components.
+- [ ] Discover Astro components.
+- [ ] Discover framework-neutral packages.
+- [ ] Detect exported versus internal components.
+- [ ] Detect stories and tests by convention.
+- [ ] Allow adapter-specific metadata extraction.
+
+## Inventory user experience
+
+- [ ] Show all components.
+- [ ] Filter by package, framework, lifecycle, owner, readiness, and finding severity.
+- [ ] Show missing manifests.
+- [ ] Show missing stories.
+- [ ] Show missing tests.
+- [ ] Show stale evidence.
+- [ ] Show documentation drift.
+- [ ] Show consuming applications.
+- [ ] Provide a component detail route.
+
+### Phase 4 exit criteria
+
+- [ ] One button component appears with source, story, token, test, and documentation mappings.
+- [ ] Unregistered components are visible.
+- [ ] Manifest changes can be previewed before writing.
+
+---
+
+# Phase 5 — Storybook adapter
+
+## Storybook discovery and connectivity
+
+- [ ] Detect local Storybook configuration.
+- [ ] Detect static Storybook builds.
+- [ ] Connect to hosted Storybook URLs.
+- [ ] Read `index.json` where supported.
+- [ ] Support version differences through adapter capability detection.
+- [ ] Associate story IDs to component manifests.
+- [ ] Detect unavailable, malformed, or protected Storybooks.
+- [ ] Support authenticated Storybook configuration without exposing secrets.
+
+## Story metadata
+
+- [ ] Read titles, story IDs, tags, and component groupings.
+- [ ] Read available args and arg types where exposed.
+- [ ] Read parameters and documentation metadata where exposed.
+- [ ] Detect accessibility and interaction tags.
+- [ ] Detect test-runner configuration.
+- [ ] Detect Chromatic or visual-provider metadata.
+- [ ] Store Storybook version and source URL with evidence.
+
+## Preview surface
+
+- [ ] Open local stories.
+- [ ] Open remote stories in an isolated webview.
+- [ ] Prevent preview content from accessing privileged desktop APIs.
+- [ ] Provide theme, viewport, locale, direction, reduced-motion, and forced-color controls where supported.
+- [ ] Link preview state to required state matrices.
+
+## Storybook test execution
+
+- [ ] Configure project-defined Storybook test commands.
+- [ ] Run interaction tests.
+- [ ] Run accessibility tests.
+- [ ] Capture machine-readable results.
+- [ ] Normalize results into ForgeGate evidence.
+- [ ] Preserve raw output as an attachment.
+- [ ] Associate results with commit SHA and component stories.
+
+### Phase 5 exit criteria
+
+- [ ] The UP Button or fixture button shows its Storybook stories in ForgeGate.
+- [ ] ForgeGate can run the configured Storybook checks and display normalized results.
+- [ ] Remote preview content has no filesystem or process privileges.
+
+---
+
+# Phase 6 — Test orchestration and evidence normalization
+
+## Command execution engine
+
+- [ ] Define allowed commands in repository configuration.
+- [ ] Display exact command and working directory before execution.
+- [ ] Stream output.
+- [ ] Support cancellation.
+- [ ] Enforce timeout.
+- [ ] Capture exit code, duration, environment, and tool versions.
+- [ ] Redact secrets from logs.
+- [ ] Preserve raw artifacts.
+- [ ] Detect missing dependencies and offer actionable guidance.
+
+## Test adapters
+
+- [ ] Vitest adapter.
+- [ ] Jest adapter.
+- [ ] Karma adapter.
+- [ ] Web Test Runner adapter.
+- [ ] Playwright adapter.
+- [ ] Cypress adapter.
+- [ ] WebdriverIO adapter.
+- [ ] Storybook test adapter.
+- [ ] Axe result adapter.
+- [ ] Chromatic adapter.
+- [ ] Percy adapter.
+- [ ] Applitools adapter.
+- [ ] Generic JUnit XML adapter.
+- [ ] Generic JSON result adapter.
+- [ ] Generic command-only adapter.
+
+## Additional quality gates
+
+- [ ] Lint gate.
+- [ ] Type-check gate.
+- [ ] Build gate.
+- [ ] Package-export gate.
+- [ ] API contract gate.
+- [ ] Bundle-size gate.
+- [ ] Dependency audit gate.
+- [ ] License policy gate.
+- [ ] SBOM gate.
+- [ ] Documentation completeness gate.
+- [ ] Token mapping gate.
+
+## Evidence freshness
+
+- [ ] Store commit SHA for every execution.
+- [ ] Store dirty-worktree fingerprint when execution occurs on uncommitted code.
+- [ ] Mark evidence stale when relevant files change.
+- [ ] Begin with conservative component-level invalidation.
+- [ ] Add dependency-aware invalidation later.
+- [ ] Explain why evidence became stale.
+
+### Phase 6 exit criteria
+
+- [ ] Unit, Storybook, Playwright, axe, build, and lint results normalize into one component record.
+- [ ] Raw tool output remains available.
+- [ ] Stale evidence is visibly separated from current evidence.
+
+---
+
+# Phase 7 — Compliance profiles and Section 508 evidence
+
+## Compliance model
+
+- [ ] Define compliance profiles as repository-controlled policy files.
+- [ ] Create a Section 508 web-component profile.
+- [ ] Create a WCAG 2.2 AA internal profile.
+- [ ] Support organization-defined profiles.
+- [ ] Separate automated, manual, hybrid, and application-context requirements.
+- [ ] Record standard, version, method, scope, and applicability.
+- [ ] Avoid legal certification language.
+
+## Automated checks
+
+- [ ] Run axe across required stories and states.
+- [ ] Capture violations, incomplete findings, passes, and inapplicable rules.
+- [ ] Preserve rule IDs and tool versions.
+- [ ] Map findings to stories, states, and environments.
+- [ ] Add keyboard automation where reliable.
+- [ ] Add focus-placement assertions.
+- [ ] Add focus-restoration assertions.
+- [ ] Add accessible-name assertions.
+- [ ] Add error-message and live-region assertions.
+- [ ] Add forced-colors and contrast-oriented visual checks where supported.
+
+## Manual review procedures
+
+- [ ] Keyboard-only review framework.
+- [ ] Focus order and visibility review.
+- [ ] JAWS procedure support.
+- [ ] NVDA procedure support.
+- [ ] VoiceOver procedure support.
+- [ ] TalkBack procedure support.
+- [ ] 200% zoom review.
+- [ ] 400% zoom and reflow review.
+- [ ] Text-spacing review.
+- [ ] Forced-colors/high-contrast review.
+- [ ] Reduced-motion review.
+- [ ] Responsive and orientation review.
+- [ ] Localization and bidirectional-text review.
+- [ ] Cognitive and error-prevention review prompts.
+- [ ] Component-specific expected-result templates.
+
+## Review evidence
+
+- [ ] Capture tester identity.
+- [ ] Capture date and timezone.
+- [ ] Capture operating system.
+- [ ] Capture browser and version.
+- [ ] Capture assistive technology and version.
+- [ ] Capture procedure version.
+- [ ] Capture pass, fail, blocked, not applicable, and observation states.
+- [ ] Capture screenshots, recordings, notes, and links.
+- [ ] Capture reviewer approval.
+- [ ] Capture expiration or re-review policy.
+
+## Application-context compliance
+
+- [ ] Distinguish isolated component conformance from composition conformance.
+- [ ] Link component versions to consuming applications.
+- [ ] Define application integration scenarios.
+- [ ] Record theme and container context.
+- [ ] Detect conflicting focus traps, duplicate names, landmark problems, and theme regressions through application tests.
+- [ ] Show consumer-specific pass and fail status.
+
+### Phase 7 exit criteria
+
+- [ ] A button can complete automated and guided manual review.
+- [ ] Evidence identifies test method, environment, result, and reviewer.
+- [ ] ForgeGate never equates axe success with full compliance.
+- [ ] The current commit can be distinguished from previously approved code.
+
+---
+
+# Phase 8 — Policy engine and release readiness
+
+## Policy hierarchy
+
+- [ ] Organization policy.
+- [ ] Workspace policy.
+- [ ] Library policy.
+- [ ] Package policy.
+- [ ] Component-type blueprint policy.
+- [ ] Component override policy.
+- [ ] Consumer-application policy.
+- [ ] Document inheritance and override behavior.
+
+## Gate rules
+
+- [ ] Required test categories.
+- [ ] Required state coverage.
+- [ ] Required environment coverage.
+- [ ] Severity thresholds.
+- [ ] Required manual reviews.
+- [ ] Required documentation sections.
+- [ ] Required token mappings.
+- [ ] Required visual approval.
+- [ ] Required consumer validations.
+- [ ] Required evidence freshness.
+- [ ] Required approver roles.
+
+## Findings and exceptions
+
+- [ ] Finding lifecycle.
+- [ ] Owner and due date.
+- [ ] Accepted risk.
+- [ ] Temporary exception.
+- [ ] Permanent documented exception.
+- [ ] Not-applicable rationale.
+- [ ] Expiration and renewal.
+- [ ] Link finding to source evidence.
+- [ ] Prevent silent suppression.
+
+## Readiness calculation
+
+- [ ] Calculate category statuses.
+- [ ] Calculate blocking reasons.
+- [ ] Present readiness without hiding failed gates behind a percentage.
+- [ ] Explain every score and status.
+- [ ] Support warning-only policies.
+- [ ] Tie release approval to exact evidence set.
+- [ ] Invalidate approval when policy or relevant source changes.
+
+### Phase 8 exit criteria
+
+- [ ] ForgeGate can explain why a component is ready or blocked.
+- [ ] All blocking decisions are traceable to policy and evidence.
+- [ ] Accepted exceptions are visible and expire as configured.
+
+---
+
+# Phase 9 — Starlight and documentation generation
+
+## Documentation model
+
+- [ ] Define required component documentation sections.
+- [ ] Define overview and purpose.
+- [ ] Define anatomy.
+- [ ] Define usage and non-usage guidance.
+- [ ] Define API and events.
+- [ ] Define states and variants.
+- [ ] Define token mappings.
+- [ ] Define accessibility behavior.
+- [ ] Define keyboard interactions.
+- [ ] Define compliance evidence summary.
+- [ ] Define examples and Storybook references.
+- [ ] Define release status and changelog.
+- [ ] Define migration and deprecation guidance.
+
+## Astro Starlight adapter
+
+- [ ] Detect Starlight projects.
+- [ ] Configure documentation root.
+- [ ] Generate Markdown.
+- [ ] Generate MDX.
+- [ ] Generate frontmatter.
+- [ ] Generate sidebar metadata where needed.
+- [ ] Generate component status blocks.
+- [ ] Generate manifest and evidence tables.
+- [ ] Generate Storybook embeds or links.
+- [ ] Generate token references.
+- [ ] Show Git diff before writing.
+- [ ] Preserve user-authored protected regions.
+- [ ] Validate Starlight build after generation.
+- [ ] Create a reusable Starlight plugin package.
+
+## Storybook documentation output
+
+- [ ] Generate or update MDX.
+- [ ] Generate autodocs metadata.
+- [ ] Generate story coverage recommendations.
+- [ ] Avoid duplicating canonical guidance unnecessarily.
+- [ ] Link Storybook docs back to the canonical component record.
+
+## Documentation drift
+
+- [ ] Compare manifest version with published documentation metadata.
+- [ ] Detect missing pages.
+- [ ] Detect stale pages.
+- [ ] Detect removed stories still referenced in docs.
+- [ ] Detect undocumented public API changes.
+- [ ] Detect token mapping drift.
+
+### Phase 9 exit criteria
+
+- [ ] ForgeGate generates a complete Starlight page for the button.
+- [ ] The page includes live example references, API, tokens, accessibility guidance, test status, and release state.
+- [ ] The generated documentation builds successfully.
+
+---
+
+# Phase 10 — Zeroheight adapter
+
+## Capability discovery
+
+- [ ] Document Zeroheight plan and API prerequisites.
+- [ ] Define authentication storage.
+- [ ] Read styleguide and page metadata where supported.
+- [ ] Read page statuses where supported.
+- [ ] Map Zeroheight pages to component manifests.
+- [ ] Detect unavailable write operations.
+- [ ] Never assume arbitrary content writes are supported.
+
+## Synchronization workflows
+
+- [ ] Show linked Zeroheight page.
+- [ ] Show status mismatch.
+- [ ] Synchronize supported status fields.
+- [ ] Generate Storybook embed details.
+- [ ] Generate copy-ready component documentation packages.
+- [ ] Generate review checklists for manual publication.
+- [ ] Detect stale Zeroheight pages.
+- [ ] Record publication evidence.
+
+## Enterprise behavior
+
+- [ ] Support multiple styleguides.
+- [ ] Support multiple environments.
+- [ ] Support organization-controlled credentials.
+- [ ] Support read-only mode.
+- [ ] Support offline operation when Zeroheight is unavailable.
+
+### Phase 10 exit criteria
+
+- [ ] Zeroheight is useful but optional.
+- [ ] A team without Zeroheight retains the complete ForgeGate workflow.
+- [ ] Unsupported API behavior is clearly identified rather than simulated.
+
+---
+
+# Phase 11 — Component blueprint library
+
+## Blueprint engine
+
+- [ ] Define blueprint schema.
+- [ ] Separate framework-neutral requirements from implementation templates.
+- [ ] Support organization overrides.
+- [ ] Version blueprints.
+- [ ] Record blueprint version in generated manifests and evidence.
+- [ ] Add migration behavior when a blueprint changes.
+
+## Foundation blueprints
+
+- [ ] Button.
+- [ ] Link.
+- [ ] Text input.
+- [ ] Textarea.
+- [ ] Checkbox.
+- [ ] Radio group.
+- [ ] Toggle.
+- [ ] Select.
+- [ ] Alert/status message.
+- [ ] Dialog.
+- [ ] Tabs.
+- [ ] Pagination.
+
+## Advanced blueprints
+
+- [ ] Combobox/autocomplete.
+- [ ] Tooltip.
+- [ ] Popover.
+- [ ] Menu/menu button.
+- [ ] Toast.
+- [ ] Accordion/disclosure.
+- [ ] Breadcrumb.
+- [ ] Stepper.
+- [ ] Table.
+- [ ] Data grid.
+- [ ] Tree/tree grid.
+- [ ] Listbox.
+- [ ] Date picker.
+- [ ] Time picker.
+- [ ] File upload.
+- [ ] Search.
+- [ ] Navigation and application shell.
+
+## Blueprint content requirements
+
+- [ ] Semantic purpose.
+- [ ] Public contract.
+- [ ] Required states.
+- [ ] Required stories.
+- [ ] Keyboard behavior.
+- [ ] Accessibility expectations.
+- [ ] Token categories.
+- [ ] Automated tests.
+- [ ] Manual procedures.
+- [ ] Documentation sections.
+- [ ] Known anti-patterns.
+- [ ] Consumer integration tests.
+
+### Phase 11 exit criteria
+
+- [ ] At least three blueprints are production-quality.
+- [ ] Button, input, and dialog demonstrate increasing complexity.
+- [ ] Blueprint requirements remain framework-neutral.
+
+---
+
+# Phase 12 — Framework adapters
+
+## Adapter SDK
+
+- [ ] Define discovery interface.
+- [ ] Define metadata extraction interface.
+- [ ] Define source dependency interface.
+- [ ] Define code-generation interface.
+- [ ] Define test-generation interface.
+- [ ] Define documentation-generation interface.
+- [ ] Define package-export interface.
+- [ ] Define capability declarations.
+- [ ] Define adapter compatibility and versioning.
+- [ ] Define adapter test harness.
+
+## Angular adapter
+
+- [ ] Angular CLI workspace discovery.
+- [ ] Nx Angular project discovery.
+- [ ] NgModule and standalone component support.
+- [ ] Inputs, outputs, host bindings, content projection, and signals metadata.
+- [ ] Angular Storybook mapping.
+- [ ] Jasmine, Jest, Vitest, and Playwright mappings.
+- [ ] Angular package export validation.
+- [ ] Initial code and test templates.
+
+## React adapter
+
+- [ ] React project discovery.
+- [ ] Function and class component metadata where practical.
+- [ ] Props and event extraction.
+- [ ] React Storybook mapping.
+- [ ] Testing Library and browser-test mappings.
+- [ ] Package export validation.
+- [ ] Initial templates.
+
+## Vue adapter
+
+- [ ] Vue project discovery.
+- [ ] Single-file component metadata.
+- [ ] Props, emits, slots, and exposed API extraction.
+- [ ] Vue Storybook mapping.
+- [ ] Vue Test Utils and browser-test mappings.
+- [ ] Initial templates.
+
+## Svelte adapter
+
+- [ ] Svelte and SvelteKit discovery.
+- [ ] Props, events, slots, snippets, and bindable metadata.
+- [ ] Svelte Storybook mapping.
+- [ ] Test mappings.
+- [ ] Initial templates.
+
+## Web Components and Lit adapter
+
+- [ ] Custom Elements Manifest support.
+- [ ] Attributes, properties, events, slots, parts, and CSS custom properties.
+- [ ] Lit metadata extraction.
+- [ ] Framework-neutral Storybook mapping.
+- [ ] Test mappings.
+- [ ] Initial templates.
+
+## Additional adapters
+
+- [ ] Solid.
+- [ ] Qwik.
+- [ ] Astro components.
+- [ ] Framework-neutral HTML/CSS/JS.
+- [ ] Community adapter documentation.
+
+### Phase 12 exit criteria
+
+- [ ] Angular adapter supports the complete MVP path.
+- [ ] At least one non-Angular adapter validates framework neutrality.
+- [ ] Adapter failures do not destabilize the core application.
+
+---
+
+# Phase 13 — Safe generation and repository modification
+
+## Generation workflow
+
+- [ ] Generate into temporary workspace.
+- [ ] Show file-by-file changes.
+- [ ] Show unified diff.
+- [ ] Detect existing files.
+- [ ] Prevent accidental overwrite.
+- [ ] Support protected user-authored regions where appropriate.
+- [ ] Support dry run.
+- [ ] Support rollback.
+- [ ] Run formatter after user approval.
+- [ ] Run targeted tests after writing.
+- [ ] Report partial failures.
+
+## Generated artifacts
+
+- [ ] Component implementation templates.
+- [ ] Story templates.
+- [ ] Unit-test templates.
+- [ ] Browser-test templates.
+- [ ] Accessibility-test templates.
+- [ ] Manual-review templates.
+- [ ] Manifest templates.
+- [ ] Token templates.
+- [ ] Starlight templates.
+- [ ] Storybook MDX templates.
+
+## Git integration
+
+- [ ] Show changed files.
+- [ ] Show current branch.
+- [ ] Recommend a branch name.
+- [ ] Support optional branch creation.
+- [ ] Support optional commit creation only after explicit confirmation.
+- [ ] Generate commit message proposal.
+- [ ] Never push without explicit confirmation.
+- [ ] Link evidence to resulting commit.
+
+### Phase 13 exit criteria
+
+- [ ] ForgeGate can add one missing button story and test without overwriting custom code.
+- [ ] The user can inspect and reject every proposed change.
+- [ ] Targeted validation runs after accepted changes.
+
+---
+
+# Phase 14 — Evidence export and auditability
+
+## Evidence package
+
+- [ ] Define package directory structure.
+- [ ] Export component manifest.
+- [ ] Export policy snapshot.
+- [ ] Export test summary.
+- [ ] Export raw automated results.
+- [ ] Export manual reviews.
+- [ ] Export findings and exceptions.
+- [ ] Export screenshots and recordings.
+- [ ] Export documentation metadata.
+- [ ] Export release decision.
+- [ ] Export tool, browser, OS, and assistive-technology versions.
+- [ ] Export commit, branch, build, and component version.
+- [ ] Generate HTML report.
+- [ ] Generate JSON report.
+- [ ] Generate optional PDF report later.
+- [ ] Create checksums.
+- [ ] Sign evidence packages later where required.
+
+## Provenance
+
+- [ ] Record who initiated each run.
+- [ ] Record which adapter produced each record.
+- [ ] Record source file fingerprints.
+- [ ] Record evidence transformations.
+- [ ] Preserve raw source artifact references.
+- [ ] Detect tampering or missing files.
+
+### Phase 14 exit criteria
+
+- [ ] A reviewer can understand the component, methods, results, exceptions, and release decision without opening ForgeGate.
+- [ ] Evidence can be archived with a release.
+
+---
+
+# Phase 15 — Team and enterprise capabilities
+
+## Team collaboration
+
+- [ ] Shared repository-hosted review records.
+- [ ] Conflict-safe review updates.
+- [ ] Reviewer assignment.
+- [ ] Approval roles.
+- [ ] Comments and resolution.
+- [ ] Notifications.
+- [ ] Review queues.
+- [ ] Component ownership rules.
+
+## Enterprise identity and policy
+
+- [ ] SSO architecture.
+- [ ] Role-based access control.
+- [ ] Organization policy bundles.
+- [ ] Signed policy distribution.
+- [ ] Private adapter registry.
+- [ ] Private blueprint registry.
+- [ ] Audit retention policy.
+- [ ] Restricted/offline update channels.
+- [ ] Self-hosted coordination service if required.
+
+## CI integration
+
+- [ ] Headless ForgeGate CLI.
+- [ ] CI policy evaluation.
+- [ ] GitHub Actions integration.
+- [ ] GitLab CI integration.
+- [ ] Azure DevOps integration.
+- [ ] Jenkins integration.
+- [ ] Pull-request status checks.
+- [ ] Evidence artifact upload.
+- [ ] Release-gate API.
+
+### Phase 15 exit criteria
+
+- [ ] Desktop and CI evaluate the same policies and schemas.
+- [ ] Enterprise features do not break local-first operation.
+
+---
+
+# Phase 16 — Product packaging and commercialization
+
+## Editions
+
+- [ ] Define free local edition.
+- [ ] Define professional edition.
+- [ ] Define team edition.
+- [ ] Define enterprise edition.
+- [ ] Define feature boundaries without crippling the core open workflow.
+- [ ] Decide which schemas, adapters, and blueprints may be open source.
+- [ ] Decide whether the desktop core remains proprietary, source-available, or open source.
+
+## Commercial capabilities
+
+- [ ] Licensing mechanism.
+- [ ] Trial behavior.
+- [ ] Offline license support.
+- [ ] Signed application updates.
+- [ ] Windows code signing.
+- [ ] macOS notarization.
+- [ ] Linux packaging.
+- [ ] Crash reporting with consent.
+- [ ] Privacy documentation.
+- [ ] Support diagnostics export.
+
+## Pilot offer
+
+- [ ] Define a paid Component Assurance Sprint.
+- [ ] Define pilot prerequisites.
+- [ ] Define installation and onboarding steps.
+- [ ] Define pilot deliverables.
+- [ ] Define success metrics.
+- [ ] Define pricing hypothesis.
+- [ ] Identify initial design partners.
+- [ ] Prepare demonstration repository.
+- [ ] Prepare demonstration video.
+- [ ] Prepare one-page sales narrative.
+
+### Phase 16 exit criteria
+
+- [ ] A customer can install, evaluate, and understand the product safely.
+- [ ] One paid or committed design partner validates the workflow.
+
+---
+
+# Cross-cutting backlog
+
+## Security
+
+- [ ] Threat model desktop application.
+- [ ] Threat model remote previews.
+- [ ] Threat model adapter plugins.
+- [ ] Threat model command execution.
+- [ ] Threat model repository writes.
+- [ ] Threat model credential storage.
+- [ ] Add dependency scanning.
+- [ ] Add SBOM generation.
+- [ ] Add release signing.
+- [ ] Add secure update validation.
+
+## Accessibility of ForgeGate itself
+
+- [ ] Keyboard-operable desktop UI.
+- [ ] Visible focus.
+- [ ] Screen-reader labels and announcements.
+- [ ] High-contrast support.
+- [ ] 200% and 400% zoom support.
+- [ ] Reduced-motion support.
+- [ ] Error prevention and recovery.
+- [ ] Accessible data visualizations.
+- [ ] Automated and manual review of ForgeGate releases.
+- [ ] Dogfood ForgeGate against ForgeGate components.
+
+## Performance
+
+- [ ] Incremental repository scanning.
+- [ ] File-watch debouncing.
+- [ ] Cached adapter results.
+- [ ] Background indexing that remains cancellable.
+- [ ] Large monorepo benchmarks.
+- [ ] Large Storybook index benchmarks.
+- [ ] Evidence database size controls.
+- [ ] Artifact retention controls.
+
+## Observability
+
+- [ ] Structured local logs.
+- [ ] Per-adapter diagnostics.
+- [ ] Command execution timing.
+- [ ] Scan timing.
+- [ ] Redaction tests.
+- [ ] User-controlled support bundle.
+
+## Internationalization
+
+- [ ] Externalize desktop UI strings.
+- [ ] Support locale-aware dates and numbers.
+- [ ] Support RTL interface layout.
+- [ ] Support localized manual-review procedures.
+- [ ] Support localized documentation templates.
+
+## Open standards
+
+- [ ] Evaluate Design Tokens Community Group format.
+- [ ] Evaluate Custom Elements Manifest.
+- [ ] Define ForgeGate manifest JSON Schema.
+- [ ] Define ForgeGate evidence JSON Schema.
+- [ ] Define ForgeGate policy JSON Schema.
+- [ ] Publish schemas with semantic versions.
+- [ ] Document backward compatibility.
+
+---
+
+# Immediate next work queue
+
+These are the first items to work in order.
+
+- [ ] Finalize the product charter in `documentation/00-product-overview.md`.
+- [ ] Finalize architecture decisions in `documentation/02-system-architecture.md`.
+- [ ] Create the initial manifest schema proposal.
+- [ ] Create the initial evidence schema proposal.
+- [ ] Create the initial release-policy schema proposal.
+- [ ] Scaffold the Tauri and Angular desktop applications.
+- [ ] Implement local folder selection.
+- [ ] Implement Git repository discovery.
+- [ ] Implement package manager and Nx discovery.
+- [ ] Detect one local Storybook.
+- [ ] Read one Storybook story index.
+- [ ] Display one component inventory record.
+- [ ] Run one configured test command.
+- [ ] Normalize one axe or Storybook accessibility result.
+- [ ] Complete one guided keyboard review.
+- [ ] Generate one Starlight component page.
+- [ ] Export one evidence package.
+
+# MVP definition of done
+
+The first MVP is complete only when all of the following are true:
+
+- [ ] ForgeGate installs and launches on Windows.
+- [ ] A user can open an Angular/Nx repository.
+- [ ] ForgeGate detects Git, package manager, Nx, Angular, Storybook, tests, tokens, and Starlight.
+- [ ] ForgeGate discovers a button component.
+- [ ] ForgeGate associates its stories and tests.
+- [ ] ForgeGate runs configured unit, Storybook, Playwright, axe, lint, and build gates.
+- [ ] ForgeGate normalizes results without discarding raw evidence.
+- [ ] ForgeGate guides a manual keyboard and screen-reader review.
+- [ ] ForgeGate ties evidence to the current commit.
+- [ ] ForgeGate marks prior approval stale after a relevant source change.
+- [ ] ForgeGate explains every blocking release condition.
+- [ ] ForgeGate generates a Starlight page.
+- [ ] ForgeGate exports a portable evidence package.
+- [ ] ForgeGate itself passes its required accessibility and quality gates.
