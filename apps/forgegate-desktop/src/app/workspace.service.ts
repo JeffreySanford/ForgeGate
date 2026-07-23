@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { parseRepositoryConfig, type RepositoryConfig } from '@forgegate/core-config';
 import { parseCustomElementsManifest, type CustomElementsManifest } from '@forgegate/adapter-web-components';
+import { parseStorybookIndex, type StorybookIndex } from './storybook/storybook-index';
 
 export interface GitStatus {
   branch: string;
@@ -42,6 +43,17 @@ export const GENERATE_CEM_ARGS = ['@custom-elements-manifest/analyzer', 'analyze
 export const GENERATE_CEM_COMMAND_TEXT = `${GENERATE_CEM_COMMAND} ${GENERATE_CEM_ARGS.join(' ')}`;
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
 
+/**
+ * `storybook build`'s default output directory is `storybook-static`, and
+ * `index.json` is the file it writes there describing every story — this
+ * is the standard convention, not a ForgeGate-specific one. There is no
+ * scan-time confirmation this file exists (the workspace scan only
+ * detects the `.storybook` config directory, not a build having happened),
+ * so a missing file at this path is a normal, silent "not built yet"
+ * state, not an error.
+ */
+const STORYBOOK_INDEX_CONVENTIONAL_PATH = 'storybook-static/index.json';
+
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
   readonly workspacePath = signal<string | null>(null);
@@ -51,6 +63,8 @@ export class WorkspaceService {
   readonly repositoryConfigError = signal<string | null>(null);
   readonly customElementsManifest = signal<CustomElementsManifest | null>(null);
   readonly customElementsManifestError = signal<string | null>(null);
+  readonly storybookIndex = signal<StorybookIndex | null>(null);
+  readonly storybookIndexError = signal<string | null>(null);
   readonly cemGenerationRunning = signal(false);
   readonly cemGenerationResult = signal<CommandResult | null>(null);
   readonly cemGenerationError = signal<string | null>(null);
@@ -60,6 +74,7 @@ export class WorkspaceService {
     this.error.set(null);
     this.repositoryConfigError.set(null);
     this.customElementsManifestError.set(null);
+    this.storybookIndexError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
     const path = await invoke<string | null>('select_workspace');
@@ -77,11 +92,13 @@ export class WorkspaceService {
       this.workspaceScan.set(scan);
       this.applyConfigText(configText);
       await this.loadCustomElementsManifest(path, scan);
+      await this.loadStorybookIndex(path, scan);
     } catch (error) {
       this.gitStatus.set(null);
       this.workspaceScan.set(null);
       this.repositoryConfig.set(null);
       this.customElementsManifest.set(null);
+      this.storybookIndex.set(null);
       this.error.set(String(error));
     }
   }
@@ -165,6 +182,37 @@ export class WorkspaceService {
       this.customElementsManifest.set(parseCustomElementsManifest(text));
     } catch (error) {
       this.customElementsManifestError.set(String(error));
+    }
+  }
+
+  /**
+   * Probes the conventional `storybook-static/index.json` build output
+   * path, only when the scan already found a `.storybook` config
+   * directory (no point probing a workspace with no Storybook at all). A
+   * missing file here is the normal "configured but not built yet" state,
+   * not an error — this genuinely doesn't know in advance whether a build
+   * exists, unlike `loadCustomElementsManifest`, which only ever attempts
+   * a read the scan already confirmed should succeed. Only a read that
+   * *succeeds* but doesn't parse as a valid index is reported as an error.
+   */
+  private async loadStorybookIndex(workspacePath: string, scan: WorkspaceScan): Promise<void> {
+    this.storybookIndex.set(null);
+    if (!scan.storybookProjects.length) {
+      return;
+    }
+    let text: string;
+    try {
+      text = await invoke<string>('read_text_file', {
+        workspacePath,
+        relativePath: STORYBOOK_INDEX_CONVENTIONAL_PATH,
+      });
+    } catch {
+      return;
+    }
+    try {
+      this.storybookIndex.set(parseStorybookIndex(text));
+    } catch (error) {
+      this.storybookIndexError.set(String(error));
     }
   }
 }

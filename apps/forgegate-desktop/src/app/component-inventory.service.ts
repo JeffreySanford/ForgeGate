@@ -4,6 +4,7 @@ import {
   mapCustomElementsManifestToComponentManifests,
   type MapCemResult,
 } from '@forgegate/adapter-web-components';
+import { findStoriesForSourceFiles } from './storybook/storybook-index';
 import { WorkspaceService } from './workspace.service';
 
 const EMPTY_MAP_RESULT: MapCemResult = { manifests: [], failures: [] };
@@ -24,10 +25,23 @@ export class ComponentInventoryService {
       return EMPTY_MAP_RESULT;
     }
     const { organization, library } = deriveOrganizationAndLibrary(this.workspace.workspaceScan()?.packageName ?? null);
-    return mapCustomElementsManifestToComponentManifests(manifest, {
+    const mapped = mapCustomElementsManifestToComponentManifests(manifest, {
       organization,
       library,
       packagePath: '.',
     });
+
+    const storybookIndex = this.workspace.storybookIndex();
+    if (!storybookIndex) {
+      return mapped;
+    }
+
+    return {
+      ...mapped,
+      manifests: mapped.manifests.map((componentManifest) => ({
+        ...componentManifest,
+        storyMappings: findStoriesForSourceFiles(storybookIndex, componentManifest.sourceFiles),
+      })),
+    };
   });
 }

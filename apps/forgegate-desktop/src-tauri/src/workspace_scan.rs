@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(scan.package_name, Some("@acme/button-library".to_string()));
         assert_eq!(scan.custom_elements_manifests, vec!["custom-elements.json".to_string()]);
         assert_eq!(scan.token_files, vec!["tokens/acme.tokens.json".to_string()]);
-        assert!(scan.storybook_projects.is_empty(), "the fixture deliberately has no Storybook connection yet");
+        assert_eq!(scan.storybook_projects, vec![".storybook".to_string()]);
         assert!(scan.test_runners.is_empty(), "the fixture deliberately has no test runner yet");
     }
 
