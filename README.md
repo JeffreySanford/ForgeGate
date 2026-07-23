@@ -172,6 +172,8 @@ The first demonstrable vertical slice is:
 
 > Open a Web Components (Lit or vanilla Custom Elements) design-system repository, discover one button component and its Storybook stories, run configured checks, complete a guided Section 508-oriented manual review, calculate release readiness for the current commit, export evidence, and generate an Astro Starlight component page.
 
+The implementation-ready information architecture, visual language, connected-data map, and acceptance criteria for presenting this milestone to designers are defined in [`documentation/25-designer-ready-vertical-slice.md`](documentation/25-designer-ready-vertical-slice.md).
+
 ## License and commercial status
 
 No license has been finalized. The current leaning is proprietary-closed or source-available (visible to evaluators, not free to use or redistribute) rather than open source, given the intended federal and enterprise buyer. Until a license is intentionally added, this private repository and its contents should be treated as proprietary and not redistributed. See [`19-commercial-model.md`](documentation/19-commercial-model.md) and [`20-risks-and-decisions.md`](documentation/20-risks-and-decisions.md).
