@@ -19,10 +19,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function requireString(record: Record<string, unknown>, property: string, context: string): string {
+function requireString(
+  record: Record<string, unknown>,
+  property: string,
+  context: string,
+): string {
   const value = record[property];
   if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`${context} requires a non-empty string property "${property}"`);
+    throw new Error(
+      `${context} requires a non-empty string property "${property}"`,
+    );
   }
   return value;
 }
@@ -37,12 +43,16 @@ function parseEntry(entryKey: string, value: unknown): StorybookIndexEntry {
     rawTags !== undefined &&
     (!Array.isArray(rawTags) || rawTags.some((tag) => typeof tag !== 'string'))
   ) {
-    throw new Error(`Storybook index entry "${entryKey}" property "tags" must be an array of strings`);
+    throw new Error(
+      `Storybook index entry "${entryKey}" property "tags" must be an array of strings`,
+    );
   }
 
   const exportName = value['exportName'];
   if (exportName !== undefined && typeof exportName !== 'string') {
-    throw new Error(`Storybook index entry "${entryKey}" property "exportName" must be a string`);
+    throw new Error(
+      `Storybook index entry "${entryKey}" property "exportName" must be a string`,
+    );
   }
 
   return {
@@ -50,7 +60,11 @@ function parseEntry(entryKey: string, value: unknown): StorybookIndexEntry {
     id: requireString(value, 'id', `Storybook index entry "${entryKey}"`),
     name: requireString(value, 'name', `Storybook index entry "${entryKey}"`),
     title: requireString(value, 'title', `Storybook index entry "${entryKey}"`),
-    importPath: requireString(value, 'importPath', `Storybook index entry "${entryKey}"`),
+    importPath: requireString(
+      value,
+      'importPath',
+      `Storybook index entry "${entryKey}"`,
+    ),
     exportName,
     tags: rawTags ?? [],
   };
@@ -114,7 +128,9 @@ export function findStoriesForSourceFiles(
 
   return Object.values(index.entries)
     .filter(
-      (entry) => entry.type === 'story' && comparableSources.has(comparableSourcePath(entry.importPath)),
+      (entry) =>
+        entry.type === 'story' &&
+        comparableSources.has(comparableSourcePath(entry.importPath)),
     )
     .map((entry) => ({ storybookStoryId: entry.id }));
 }
