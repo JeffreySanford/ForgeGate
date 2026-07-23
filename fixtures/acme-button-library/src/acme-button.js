@@ -4,6 +4,10 @@
  * (not a synthetic in-memory manifest) to point a workspace scan at.
  * Deliberately plain (no build step, no framework) so it can be opened by
  * ForgeGate with zero setup.
+ *
+ * @fires acme-click - Fired when the button is activated and not disabled.
+ * @slot - Button label content.
+ * @csspart base - The root <button> element.
  */
 export class AcmeButton extends HTMLElement {
   static get observedAttributes() {
@@ -12,11 +16,11 @@ export class AcmeButton extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    this.addEventListener('click', this.handleClick);
+    this.addEventListener('click', this.#handleClick);
   }
 
   disconnectedCallback() {
-    this.removeEventListener('click', this.handleClick);
+    this.removeEventListener('click', this.#handleClick);
   }
 
   attributeChangedCallback() {
@@ -37,7 +41,7 @@ export class AcmeButton extends HTMLElement {
     this.querySelector('button')?.focus();
   }
 
-  handleClick = () => {
+  #handleClick = () => {
     if (this.hasAttribute('disabled')) {
       return;
     }

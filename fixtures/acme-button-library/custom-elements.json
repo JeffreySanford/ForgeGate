@@ -8,69 +8,74 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "A minimal, real vanilla Web Component button.",
+          "description": "A minimal, real vanilla Web Component — the deterministic fixture ADR\n0003 calls for, so ForgeGate's own dev/test workflow has something real\n(not a synthetic in-memory manifest) to point a workspace scan at.\nDeliberately plain (no build step, no framework) so it can be opened by\nForgeGate with zero setup.",
           "name": "AcmeButton",
-          "customElement": true,
-          "tagName": "acme-button",
-          "members": [
+          "cssParts": [
             {
-              "kind": "field",
-              "name": "variant",
-              "description": "Visual variant: \"primary\" or \"secondary\".",
-              "type": { "text": "string" },
-              "privacy": "public"
-            },
-            {
-              "kind": "method",
-              "name": "focus",
-              "description": "Moves keyboard focus to the rendered button element.",
-              "privacy": "public"
-            }
-          ],
-          "events": [
-            {
-              "name": "acme-click",
-              "type": { "text": "CustomEvent" },
-              "description": "Fired when the button is activated and not disabled."
+              "description": "The root <button> element.",
+              "name": "base"
             }
           ],
           "slots": [
             {
-              "name": "",
-              "description": "Button label content."
+              "description": "Button label content.",
+              "name": ""
             }
           ],
-          "cssParts": [
+          "members": [
             {
-              "name": "base",
-              "description": "The root <button> element."
+              "kind": "field",
+              "name": "variant",
+              "description": "Visual variant: \"primary\" or \"secondary\"."
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "description": "Moves keyboard focus to the rendered button element."
+            },
+            {
+              "kind": "field",
+              "name": "#handleClick",
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "description": "Fired when the button is activated and not disabled.",
+              "name": "acme-click"
             }
           ],
           "attributes": [
             {
-              "name": "variant",
-              "fieldName": "variant",
-              "type": { "text": "string" },
-              "description": "Visual variant: \"primary\" or \"secondary\"."
+              "name": "variant"
             },
             {
-              "name": "disabled",
-              "type": { "text": "boolean" },
-              "description": "Disables the button and suppresses the acme-click event."
+              "name": "disabled"
             }
-          ]
+          ],
+          "superclass": {
+            "name": "HTMLElement"
+          },
+          "tagName": "acme-button",
+          "customElement": true
         }
       ],
       "exports": [
         {
           "kind": "js",
           "name": "AcmeButton",
-          "declaration": { "name": "AcmeButton", "module": "src/acme-button.js" }
+          "declaration": {
+            "name": "AcmeButton",
+            "module": "src/acme-button.js"
+          }
         },
         {
           "kind": "custom-element-definition",
           "name": "acme-button",
-          "declaration": { "name": "AcmeButton", "module": "src/acme-button.js" }
+          "declaration": {
+            "name": "AcmeButton",
+            "module": "src/acme-button.js"
+          }
         }
       ]
     }

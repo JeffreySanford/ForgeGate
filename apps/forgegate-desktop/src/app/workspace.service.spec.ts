@@ -194,7 +194,7 @@ describe('WorkspaceService', () => {
       workspacePath: 'D:/repos/ForgeGate',
       relativeCwd: '.',
       command: 'npx',
-      args: ['@custom-elements-manifest/analyze', '--litelement', '--outdir', '.'],
+      args: ['@custom-elements-manifest/analyzer', 'analyze', '--litelement', '--outdir', '.'],
       timeoutSeconds: 120,
     });
     expect(service.cemGenerationResult()?.exitCode).toBe(0);

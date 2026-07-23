@@ -38,7 +38,7 @@ export interface CommandResult {
  * before execution. User approves execution.").
  */
 export const GENERATE_CEM_COMMAND = 'npx';
-export const GENERATE_CEM_ARGS = ['@custom-elements-manifest/analyze', '--litelement', '--outdir', '.'];
+export const GENERATE_CEM_ARGS = ['@custom-elements-manifest/analyzer', 'analyze', '--litelement', '--outdir', '.'];
 export const GENERATE_CEM_COMMAND_TEXT = `${GENERATE_CEM_COMMAND} ${GENERATE_CEM_ARGS.join(' ')}`;
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
 
