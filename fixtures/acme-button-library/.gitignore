@@ -1,0 +1,8 @@
+node_modules/
+
+# storybook-static is a real `npx storybook build` output. Only index.json
+# (the one file ForgeGate's Storybook connection actually reads) is
+# committed, via a !negation below — the rest (bundled JS, manager UI,
+# fonts, etc.) is large, regenerable, and not needed for detection/parsing.
+storybook-static/*
+!storybook-static/index.json

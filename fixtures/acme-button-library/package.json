@@ -3,5 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "customElements": "custom-elements.json"
+  "customElements": "custom-elements.json",
+  "devDependencies": {
+    "@storybook/web-components-vite": "^10.5.3",
+    "lit": "^3.3.3",
+    "storybook": "^10.5.3"
+  }
 }
