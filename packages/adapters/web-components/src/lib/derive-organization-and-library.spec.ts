@@ -28,4 +28,21 @@ describe('deriveOrganizationAndLibrary', () => {
       library: 'unconfigured',
     });
   });
+
+  it('sanitizes dots out of an unscoped package name, since real npm names commonly have them', () => {
+    // buildComponentId (core-domain) rejects any segment containing "." —
+    // real packages like "lodash.debounce" or "socket.io" would otherwise
+    // make every component in that package fail to get an id at all.
+    expect(deriveOrganizationAndLibrary('socket.io')).toEqual({
+      organization: 'unscoped',
+      library: 'socket-io',
+    });
+  });
+
+  it('sanitizes dots out of a scoped library segment', () => {
+    expect(deriveOrganizationAndLibrary('@up/design.system')).toEqual({
+      organization: 'up',
+      library: 'design-system',
+    });
+  });
 });

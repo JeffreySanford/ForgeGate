@@ -1,5 +1,6 @@
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import type { CustomElementsManifest } from './custom-elements-manifest';
+import { deriveOrganizationAndLibrary } from './derive-organization-and-library';
 import { mapCustomElementsManifestToComponentManifests } from './map-custom-elements-manifest';
 
 function firstOrThrow<T>(items: readonly T[]): T {
@@ -49,7 +50,7 @@ function mapButton(overrides: Partial<{ adapter: string }> = {}): ComponentManif
       library: 'design-system',
       packagePath: 'packages/design-system',
       ...overrides,
-    }),
+    }).manifests,
   );
 }
 
@@ -91,6 +92,15 @@ describe('mapCustomElementsManifestToComponentManifests', () => {
     expect(mapButton().adapter).toBe('framework.web-components');
   });
 
+  it('returns no failures for well-formed declarations', () => {
+    const result = mapCustomElementsManifestToComponentManifests(manifest, {
+      organization: 'up',
+      library: 'design-system',
+      packagePath: 'packages/design-system',
+    });
+    expect(result.failures).toEqual([]);
+  });
+
   it('maps one manifest per custom-element declaration across modules', () => {
     const multiModule: CustomElementsManifest = {
       schemaVersion: '1.0.0',
@@ -104,15 +114,69 @@ describe('mapCustomElementsManifestToComponentManifests', () => {
       ],
     };
 
-    const results = mapCustomElementsManifestToComponentManifests(multiModule, {
+    const result = mapCustomElementsManifestToComponentManifests(multiModule, {
       organization: 'up',
       library: 'design-system',
       packagePath: 'packages/design-system',
     });
 
-    expect(results.map((manifest) => manifest.id)).toEqual([
+    expect(result.manifests.map((manifest) => manifest.id)).toEqual([
       'up.design-system.up-button',
       'up.design-system.up-icon',
     ]);
+  });
+
+  it('does not throw, and every declaration still maps, when the real workspace package name has a dot in it', () => {
+    // Regression test for the full pipeline: a real, unscoped, dotted npm
+    // package name (this pattern is common — "socket.io", "lodash.debounce")
+    // fed through deriveOrganizationAndLibrary and straight into the
+    // mapper must not throw or drop a valid component.
+    const { organization, library } = deriveOrganizationAndLibrary('socket.io');
+
+    const result = mapCustomElementsManifestToComponentManifests(manifest, {
+      organization,
+      library,
+      packagePath: 'packages/socket.io',
+    });
+
+    expect(result.failures).toEqual([]);
+    expect(result.manifests).toHaveLength(1);
+    expect(result.manifests[0]?.id).toBe('unscoped.socket-io.up-button');
+  });
+
+  it('reports one bad declaration as a failure without discarding a valid sibling in the same manifest', () => {
+    // The HTML custom-element name grammar technically permits "." in a
+    // tag name, even though no real-world Web Component library uses it.
+    // That one odd declaration must be reported, not thrown, and must not
+    // take the valid sibling declaration down with it — the whole point
+    // of returning { manifests, failures } instead of throwing on the
+    // first bad item.
+    const multiModule: CustomElementsManifest = {
+      schemaVersion: '1.0.0',
+      modules: [
+        {
+          kind: 'javascript-module',
+          path: 'src/up-legacy-button.ts',
+          declarations: [
+            { kind: 'class', name: 'UpLegacyButton', customElement: true, tagName: 'up-button.legacy' },
+          ],
+        },
+        ...manifest.modules,
+      ],
+    };
+
+    const result = mapCustomElementsManifestToComponentManifests(multiModule, {
+      organization: 'up',
+      library: 'design-system',
+      packagePath: 'packages/design-system',
+    });
+
+    expect(result.manifests.map((m) => m.id)).toEqual(['up.design-system.up-button']);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]).toMatchObject({
+      declarationName: 'UpLegacyButton',
+      modulePath: 'src/up-legacy-button.ts',
+    });
+    expect(result.failures[0]?.message).toContain('component');
   });
 });

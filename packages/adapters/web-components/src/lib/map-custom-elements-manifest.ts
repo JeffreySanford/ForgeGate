@@ -18,6 +18,17 @@ export interface MapCemOptions {
   readonly framework?: string;
 }
 
+export interface MapCemFailure {
+  readonly declarationName: string;
+  readonly modulePath: string;
+  readonly message: string;
+}
+
+export interface MapCemResult {
+  readonly manifests: readonly ComponentManifest[];
+  readonly failures: readonly MapCemFailure[];
+}
+
 /**
  * Converts every custom-element declaration in a Custom Elements Manifest
  * into a `ComponentManifest`, per documentation/05-framework-adapters.md
@@ -37,14 +48,34 @@ export interface MapCemOptions {
  *   this way only has a contract, nothing else. Populating the rest is
  *   either manual authoring or, eventually, blueprint-driven completion
  *   checking (documentation/14-component-blueprints.md).
+ *
+ * Returns both `manifests` (everything that mapped successfully) and
+ * `failures` (everything that didn't, with why) rather than throwing on
+ * the first bad declaration. A CEM can describe many components; one
+ * malformed declaration — an unusual tag name, a missing tagName despite
+ * `customElement: true` — must not silently discard every sibling
+ * component in the same file just because they happened to share a `.map()`.
  */
 export function mapCustomElementsManifestToComponentManifests(
   manifest: CustomElementsManifest,
   options: MapCemOptions,
-): ComponentManifest[] {
-  return customElementDeclarations(manifest).map(({ modulePath, declaration }) =>
-    mapDeclaration(modulePath, declaration, options),
-  );
+): MapCemResult {
+  const manifests: ComponentManifest[] = [];
+  const failures: MapCemFailure[] = [];
+
+  for (const { modulePath, declaration } of customElementDeclarations(manifest)) {
+    try {
+      manifests.push(mapDeclaration(modulePath, declaration, options));
+    } catch (error) {
+      failures.push({
+        declarationName: declaration.name,
+        modulePath,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { manifests, failures };
 }
 
 function mapDeclaration(

@@ -73,17 +73,27 @@ export function createRepositoryConfig(input: {
 /**
  * True only when `candidatePath` (workspace-relative, forward-slash) falls
  * under at least one configured safe write location. This is a simple
- * prefix/glob-star check, not a full glob engine — sufficient for the
- * common "src/generated/**" style pattern; a real glob library can replace
- * this once safe-write enforcement moves into the actual write flow.
+ * check, not a full glob engine — it understands exactly two pattern
+ * shapes: a trailing `/**` (recursive "everything under this directory")
+ * and an exact path with no wildcard at all. A real glob library can
+ * replace this once safe-write enforcement moves into the actual write
+ * flow, but it must stay at least this strict: an earlier version did a
+ * naive `startsWith` after stripping trailing `*`s, which let a pattern
+ * like `"src/generated/**"` also match a sibling directory such as
+ * `"src/generated-other/evil.ts"` — the prefix matched textually without
+ * the directory boundary actually being respected.
  */
 export function isWithinSafeWriteLocation(
   candidatePath: string,
   safeWriteLocations: readonly string[],
 ): boolean {
   const normalized = candidatePath.replace(/\\/g, '/');
-  return safeWriteLocations.some((pattern) => {
-    const prefix = pattern.replace(/\\/g, '/').replace(/\*+$/, '');
-    return normalized.startsWith(prefix);
+  return safeWriteLocations.some((rawPattern) => {
+    const pattern = rawPattern.replace(/\\/g, '/');
+    if (pattern.endsWith('/**')) {
+      const directory = pattern.slice(0, -3);
+      return normalized === directory || normalized.startsWith(`${directory}/`);
+    }
+    return normalized === pattern;
   });
 }

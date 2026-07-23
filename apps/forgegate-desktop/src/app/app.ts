@@ -3,8 +3,11 @@ import { RouterModule } from '@angular/router';
 import {
   deriveOrganizationAndLibrary,
   mapCustomElementsManifestToComponentManifests,
+  type MapCemResult,
 } from '@forgegate/adapter-web-components';
 import { GENERATE_CEM_COMMAND_TEXT, WorkspaceService } from './workspace.service';
+
+const EMPTY_MAP_RESULT: MapCemResult = { manifests: [], failures: [] };
 
 @Component({
   imports: [RouterModule],
@@ -23,12 +26,15 @@ export class App {
    * and library are derived from the workspace's package name via a
    * documented naming convention (`deriveOrganizationAndLibrary`) — not
    * real configured identity, since `.forgegate/config.yaml` has no
-   * dedicated field for that yet.
+   * dedicated field for that yet. `failures` holds any declaration that
+   * couldn't be mapped (shown in the UI, not silently dropped) — the
+   * mapper reports per-declaration problems rather than losing every
+   * sibling component over one bad one.
    */
-  protected readonly componentManifests = computed(() => {
+  protected readonly componentMapResult = computed<MapCemResult>(() => {
     const manifest = this.workspace.customElementsManifest();
     if (!manifest) {
-      return [];
+      return EMPTY_MAP_RESULT;
     }
     const { organization, library } = deriveOrganizationAndLibrary(this.workspace.workspaceScan()?.packageName ?? null);
     return mapCustomElementsManifestToComponentManifests(manifest, {

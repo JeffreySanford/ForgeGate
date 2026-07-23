@@ -6,12 +6,18 @@ use std::path::{Path, PathBuf};
 /// Workspace detection, per documentation/16-data-and-schema-model.md
 /// ("Workspace") and TODO.md Phase 3 ("Repository scanning"). Most checks
 /// are workspace-root-only; Storybook and Starlight are also checked one
-/// level into `apps/*` and `packages/*`, because real Nx monorepos put
-/// per-project Storybook and Starlight configs inside a project directory
-/// rather than at the workspace root — confirmed against a real fixture
-/// repository, not assumed. This still never walks into node_modules or
-/// recurses more than one level. Deeper, adapter-driven discovery
-/// (frameworks, versions) is later Phase 5/12 work.
+/// level into `apps/*`, `packages/*`, and `libs/*`, because real Nx
+/// monorepos put per-project Storybook and Starlight configs inside a
+/// project directory rather than at the workspace root — confirmed by
+/// testing against a real fixture repository, not assumed. `libs/` is
+/// included alongside `apps/`/`packages/` because it's Nx's own original
+/// default convention (predating the newer `packages/` convention this
+/// codebase and the tested fixture both happen to use) — without it,
+/// detection would silently miss an entire, common category of real
+/// workspaces rather than just being "one level short" on an unusual one.
+/// This still never walks into node_modules or recurses more than one
+/// level. Deeper, adapter-driven discovery (frameworks, versions) is later
+/// Phase 5/12 work.
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScan {
@@ -70,11 +76,13 @@ fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
 }
 
 /// The workspace root itself, plus every immediate child directory of
-/// `apps/` and `packages/` (the layout this repository and the observed
-/// real-world fixture both use). One level deep only.
+/// `apps/`, `packages/`, and `libs/` — covering both the newer
+/// (`apps`+`packages`) and original (`apps`+`libs`) Nx conventions, plus
+/// the plain `packages/` layout non-Nx pnpm/npm/Yarn workspaces commonly
+/// use. One level deep only.
 fn candidate_project_dirs(root: &Path, entries: &[String]) -> Vec<PathBuf> {
     let mut dirs = vec![root.to_path_buf()];
-    for group in ["apps", "packages"] {
+    for group in ["apps", "packages", "libs"] {
         if entries.contains(&group.to_string()) {
             if let Ok(read) = fs::read_dir(root.join(group)) {
                 for entry in read.filter_map(|entry| entry.ok()) {
@@ -542,6 +550,48 @@ mod tests {
 
         assert_eq!(scan.storybook_projects, vec!["apps/qa-remote/.storybook".to_string()]);
         assert_eq!(scan.starlight_projects, vec!["apps/starlight".to_string()]);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Same nested-detection guarantee as `detects_storybook_and_starlight_nested_under_apps`,
+    /// but for the original Nx `apps` + `libs` convention rather than the
+    /// newer `apps` + `packages` one — a workspace using `libs/` must not
+    /// be silently treated as having no Storybook at all.
+    #[test]
+    fn detects_storybook_nested_under_libs() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-libs-test-{}", std::process::id()));
+        let ui_kit_storybook = dir.join("libs").join("ui-kit").join(".storybook");
+        fs::create_dir_all(&ui_kit_storybook).unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+        assert_eq!(scan.storybook_projects, vec!["libs/ui-kit/.storybook".to_string()]);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The Storybook/Starlight nested-detection tests above cover those two
+    /// signals specifically; this closes the same gap for Custom Elements
+    /// Manifest detection, which shares the same `candidate_project_dirs`
+    /// but never had its own nested-case test — the code path was
+    /// exercised only at the workspace root before this test existed.
+    #[test]
+    fn detects_a_custom_elements_manifest_nested_under_packages() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-nested-{}", std::process::id()));
+        let button_pkg = dir.join("packages").join("button");
+        fs::create_dir_all(&button_pkg).unwrap();
+        fs::write(
+            button_pkg.join("package.json"),
+            r#"{"name": "@up/button", "customElements": "custom-elements.json"}"#,
+        )
+        .unwrap();
+        fs::write(button_pkg.join("custom-elements.json"), r#"{"schemaVersion": "1.0.0", "modules": []}"#).unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+        assert_eq!(
+            scan.custom_elements_manifests,
+            vec!["packages/button/custom-elements.json".to_string()]
+        );
 
         fs::remove_dir_all(&dir).ok();
     }

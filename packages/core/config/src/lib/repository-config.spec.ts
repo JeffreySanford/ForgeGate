@@ -29,4 +29,20 @@ describe('isWithinSafeWriteLocation', () => {
   it('normalizes backslashes before comparing', () => {
     expect(isWithinSafeWriteLocation('src\\content\\docs\\generated\\button.mdx', safeLocations)).toBe(true);
   });
+
+  it('accepts the safe directory itself, not just files under it', () => {
+    expect(isWithinSafeWriteLocation('src/content/docs/generated', safeLocations)).toBe(true);
+  });
+
+  it('does not treat a sibling directory with a matching name prefix as safe', () => {
+    // Regression test: a prior version stripped trailing "*"s and did a
+    // plain startsWith, so "src/content/docs/generated/**" incorrectly
+    // matched "src/content/docs/generated-other/evil.ts" too.
+    expect(isWithinSafeWriteLocation('src/content/docs/generated-other/evil.ts', safeLocations)).toBe(false);
+  });
+
+  it('requires an exact match for a pattern with no wildcard', () => {
+    expect(isWithinSafeWriteLocation('README.md', ['README.md'])).toBe(true);
+    expect(isWithinSafeWriteLocation('README.md.bak', ['README.md'])).toBe(false);
+  });
 });

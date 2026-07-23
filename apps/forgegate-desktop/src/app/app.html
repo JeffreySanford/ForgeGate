@@ -43,7 +43,7 @@
   }
 
   @if (workspace.customElementsManifest()) {
-    @if (componentManifests().length) {
+    @if (componentMapResult().manifests.length) {
       <h2>Component inventory</h2>
       <table>
         <thead>
@@ -59,7 +59,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (manifest of componentManifests(); track manifest.id) {
+          @for (manifest of componentMapResult().manifests; track manifest.id) {
             <tr>
               <td>{{ manifest.id }}</td>
               <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
@@ -73,8 +73,17 @@
           }
         </tbody>
       </table>
-    } @else {
+    } @else if (!componentMapResult().failures.length) {
       <p>Manifest present but no custom elements found in it.</p>
+    }
+
+    @if (componentMapResult().failures.length) {
+      <p role="alert">
+        {{ componentMapResult().failures.length }} declaration(s) could not be mapped:
+        @for (failure of componentMapResult().failures; track failure.declarationName) {
+          <br />{{ failure.declarationName }} ({{ failure.modulePath }}): {{ failure.message }}
+        }
+      </p>
     }
   }
 
