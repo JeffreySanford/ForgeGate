@@ -2,7 +2,11 @@ use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Duration;
 use tauri_plugin_dialog::DialogExt;
+
+mod command_execution;
+use command_execution::CommandResult;
 
 mod workspace_scan;
 use workspace_scan::{scan_workspace, WorkspaceScan};
@@ -107,26 +111,62 @@ fn read_repository_config_file(path: String) -> Result<Option<String>, String> {
         .map_err(|error| format!("Failed to read {}: {error}", config_path.display()))
 }
 
+/// Resolves a path relative to an already-validated workspace root, and
+/// requires the result to canonicalize to somewhere still inside that root
+/// — so a `relative` containing `..` cannot escape the workspace, even
+/// though the workspace itself was already user-approved via the folder
+/// picker. Shared by every command that reads or runs something at a
+/// workspace-relative location.
+fn resolve_relative_path_within_workspace(
+    workspace: &std::path::Path,
+    relative: &str,
+) -> Result<PathBuf, String> {
+    let candidate = workspace.join(relative);
+    let resolved = candidate
+        .canonicalize()
+        .map_err(|_| format!("{relative} does not exist in this workspace"))?;
+    if !resolved.starts_with(workspace) {
+        return Err(format!("{relative} resolves outside the workspace"));
+    }
+    Ok(resolved)
+}
+
 /// Reads any text file inside the workspace, given a path relative to it —
 /// used for scan-discovered files like a Custom Elements Manifest whose
-/// exact location varies per project. The resolved path is required to
-/// canonicalize to somewhere still inside the workspace root, so a
-/// `relative_path` containing `..` cannot escape it, even though the
-/// workspace itself was already user-approved via the folder picker.
+/// exact location varies per project.
 #[tauri::command]
 fn read_text_file(workspace_path: String, relative_path: String) -> Result<String, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
-    let candidate = workspace.join(&relative_path);
-    let resolved = candidate
-        .canonicalize()
-        .map_err(|_| format!("{relative_path} does not exist in this workspace"))?;
-    if !resolved.starts_with(&workspace) {
-        return Err(format!("{relative_path} resolves outside the workspace"));
-    }
+    let resolved = resolve_relative_path_within_workspace(&workspace, &relative_path)?;
     if !resolved.is_file() {
         return Err(format!("{relative_path} is not a file"));
     }
     fs::read_to_string(&resolved).map_err(|error| format!("Failed to read {relative_path}: {error}"))
+}
+
+/// Runs one specific, caller-supplied command and argument list — never a
+/// shell string, so there is no shell-injection surface — inside a
+/// workspace-relative working directory, with a hard timeout. The UI is
+/// responsible for showing the resolved command to the user and requiring
+/// an explicit approval click before ever invoking this, per the "Command
+/// execution flow" in documentation/02-system-architecture.md. This first
+/// slice does not stream output live or support mid-run cancellation; the
+/// full result is only available once the process finishes or is killed
+/// for exceeding `timeout_seconds`.
+#[tauri::command]
+fn run_workspace_command(
+    workspace_path: String,
+    relative_cwd: String,
+    command: String,
+    args: Vec<String>,
+    timeout_seconds: u64,
+) -> Result<CommandResult, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    let cwd = resolve_relative_path_within_workspace(&workspace, &relative_cwd)?;
+    if !cwd.is_dir() {
+        return Err(format!("{relative_cwd} is not a directory"));
+    }
+    command_execution::run_command(&cwd, &command, &args, Duration::from_secs(timeout_seconds))
 }
 
 #[cfg(test)]
@@ -227,6 +267,37 @@ mod tests {
     }
 
     #[test]
+    fn runs_an_approved_command_in_the_workspace() {
+        let result = run_workspace_command(
+            std::env::temp_dir().display().to_string(),
+            ".".to_string(),
+            "git".to_string(),
+            vec!["--version".to_string()],
+            10,
+        )
+        .expect("running git --version in the temp dir should succeed");
+        assert_eq!(result.exit_code, Some(0));
+    }
+
+    #[test]
+    fn rejects_a_working_directory_that_escapes_the_workspace() {
+        let dir = std::env::temp_dir().join(format!("forgegate-run-cmd-escape-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("should create temp dir");
+
+        let error = run_workspace_command(
+            dir.display().to_string(),
+            "..".to_string(),
+            "git".to_string(),
+            vec!["--version".to_string()],
+            10,
+        )
+        .expect_err("a working directory outside the workspace must be rejected");
+        assert!(error.contains("resolves outside"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn reads_git_status_of_the_forgegate_repository() {
         // CARGO_MANIFEST_DIR is .../apps/forgegate-desktop/src-tauri; the
         // repository root is three levels up.
@@ -264,7 +335,8 @@ pub fn run() {
             read_git_status,
             read_workspace_scan,
             read_repository_config_file,
-            read_text_file
+            read_text_file,
+            run_workspace_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

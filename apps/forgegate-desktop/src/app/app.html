@@ -59,6 +59,37 @@
     <p role="alert">Custom Elements Manifest could not be read: {{ cemError }}</p>
   }
 
+  @if (workspace.workspaceScan(); as scanForCem) {
+    @if (!scanForCem.customElementsManifests.length) {
+      <section>
+        <p>No Custom Elements Manifest was found. ForgeGate can try to generate one:</p>
+        <p><code>{{ generateCemCommandText }}</code></p>
+        <button
+          type="button"
+          [disabled]="workspace.cemGenerationRunning()"
+          (click)="generateCustomElementsManifest()"
+        >
+          {{ workspace.cemGenerationRunning() ? 'Running…' : 'Generate Custom Elements Manifest' }}
+        </button>
+
+        @if (workspace.cemGenerationResult(); as cemRunResult) {
+          <dl>
+            <dt>Exit code</dt>
+            <dd>{{ cemRunResult.exitCode ?? (cemRunResult.timedOut ? 'timed out' : 'unknown') }}</dd>
+            @if (cemRunResult.stderr) {
+              <dt>Error output</dt>
+              <dd><pre>{{ cemRunResult.stderr }}</pre></dd>
+            }
+          </dl>
+        }
+
+        @if (workspace.cemGenerationError(); as cemGenError) {
+          <p role="alert">{{ cemGenError }}</p>
+        }
+      </section>
+    }
+  }
+
   @if (workspace.repositoryConfig(); as config) {
     <dl>
       <dt>Repository configuration</dt>

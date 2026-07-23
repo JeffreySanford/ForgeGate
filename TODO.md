@@ -297,7 +297,7 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 
 ## Component discovery
 
-- [ ] Discover Lit and Web Components. Real progress, still not end to end. What now works, wired through the actual app: `workspace_scan.rs`'s `detect_custom_elements_manifests` finds a package's CEM via its `package.json` `"customElements"` field (the spec-standard convention) or the conventional `custom-elements.json` filename, one level into `apps/*`/`packages/*`; a new generic `read_text_file` Tauri command (path-traversal-checked — the resolved file must canonicalize to somewhere still inside the workspace) reads it; `WorkspaceService` parses it (`parseCustomElementsManifest`, schema-checked) and the UI lists the discovered custom-element tag names. What's still missing: *producing* a CEM for the (much more common) case where a repository doesn't already publish one — that needs `@custom-elements-manifest/analyzer` run through the user-approved command-execution UI from `02-system-architecture.md`'s "Command execution flow", which doesn't exist yet. Real-world check: Public Sector Federation (the fixture used throughout Phase 3) doesn't publish a CEM at all — it's Angular/PrimeNG-based — so this round's validation used synthetic fixtures replicating the real `package.json` `"customElements"` pattern rather than a live hit; a genuine Web Components fixture is still needed to validate this for real.
+- [ ] Discover Lit and Web Components. Real progress, closer to end to end. What now works, wired through the actual app: `workspace_scan.rs`'s `detect_custom_elements_manifests` finds a package's CEM via its `package.json` `"customElements"` field or the conventional `custom-elements.json` filename, one level into `apps/*`/`packages/*`; `read_text_file` reads it (path-traversal-checked); `WorkspaceService` parses it (schema-checked) and the UI lists discovered custom-element tag names. **New this round**: when no CEM is found, the app can now offer to *generate* one — a "Generate Custom Elements Manifest" button runs `npx @custom-elements-manifest/analyze` via the new `run_workspace_command` executor (see "Command execution engine" below), after showing the exact command and requiring an explicit approval click, and refreshes the scan/manifest automatically on success. Still not a complete story: the analyzer always targets the workspace *root* with fixed flags (`--litelement --outdir .`) — there's no per-package targeting for a real monorepo, and no retry/guidance if `npx`/Node isn't available. Real-world check: Public Sector Federation doesn't publish a CEM (Angular/PrimeNG, not raw Web Components) and this environment has no standalone Web Components fixture to run the analyzer against for a true end-to-end check — validated via Rust/TS unit tests (mocked `npx` invocation, real process execution against `git` as a stand-in) rather than a live analyzer run.
 - [ ] Discover Angular components.
 - [ ] Discover React components.
 - [ ] Discover Vue components.
@@ -396,15 +396,19 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 
 ## Command execution engine
 
-- [ ] Define allowed commands in repository configuration.
-- [ ] Display exact command and working directory before execution.
-- [ ] Stream output.
-- [ ] Support cancellation.
-- [ ] Enforce timeout.
-- [ ] Capture exit code, duration, environment, and tool versions.
-- [ ] Redact secrets from logs.
-- [ ] Preserve raw artifacts.
-- [ ] Detect missing dependencies and offer actionable guidance.
+A first real slice landed early, from Phase 4 (see "Component discovery" above): `run_workspace_command` (Rust, `command_execution.rs`) runs one caller-supplied `command` + `args` — never a shell string, so there's no shell-injection surface — inside a workspace-relative, path-validated working directory, with a server-enforced timeout (kill + report `timedOut: true` if exceeded). Currently used for exactly one purpose: generating a Custom Elements Manifest via `npx @custom-elements-manifest/analyze`, with the command text shown to the user and an explicit approval click required before it runs.
+
+- [ ] Define allowed commands in repository configuration. Not done — the CEM-generation command is hardcoded in `WorkspaceService`, not sourced from `.forgegate/config.yaml`'s `commandMappings`. General gate commands (unit, lint, build, ...) aren't wired to this executor at all yet.
+- [X} Display exact command and working directory before execution — for the one command this executes today. `GENERATE_CEM_COMMAND_TEXT` is shown in `app.html` before the button that triggers it. The working directory itself (workspace root) is implied, not separately displayed — minor gap.
+- [ ] Stream output. Not done — the full result (stdout/stderr/exit code) is only available once the process finishes or is killed. Genuine live streaming needs Tauri event emission from the running child process, a bigger lift than this first slice.
+- [ ] Support cancellation. Not done — no mid-run cancel exists; only the server-side timeout can stop a running command.
+- [X} Enforce timeout. Server-side, via a `try_wait` polling loop with a hard kill — not just a UI-side abandon. 1 Rust test verifies a genuinely slow command (`Start-Sleep`/`sleep`) gets killed well before it would finish on its own.
+- [X} Capture exit code and duration. `CommandResult.exitCode`/`durationMs`. **Not captured**: environment variables used, or tool versions — noted as a gap, not silently included as if done.
+- [ ] Redact secrets from logs. Not done — not yet relevant, since the one command this runs today (`npx @custom-elements-manifest/analyze`) takes no secrets, but this must exist before any gate command that might (e.g. one touching an API token) is wired in.
+- [ ] Preserve raw artifacts. Not done — a `CommandResult` is only ever shown transiently in the UI; nothing persists it, so there's no artifact/evidence trail yet. This matters once command execution feeds the evidence model from Phase 2 (`TestExecution`, `core-evidence`) — not connected yet.
+- [ ] Detect missing dependencies and offer actionable guidance. Not done — if `npx` isn't on `PATH`, the user sees Rust's generic "Failed to start" error, not friendly guidance ("Node.js/npm not found — install it and try again").
+
+7 new Rust tests (`command_execution.rs`: successful exit, non-zero exit, failed-to-start, timeout-and-kill; `lib.rs`: runs an approved command, rejects an escaping working directory) plus a shared `resolve_relative_path_within_workspace` helper (refactored out of `read_text_file`, now used by both). 4 new `WorkspaceService` tests (no-op before a workspace is selected, successful run refreshes the scan/manifest, non-zero exit doesn't disturb the existing scan, failure-to-start reports on its own signal).
 
 ## Test adapters
 

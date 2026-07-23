@@ -167,6 +167,83 @@ describe('WorkspaceService', () => {
     expect(service.customElementsManifestError()).toBe('dist/custom-elements.json does not exist in this workspace');
   });
 
+  it('does nothing if asked to generate a manifest before a workspace is selected', async () => {
+    await service.generateCustomElementsManifest();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it('runs the analyzer and refreshes the scan and manifest on a successful exit', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+    await service.selectWorkspace();
+    invokeMock.mockReset();
+
+    const cemJson = JSON.stringify({ schemaVersion: '1.0.0', modules: [] });
+    invokeMock
+      .mockResolvedValueOnce({ exitCode: 0, stdout: 'wrote custom-elements.json', stderr: '', timedOut: false, durationMs: 900 })
+      .mockResolvedValueOnce(scanFixtureWithCem)
+      .mockResolvedValueOnce(cemJson);
+
+    await service.generateCustomElementsManifest();
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
+      workspacePath: 'D:/repos/ForgeGate',
+      relativeCwd: '.',
+      command: 'npx',
+      args: ['@custom-elements-manifest/analyze', '--litelement', '--outdir', '.'],
+      timeoutSeconds: 120,
+    });
+    expect(service.cemGenerationResult()?.exitCode).toBe(0);
+    expect(service.workspaceScan()).toEqual(scanFixtureWithCem);
+    expect(service.customElementsManifest()).not.toBeNull();
+    expect(service.cemGenerationRunning()).toBe(false);
+  });
+
+  it('reports a non-zero exit without touching the existing scan or manifest', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+    await service.selectWorkspace();
+    invokeMock.mockReset();
+
+    invokeMock.mockResolvedValueOnce({
+      exitCode: 1,
+      stdout: '',
+      stderr: 'command not found: npx',
+      timedOut: false,
+      durationMs: 50,
+    });
+
+    await service.generateCustomElementsManifest();
+
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(service.cemGenerationResult()?.exitCode).toBe(1);
+    expect(service.workspaceScan()).toEqual(scanFixture);
+    expect(service.customElementsManifest()).toBeNull();
+  });
+
+  it('reports a failure to even start the analyzer on its own signal', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+    await service.selectWorkspace();
+    invokeMock.mockReset();
+
+    invokeMock.mockRejectedValueOnce('Failed to start "npx": program not found');
+
+    await service.generateCustomElementsManifest();
+
+    expect(service.cemGenerationError()).toBe('Failed to start "npx": program not found');
+    expect(service.cemGenerationRunning()).toBe(false);
+  });
+
   it('surfaces an error and clears Git status, scan, and config when the status read fails', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/not-a-git-repo')
