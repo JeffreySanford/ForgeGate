@@ -2,6 +2,7 @@
   "name": "forgegate",
   "version": "0.0.0",
   "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.2",
   "scripts": {
     "desktop:dev": "cd apps/forgegate-desktop/src-tauri && tauri dev",
     "desktop:build": "cd apps/forgegate-desktop/src-tauri && tauri build"
