@@ -1,0 +1,9 @@
+{
+  "name": "core-domain",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/core/domain/src",
+  "projectType": "library",
+  "tags": ["scope:core"],
+  "// targets": "to see all targets run: nx show project core-domain --web",
+  "targets": {}
+}

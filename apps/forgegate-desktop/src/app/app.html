@@ -1,0 +1,24 @@
+<main class="workspace-placeholder">
+  <h1>ForgeGate</h1>
+  <button type="button" (click)="openWorkspace()">Open workspace…</button>
+
+  @if (workspace.workspacePath(); as path) {
+    <p>Workspace: {{ path }}</p>
+  }
+
+  @if (workspace.gitStatus(); as status) {
+    <dl>
+      <dt>Branch</dt>
+      <dd>{{ status.branch }}</dd>
+      <dt>Commit</dt>
+      <dd>{{ status.commit }}</dd>
+      <dt>Dirty</dt>
+      <dd>{{ status.dirty ? 'Yes' : 'No' }}</dd>
+    </dl>
+  }
+
+  @if (workspace.error(); as error) {
+    <p role="alert">{{ error }}</p>
+  }
+</main>
+<router-outlet></router-outlet>

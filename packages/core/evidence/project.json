@@ -1,0 +1,9 @@
+{
+  "name": "core-evidence",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/core/evidence/src",
+  "projectType": "library",
+  "tags": ["scope:core"],
+  "// targets": "to see all targets run: nx show project core-evidence --web",
+  "targets": {}
+}

@@ -1,0 +1,25 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "paths": {
+      "@forgegate/core-domain": ["./packages/core/domain/src/index.ts"],
+      "@forgegate/core-manifest": ["./packages/core/manifest/src/index.ts"],
+      "@forgegate/core-evidence": ["./packages/core/evidence/src/index.ts"],
+      "@forgegate/core-policy": ["./packages/core/policy/src/index.ts"],
+      "@forgegate/adapter-sdk": ["./packages/adapters/sdk/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}
