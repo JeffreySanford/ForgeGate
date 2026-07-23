@@ -1,0 +1,123 @@
+<div class="components-page">
+  <h1>Components</h1>
+
+  @if (!workspace.workspacePath()) {
+    <p class="components-page__empty">No workspace open yet. Use "Open workspace…" above to select a repository.</p>
+  } @else if (!workspace.customElementsManifest()) {
+    <p class="components-page__empty">
+      No Custom Elements Manifest is connected for this workspace. Open the <a routerLink="/workspace">workspace page</a>
+      to generate or locate one.
+    </p>
+  } @else {
+    @if (manifests().length === 0 && failures().length === 0) {
+      <p class="components-page__empty">The connected manifest declares no custom elements.</p>
+    } @else {
+      <div class="components-page__controls">
+        <label class="components-page__search">
+          <span>Search</span>
+          <input
+            type="search"
+            placeholder="Name or tag…"
+            [value]="searchText()"
+            (input)="searchText.set($any($event.target).value)"
+          />
+        </label>
+
+        <label class="components-page__filter">
+          <span>Lifecycle</span>
+          <select [value]="lifecycleFilter()" (change)="lifecycleFilter.set($any($event.target).value)">
+            <option value="all">All</option>
+            @for (option of lifecycleOptions(); track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="components-page__filter components-page__filter--checkbox">
+          <input
+            type="checkbox"
+            [checked]="missingEvidenceOnly()"
+            (change)="missingEvidenceOnly.set($any($event.target).checked)"
+          />
+          <span>Missing evidence only</span>
+        </label>
+
+        <div class="components-page__view-toggle" role="group" aria-label="View">
+          <button type="button" [class.is-active]="viewMode() === 'table'" (click)="setViewMode('table')">Table</button>
+          <button type="button" [class.is-active]="viewMode() === 'cards'" (click)="setViewMode('cards')">Cards</button>
+        </div>
+      </div>
+
+      @if (filtered().length === 0) {
+        <p class="components-page__empty">No components match the current search and filters.</p>
+      } @else if (viewMode() === 'table') {
+        <table>
+          <caption class="sr-only">Component inventory</caption>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Framework</th>
+              <th scope="col">Package</th>
+              <th scope="col">Lifecycle</th>
+              <th scope="col">Readiness</th>
+              <th scope="col">States</th>
+              <th scope="col">Reviews</th>
+              <th scope="col">Documentation</th>
+              <th scope="col">Owner</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (manifest of filtered(); track manifest.id) {
+              <tr>
+                <th scope="row">
+                  <a [routerLink]="['/components', manifest.id]">{{ componentName(manifest.id) }}</a>
+                  <span class="components-page__id">{{ manifest.id }}</span>
+                </th>
+                <td>{{ manifest.framework }}</td>
+                <td>{{ packageId(manifest.id) }}</td>
+                <td>{{ manifest.lifecycle }}</td>
+                <td>Unknown — no evidence connected</td>
+                <td>{{ stateCoverageLabel(manifest) }}</td>
+                <td>{{ reviewStatusLabel(manifest) }}</td>
+                <td>{{ documentationStatusLabel(manifest) }}</td>
+                <td>{{ ownerLabel(manifest) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <ul class="components-page__cards">
+          @for (manifest of filtered(); track manifest.id) {
+            <li class="component-card">
+              <a class="component-card__link" [routerLink]="['/components', manifest.id]">
+                <h2>{{ componentName(manifest.id) }}</h2>
+                <p class="component-card__id">{{ manifest.id }}</p>
+                <dl>
+                  <dt>Framework</dt>
+                  <dd>{{ manifest.framework }}</dd>
+                  <dt>Lifecycle</dt>
+                  <dd>{{ manifest.lifecycle }}</dd>
+                  <dt>Readiness</dt>
+                  <dd>Unknown — no evidence connected</dd>
+                  <dt>States</dt>
+                  <dd>{{ stateCoverageLabel(manifest) }}</dd>
+                  <dt>Owner</dt>
+                  <dd>{{ ownerLabel(manifest) }}</dd>
+                </dl>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    }
+
+    @if (failures().length) {
+      <p role="alert" class="components-page__failures">
+        {{ failures().length }} declaration(s) could not be mapped:
+        @for (failure of failures(); track failure.declarationName) {
+          <br />{{ failure.declarationName }} ({{ failure.modulePath }}): {{ failure.message }}
+        }
+      </p>
+    }
+  }
+</div>

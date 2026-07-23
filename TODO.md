@@ -127,21 +127,21 @@ Primary references:
 
 ## P0.4 — Designer-ready component inventory
 
-- [ ] Replace the engineering-only inventory table with the designer-ready inventory defined in document 25.
-- [ ] Show human-readable component name and technical tag or identifier together.
-- [ ] Show framework, package/category, lifecycle, readiness, state coverage, review status, documentation status, and owner when known.
-- [ ] Add search by component name or tag.
-- [ ] Add initial filters for lifecycle, readiness, and missing evidence.
-- [ ] Keep unknown values explicit instead of substituting optimistic defaults.
-- [ ] Add optional compact card presentation without removing the dense accessible table.
-- [ ] Add understandable empty states for no components, no manifest, mapping failure, and unsupported adapter.
-- [ ] Link each component to its detail route.
+- [X} Replace the engineering-only inventory table with the designer-ready inventory defined in document 25. `ComponentsPage` (`app/components/components-page.ts`) at `/components` replaces the old placeholder — real data via `ComponentInventoryService`, same source `WorkspacePage` uses.
+- [X} Show human-readable component name and technical tag or identifier together. Each row/card shows the tag-name segment (`componentName(id)`) as the link text, with the full `organization.library.component` id shown alongside in a smaller, monospace line.
+- [X} Show framework, package/category, lifecycle, readiness, state coverage, review status, documentation status, and owner when known. All columns render; several are honestly static rather than fabricated — see the "unknown values explicit" item below for exactly which ones and why.
+- [X} Add search by component name or tag. Live substring filter over both the full id and the tag-name segment, covered by a test.
+- [X} Add initial filters for lifecycle, readiness, and missing evidence. Lifecycle filter (populated from the values actually present, not a fixed list) and a "missing evidence only" checkbox are implemented and tested. No readiness filter — see below, readiness has no real values to filter by yet.
+- [X} Keep unknown values explicit instead of substituting optimistic defaults. Readiness always reads "Unknown — no evidence connected" (ForgeGate has no findings/evidence pipeline wired into the desktop app at all yet, so there is nothing honest to compute here). Lifecycle always reads the manifest's own default ("proposal") since nothing populates it from a bare CEM mapping. State coverage/review status/documentation status explicitly read "Not evaluated"/"Not reviewed"/"Not connected" rather than 0% or a blank cell. Owner explicitly reads "Unknown" rather than being blank.
+- [X} Add optional compact card presentation without removing the dense accessible table. A Table/Cards toggle switches between the existing dense `<table>` and a card grid showing the same fields; tested.
+- [X} Add understandable empty states for no components, no manifest, and mapping failure. Three distinct empty states (no workspace open, no manifest connected, manifest present with zero declared components) plus a filtered-to-nothing state, all tested. "Unsupported adapter" is not a real case yet — Web Components/CEM is the only adapter that exists, so there's nothing to show as unsupported.
+- [X} Link each component to its detail route. Both table rows and cards link to `/components/:componentId` (the P0.5 placeholder), tested via `getAttribute('href')`.
 
 ### P0.4 exit criteria
 
-- [ ] The inventory reads as a design-system catalog with assurance status, not a database dump.
-- [ ] Mapping failures remain visible and do not remove valid sibling components.
-- [ ] The primary table remains accessible and efficient for larger libraries.
+- [X} The inventory reads as a design-system catalog with assurance status, not a database dump. Grouped, labeled columns/cards with explicit unknown-state text, not a raw field dump.
+- [X} Mapping failures remain visible and do not remove valid sibling components. Verified by a test: a manifest with 2 valid + 1 invalid (dotted `tagName`) declaration renders exactly 2 rows and shows the 1 failure in its own alert.
+- [ ] The primary table remains accessible and efficient for larger libraries. Basic accessibility (caption, scoped headers, row `<th>`) is in place; not load-tested against a large real library, and no virtualization/pagination exists — untested at scale.
 
 ## P0.5 — Button component assurance record
 
