@@ -7,7 +7,10 @@
     "frontendDist": "../../../dist/apps/forgegate-desktop/browser",
     "devUrl": "http://localhost:4200",
     "beforeDevCommand": "pnpm nx run forgegate-desktop:serve",
-    "beforeBuildCommand": "pnpm nx run forgegate-desktop:build"
+    "beforeBuildCommand": {
+      "script": "pnpm nx run forgegate-desktop:build",
+      "cwd": "../../.."
+    }
   },
   "app": {
     "windows": [
