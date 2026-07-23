@@ -133,7 +133,7 @@ The completed marker intentionally follows the project convention requested for 
 - [X} A user can select a local folder. Native OS picker only, via `select_workspace`.
 - [X} The application can read approved files without unrestricted filesystem access. `read_git_status` validates the path is absolute and resolves to a real directory before any process runs against it.
 - [ ] Privileged operations are visible, cancellable, and auditable. Not yet — no audit log, no cancellation exists yet since there are no long-running operations.
-- [X} CI passes from a clean checkout. Not yet verified on an actual GitHub Actions run — only locally.
+- [X} CI passes from a clean checkout. Verified on GitHub Actions (run 29969275732, 2026-07-23): lint, test, build, typecheck, and cargo-test all green on a fresh Ubuntu runner.
 
 ---
 
