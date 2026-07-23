@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 /// repository, not assumed. This still never walks into node_modules or
 /// recurses more than one level. Deeper, adapter-driven discovery
 /// (frameworks, versions) is later Phase 5/12 work.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScan {
     package_manager: Option<String>,
@@ -26,32 +26,39 @@ pub struct WorkspaceScan {
     ci_providers: Vec<String>,
 }
 
-pub fn scan_workspace(root: &Path) -> WorkspaceScan {
-    let entries = top_level_entry_names(root);
+/// Fails loudly if the workspace root itself cannot be read (permissions,
+/// removed mid-scan, etc.) rather than silently reporting an empty scan —
+/// per TODO.md's Phase 3 exit criterion "discovery errors are actionable
+/// rather than silent". Nested, best-effort reads (an optional `apps/*`
+/// project directory, a missing `tokens/` folder) are allowed to come back
+/// empty without erroring the whole scan: a missing optional thing is a
+/// normal "not found" result, not a discovery failure.
+pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
+    let entries = top_level_entry_names(root)?;
     let package_json = read_package_json(root, &entries);
     let project_dirs = candidate_project_dirs(root, &entries);
 
-    WorkspaceScan {
+    Ok(WorkspaceScan {
         package_manager: detect_package_manager(&entries),
         workspace_manager: detect_workspace_manager(&entries, package_json.as_ref()),
         storybook_projects: detect_storybook_projects(root, &project_dirs),
         starlight_projects: detect_starlight_projects(root, &project_dirs),
         has_zeroheight: detect_zeroheight(&entries, package_json.as_ref()),
-        token_files: detect_token_files(root, &entries),
+        token_files: detect_token_files(root, &project_dirs),
         test_runners: detect_test_runners(&entries),
         visual_regression_providers: detect_visual_regression_providers(package_json.as_ref()),
         ci_providers: detect_ci_providers(root, &entries),
-    }
+    })
 }
 
-fn top_level_entry_names(root: &Path) -> Vec<String> {
-    fs::read_dir(root)
-        .map(|dir| {
-            dir.filter_map(|entry| entry.ok())
-                .filter_map(|entry| entry.file_name().into_string().ok())
-                .collect()
-        })
-        .unwrap_or_default()
+fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
+    let dir = fs::read_dir(root).map_err(|error| {
+        format!("Could not read workspace directory {}: {error}", root.display())
+    })?;
+    Ok(dir
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect())
 }
 
 /// The workspace root itself, plus every immediate child directory of
@@ -175,25 +182,43 @@ fn detect_zeroheight(entries: &[String], package_json: Option<&Value>) -> bool {
     has_config_file || mentioned_in_package_json
 }
 
-fn detect_token_files(root: &Path, entries: &[String]) -> Vec<String> {
-    let is_token_file = |name: &str| name.ends_with(".tokens.json") || name.ends_with(".tokens");
+/// Content-aware, not filename-aware: real repositories don't reliably name
+/// token files `*.tokens.json` (confirmed by testing against a real design
+/// system, whose tokens are `design-tokens.json`, `primitives.json`, etc.).
+/// A `.json` file counts as a token file if its name follows the DTCG-suffix
+/// convention (`*.tokens.json`/`*.tokens`) OR its contents contain a DTCG
+/// `"$value"`/`"$type"` marker, per documentation/23-design-tokens-and-figma-bridge.md.
+/// Searched locations: each candidate project directory's top level, plus
+/// one more level into `src/`, `tokens/`, and `design-tokens/` inside it —
+/// enough to reach the real fixture's `packages/tokens/src/*.json` without
+/// scanning the whole tree.
+fn detect_token_files(root: &Path, project_dirs: &[PathBuf]) -> Vec<String> {
+    let is_dtcg_named = |name: &str| name.ends_with(".tokens.json") || name.ends_with(".tokens");
+    let mut found = Vec::new();
 
-    let mut found: Vec<String> = entries
-        .iter()
-        .filter(|name| is_token_file(name))
-        .cloned()
-        .collect();
-
-    for dir_name in ["tokens", "design-tokens"] {
-        if entries.contains(&dir_name.to_string()) {
-            let dir_path = root.join(dir_name);
-            if let Ok(dir) = fs::read_dir(&dir_path) {
-                for entry in dir.filter_map(|entry| entry.ok()) {
-                    if let Ok(name) = entry.file_name().into_string() {
-                        if is_token_file(&name) {
-                            found.push(format!("{dir_name}/{name}"));
-                        }
-                    }
+    for project_dir in project_dirs {
+        for search_dir in [
+            project_dir.clone(),
+            project_dir.join("src"),
+            project_dir.join("tokens"),
+            project_dir.join("design-tokens"),
+        ] {
+            let Ok(read) = fs::read_dir(&search_dir) else {
+                continue;
+            };
+            for entry in read.filter_map(|entry| entry.ok()) {
+                let Ok(name) = entry.file_name().into_string() else {
+                    continue;
+                };
+                if !name.ends_with(".json") && !is_dtcg_named(&name) {
+                    continue;
+                }
+                let file_path = search_dir.join(&name);
+                let has_dtcg_marker = fs::read_to_string(&file_path)
+                    .map(|contents| contents.contains("\"$value\"") || contents.contains("\"$type\""))
+                    .unwrap_or(false);
+                if is_dtcg_named(&name) || has_dtcg_marker {
+                    found.push(relative_display(root, &file_path));
                 }
             }
         }
@@ -284,7 +309,7 @@ mod tests {
 
     #[test]
     fn detects_this_repository_correctly() {
-        let scan = scan_workspace(&repository_root());
+        let scan = scan_workspace(&repository_root()).expect("scan should succeed");
 
         assert_eq!(scan.package_manager, Some("pnpm".to_string()));
         assert_eq!(scan.workspace_manager, Some("nx".to_string()));
@@ -303,7 +328,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("forgegate-scan-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
 
-        let scan = scan_workspace(&dir);
+        let scan = scan_workspace(&dir).expect("scan should succeed");
 
         assert_eq!(scan.package_manager, None);
         assert_eq!(scan.workspace_manager, None);
@@ -319,13 +344,22 @@ mod tests {
     }
 
     #[test]
+    fn reports_an_actionable_error_when_the_workspace_directory_cannot_be_read() {
+        let missing = std::env::temp_dir().join(format!("forgegate-scan-missing-{}", std::process::id()));
+        // Deliberately not created — read_dir must fail.
+
+        let error = scan_workspace(&missing).expect_err("scan should fail for a nonexistent directory");
+        assert!(error.contains("Could not read workspace directory"));
+    }
+
+    #[test]
     fn prefers_pnpm_over_npm_when_both_lockfiles_are_present() {
         let dir = std::env::temp_dir().join(format!("forgegate-scan-pm-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(dir.join("pnpm-lock.yaml"), "").unwrap();
         fs::write(dir.join("package-lock.json"), "").unwrap();
 
-        let scan = scan_workspace(&dir);
+        let scan = scan_workspace(&dir).expect("scan should succeed");
         assert_eq!(scan.package_manager, Some("pnpm".to_string()));
 
         fs::remove_dir_all(&dir).ok();
@@ -338,7 +372,7 @@ mod tests {
         fs::write(dir.join("nx.json"), "{}").unwrap();
         fs::write(dir.join("turbo.json"), "{}").unwrap();
 
-        let scan = scan_workspace(&dir);
+        let scan = scan_workspace(&dir).expect("scan should succeed");
         assert_eq!(scan.workspace_manager, Some("nx".to_string()));
 
         fs::remove_dir_all(&dir).ok();
@@ -350,7 +384,7 @@ mod tests {
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(dir.join("package.json"), r#"{"workspaces": ["packages/*"]}"#).unwrap();
 
-        let scan = scan_workspace(&dir);
+        let scan = scan_workspace(&dir).expect("scan should succeed");
         assert_eq!(scan.workspace_manager, Some("package-json-workspaces".to_string()));
 
         fs::remove_dir_all(&dir).ok();
@@ -366,7 +400,7 @@ mod tests {
         )
         .unwrap();
 
-        let scan = scan_workspace(&dir);
+        let scan = scan_workspace(&dir).expect("scan should succeed");
         assert!(scan.visual_regression_providers.contains(&"chromatic".to_string()));
         assert!(scan.visual_regression_providers.contains(&"percy".to_string()));
 
@@ -379,7 +413,7 @@ mod tests {
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(dir.join("zeroheight.config.json"), "{}").unwrap();
 
-        let scan = scan_workspace(&dir);
+        let scan = scan_workspace(&dir).expect("scan should succeed");
         assert!(scan.has_zeroheight);
 
         fs::remove_dir_all(&dir).ok();
@@ -403,10 +437,51 @@ mod tests {
         )
         .unwrap();
 
-        let scan = scan_workspace(&dir);
+        let scan = scan_workspace(&dir).expect("scan should succeed");
 
         assert_eq!(scan.storybook_projects, vec!["apps/qa-remote/.storybook".to_string()]);
         assert_eq!(scan.starlight_projects, vec!["apps/starlight".to_string()]);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Replicates the real fixture's actual token layout — a `tokens`
+    /// package under `packages/`, whose real content lives one level
+    /// further in `src/`, named plainly (`design-tokens.json`, not
+    /// `*.tokens.json`). The previous filename-only detection found nothing
+    /// here; content-aware detection must find it via the DTCG "$value" marker.
+    #[test]
+    fn detects_dtcg_token_files_by_content_even_with_a_plain_filename() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-dtcg-test-{}", std::process::id()));
+        let tokens_src = dir.join("packages").join("tokens").join("src");
+        fs::create_dir_all(&tokens_src).unwrap();
+        fs::write(
+            tokens_src.join("design-tokens.json"),
+            r##"{"color": {"primary": {"$type": "color", "$value": "#0B5FFF"}}}"##,
+        )
+        .unwrap();
+        // A same-directory JSON file with no DTCG markers must NOT be reported.
+        fs::write(tokens_src.join("index.json"), r#"{"main": "./index.ts"}"#).unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+
+        assert_eq!(
+            scan.token_files,
+            vec!["packages/tokens/src/design-tokens.json".to_string()]
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn still_detects_a_dtcg_suffixed_filename_even_without_content_markers() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-dtcg-suffix-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("brand.tokens.json"), "{}").unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+
+        assert_eq!(scan.token_files, vec!["brand.tokens.json".to_string()]);
 
         fs::remove_dir_all(&dir).ok();
     }

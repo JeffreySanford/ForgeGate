@@ -76,7 +76,7 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
 #[tauri::command]
 fn read_workspace_scan(path: String) -> Result<WorkspaceScan, String> {
     let workspace = resolve_workspace_path(&path)?;
-    Ok(scan_workspace(&workspace))
+    scan_workspace(&workspace)
 }
 
 #[cfg(test)]
