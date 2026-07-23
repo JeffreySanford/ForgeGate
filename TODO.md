@@ -275,23 +275,25 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 
 ## Manifest specification
 
-- [ ] Define `.forgegate/components/<component-id>.yaml`.
-- [ ] Support JSON and YAML serialization.
-- [ ] Define component identity and package location.
-- [ ] Define framework and adapter identity.
-- [ ] Define source files.
-- [ ] Define public inputs, outputs, events, slots, parts, attributes, and CSS properties.
-- [ ] Define states and variants.
-- [ ] Define themes, densities, viewports, and environments.
-- [ ] Define token mappings.
-- [ ] Define story mappings.
-- [ ] Define test requirements.
-- [ ] Define manual review requirements.
-- [ ] Define documentation targets.
-- [ ] Define consumer-application mappings.
-- [ ] Define ownership and reviewers.
-- [ ] Define release policy inheritance.
-- [ ] Define deprecation and replacement metadata.
+- [X} Define `.forgegate/components/<component-id>.yaml`. `ComponentManifest` type, `componentManifestPath()`, in `packages/core/manifest/src/lib/component-manifest.ts`. Not yet wired to a Tauri read/write command — same "types and schema exist, filesystem wiring doesn't yet" state as the Phase 3 repository config work.
+- [X} Support JSON and YAML serialization. YAML via `parseComponentManifest`/`serializeComponentManifest` (round-trip tested); JSON works for free since a `ComponentManifest` is a plain object (`JSON.stringify`/`JSON.parse`) — no dedicated JSON codec needed.
+- [X} Define component identity and package location. `id` (`organization.library.component`, pattern-validated) and `packagePath`.
+- [X} Define framework and adapter identity. `framework`/`adapter` string fields.
+- [X} Define source files. `sourceFiles: readonly string[]`.
+- [X} Define public inputs, outputs, events, slots, parts, attributes, and CSS properties — with a known simplification: `ManifestContract` reuses the Phase 2 `ContractMember` shape (`inputs`/`outputs`/`content`/`publicMethods`/`styleParts`). Events fold into `outputs`; attributes and CSS custom properties fold into `styleParts` rather than getting their own fields. Documented as a simplification, not hidden.
+- [X} Define states and variants. `ManifestState[]` (`states`).
+- [X} Define themes, densities, viewports, and environments. Plain string arrays (`themes`, `densities`, `viewports`, `environments`).
+- [X} Define token mappings. `ManifestTokenMapping[]` (`tokenMappings`).
+- [X} Define story mappings. `ManifestStoryMapping[]` (`storyMappings`).
+- [X} Define test requirements. `ManifestTestRequirement[]` (`testRequirements`).
+- [X} Define manual review requirements. `manualReviewProcedureIds: readonly string[]` — procedure IDs only; the full `ManualProcedure` entity is still deferred (see Phase 2 notes).
+- [X} Define documentation targets. `ManifestDocumentationTarget[]` (`documentationTargets`).
+- [X} Define consumer-application mappings. `consumerApplicationIds: readonly string[]`.
+- [X} Define ownership and reviewers. `owner?: string`, `reviewers: readonly string[]`.
+- [X} Define release policy inheritance. `policyId?: string`.
+- [X} Define deprecation and replacement metadata. `deprecatedInFavorOf?: string`, `deprecationNotice?: string`.
+
+26 tests (`component-manifest.spec.ts`, `component-manifest-schema.spec.ts`, `component-manifest-yaml.spec.ts`), covering factory defaults/validation, schema acceptance/rejection, and a full YAML round-trip.
 
 ## Component discovery
 

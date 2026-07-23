@@ -3,3 +3,6 @@ export * from './lib/states';
 export * from './lib/token-reference';
 export * from './lib/test-requirement';
 export * from './lib/schemas';
+export * from './lib/component-manifest';
+export * from './lib/component-manifest-schema';
+export * from './lib/component-manifest-yaml';
