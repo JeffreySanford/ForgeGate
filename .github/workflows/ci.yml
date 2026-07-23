@@ -1,6 +1,9 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - master
   pull_request:
 
 permissions:
@@ -8,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  diagnose-quality:
+  main:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -36,20 +39,5 @@ jobs:
             patchelf
 
       - run: pnpm install --frozen-lockfile
-      - name: Capture quality output
-        shell: bash
-        run: |
-          set +e
-          npx nx run-many -t lint test build typecheck cargo-test --output-style=stream > quality.log 2>&1
-          status=$?
-          echo "$status" > quality-status.txt
-          exit 0
-      - uses: actions/upload-artifact@v4
-        with:
-          name: storybook-quality-log
-          path: |
-            quality.log
-            quality-status.txt
-      - name: Preserve failure status
-        shell: bash
-        run: test "$(cat quality-status.txt)" -eq 0
+      - run: npx nx format:check --base="remotes/origin/master"
+      - run: npx nx run-many -t lint test build typecheck cargo-test
