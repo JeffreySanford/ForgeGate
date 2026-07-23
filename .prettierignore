@@ -10,3 +10,7 @@
 # Standalone, fixture-only visual reference prototypes are intentionally
 # hand-authored as self-contained HTML rather than production application code.
 /documentation/prototypes/*.html
+
+# Preserve the prior 1,143-line phased TODO byte-for-byte as a historical
+# reference. The active priority-controlled TODO remains formatter-enforced.
+/TODO-DETAILED.md
