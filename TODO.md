@@ -219,18 +219,18 @@ See [`22-reactive-data-flow.md`](../documentation/22-reactive-data-flow.md).
 - [X} Detect dirty working trees. `read_git_status`'s `dirty` field.
 - [X} Detect package manager from lockfiles and metadata. `detect_package_manager` in `workspace_scan.rs` — pnpm/yarn/bun/npm, by lockfile presence, top-level only.
 - [X} Detect npm, pnpm, Yarn, and Bun projects. Same as above.
-- [X} Detect Nx. `nx.json` presence.
-- [ ] Detect Turborepo.
-- [ ] Detect Rush.
-- [ ] Detect Lage.
-- [ ] Detect conventional workspace layouts.
+- [X} Detect Nx. `nx.json` presence, via `detect_workspace_manager`.
+- [X} Detect Turborepo. `turbo.json` presence, via `detect_workspace_manager`.
+- [X} Detect Rush. `rush.json` presence, via `detect_workspace_manager`.
+- [X} Detect Lage. `lage.config.{js,json}` presence, via `detect_workspace_manager`.
+- [X} Detect conventional workspace layouts. `package.json` `workspaces` field and `pnpm-workspace.yaml`, both via `detect_workspace_manager`. Priority order when more than one marker is present: Nx > Turborepo > Rush > Lage > pnpm-workspaces > package.json workspaces.
 - [ ] Detect framework packages and versions. Deferred to the framework adapters themselves (Phase 5/12) rather than generic workspace scanning.
 - [X} Detect Storybook configurations. `.storybook` directory presence only — not story count or config validity.
 - [X} Detect Astro Starlight configurations. `detect_starlight` — an `astro.config.{mjs,ts,js}` file whose contents mention "starlight".
-- [ ] Detect Zeroheight configuration files or project mappings.
+- [X} Detect Zeroheight configuration files or project mappings. `detect_zeroheight` — a `zeroheight.config.*` file, or a `zeroheight`-named key in `package.json` dependencies/devDependencies.
 - [X} Detect token files and formats. `detect_token_files` — `*.tokens.json`/`*.tokens` at the workspace root or one level into `tokens/`/`design-tokens/`. Not yet DTCG-content-aware (filename pattern only).
 - [X} Detect unit and browser test runners. `detect_test_runners` — vitest/jest/playwright config file presence.
-- [ ] Detect visual-regression providers.
+- [X} Detect visual-regression providers. `detect_visual_regression_providers` — Chromatic, Percy, BackstopJS, Loki, Applitools, by `package.json` dependency keys.
 - [X} Detect CI provider files. `detect_ci_providers` — GitHub Actions (`.github/workflows` with at least one file), GitLab CI, Azure Pipelines.
 
 All detection above is intentionally non-recursive (workspace root only, plus one level into a couple of known token directories) to stay fast and avoid walking into `node_modules`. Monorepo-wide scanning across `apps/`/`packages/` is separate, later work.
@@ -238,26 +238,28 @@ All detection above is intentionally non-recursive (workspace root only, plus on
 ## Workspace screen
 
 - [X} Show repository path and Git state. `app.html` — path, branch, commit, dirty.
-- [X} Show detected package manager and workspace manager. `app.html` — package manager and Nx detection.
+- [X} Show detected package manager and workspace manager. `app.html` — package manager and workspace manager (Nx/Turborepo/Rush/Lage/pnpm-workspaces/package.json-workspaces).
 - [ ] Show detected frameworks. No framework detection exists yet (see above).
 - [ ] Show component-library candidates.
 - [X} Show Storybook targets. Detected/not-detected only, no target list yet.
-- [X} Show documentation targets. Starlight detected/not-detected only.
-- [X} Show testing tools. `app.html` — detected test runners and CI providers.
+- [X} Show documentation targets. Starlight and Zeroheight detected/not-detected only.
+- [X} Show testing tools. `app.html` — detected test runners, visual-regression providers, and CI providers.
 - [ ] Show missing or unsupported configuration.
 - [ ] Allow user correction of discovery results.
 - [ ] Persist confirmed mappings in repository configuration.
 
 ## Repository configuration
 
-- [ ] Define `.forgegate/config.yaml`.
-- [ ] Define project and package mappings.
-- [ ] Define command mappings.
-- [ ] Define documentation mappings.
-- [ ] Define adapter configuration.
-- [ ] Define ignore patterns.
-- [ ] Define safe write locations.
-- [ ] Validate configuration against schema.
+- [X} Define `.forgegate/config.yaml`. `RepositoryConfig` type, YAML parse/serialize round-trip, and schema validation in the new `packages/core/config` library. 11 tests, including a round-trip test and both a malformed-YAML and a schema-violation rejection test.
+- [X} Define project and package mappings. `ProjectMapping`/`PackageMapping` in `packages/core/config/src/lib/repository-config.ts`.
+- [X} Define command mappings. `CommandMappings` — a plain gate-name-to-command-string record.
+- [X} Define documentation mappings. `DocumentationMappings` — Starlight content root, Zeroheight workspace ID, Storybook config dir.
+- [X} Define adapter configuration. `AdapterConfiguration` — deliberately opaque per-adapter blobs; each adapter owns and validates its own shape, consistent with the plugin SDK boundary in `17-plugin-and-adapter-sdk.md`.
+- [X} Define ignore patterns. `ignorePatterns: readonly string[]`.
+- [X} Define safe write locations. `safeWriteLocations` plus `isWithinSafeWriteLocation()`, a simple glob-prefix check (not a full glob engine yet).
+- [X} Validate configuration against schema. `repositoryConfigSchema` (Ajv), tested against both a real config and deliberately invalid records.
+
+**Not yet done**, and needed before this is actually usable: no Tauri command reads or writes `.forgegate/config.yaml` from a real repository yet — `packages/core/config` is a pure, framework-neutral library with no filesystem access of its own, by design (per the `scope:core` boundary). Wiring it to `read_text_file`/`prepare_file_changes`/`apply_approved_changes` Tauri commands, and building the actual diff-and-approve UI from `documentation/02-system-architecture.md`'s "Repository write flow", is separate follow-up work.
 
 ### Phase 3 exit criteria
 

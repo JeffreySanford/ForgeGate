@@ -9,11 +9,13 @@ export interface GitStatus {
 
 export interface WorkspaceScan {
   packageManager: string | null;
-  hasNx: boolean;
+  workspaceManager: string | null;
   hasStorybook: boolean;
   hasStarlight: boolean;
+  hasZeroheight: boolean;
   tokenFiles: string[];
   testRunners: string[];
+  visualRegressionProviders: string[];
   ciProviders: string[];
 }
 

@@ -37,11 +37,13 @@ describe('WorkspaceService', () => {
       })
       .mockResolvedValueOnce({
         packageManager: 'pnpm',
-        hasNx: true,
+        workspaceManager: 'nx',
         hasStorybook: false,
         hasStarlight: false,
+        hasZeroheight: false,
         tokenFiles: [],
         testRunners: ['vitest'],
+        visualRegressionProviders: [],
         ciProviders: ['github-actions'],
       });
 
@@ -55,11 +57,13 @@ describe('WorkspaceService', () => {
     });
     expect(service.workspaceScan()).toEqual({
       packageManager: 'pnpm',
-      hasNx: true,
+      workspaceManager: 'nx',
       hasStorybook: false,
       hasStarlight: false,
+      hasZeroheight: false,
       tokenFiles: [],
       testRunners: ['vitest'],
+      visualRegressionProviders: [],
       ciProviders: ['github-actions'],
     });
     expect(service.error()).toBeNull();
@@ -71,11 +75,13 @@ describe('WorkspaceService', () => {
       .mockRejectedValueOnce('Workspace path does not exist')
       .mockResolvedValueOnce({
         packageManager: null,
-        hasNx: false,
+        workspaceManager: null,
         hasStorybook: false,
         hasStarlight: false,
+        hasZeroheight: false,
         tokenFiles: [],
         testRunners: [],
+        visualRegressionProviders: [],
         ciProviders: [],
       });
 

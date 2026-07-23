@@ -21,16 +21,20 @@
     <dl>
       <dt>Package manager</dt>
       <dd>{{ scan.packageManager ?? 'Not detected' }}</dd>
-      <dt>Nx</dt>
-      <dd>{{ scan.hasNx ? 'Detected' : 'Not detected' }}</dd>
+      <dt>Workspace manager</dt>
+      <dd>{{ scan.workspaceManager ?? 'Not detected' }}</dd>
       <dt>Storybook</dt>
       <dd>{{ scan.hasStorybook ? 'Detected' : 'Not detected' }}</dd>
       <dt>Astro Starlight</dt>
       <dd>{{ scan.hasStarlight ? 'Detected' : 'Not detected' }}</dd>
+      <dt>Zeroheight</dt>
+      <dd>{{ scan.hasZeroheight ? 'Detected' : 'Not detected' }}</dd>
       <dt>Design tokens</dt>
       <dd>{{ scan.tokenFiles.length ? scan.tokenFiles.join(', ') : 'None found' }}</dd>
       <dt>Test runners</dt>
       <dd>{{ scan.testRunners.length ? scan.testRunners.join(', ') : 'None found' }}</dd>
+      <dt>Visual regression providers</dt>
+      <dd>{{ scan.visualRegressionProviders.length ? scan.visualRegressionProviders.join(', ') : 'None found' }}</dd>
       <dt>CI providers</dt>
       <dd>{{ scan.ciProviders.length ? scan.ciProviders.join(', ') : 'None found' }}</dd>
     </dl>

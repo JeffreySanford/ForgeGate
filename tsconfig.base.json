@@ -23,7 +23,8 @@
       "@forgegate/core-evidence": ["./packages/core/evidence/src/index.ts"],
       "@forgegate/core-policy": ["./packages/core/policy/src/index.ts"],
       "@forgegate/adapter-sdk": ["./packages/adapters/sdk/src/index.ts"],
-      "@forgegate/core-reactive": ["./packages/core/reactive/src/index.ts"]
+      "@forgegate/core-reactive": ["./packages/core/reactive/src/index.ts"],
+      "@forgegate/core-config": ["./packages/core/config/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
