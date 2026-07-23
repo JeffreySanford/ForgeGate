@@ -174,6 +174,8 @@ The first demonstrable vertical slice is:
 
 The implementation-ready information architecture, visual language, connected-data map, and acceptance criteria for presenting this milestone to designers are defined in [`documentation/25-designer-ready-vertical-slice.md`](documentation/25-designer-ready-vertical-slice.md).
 
+The workspace-level visualization and motion language is defined in [`documentation/26-workspace-visualization-and-motion.md`](documentation/26-workspace-visualization-and-motion.md). A fixture-only standalone reference at [`documentation/prototypes/workspace-command-center.html`](documentation/prototypes/workspace-command-center.html) demonstrates the living system map, assurance journey, readiness distribution, component landscape, evidence timeline, responsive behavior, dark theme, and reduced-motion mode.
+
 ## License and commercial status
 
 No license has been finalized. The current leaning is proprietary-closed or source-available (visible to evaluators, not free to use or redistribute) rather than open source, given the intended federal and enterprise buyer. Until a license is intentionally added, this private repository and its contents should be treated as proprietary and not redistributed. See [`19-commercial-model.md`](documentation/19-commercial-model.md) and [`20-risks-and-decisions.md`](documentation/20-risks-and-decisions.md).
