@@ -1,0 +1,156 @@
+/*
+ * ForgeGate semantic UI tokens (documentation/25-designer-ready-vertical-slice.md,
+ * "ForgeGate UI tokens"). Every custom property is namespaced --fg-<group>-<name>,
+ * mirroring the fg.<group>.<name> naming used in that document. Nothing outside
+ * this file should hard-code a color, spacing, radius, shadow, or font value —
+ * screens consume these tokens instead.
+ *
+ * Light is the reference theme. Dark is a deliberate second theme, not a simple
+ * inversion. Theme selection: prefers-color-scheme by default, overridable via
+ * [data-theme="light"|"dark"] on <html> for an explicit user choice.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Color */
+  --fg-color-canvas: #f3f6fb;
+  --fg-color-surface: #ffffff;
+  --fg-color-surface-subtle: #edf2f8;
+  --fg-color-surface-selected: #e5edff;
+  --fg-color-text: #172033;
+  --fg-color-text-muted: #5e6c84;
+  --fg-color-text-inverse: #f3f6fb;
+  --fg-color-border: #d8e0ec;
+  --fg-color-border-strong: #aebbd0;
+  --fg-color-action: #335dff;
+  --fg-color-action-hover: #163cc7;
+  --fg-color-focus: #7b45ff;
+  --fg-color-status-passed: #207a5a;
+  --fg-color-status-passed-soft: #dff4ea;
+  --fg-color-status-warning: #a46200;
+  --fg-color-status-warning-soft: #fff0cd;
+  --fg-color-status-failed: #bd2c3b;
+  --fg-color-status-failed-soft: #ffe1e5;
+  --fg-color-status-blocked: #bd2c3b;
+  --fg-color-status-blocked-soft: #ffe1e5;
+  --fg-color-status-stale: #7856a7;
+  --fg-color-status-stale-soft: #eee5fa;
+  --fg-color-status-unknown: #68758b;
+  --fg-color-status-unknown-soft: #e8edf4;
+
+  /* Space (4px base scale) */
+  --fg-space-1: 4px;
+  --fg-space-2: 8px;
+  --fg-space-3: 12px;
+  --fg-space-4: 16px;
+  --fg-space-5: 24px;
+  --fg-space-6: 32px;
+  --fg-space-7: 48px;
+
+  /* Radius */
+  --fg-radius-sm: 8px;
+  --fg-radius-md: 14px;
+  --fg-radius-lg: 20px;
+
+  /* Shadow */
+  --fg-shadow-sm: 0 6px 20px rgba(39, 54, 86, 0.08);
+  --fg-shadow-md: 0 16px 44px rgba(39, 54, 86, 0.1);
+
+  /* Type */
+  --fg-type-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --fg-type-family-mono: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  --fg-type-size-sm: 0.82rem;
+  --fg-type-size-md: 1rem;
+  --fg-type-size-lg: 1.25rem;
+  --fg-type-size-xl: 1.75rem;
+  --fg-type-line-height: 1.45;
+
+  /* Motion (see prefers-reduced-motion override below) */
+  --fg-motion-duration-sm: 120ms;
+  --fg-motion-duration-md: 220ms;
+  --fg-motion-ease: cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --fg-color-canvas: #0c111c;
+    --fg-color-surface: #131b29;
+    --fg-color-surface-subtle: #101827;
+    --fg-color-surface-selected: #1d315e;
+    --fg-color-text: #f3f6fb;
+    --fg-color-text-muted: #a8b4c8;
+    --fg-color-text-inverse: #172033;
+    --fg-color-border: #29364a;
+    --fg-color-border-strong: #42516a;
+    --fg-color-action: #82a0ff;
+    --fg-color-action-hover: #c4d1ff;
+    --fg-color-focus: #c8a7ff;
+    --fg-color-status-passed: #5ed4a4;
+    --fg-color-status-passed-soft: #123d32;
+    --fg-color-status-warning: #ffc55e;
+    --fg-color-status-warning-soft: #463414;
+    --fg-color-status-failed: #ff8490;
+    --fg-color-status-failed-soft: #4d2027;
+    --fg-color-status-blocked: #ff8490;
+    --fg-color-status-blocked-soft: #4d2027;
+    --fg-color-status-stale: #cfabff;
+    --fg-color-status-stale-soft: #39284e;
+    --fg-color-status-unknown: #a2aec2;
+    --fg-color-status-unknown-soft: #263143;
+    --fg-shadow-sm: 0 10px 26px rgba(0, 0, 0, 0.24);
+    --fg-shadow-md: 0 20px 60px rgba(0, 0, 0, 0.34);
+  }
+}
+
+:root[data-theme='dark'] {
+  --fg-color-canvas: #0c111c;
+  --fg-color-surface: #131b29;
+  --fg-color-surface-subtle: #101827;
+  --fg-color-surface-selected: #1d315e;
+  --fg-color-text: #f3f6fb;
+  --fg-color-text-muted: #a8b4c8;
+  --fg-color-text-inverse: #172033;
+  --fg-color-border: #29364a;
+  --fg-color-border-strong: #42516a;
+  --fg-color-action: #82a0ff;
+  --fg-color-action-hover: #c4d1ff;
+  --fg-color-focus: #c8a7ff;
+  --fg-color-status-passed: #5ed4a4;
+  --fg-color-status-passed-soft: #123d32;
+  --fg-color-status-warning: #ffc55e;
+  --fg-color-status-warning-soft: #463414;
+  --fg-color-status-failed: #ff8490;
+  --fg-color-status-failed-soft: #4d2027;
+  --fg-color-status-blocked: #ff8490;
+  --fg-color-status-blocked-soft: #4d2027;
+  --fg-color-status-stale: #cfabff;
+  --fg-color-status-stale-soft: #39284e;
+  --fg-color-status-unknown: #a2aec2;
+  --fg-color-status-unknown-soft: #263143;
+  --fg-shadow-sm: 0 10px 26px rgba(0, 0, 0, 0.24);
+  --fg-shadow-md: 0 20px 60px rgba(0, 0, 0, 0.34);
+}
+
+/* Forced-colors (Windows High Contrast): status meaning must survive without
+ * ForgeGate's own color tokens, so map to system colors instead of hiding. */
+@media (forced-colors: active) {
+  :root {
+    --fg-color-focus: Highlight;
+    --fg-color-border: CanvasText;
+    --fg-color-border-strong: CanvasText;
+    --fg-color-status-passed: CanvasText;
+    --fg-color-status-warning: CanvasText;
+    --fg-color-status-failed: CanvasText;
+    --fg-color-status-blocked: CanvasText;
+    --fg-color-status-stale: CanvasText;
+    --fg-color-status-unknown: CanvasText;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fg-motion-duration-sm: 0ms;
+    --fg-motion-duration-md: 0ms;
+  }
+}

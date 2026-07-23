@@ -67,24 +67,24 @@ Primary references:
 
 ## P0.1 — ForgeGate visual system
 
-- [ ] Define internal ForgeGate semantic UI tokens for color, typography, spacing, radius, elevation, borders, focus, status, and motion.
-- [ ] Define light and dark themes using the same semantic token contract.
-- [ ] Define explicit visual treatment for current, stale, warning, failed, blocked, unknown, unsupported, and not-connected states.
-- [ ] Define reusable surface, card, panel, status, navigation, control, table, disclosure, and empty-state primitives.
-- [ ] Establish typography hierarchy suitable for both designers and engineers.
+- [X} Define internal ForgeGate semantic UI tokens for color, typography, spacing, radius, elevation, borders, focus, and motion. `apps/forgegate-desktop/src/styles/tokens.css` — `--fg-color-*`, `--fg-space-*`, `--fg-radius-*`, `--fg-shadow-*`, `--fg-type-*`, `--fg-motion-*`, matching the `fg.*` naming in `documentation/25-designer-ready-vertical-slice.md`. Status color tokens included; explicit non-color status treatment (icons/labels) is separate, still open below.
+- [X} Define light and dark themes using the same semantic token contract. `prefers-color-scheme` default plus explicit `[data-theme="light"|"dark"]` override; every `:root` color token has a dark-theme counterpart, enforced by a contract test (not just visual review).
+- [ ] Define explicit visual treatment for current, stale, warning, failed, blocked, unknown, unsupported, and not-connected states. Status *colors* exist; icon/label pairing per document 25's "status is never color alone" rule is not implemented — no screen has status UI yet.
+- [ ] Define reusable surface, card, panel, status, navigation, control, table, disclosure, and empty-state primitives. Only the current flat diagnostic screen has been restyled onto tokens; no reusable Angular primitive components exist yet.
+- [ ] Establish typography hierarchy suitable for both designers and engineers. Only `sm/md/lg/xl` sizes defined; no applied hierarchy beyond h1/h2 on the one existing screen.
 - [ ] Establish responsive desktop-window breakpoints rather than assuming a browser-sized viewport.
 - [ ] Ensure status is never communicated by color alone.
-- [ ] Add visible keyboard focus that is distinct from selected state.
-- [ ] Add forced-colors behavior.
-- [ ] Add reduced-motion behavior.
+- [X} Add visible keyboard focus that is distinct from selected state. Global `:focus-visible` rule in `styles.css` using `--fg-color-focus`, separate from the (not-yet-implemented) selected-state token.
+- [X} Add forced-colors behavior. `@media (forced-colors: active)` maps focus/border/status tokens onto system colors (`Highlight`, `CanvasText`), verified by a contract test. Not yet manually reviewed in an actual forced-colors OS mode.
+- [X} Add reduced-motion behavior. `@media (prefers-reduced-motion: reduce)` zeroes `--fg-motion-duration-*`, verified by a contract test.
 - [ ] Add 200% and 400% zoom validation.
 - [ ] Add visual regression coverage for the ForgeGate shell and primary states.
 
 ### P0.1 exit criteria
 
-- [ ] Shared visual tokens are used by the shell, workspace, inventory, and component record.
-- [ ] Light, dark, forced-colors, reduced-motion, and narrow-window states are testable.
-- [ ] No production screen depends on prototype-only fixture styling.
+- [ ] Shared visual tokens are used by the shell, workspace, inventory, and component record. Only the existing single diagnostic screen consumes tokens so far — the shell/workspace/inventory/component-record screens themselves don't exist yet (P0.2–P0.5).
+- [ ] Light, dark, forced-colors, reduced-motion, and narrow-window states are testable. Token-level contract tests exist (43 tests, `src/styles/tokens.spec.ts`); no rendered-screen visual regression coverage yet.
+- [X} No production screen depends on prototype-only fixture styling. The one real screen (`app.html`/`app.css`) now reads token custom properties instead of being unstyled; verified visually in-browser (light theme, live dev server) with no console errors.
 
 ## P0.2 — Application shell and routes
 

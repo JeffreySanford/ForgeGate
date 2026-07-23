@@ -1,1 +1,46 @@
-/* You can add global styles to this file, and also import other style files */
+@import './styles/tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--fg-color-canvas);
+  color: var(--fg-color-text);
+  font-family: var(--fg-type-family);
+  font-size: var(--fg-type-size-md);
+  line-height: var(--fg-type-line-height);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+pre {
+  font-family: var(--fg-type-family-mono);
+}
+
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--fg-color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    transition-duration: var(--fg-motion-duration-sm);
+    transition-timing-function: var(--fg-motion-ease);
+  }
+}

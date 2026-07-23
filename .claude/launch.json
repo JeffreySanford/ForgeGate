@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "forgegate-desktop-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["nx", "run", "forgegate-desktop:serve"],
+      "port": 4200
+    }
+  ]
+}
