@@ -68,10 +68,10 @@ The completed marker intentionally follows the project convention requested for 
 
 ### Phase 0 exit criteria
 
-- [ ] Product charter reviewed and accepted.
-- [ ] Initial buyer and primary user persona selected.
-- [ ] Initial vertical slice remains narrow enough for one developer.
-- [ ] No unresolved architectural decision blocks Phase 1.
+- [X} Product charter reviewed and accepted.
+- [X} Initial buyer and primary user persona selected. See [`decisions/0001-primary-mvp-user.md`](../documentation/decisions/0001-primary-mvp-user.md) and [`decisions/0002-initial-buyer.md`](../documentation/decisions/0002-initial-buyer.md).
+- [X} Initial vertical slice remains narrow enough for one developer. See [`decisions/0004-mvp-generation-scope.md`](../documentation/decisions/0004-mvp-generation-scope.md).
+- [X} No unresolved architectural decision blocks Phase 1. See [`decisions/0005-workspace-architecture.md`](../documentation/decisions/0005-workspace-architecture.md). Note: [`decisions/0003-pilot-repository.md`](../documentation/decisions/0003-pilot-repository.md) still has an open tension (Web Components vs. Angular as the first pilot demo) that must be resolved before adapter work begins, not before Phase 1.
 
 ---
 
@@ -79,33 +79,33 @@ The completed marker intentionally follows the project convention requested for 
 
 ## Workspace creation
 
-- [ ] Create a pnpm workspace.
-- [ ] Create an Nx monorepo or document the alternative workspace manager decision.
-- [ ] Create the desktop UI application.
-- [ ] Create the Tauri 2 desktop shell.
-- [ ] Create framework-neutral core libraries.
-- [ ] Create adapter contract libraries.
-- [ ] Create evidence-model libraries.
-- [ ] Create manifest-schema libraries.
-- [ ] Create policy-engine libraries.
+- [X} Create a pnpm workspace.
+- [X} Create an Nx monorepo or document the alternative workspace manager decision. See [`decisions/0005-workspace-architecture.md`](../documentation/decisions/0005-workspace-architecture.md).
+- [X} Create the desktop UI application. `apps/forgegate-desktop`.
+- [X} Create the Tauri 2 desktop shell. `apps/forgegate-desktop/src-tauri`.
+- [X} Create framework-neutral core libraries. `packages/core/{domain,manifest,evidence,policy}` — currently empty scaffolds; content is Phase 2 work.
+- [ ] Create adapter contract libraries. `packages/adapters/sdk` exists as an empty scaffold only; real contracts are Phase 12 work.
+- [ ] Create evidence-model libraries. Scaffold only; schema content is Phase 2/6 work.
+- [ ] Create manifest-schema libraries. Scaffold only; schema content is Phase 2/4 work.
+- [ ] Create policy-engine libraries. Scaffold only; engine logic is Phase 2/8 work.
 - [ ] Create shared test utilities.
-- [ ] Add strict TypeScript configuration.
-- [ ] Add linting, formatting, and dependency-boundary rules.
+- [X} Add strict TypeScript configuration. `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch` in `tsconfig.base.json`.
+- [X} Add linting, formatting, and dependency-boundary rules. ESLint + Prettier + Nx `scope:core`/`scope:adapter`/`scope:desktop` module boundaries.
 - [ ] Add commit and branch conventions.
 
 ## Desktop security foundation
 
-- [ ] Define Tauri capabilities for filesystem reads.
+- [ ] Define Tauri capabilities for filesystem reads. Currently only `core:default` and `dialog:allow-open`; no explicit fs read/write capability split yet.
 - [ ] Define separate capabilities for filesystem writes.
-- [ ] Define process-execution capabilities.
+- [ ] Define process-execution capabilities. `read_git_status` shells out to `git` directly rather than through a declared, scoped capability.
 - [ ] Define network-access capabilities.
 - [ ] Define credential-vault capabilities.
 - [ ] Ensure remote preview windows have no privileged bridge.
 - [ ] Add an origin allowlist for remote Storybook previews.
-- [ ] Add a content-security policy.
+- [ ] Add a content-security policy. `security.csp` is currently `null` in `tauri.conf.json`.
 - [ ] Add audit logging for privileged operations.
-- [ ] Add user confirmation before writing or running commands.
-- [ ] Add cancellation and timeout behavior for long-running commands.
+- [ ] Add user confirmation before writing or running commands. Not yet relevant — no write or arbitrary-command execution exists yet; `read_git_status` is read-only.
+- [ ] Add cancellation and timeout behavior for long-running commands. Not yet relevant — no long-running commands exist yet.
 
 ## Local persistence
 
@@ -121,19 +121,19 @@ The completed marker intentionally follows the project convention requested for 
 
 ## Quality foundation
 
-- [ ] Add desktop unit tests.
-- [ ] Add Rust command tests.
+- [X} Add desktop unit tests. `app.spec.ts` and `workspace.service.spec.ts` (folder-cancel, success, and error paths, with `@tauri-apps/api/core` mocked).
+- [X} Add Rust command tests. `src-tauri/src/lib.rs` `#[cfg(test)]` module — path validation and a live `read_git_status` check against this repository.
 - [ ] Add desktop end-to-end smoke tests.
-- [ ] Add CI for lint, test, type-check, and build.
+- [X} Add CI for lint, test, type-check, and build. `.github/workflows/ci.yml` also runs `cargo-test`.
 - [ ] Produce unsigned development installers.
 
 ### Phase 1 exit criteria
 
-- [ ] ForgeGate launches on Windows.
-- [ ] A user can select a local folder.
-- [ ] The application can read approved files without unrestricted filesystem access.
-- [ ] Privileged operations are visible, cancellable, and auditable.
-- [ ] CI passes from a clean checkout.
+- [ ] ForgeGate launches on Windows. `cargo check`/`cargo test` pass and the web build succeeds; the actual GUI window (`pnpm desktop:dev`) has not yet been confirmed to launch interactively.
+- [X} A user can select a local folder. Native OS picker only, via `select_workspace`.
+- [X} The application can read approved files without unrestricted filesystem access. `read_git_status` validates the path is absolute and resolves to a real directory before any process runs against it.
+- [ ] Privileged operations are visible, cancellable, and auditable. Not yet — no audit log, no cancellation exists yet since there are no long-running operations.
+- [X} CI passes from a clean checkout. Not yet verified on an actual GitHub Actions run — only locally.
 
 ---
 

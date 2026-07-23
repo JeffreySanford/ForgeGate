@@ -70,6 +70,46 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_relative_paths() {
+        assert!(resolve_workspace_path("relative/path").is_err());
+    }
+
+    #[test]
+    fn rejects_nonexistent_paths() {
+        let missing = std::env::temp_dir().join("forgegate-nonexistent-test-path");
+        assert!(resolve_workspace_path(&missing.display().to_string()).is_err());
+    }
+
+    #[test]
+    fn accepts_an_existing_directory() {
+        let dir = std::env::temp_dir();
+        assert!(resolve_workspace_path(&dir.display().to_string()).is_ok());
+    }
+
+    #[test]
+    fn reads_git_status_of_the_forgegate_repository() {
+        // CARGO_MANIFEST_DIR is .../apps/forgegate-desktop/src-tauri; the
+        // repository root is three levels up.
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = manifest_dir
+            .ancestors()
+            .nth(3)
+            .expect("repository root should exist")
+            .to_path_buf();
+
+        let status = read_git_status(repo_root.display().to_string())
+            .expect("git status should succeed against the ForgeGate repository");
+
+        assert!(!status.branch.is_empty());
+        assert_eq!(status.commit.len(), 40);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
