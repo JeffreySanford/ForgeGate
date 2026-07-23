@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ComponentsPage } from './components-page';
+import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
 import type { CustomElementsManifest } from '@forgegate/adapter-web-components';
 
@@ -189,5 +190,33 @@ describe('ComponentsPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelectorAll('tbody tr')).toHaveLength(2);
     expect(compiled.querySelector('.components-page__failures')?.textContent).toContain('Broken');
+  });
+
+  it('has no automated accessibility violations with a populated table', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(twoComponentManifest);
+
+    const fixture = TestBed.createComponent(ComponentsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await expectNoAccessibilityViolations(fixture.nativeElement);
+  });
+
+  it('has no automated accessibility violations in card view', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(twoComponentManifest);
+
+    const fixture = TestBed.createComponent(ComponentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component.setViewMode('cards');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await expectNoAccessibilityViolations(fixture.nativeElement);
   });
 });

@@ -179,6 +179,9 @@ importers:
       angular-eslint:
         specifier: 22.1.0
         version: 22.1.0(@angular/cli@22.0.6(@types/node@24.13.3)(chokidar@5.0.0))(chokidar@5.0.0)(eslint@9.39.5(jiti@2.4.2))(typescript-eslint@8.65.0(eslint@9.39.5(jiti@2.4.2))(typescript@6.0.3))(typescript@6.0.3)
+      axe-core:
+        specifier: ^4.12.1
+        version: 4.12.1
       esbuild:
         specifier: ^0.28.1
         version: 0.28.1
@@ -3975,6 +3978,10 @@ packages:
     hasBin: true
     peerDependencies:
       postcss: ^8.1.0
+
+  axe-core@4.12.1:
+    resolution: {integrity: sha512-s7iGf5GaVMxEG0ENN9x+xTr7GFZCb1ZP/1uATUpCEK2X78nDB3RwbtFCo9pGAf9ru+VwoQ464DkaLEeRM08wJA==}
+    engines: {node: '>=4'}
 
   axios@1.18.1:
     resolution: {integrity: sha512-3nTvFlvpn9Zu/RkHUqtc7/+al4UpRW5az71ap5zccp6e8RAYEzhMTecX8Dz1wWDYrPpUoB1HAQEGEAEvUr7S9g==}
@@ -12514,6 +12521,8 @@ snapshots:
       picocolors: 1.1.1
       postcss: 8.5.22
       postcss-value-parser: 4.2.0
+
+  axe-core@4.12.1: {}
 
   axios@1.18.1(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0):
     dependencies:

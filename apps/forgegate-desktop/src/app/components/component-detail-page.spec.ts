@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet } from '@angular/router';
 import type { CustomElementsManifest } from '@forgegate/adapter-web-components';
 import { ComponentDetailPage } from './component-detail-page';
+import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
 
 const scan: WorkspaceScan = {
@@ -147,5 +148,20 @@ describe('ComponentDetailPage', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toContain('acme-card');
+  });
+
+  it('has no automated accessibility violations for a matched component', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await expectNoAccessibilityViolations(fixture.nativeElement);
   });
 });

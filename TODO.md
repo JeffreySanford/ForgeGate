@@ -182,15 +182,15 @@ These are functional dependencies that must advance with the P0 interface. The U
 
 ## P0.7 — P0 quality and accessibility gate
 
-- [ ] Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states.
-- [ ] Add keyboard navigation tests.
-- [ ] Add automated accessibility checks for primary routes.
-- [ ] Add manual screen-reader review for the shell, workspace, inventory, and Button record.
-- [ ] Add forced-colors review.
-- [ ] Add reduced-motion review.
-- [ ] Add zoom and narrow-window review.
-- [ ] Add visual regression baselines for supported themes and key states.
-- [ ] Validate that semantic alternatives contain the same meaningful information as graphical views.
+- [X} Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states. 89 tests across `app.spec.ts`, `workspace-page.spec.ts`, `system-map.spec.ts`, `components-page.spec.ts`, and `component-detail-page.spec.ts` — built incrementally alongside each P0.1–P0.5 slice, not added after the fact.
+- [X} Add keyboard navigation tests. Route-change focus management is tested (`App`'s "moves focus to the main content landmark after a route change"); full tab-order/keyboard-only-operation coverage across every control is not exhaustively tested.
+- [X} Add automated accessibility checks for primary routes. `apps/forgegate-desktop/src/test-a11y.ts` wraps `axe-core`, run against real rendered DOM in jsdom (color-contrast/target-size disabled — jsdom has no real layout, so those checks would be meaningless there, not because they're skipped as a category). Added to the shell, `/workspace`, the system map, `/components` (table and card view), and `/components/:componentId` — 7 new checks. This caught and fixed a real bug: the system map's SVG nodes had `role="img"` on the container with nested `role="button"` children that had no click handler at all — invalid ARIA nesting *and* fake, non-functional interactivity. Fixed by removing the unwired interactivity (an SVG `<title>` per node now carries the same descriptive text non-interactively).
+- [ ] Add manual screen-reader review for the shell, workspace, inventory, and Button record. Not done — needs an actual screen reader, not just axe.
+- [ ] Add forced-colors review. Token-level forced-colors mapping exists (P0.1) and is contract-tested; no manual review in an actual forced-colors OS mode has been done against the real screens.
+- [ ] Add reduced-motion review. Token-level reduced-motion zeroing exists (P0.1); no manual review since P0.2–P0.5 added no new motion to review.
+- [ ] Add zoom and narrow-window review. Not done.
+- [ ] Add visual regression baselines for supported themes and key states. Not done — no visual regression tooling (Playwright/Chromatic/etc.) is wired into this project yet, despite Playwright being present as an Nx-scaffolded dependency.
+- [ ] Validate that semantic alternatives contain the same meaningful information as graphical views. Partially validated by unit tests for the system map (table vs. SVG carry the same relationship/status/detail) and the component inventory (table vs. cards carry the same fields); not validated as a general principle across every screen.
 
 ### P0 definition of done
 

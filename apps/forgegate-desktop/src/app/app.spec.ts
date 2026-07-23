@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
 import { appRoutes } from './app.routes';
+import { expectNoAccessibilityViolations } from '../test-a11y';
 import { WorkspaceService, type GitStatus } from './workspace.service';
 
 const gitStatus: GitStatus = { branch: 'main', commit: 'abc1234', dirty: true };
@@ -86,5 +87,24 @@ describe('App shell', () => {
 
     const main = (fixture.nativeElement as HTMLElement).querySelector('#main-content');
     expect(document.activeElement).toBe(main);
+  });
+
+  it('has no automated accessibility violations in the empty state', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await expectNoAccessibilityViolations(fixture.nativeElement);
+  });
+
+  it('has no automated accessibility violations with a workspace open', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.gitStatus.set(gitStatus);
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await expectNoAccessibilityViolations(fixture.nativeElement);
   });
 });

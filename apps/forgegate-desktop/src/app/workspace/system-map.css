@@ -56,25 +56,10 @@
   stroke: var(--fg-color-status-unknown);
 }
 
-.map-node {
-  cursor: pointer;
-}
-
 .node-shell {
   fill: var(--fg-color-surface);
   stroke: var(--fg-color-border-strong);
   stroke-width: 2;
-  transition:
-    stroke var(--fg-motion-duration-sm) var(--fg-motion-ease),
-    transform var(--fg-motion-duration-sm) var(--fg-motion-ease);
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.map-node:hover .node-shell,
-.map-node:focus-visible .node-shell {
-  stroke: var(--fg-color-focus);
-  transform: scale(1.035);
 }
 
 .node-shell.status-connected {

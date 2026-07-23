@@ -19,7 +19,8 @@
       <path class="map-edge" [class]="edgeClass('release')" d="M564 194 C620 194, 638 194, 690 194" />
 
       @for (n of nodes(); track n.id) {
-        <g class="map-node" tabindex="0" role="button" [attr.aria-label]="n.ariaLabel">
+        <g class="map-node">
+          <title>{{ n.ariaLabel }}</title>
           <rect
             class="node-shell"
             [class]="statusClass(n.status)"

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { SystemMap } from './system-map';
+import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type GitStatus, type WorkspaceScan } from '../workspace.service';
 
 const scanWithNothingDetected: WorkspaceScan = {
@@ -140,7 +141,7 @@ describe('SystemMap', () => {
     ]);
   });
 
-  it('renders one SVG node per relationship with a descriptive aria-label', async () => {
+  it('renders one SVG node per relationship with a descriptive title', async () => {
     const fixture = TestBed.createComponent(SystemMap);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -148,6 +149,22 @@ describe('SystemMap', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const svgNodes = compiled.querySelectorAll('svg .map-node');
     expect(svgNodes).toHaveLength(8);
-    expect(svgNodes[0].getAttribute('aria-label')).toMatch(/Repository, not connected/);
+    expect(svgNodes[0].querySelector('title')?.textContent).toMatch(/Repository, not connected/);
+  });
+
+  it('has no automated accessibility violations', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.gitStatus.set(gitStatus);
+    workspaceService.workspaceScan.set({
+      ...scanWithNothingDetected,
+      packageName: '@acme/design-system',
+      storybookProjects: ['apps/storybook'],
+    });
+
+    const fixture = TestBed.createComponent(SystemMap);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await expectNoAccessibilityViolations(fixture.nativeElement);
   });
 });
