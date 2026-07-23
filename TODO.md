@@ -141,27 +141,29 @@ The completed marker intentionally follows the project convention requested for 
 
 ## Core entities
 
-- [ ] Define `Workspace`.
-- [ ] Define `Repository`.
-- [ ] Define `Project`.
-- [ ] Define `Package`.
-- [ ] Define `ComponentLibrary`.
-- [ ] Define `Component`.
-- [ ] Define `ComponentVersion`.
-- [ ] Define `ComponentContract`.
-- [ ] Define `ComponentState`.
-- [ ] Define `StoryReference`.
-- [ ] Define `TokenReference`.
-- [ ] Define `TestRequirement`.
-- [ ] Define `TestExecution`.
-- [ ] Define `Finding`.
-- [ ] Define `ManualReview`.
-- [ ] Define `Approval`.
-- [ ] Define `Exception`.
-- [ ] Define `DocumentationTarget`.
-- [ ] Define `ConsumerApplication`.
-- [ ] Define `ReleaseDecision`.
-- [ ] Define `EvidencePackage`.
+- [X} Define `Workspace`. `packages/core/domain/src/lib/entities.ts`.
+- [X} Define `Repository`. `packages/core/domain/src/lib/entities.ts` — minimal (id, defaultBranch, remoteUrl); no dedicated factory yet.
+- [X} Define `Project`. `packages/core/domain/src/lib/entities.ts`.
+- [X} Define `Package`. `packages/core/domain/src/lib/entities.ts`.
+- [X} Define `ComponentLibrary`. `packages/core/domain/src/lib/entities.ts`.
+- [X} Define `Component`. `packages/core/domain/src/lib/entities.ts`, with `createComponent`.
+- [X} Define `ComponentVersion`. `packages/core/domain/src/lib/entities.ts`, with `createComponentVersion` (validates semver and a full 40-char commit SHA).
+- [X} Define `ComponentContract`. `packages/core/manifest/src/lib/contract.ts`.
+- [X} Define `ComponentState`. `packages/core/manifest/src/lib/states.ts`.
+- [X} Define `StoryReference`. `packages/core/manifest/src/lib/states.ts`.
+- [X} Define `TokenReference`. `packages/core/manifest/src/lib/token-reference.ts`, DTCG-path-based per `23-design-tokens-and-figma-bridge.md`.
+- [X} Define `TestRequirement`. `packages/core/manifest/src/lib/test-requirement.ts`.
+- [X} Define `TestExecution`. `packages/core/evidence/src/lib/evidence.ts`.
+- [X} Define `Finding`. `packages/core/evidence/src/lib/evidence.ts`, with `createFinding` (always starts `open`).
+- [X} Define `ManualReview`. `packages/core/evidence/src/lib/evidence.ts`.
+- [X} Define `Approval`. `packages/core/evidence/src/lib/evidence.ts`, with `createApproval` (always starts not stale).
+- [X} Define `Exception`. `packages/core/evidence/src/lib/evidence.ts`.
+- [X} Define `DocumentationTarget`. `packages/core/domain/src/lib/entities.ts`.
+- [X} Define `ConsumerApplication`. `packages/core/domain/src/lib/entities.ts`.
+- [X} Define `ReleaseDecision`. `packages/core/policy/src/lib/release-decision.ts`, with `createReleaseDecision` (cannot be `authorized-candidate` while blocking findings remain, per the stale-approval risk in `20-risks-and-decisions.md`).
+- [X} Define `EvidencePackage`. `packages/core/evidence/src/lib/evidence.ts`, with `createEvidencePackage` (`includesCredentials` is hardcoded `false`, not a settable input).
+
+Not yet split out as their own entities (currently folded into `TestExecution`/`ManualReview`): `AssuranceResult` (the normalized, policy-facing result distinct from a raw `TestExecution`) and `ManualProcedure` (the versioned procedure definition a `ManualReview` executes). Revisit when the policy engine (Phase 8) and manual-review UI (Phase 7) need them split.
 
 ## Lifecycle and status
 

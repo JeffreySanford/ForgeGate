@@ -1,1 +1,1 @@
-export * from './lib/core-policy';
+export * from './lib/release-decision';

@@ -1,1 +1,1 @@
-export * from './lib/core-evidence';
+export * from './lib/evidence';
