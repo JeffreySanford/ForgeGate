@@ -1,145 +1,37 @@
-<main class="workspace-placeholder">
-  <h1>ForgeGate</h1>
-  <button type="button" (click)="openWorkspace()">Open workspace…</button>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 
-  @if (workspace.workspacePath(); as path) {
-    <p>Workspace: {{ path }}</p>
-  }
+<div class="app-shell">
+  <nav class="app-nav" aria-label="Primary">
+    <p class="app-nav__brand">ForgeGate</p>
+    <ul>
+      <li><a routerLink="/workspace" routerLinkActive="is-active" ariaCurrentWhenActive="page">Workspace</a></li>
+      <li><a routerLink="/components" routerLinkActive="is-active" ariaCurrentWhenActive="page">Components</a></li>
+    </ul>
+  </nav>
 
-  @if (workspace.gitStatus(); as status) {
-    <dl>
-      <dt>Branch</dt>
-      <dd>{{ status.branch }}</dd>
-      <dt>Commit</dt>
-      <dd>{{ status.commit }}</dd>
-      <dt>Dirty</dt>
-      <dd>{{ status.dirty ? 'Yes' : 'No' }}</dd>
-    </dl>
-  }
+  <div class="app-shell__body">
+    <header class="workspace-context-bar" aria-label="Workspace context">
+      @if (workspace.workspacePath(); as path) {
+        <span class="workspace-context-bar__path" [title]="path">{{ path }}</span>
+        @if (workspace.gitStatus(); as status) {
+          <span class="workspace-context-bar__fact">Branch {{ status.branch }}</span>
+          <span class="workspace-context-bar__fact">Commit {{ status.commit }}</span>
+          <span class="workspace-context-bar__fact" [class.workspace-context-bar__fact--dirty]="status.dirty">
+            {{ status.dirty ? 'Uncommitted changes' : 'Clean' }}
+          </span>
+        }
+      } @else {
+        <span class="workspace-context-bar__empty">No workspace open</span>
+      }
+      <button type="button" (click)="openWorkspace()">Open workspace…</button>
+    </header>
 
-  @if (workspace.workspaceScan(); as scan) {
-    <dl>
-      <dt>Package manager</dt>
-      <dd>{{ scan.packageManager ?? 'Not detected' }}</dd>
-      <dt>Workspace manager</dt>
-      <dd>{{ scan.workspaceManager ?? 'Not detected' }}</dd>
-      <dt>Storybook</dt>
-      <dd>{{ scan.storybookProjects.length ? scan.storybookProjects.join(', ') : 'Not detected' }}</dd>
-      <dt>Astro Starlight</dt>
-      <dd>{{ scan.starlightProjects.length ? scan.starlightProjects.join(', ') : 'Not detected' }}</dd>
-      <dt>Zeroheight</dt>
-      <dd>{{ scan.hasZeroheight ? 'Detected' : 'Not detected' }}</dd>
-      <dt>Design tokens</dt>
-      <dd>{{ scan.tokenFiles.length ? scan.tokenFiles.join(', ') : 'None found' }}</dd>
-      <dt>Test runners</dt>
-      <dd>{{ scan.testRunners.length ? scan.testRunners.join(', ') : 'None found' }}</dd>
-      <dt>Visual regression providers</dt>
-      <dd>{{ scan.visualRegressionProviders.length ? scan.visualRegressionProviders.join(', ') : 'None found' }}</dd>
-      <dt>CI providers</dt>
-      <dd>{{ scan.ciProviders.length ? scan.ciProviders.join(', ') : 'None found' }}</dd>
-      <dt>Custom Elements Manifest</dt>
-      <dd>{{ scan.customElementsManifests.length ? scan.customElementsManifests.join(', ') : 'None found' }}</dd>
-    </dl>
-  }
-
-  @if (workspace.customElementsManifest()) {
-    @if (componentMapResult().manifests.length) {
-      <h2>Component inventory</h2>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Component</th>
-            <th scope="col">Framework</th>
-            <th scope="col">Source</th>
-            <th scope="col">Inputs</th>
-            <th scope="col">Outputs</th>
-            <th scope="col">Slots</th>
-            <th scope="col">Methods</th>
-            <th scope="col">Style parts</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (manifest of componentMapResult().manifests; track manifest.id) {
-            <tr>
-              <td>{{ manifest.id }}</td>
-              <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
-              <td>{{ manifest.sourceFiles.join(', ') }}</td>
-              <td>{{ manifest.contract.inputs.length }}</td>
-              <td>{{ manifest.contract.outputs.length }}</td>
-              <td>{{ manifest.contract.content.length }}</td>
-              <td>{{ manifest.contract.publicMethods.length }}</td>
-              <td>{{ manifest.contract.styleParts.length }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    } @else if (!componentMapResult().failures.length) {
-      <p>Manifest present but no custom elements found in it.</p>
+    @if (workspace.error(); as error) {
+      <p role="alert" class="app-shell__error">{{ error }}</p>
     }
 
-    @if (componentMapResult().failures.length) {
-      <p role="alert">
-        {{ componentMapResult().failures.length }} declaration(s) could not be mapped:
-        @for (failure of componentMapResult().failures; track failure.declarationName) {
-          <br />{{ failure.declarationName }} ({{ failure.modulePath }}): {{ failure.message }}
-        }
-      </p>
-    }
-  }
-
-  @if (workspace.customElementsManifestError(); as cemError) {
-    <p role="alert">Custom Elements Manifest could not be read: {{ cemError }}</p>
-  }
-
-  @if (workspace.workspaceScan(); as scanForCem) {
-    @if (!scanForCem.customElementsManifests.length) {
-      <section>
-        <p>No Custom Elements Manifest was found. ForgeGate can try to generate one:</p>
-        <p><code>{{ generateCemCommandText }}</code></p>
-        <button
-          type="button"
-          [disabled]="workspace.cemGenerationRunning()"
-          (click)="generateCustomElementsManifest()"
-        >
-          {{ workspace.cemGenerationRunning() ? 'Running…' : 'Generate Custom Elements Manifest' }}
-        </button>
-
-        @if (workspace.cemGenerationResult(); as cemRunResult) {
-          <dl>
-            <dt>Exit code</dt>
-            <dd>{{ cemRunResult.exitCode ?? (cemRunResult.timedOut ? 'timed out' : 'unknown') }}</dd>
-            @if (cemRunResult.stderr) {
-              <dt>Error output</dt>
-              <dd><pre>{{ cemRunResult.stderr }}</pre></dd>
-            }
-          </dl>
-        }
-
-        @if (workspace.cemGenerationError(); as cemGenError) {
-          <p role="alert">{{ cemGenError }}</p>
-        }
-      </section>
-    }
-  }
-
-  @if (workspace.repositoryConfig(); as config) {
-    <dl>
-      <dt>Repository configuration</dt>
-      <dd>
-        .forgegate/config.yaml ({{ config.projectMappings.length }} project mapping(s),
-        {{ config.safeWriteLocations.length }} safe write location(s))
-      </dd>
-    </dl>
-  } @else if (!workspace.repositoryConfigError() && workspace.workspacePath()) {
-    <p>Repository configuration: not configured yet (no .forgegate/config.yaml).</p>
-  }
-
-  @if (workspace.repositoryConfigError(); as configError) {
-    <p role="alert">Repository configuration is invalid: {{ configError }}</p>
-  }
-
-  @if (workspace.error(); as error) {
-    <p role="alert">{{ error }}</p>
-  }
-</main>
-<router-outlet></router-outlet>
+    <main id="main-content" #mainContent tabindex="-1">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

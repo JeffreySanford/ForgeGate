@@ -1,73 +1,90 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
-import { WorkspaceService, type WorkspaceScan } from './workspace.service';
+import { appRoutes } from './app.routes';
+import { WorkspaceService, type GitStatus } from './workspace.service';
 
-const emptyScan: WorkspaceScan = {
-  packageName: '@up/design-system',
-  packageManager: 'pnpm',
-  workspaceManager: 'nx',
-  storybookProjects: [],
-  starlightProjects: [],
-  hasZeroheight: false,
-  tokenFiles: [],
-  testRunners: [],
-  visualRegressionProviders: [],
-  ciProviders: [],
-  customElementsManifests: ['custom-elements.json'],
-};
+const gitStatus: GitStatus = { branch: 'main', commit: 'abc1234', dirty: true };
 
-describe('App', () => {
+describe('App shell', () => {
   let workspaceService: WorkspaceService;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [provideRouter(appRoutes)],
     }).compileComponents();
     workspaceService = TestBed.inject(WorkspaceService);
   });
 
-  it('should render title', async () => {
+  it('renders the brand and primary navigation', async () => {
     const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
     await fixture.whenStable();
+
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('ForgeGate');
+    expect(compiled.querySelector('.app-nav__brand')?.textContent).toContain('ForgeGate');
+    const links = Array.from(compiled.querySelectorAll('.app-nav a')).map((a) => a.getAttribute('href'));
+    expect(links).toEqual(['/workspace', '/components']);
   });
 
-  it('renders a component inventory row for each discovered custom element', async () => {
-    workspaceService.workspaceScan.set(emptyScan);
-    workspaceService.customElementsManifest.set({
-      schemaVersion: '1.0.0',
-      modules: [
-        {
-          kind: 'javascript-module',
-          path: 'src/up-button.ts',
-          declarations: [
-            { kind: 'class', name: 'UpButton', customElement: true, tagName: 'up-button' },
-          ],
-        },
-      ],
-    });
-
+  it('shows an explicit empty state in the context bar when no workspace is open', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('up.design-system.up-button');
-    expect(compiled.textContent).toContain('src/up-button.ts');
+    expect(compiled.querySelector('.workspace-context-bar__empty')?.textContent).toContain('No workspace open');
   });
 
-  it('shows a fallback message when the manifest has no custom elements in it', async () => {
-    workspaceService.workspaceScan.set(emptyScan);
-    workspaceService.customElementsManifest.set({ schemaVersion: '1.0.0', modules: [] });
+  it('shows workspace path and git status facts in the context bar once a workspace is open', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.gitStatus.set(gitStatus);
 
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('Manifest present but no custom elements found in it');
+    expect(compiled.querySelector('.workspace-context-bar__path')?.textContent).toContain('/repos/example');
+    const facts = Array.from(compiled.querySelectorAll('.workspace-context-bar__fact')).map((el) => el.textContent?.trim());
+    expect(facts).toEqual(['Branch main', 'Commit abc1234', 'Uncommitted changes']);
+  });
+
+  it('calls WorkspaceService.selectWorkspace when "Open workspace…" is clicked', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const selectWorkspace = vi.spyOn(workspaceService, 'selectWorkspace').mockResolvedValue();
+    const compiled = fixture.nativeElement as HTMLElement;
+    compiled.querySelector<HTMLButtonElement>('.workspace-context-bar button')?.click();
+
+    expect(selectWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces a workspace-level error as an alert', async () => {
+    workspaceService.error.set('Failed to read git status');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain('Failed to read git status');
+  });
+
+  it('moves focus to the main content landmark after a route change', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await router.navigateByUrl('/components');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const main = (fixture.nativeElement as HTMLElement).querySelector('#main-content');
+    expect(document.activeElement).toBe(main);
   });
 });

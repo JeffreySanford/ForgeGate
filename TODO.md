@@ -88,22 +88,22 @@ Primary references:
 
 ## P0.2 — Application shell and routes
 
-- [ ] Add persistent application navigation.
-- [ ] Add a workspace context bar with repository, branch, commit, dirty state, scan state, and workspace actions.
-- [ ] Add `/workspace` route.
-- [ ] Add `/components` route.
-- [ ] Add `/components/:componentId` route.
-- [ ] Keep Tests, Reviews, Documentation, and Releases visible only when they have a meaningful connected destination or honest coming-soon state.
-- [ ] Move raw paths, commands, and adapter diagnostics behind progressive disclosure rather than removing them.
-- [ ] Preserve route state and selected component when scans refresh.
-- [ ] Add route-change focus management.
-- [ ] Add loading, empty, error, partial, and unsupported layouts for every primary route.
+- [X} Add persistent application navigation. `App` (`app.ts`/`app.html`/`app.css`) is now the shell: a left nav with Workspace/Components links, always present around `<router-outlet>`. Tests, Reviews, Documentation, and Releases are deliberately not in the nav yet — see the checklist item below.
+- [X} Add a workspace context bar with repository, branch, commit, dirty state, and workspace actions. Shows workspace path, branch, short commit, and a dirty/clean indicator when a workspace is open, an explicit "No workspace open" state otherwise, and the "Open workspace…" action. Scan state (in-progress indicator) is not shown yet — `WorkspaceService` has no in-flight signal for the scan itself, only for CEM generation.
+- [X} Add `/workspace` route. `WorkspacePage` (`app/workspace/workspace-page.ts`) — holds the scan detail, component inventory, CEM generation, and repository-config sections moved out of the old flat screen.
+- [X} Add `/components` route. `ComponentsPage` — honest coming-soon placeholder; the real designer-ready inventory is P0.4.
+- [X} Add `/components/:componentId` route. `ComponentDetailPage` — honest coming-soon placeholder reading `componentId` from the route; the real Button assurance record is P0.5.
+- [ ] Keep Tests, Reviews, Documentation, and Releases visible only when they have a meaningful connected destination or honest coming-soon state. Not yet added to the nav at all (neither real nor coming-soon) — deferred until closer to P1/P2 work that would give them a destination.
+- [ ] Move raw paths, commands, and adapter diagnostics behind progressive disclosure rather than removing them. `WorkspacePage` still shows all diagnostic detail flat, same as before — this is P0.3's real-data system map work, not done here.
+- [ ] Preserve route state and selected component when scans refresh. Not yet applicable — no component selection state exists until P0.4.
+- [X} Add route-change focus management. `App`'s constructor subscribes to `Router` `NavigationEnd` and moves focus to the `#main-content` landmark (`tabindex="-1"`), verified by an Angular test that navigates via `Router.navigateByUrl` and asserts `document.activeElement`, and confirmed live in a running dev server.
+- [ ] Add loading, empty, error, partial, and unsupported layouts for every primary route. `WorkspacePage` has an explicit empty state; no loading/partial/unsupported states exist for any route yet.
 
 ### P0.2 exit criteria
 
-- [ ] The flat single-screen diagnostic console is no longer the primary application structure.
-- [ ] A keyboard user can move through navigation, workspace context, inventory, and component detail without focus loss.
-- [ ] Engineers can still reach raw diagnostics and exact source information.
+- [X} The flat single-screen diagnostic console is no longer the primary application structure. Replaced by the shell + three real routes (`/workspace`, `/components`, `/components/:componentId`), verified visually in a live dev server (empty state, then a real route change with focus move, no console errors).
+- [ ] A keyboard user can move through navigation, workspace context, inventory, and component detail without focus loss. Route-change focus management works; inventory and component-detail screens themselves don't exist yet to evaluate the rest of the flow.
+- [X} Engineers can still reach raw diagnostics and exact source information. All prior diagnostic detail (scan results, manifest mapping failures, CEM generation output, repository-config errors) is preserved verbatim on `/workspace`, just relocated out of the old single screen.
 
 ## P0.3 — Workspace command center
 

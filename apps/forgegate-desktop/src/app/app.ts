@@ -1,13 +1,8 @@
-import { Component, computed, inject } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import {
-  deriveOrganizationAndLibrary,
-  mapCustomElementsManifestToComponentManifests,
-  type MapCemResult,
-} from '@forgegate/adapter-web-components';
-import { GENERATE_CEM_COMMAND_TEXT, WorkspaceService } from './workspace.service';
-
-const EMPTY_MAP_RESULT: MapCemResult = { manifests: [], failures: [] };
+import { Component, ElementRef, inject, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterModule } from '@angular/router';
+import { filter } from 'rxjs';
+import { WorkspaceService } from './workspace.service';
 
 @Component({
   imports: [RouterModule],
@@ -16,39 +11,25 @@ const EMPTY_MAP_RESULT: MapCemResult = { manifests: [], failures: [] };
   styleUrl: './app.css',
 })
 export class App {
-  protected title = 'ForgeGate';
-  protected workspace = inject(WorkspaceService);
-  protected readonly generateCemCommandText = GENERATE_CEM_COMMAND_TEXT;
+  protected readonly title = 'ForgeGate';
+  protected readonly workspace = inject(WorkspaceService);
+  private readonly router = inject(Router);
+  private readonly mainContent = viewChild.required<ElementRef<HTMLElement>>('mainContent');
 
-  /**
-   * The actual payoff of the CEM discovery/generation work: real
-   * ComponentManifest records, not just a list of tag names. Organization
-   * and library are derived from the workspace's package name via a
-   * documented naming convention (`deriveOrganizationAndLibrary`) — not
-   * real configured identity, since `.forgegate/config.yaml` has no
-   * dedicated field for that yet. `failures` holds any declaration that
-   * couldn't be mapped (shown in the UI, not silently dropped) — the
-   * mapper reports per-declaration problems rather than losing every
-   * sibling component over one bad one.
-   */
-  protected readonly componentMapResult = computed<MapCemResult>(() => {
-    const manifest = this.workspace.customElementsManifest();
-    if (!manifest) {
-      return EMPTY_MAP_RESULT;
-    }
-    const { organization, library } = deriveOrganizationAndLibrary(this.workspace.workspaceScan()?.packageName ?? null);
-    return mapCustomElementsManifestToComponentManifests(manifest, {
-      organization,
-      library,
-      packagePath: '.',
-    });
-  });
+  constructor() {
+    // Route-change focus management (P0.2): move focus to the main content
+    // landmark on every navigation so a keyboard/screen-reader user isn't
+    // silently left focused on a nav link that's no longer where the page
+    // content is, per documentation/25's route-change focus requirement.
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => this.mainContent().nativeElement.focus());
+  }
 
   openWorkspace(): void {
     void this.workspace.selectWorkspace();
-  }
-
-  generateCustomElementsManifest(): void {
-    void this.workspace.generateCustomElementsManifest();
   }
 }
