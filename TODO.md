@@ -129,7 +129,7 @@ The completed marker intentionally follows the project convention requested for 
 
 ### Phase 1 exit criteria
 
-- [ ] ForgeGate launches on Windows. `cargo check`/`cargo test` pass and the web build succeeds; the actual GUI window (`pnpm desktop:dev`) has not yet been confirmed to launch interactively.
+- [X} ForgeGate launches on Windows. `pnpm desktop:dev` opens the window; "Open workspace…" selects a real folder via the native picker and displays live branch/commit/dirty state. Confirmed 2026-07-22.
 - [X} A user can select a local folder. Native OS picker only, via `select_workspace`.
 - [X} The application can read approved files without unrestricted filesystem access. `read_git_status` validates the path is absolute and resolves to a real directory before any process runs against it.
 - [ ] Privileged operations are visible, cancellable, and auditable. Not yet — no audit log, no cancellation exists yet since there are no long-running operations.
