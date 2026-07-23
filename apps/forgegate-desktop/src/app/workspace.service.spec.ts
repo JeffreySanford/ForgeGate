@@ -27,13 +27,22 @@ describe('WorkspaceService', () => {
     expect(invokeMock).toHaveBeenCalledWith('select_workspace');
   });
 
-  it('loads Git status after a workspace is selected', async () => {
+  it('loads Git status and the workspace scan after a workspace is selected', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
       .mockResolvedValueOnce({
         branch: 'master',
         commit: 'a'.repeat(40),
         dirty: false,
+      })
+      .mockResolvedValueOnce({
+        packageManager: 'pnpm',
+        hasNx: true,
+        hasStorybook: false,
+        hasStarlight: false,
+        tokenFiles: [],
+        testRunners: ['vitest'],
+        ciProviders: ['github-actions'],
       });
 
     await service.selectWorkspace();
@@ -44,17 +53,36 @@ describe('WorkspaceService', () => {
       commit: 'a'.repeat(40),
       dirty: false,
     });
+    expect(service.workspaceScan()).toEqual({
+      packageManager: 'pnpm',
+      hasNx: true,
+      hasStorybook: false,
+      hasStarlight: false,
+      tokenFiles: [],
+      testRunners: ['vitest'],
+      ciProviders: ['github-actions'],
+    });
     expect(service.error()).toBeNull();
   });
 
-  it('surfaces an error and clears Git status when the status read fails', async () => {
+  it('surfaces an error and clears Git status and scan when the status read fails', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/not-a-git-repo')
-      .mockRejectedValueOnce('Workspace path does not exist');
+      .mockRejectedValueOnce('Workspace path does not exist')
+      .mockResolvedValueOnce({
+        packageManager: null,
+        hasNx: false,
+        hasStorybook: false,
+        hasStarlight: false,
+        tokenFiles: [],
+        testRunners: [],
+        ciProviders: [],
+      });
 
     await service.selectWorkspace();
 
     expect(service.gitStatus()).toBeNull();
+    expect(service.workspaceScan()).toBeNull();
     expect(service.error()).toBe('Workspace path does not exist');
   });
 });

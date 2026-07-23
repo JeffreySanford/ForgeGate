@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use std::process::Command;
 use tauri_plugin_dialog::DialogExt;
 
+mod workspace_scan;
+use workspace_scan::{scan_workspace, WorkspaceScan};
+
 #[derive(Serialize)]
 struct GitStatus {
     branch: String,
@@ -70,6 +73,12 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
     })
 }
 
+#[tauri::command]
+fn read_workspace_scan(path: String) -> Result<WorkspaceScan, String> {
+    let workspace = resolve_workspace_path(&path)?;
+    Ok(scan_workspace(&workspace))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,7 +133,11 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![select_workspace, read_git_status])
+        .invoke_handler(tauri::generate_handler![
+            select_workspace,
+            read_git_status,
+            read_workspace_scan
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -7,10 +7,21 @@ export interface GitStatus {
   dirty: boolean;
 }
 
+export interface WorkspaceScan {
+  packageManager: string | null;
+  hasNx: boolean;
+  hasStorybook: boolean;
+  hasStarlight: boolean;
+  tokenFiles: string[];
+  testRunners: string[];
+  ciProviders: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
   readonly workspacePath = signal<string | null>(null);
   readonly gitStatus = signal<GitStatus | null>(null);
+  readonly workspaceScan = signal<WorkspaceScan | null>(null);
   readonly error = signal<string | null>(null);
 
   async selectWorkspace(): Promise<void> {
@@ -21,10 +32,15 @@ export class WorkspaceService {
     }
     this.workspacePath.set(path);
     try {
-      const status = await invoke<GitStatus>('read_git_status', { path });
+      const [status, scan] = await Promise.all([
+        invoke<GitStatus>('read_git_status', { path }),
+        invoke<WorkspaceScan>('read_workspace_scan', { path }),
+      ]);
       this.gitStatus.set(status);
+      this.workspaceScan.set(scan);
     } catch (error) {
       this.gitStatus.set(null);
+      this.workspaceScan.set(null);
       this.error.set(String(error));
     }
   }

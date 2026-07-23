@@ -214,34 +214,36 @@ See [`22-reactive-data-flow.md`](../documentation/22-reactive-data-flow.md).
 
 ## Repository scanning
 
-- [ ] Detect Git repositories.
-- [ ] Read current branch and commit SHA.
-- [ ] Detect dirty working trees.
-- [ ] Detect package manager from lockfiles and metadata.
-- [ ] Detect npm, pnpm, Yarn, and Bun projects.
-- [ ] Detect Nx.
+- [ ] Detect Git repositories. Not a distinct capability yet — `read_git_status` assumes the folder is already a Git repo; a non-repo folder surfaces as a raw `git` error rather than a clean "not a Git repository" result.
+- [X} Read current branch and commit SHA. `read_git_status` in `apps/forgegate-desktop/src-tauri/src/lib.rs`.
+- [X} Detect dirty working trees. `read_git_status`'s `dirty` field.
+- [X} Detect package manager from lockfiles and metadata. `detect_package_manager` in `workspace_scan.rs` — pnpm/yarn/bun/npm, by lockfile presence, top-level only.
+- [X} Detect npm, pnpm, Yarn, and Bun projects. Same as above.
+- [X} Detect Nx. `nx.json` presence.
 - [ ] Detect Turborepo.
 - [ ] Detect Rush.
 - [ ] Detect Lage.
 - [ ] Detect conventional workspace layouts.
-- [ ] Detect framework packages and versions.
-- [ ] Detect Storybook configurations.
-- [ ] Detect Astro Starlight configurations.
+- [ ] Detect framework packages and versions. Deferred to the framework adapters themselves (Phase 5/12) rather than generic workspace scanning.
+- [X} Detect Storybook configurations. `.storybook` directory presence only — not story count or config validity.
+- [X} Detect Astro Starlight configurations. `detect_starlight` — an `astro.config.{mjs,ts,js}` file whose contents mention "starlight".
 - [ ] Detect Zeroheight configuration files or project mappings.
-- [ ] Detect token files and formats.
-- [ ] Detect unit and browser test runners.
+- [X} Detect token files and formats. `detect_token_files` — `*.tokens.json`/`*.tokens` at the workspace root or one level into `tokens/`/`design-tokens/`. Not yet DTCG-content-aware (filename pattern only).
+- [X} Detect unit and browser test runners. `detect_test_runners` — vitest/jest/playwright config file presence.
 - [ ] Detect visual-regression providers.
-- [ ] Detect CI provider files.
+- [X} Detect CI provider files. `detect_ci_providers` — GitHub Actions (`.github/workflows` with at least one file), GitLab CI, Azure Pipelines.
+
+All detection above is intentionally non-recursive (workspace root only, plus one level into a couple of known token directories) to stay fast and avoid walking into `node_modules`. Monorepo-wide scanning across `apps/`/`packages/` is separate, later work.
 
 ## Workspace screen
 
-- [ ] Show repository path and Git state.
-- [ ] Show detected package manager and workspace manager.
-- [ ] Show detected frameworks.
+- [X} Show repository path and Git state. `app.html` — path, branch, commit, dirty.
+- [X} Show detected package manager and workspace manager. `app.html` — package manager and Nx detection.
+- [ ] Show detected frameworks. No framework detection exists yet (see above).
 - [ ] Show component-library candidates.
-- [ ] Show Storybook targets.
-- [ ] Show documentation targets.
-- [ ] Show testing tools.
+- [X} Show Storybook targets. Detected/not-detected only, no target list yet.
+- [X} Show documentation targets. Starlight detected/not-detected only.
+- [X} Show testing tools. `app.html` — detected test runners and CI providers.
 - [ ] Show missing or unsupported configuration.
 - [ ] Allow user correction of discovery results.
 - [ ] Persist confirmed mappings in repository configuration.
