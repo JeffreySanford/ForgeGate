@@ -54,6 +54,16 @@ Mitigation:
 
 ## Technical risks
 
+### Risk: Transitive dependency vulnerabilities in the build toolchain
+
+GitHub Dependabot flags vulnerabilities in packages ForgeGate never imports directly — pulled in transitively by Nx, Angular tooling, and Tauri's Linux GTK bindings.
+
+Mitigation and current status (2026-07-23):
+
+- 25 of 26 flagged npm advisories (axios, brace-expansion, http-proxy-middleware, webpack-dev-server, `@hono/node-server`, uuid, `@babel/core`, vite, esbuild) fixed via range-scoped `pnpm.overrides` in `package.json` — each override targets only the vulnerable version range for that package, not a blanket major-version bump, so unaffected coexisting versions (e.g. `brace-expansion@1.x`/`2.x`) are left alone. `pnpm audit --prod` is clean.
+- One Rust advisory (`glib` GHSA — an unsoundness/crash bug in a rarely-used `VariantStrIter` iterator) is **upstream-blocked**: `tauri 2.11.5` pins `gtk = "^0.18"`, which pins `glib = "^0.18"`; no newer Tauri release exists yet that uses a newer gtk-rs line, and `cargo update -p glib --precise 0.20.0` fails for exactly that reason. It is also Linux-only (target-conditional in `Cargo.lock`; irrelevant to the current Windows-only deployment scope) and crash-only, not remote-exploitable. Tracked, not fixed — revisit when Tauri ships a gtk-rs bump.
+- Re-run `pnpm audit --prod` and check `gh api repos/JeffreySanford/ForgeGate/dependabot/alerts` periodically; this is a build-toolchain surface that will keep needing attention as Nx/Angular/Tauri release new versions.
+
 ### Risk: Arbitrary repositories are inconsistent
 
 Repositories vary in layout, commands, versions, and conventions.
