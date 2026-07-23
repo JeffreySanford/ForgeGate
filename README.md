@@ -2,11 +2,15 @@
 
 **Build, verify, document, govern, and release trusted web components.**
 
-ForgeGate is a proposed local-first desktop application and open component-assurance platform for modern design systems. It connects component source code, Storybook, automated tests, manual accessibility and compliance review, design tokens, Git history, documentation systems, and release decisions into one operational center of truth.
+ForgeGate is a proposed local-first desktop application and component-assurance platform for modern design systems. It connects component source code, Storybook, automated tests, manual accessibility and compliance review, design tokens, Git history, documentation systems, release decisions, and governed component proposals into one operational center of truth.
 
-ForgeGate is not intended to replace Figma as a general graphics and interface-design application. It is intended to solve a narrower and more engineering-focused problem:
+ForgeGate is not intended to replace Figma as a general graphics and interface-design application. It solves a narrower and more operational problem:
 
 > How does a team know that a component is completely specified, correctly implemented, fully tested, accessible, documented, reviewed, versioned, and safe to release?
+
+A later first-class initiative, **Blueprint Studio**, extends those same proven contracts into structured visual authoring:
+
+> How can a designer propose a new component visually, preview the real coded result, and hand engineering a complete, reviewable package without beginning in framework code?
 
 ## Product position
 
@@ -14,11 +18,12 @@ ForgeGate sits above the existing tools in a component-delivery workflow:
 
 - **Framework source code** remains the executable implementation.
 - **Storybook** remains the isolated rendering and interaction workbench.
+- **Figma or Penpot** remains the general visual-design environment and may provide linked design references.
 - **Unit, integration, browser, accessibility, and visual tools** remain the test executors.
 - **Git** remains the durable history of component requirements and implementation changes.
 - **Astro Starlight** is the preferred open documentation-publishing target.
 - **Zeroheight** is an optional enterprise documentation and governance adapter.
-- **ForgeGate** coordinates the lifecycle, normalizes evidence, guides manual reviews, detects stale approvals, applies release policies, and presents the authoritative component record.
+- **ForgeGate** coordinates the lifecycle, normalizes evidence, guides manual reviews, detects stale approvals, applies release policies, presents the authoritative component record, and later supports structured component proposals through Blueprint Studio.
 
 ## Core product promise
 
@@ -51,7 +56,7 @@ ForgeGate is designed around a framework-adapter architecture rather than one ha
 - Astro component projects
 - Framework-neutral HTML, CSS, JavaScript, and TypeScript component packages
 
-The first implementation should be narrow and deep: Lit and vanilla Web Components, followed by Angular and Nx, then React, Vue, Svelte, and the remaining adapters. Web Components ship first because they prove the framework-neutral contract honestly and match how teams building a design system from scratch — including federal teams standardizing across many agencies — often choose a framework-agnostic component layer. The platform contracts, manifests, evidence model, policy engine, and documentation adapters must remain framework-neutral from the beginning.
+The first implementation should be narrow and deep: Lit and vanilla Web Components, followed by Angular and Nx, then React, Vue, Svelte, and the remaining adapters. Web Components ship first because they prove the framework-neutral contract honestly and fit teams standardizing across products, frameworks, and agencies.
 
 ## Major capabilities
 
@@ -59,7 +64,7 @@ The first implementation should be narrow and deep: Lit and vanilla Web Componen
 
 - Open a local repository or monorepo.
 - Detect package managers, workspace managers, frameworks, Storybook installations, documentation targets, test runners, token formats, and component packages.
-- Support Nx, Turborepo, pnpm workspaces, npm workspaces, Yarn workspaces, Rush, Lage, and conventional single-project repositories through adapters.
+- Support Nx, Turborepo, pnpm workspaces, npm workspaces, Yarn workspaces, Rush, Lage, and conventional repositories through adapters.
 
 ### Component inventory
 
@@ -69,7 +74,9 @@ The first implementation should be narrow and deep: Lit and vanilla Web Componen
 
 ### Component blueprints
 
-ForgeGate will provide detailed, policy-aware samples for common web components rather than a blank design canvas. Initial blueprints should include:
+ForgeGate provides policy-aware blueprints for common web-component patterns rather than beginning from an empty checklist.
+
+Initial blueprints include:
 
 - Button and link
 - Text input and textarea
@@ -83,6 +90,26 @@ ForgeGate will provide detailed, policy-aware samples for common web components 
 - Navigation, application shell, skip link, and landmark patterns
 
 Each blueprint defines the expected public contract, states, interactions, keyboard model, accessibility requirements, token categories, Storybook coverage, automated tests, manual reviews, documentation sections, and release evidence.
+
+### Blueprint Studio
+
+Blueprint Studio is the planned post-MVP visual component-authoring environment.
+
+It lets designers:
+
+- Choose a governed component pattern.
+- Define purpose and semantics.
+- Configure contract properties visually.
+- Compose variants and states in a matrix.
+- Define anatomy, slots, and parts.
+- Map approved design tokens.
+- Define behavior and content fixtures.
+- Preview a clearly identified coded or reference implementation.
+- Review required stories, tests, accessibility procedures, and documentation.
+- Generate proposed files through temporary output, explicit diffs, approval, validation, and rollback.
+- Hand the proposal to engineering and transition it into ordinary ForgeGate assurance.
+
+Blueprint Studio is not a freeform graphics canvas and does not move full component generation into the current MVP. See [`documentation/27-blueprint-studio.md`](documentation/27-blueprint-studio.md), [`documentation/28-blueprint-studio-implementation-plan.md`](documentation/28-blueprint-studio-implementation-plan.md), and ADR [`documentation/decisions/0006-blueprint-studio-boundary.md`](documentation/decisions/0006-blueprint-studio-boundary.md).
 
 ### Storybook integration
 
@@ -139,43 +166,41 @@ Passing axe alone must never be represented as legal or complete accessibility c
 
 ForgeGate separates three kinds of truth:
 
-1. **Repository truth** — manifests, policies, component contracts, tokens, documentation metadata, and requirements committed to Git.
+1. **Repository truth** — manifests, policies, component contracts, tokens, documentation metadata, proposals, and requirements committed to Git.
 2. **Execution truth** — normalized results produced by testing, build, accessibility, visual, and CI tools.
 3. **Review truth** — human observations, approvals, accepted exceptions, release decisions, and re-review requirements.
 
-The desktop application is the operational control center, but durable state must be exportable and repository-friendly. SQLite may cache local state; it must not become the only place where critical evidence exists.
+The desktop application is the operational control center, but durable state must be exportable and repository-friendly. SQLite may cache local state; it must not become the only place where critical evidence or proposals exist.
 
 ## Proposed desktop architecture
 
 - Tauri 2 desktop shell
 - Framework-neutral core domain model
-- Angular desktop user interface for the initial implementation
+- Angular desktop user interface
 - Rust/Tauri command boundary for filesystem, process, Git, credential, and operating-system capabilities
-- SQLite for local indexing and cache state
+- SQLite for local indexing, drafts, and cache state
 - Operating-system credential vault for tokens and secrets
 - Sandboxed remote previews with no privileged filesystem or process bridge
-- Adapter SDK for frameworks, workspaces, tests, documentation systems, tokens, version control, and CI providers
+- Adapter SDK for frameworks, workspaces, tests, documentation systems, tokens, version control, CI providers, and later Blueprint Studio generation
 
-## Repository status
+## Current milestone
 
-This repository begins as a product-definition and implementation-planning repository. The initial documentation establishes the architecture and a phased path to a working proof of concept.
+The first demonstrable vertical slice remains:
 
-See:
+> Open a Web Components design-system repository, discover one button component and its Storybook stories, run configured checks, complete a guided Section 508-oriented manual review, calculate release readiness for the current commit, export evidence, and generate an Astro Starlight component page.
+
+The implementation-ready component experience is defined in [`documentation/25-designer-ready-vertical-slice.md`](documentation/25-designer-ready-vertical-slice.md).
+
+The workspace-level visualization and motion language is defined in [`documentation/26-workspace-visualization-and-motion.md`](documentation/26-workspace-visualization-and-motion.md), with a fixture-only reference at [`documentation/prototypes/workspace-command-center.html`](documentation/prototypes/workspace-command-center.html).
+
+Blueprint Studio is intentionally sequenced after this assurance milestone. Its direction is defined now so today's framework-neutral contracts, blueprints, token model, safe writes, and adapter capabilities can support it later without redesign.
+
+## Repository guide
 
 - [`TODO.md`](TODO.md) — phased implementation plan and active center of work
 - [`documentation/README.md`](documentation/README.md) — documentation map and recommended reading order
 - [`AGENTS.md`](AGENTS.md) — contribution and AI-agent operating rules
 
-## Current milestone
-
-The first demonstrable vertical slice is:
-
-> Open a Web Components (Lit or vanilla Custom Elements) design-system repository, discover one button component and its Storybook stories, run configured checks, complete a guided Section 508-oriented manual review, calculate release readiness for the current commit, export evidence, and generate an Astro Starlight component page.
-
-The implementation-ready information architecture, visual language, connected-data map, and acceptance criteria for presenting this milestone to designers are defined in [`documentation/25-designer-ready-vertical-slice.md`](documentation/25-designer-ready-vertical-slice.md).
-
-The workspace-level visualization and motion language is defined in [`documentation/26-workspace-visualization-and-motion.md`](documentation/26-workspace-visualization-and-motion.md). A fixture-only standalone reference at [`documentation/prototypes/workspace-command-center.html`](documentation/prototypes/workspace-command-center.html) demonstrates the living system map, assurance journey, readiness distribution, component landscape, evidence timeline, responsive behavior, dark theme, and reduced-motion mode.
-
 ## License and commercial status
 
-No license has been finalized. The current leaning is proprietary-closed or source-available (visible to evaluators, not free to use or redistribute) rather than open source, given the intended federal and enterprise buyer. Until a license is intentionally added, this private repository and its contents should be treated as proprietary and not redistributed. See [`19-commercial-model.md`](documentation/19-commercial-model.md) and [`20-risks-and-decisions.md`](documentation/20-risks-and-decisions.md).
+No license has been finalized. The current leaning is proprietary-closed or source-available rather than open source, given the intended federal and enterprise buyer. Until a license is intentionally added, this private repository and its contents should be treated as proprietary and not redistributed. See [`documentation/19-commercial-model.md`](documentation/19-commercial-model.md) and [`documentation/20-risks-and-decisions.md`](documentation/20-risks-and-decisions.md).
