@@ -3,29 +3,34 @@
     <p class="workspace-page__empty">No workspace open yet. Use "Open workspace…" above to select a repository.</p>
   }
 
+  <app-system-map />
+
   @if (workspace.workspaceScan(); as scan) {
-    <dl>
-      <dt>Package manager</dt>
-      <dd>{{ scan.packageManager ?? 'Not detected' }}</dd>
-      <dt>Workspace manager</dt>
-      <dd>{{ scan.workspaceManager ?? 'Not detected' }}</dd>
-      <dt>Storybook</dt>
-      <dd>{{ scan.storybookProjects.length ? scan.storybookProjects.join(', ') : 'Not detected' }}</dd>
-      <dt>Astro Starlight</dt>
-      <dd>{{ scan.starlightProjects.length ? scan.starlightProjects.join(', ') : 'Not detected' }}</dd>
-      <dt>Zeroheight</dt>
-      <dd>{{ scan.hasZeroheight ? 'Detected' : 'Not detected' }}</dd>
-      <dt>Design tokens</dt>
-      <dd>{{ scan.tokenFiles.length ? scan.tokenFiles.join(', ') : 'None found' }}</dd>
-      <dt>Test runners</dt>
-      <dd>{{ scan.testRunners.length ? scan.testRunners.join(', ') : 'None found' }}</dd>
-      <dt>Visual regression providers</dt>
-      <dd>{{ scan.visualRegressionProviders.length ? scan.visualRegressionProviders.join(', ') : 'None found' }}</dd>
-      <dt>CI providers</dt>
-      <dd>{{ scan.ciProviders.length ? scan.ciProviders.join(', ') : 'None found' }}</dd>
-      <dt>Custom Elements Manifest</dt>
-      <dd>{{ scan.customElementsManifests.length ? scan.customElementsManifests.join(', ') : 'None found' }}</dd>
-    </dl>
+    <details class="workspace-page__raw-scan">
+      <summary>Raw workspace scan diagnostics</summary>
+      <dl>
+        <dt>Package manager</dt>
+        <dd>{{ scan.packageManager ?? 'Not detected' }}</dd>
+        <dt>Workspace manager</dt>
+        <dd>{{ scan.workspaceManager ?? 'Not detected' }}</dd>
+        <dt>Storybook</dt>
+        <dd>{{ scan.storybookProjects.length ? scan.storybookProjects.join(', ') : 'Not detected' }}</dd>
+        <dt>Astro Starlight</dt>
+        <dd>{{ scan.starlightProjects.length ? scan.starlightProjects.join(', ') : 'Not detected' }}</dd>
+        <dt>Zeroheight</dt>
+        <dd>{{ scan.hasZeroheight ? 'Detected' : 'Not detected' }}</dd>
+        <dt>Design tokens</dt>
+        <dd>{{ scan.tokenFiles.length ? scan.tokenFiles.join(', ') : 'None found' }}</dd>
+        <dt>Test runners</dt>
+        <dd>{{ scan.testRunners.length ? scan.testRunners.join(', ') : 'None found' }}</dd>
+        <dt>Visual regression providers</dt>
+        <dd>{{ scan.visualRegressionProviders.length ? scan.visualRegressionProviders.join(', ') : 'None found' }}</dd>
+        <dt>CI providers</dt>
+        <dd>{{ scan.ciProviders.length ? scan.ciProviders.join(', ') : 'None found' }}</dd>
+        <dt>Custom Elements Manifest</dt>
+        <dd>{{ scan.customElementsManifests.length ? scan.customElementsManifests.join(', ') : 'None found' }}</dd>
+      </dl>
+    </details>
   }
 
   @if (workspace.customElementsManifest()) {

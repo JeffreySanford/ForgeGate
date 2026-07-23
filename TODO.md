@@ -107,23 +107,23 @@ Primary references:
 
 ## P0.3 — Workspace command center
 
-- [ ] Replace the flat discovery output with a structured workspace command center.
-- [ ] Group repository, design-system, assurance-tool, and documentation discoveries by user meaning.
-- [ ] Show one policy-driven or discovery-driven recommended next action.
-- [ ] Implement a real-data system map for currently detected relationships: repository, projects, component library candidates, components, Storybook, tokens, tests, documentation, and CI.
-- [ ] Clearly label unknown, unsupported, missing, and not-connected nodes.
-- [ ] Provide a semantic list or table equivalent for the system map.
-- [ ] Add discovery/scan progress that explains what ForgeGate is checking.
-- [ ] Animate relationship discovery only when it improves comprehension.
-- [ ] Stop animation when the scan completes; no endless decorative movement.
-- [ ] Preserve exact detected paths and adapter details in expandable diagnostics.
-- [ ] Use only live scan data in production; fixture values remain confined to the reference prototype.
+- [X} Replace the flat discovery output with a structured workspace command center. `SystemMap` (`app/workspace/system-map.ts`) renders at the top of `/workspace`, above the (now collapsed) raw scan `<details>`. Only the system-map slice is done; the rest of the page (component inventory, CEM generation, repository config) is still flat, not yet regrouped.
+- [X} Group repository, design-system, assurance-tool, and documentation discoveries by user meaning. The system map's eight nodes (Repository, Component library, Storybook, Design tokens, Components, Automated evidence, Documentation, Release) are exactly that grouping, replacing raw scan-field names.
+- [ ] Show one policy-driven or discovery-driven recommended next action. Not implemented — no policy/readiness engine exists yet to drive a recommendation.
+- [X} Implement a real-data system map for currently detected relationships: repository, component library, Storybook, tokens, components, and documentation. Every node status is computed live from `WorkspaceService`/`ComponentInventoryService` signals — nothing hardcoded, verified by 6 tests covering the open-workspace-with-nothing-detected, connected, and partial-mapping-failure cases. "Tests" and "CI" are folded into a single honestly-partial "Automated evidence" node (tool detection only, no real run results — ForgeGate has no test-execution feature yet). "Release" has no backing feature at all and always reports not-connected.
+- [X} Clearly label unknown, unsupported, missing, and not-connected nodes. Every node has an explicit status (`connected`/`partial`/`stale`/`missing`) shown as text, not just color — `stale` is defined but never produced yet since evidence-freshness tracking (P1.3) doesn't exist.
+- [X} Provide a semantic list or table equivalent for the system map. A `<details>`-disclosed `<table>` beneath the SVG carries the same relationship/status/detail data.
+- [ ] Add discovery/scan progress that explains what ForgeGate is checking. Not implemented — `WorkspaceService.selectWorkspace()` has no in-flight/progress signal.
+- [ ] Animate relationship discovery only when it improves comprehension. Deliberately not implemented this slice — no motion at all on the map yet, which trivially satisfies "no endless decorative movement" but doesn't yet use motion to aid comprehension either.
+- [ ] Stop animation when the scan completes; no endless decorative movement. N/A — no animation exists yet (see above).
+- [ ] Preserve exact detected paths and adapter details in expandable diagnostics. Partially done: the raw scan `dl` is now behind a `<details>` disclosure on `/workspace`. Component inventory, CEM generation output, and repository-config detail are still shown flat, not yet moved behind disclosure.
+- [X} Use only live scan data in production; fixture values remain confined to the reference prototype. Verified live in a running dev server (empty state, then real signal values via unit tests) — no hardcoded example data in the shipped component.
 
 ### P0.3 exit criteria
 
-- [ ] A designer can understand what ForgeGate found without reading a raw definition list.
-- [ ] A developer can inspect every underlying path, command, and adapter result.
-- [ ] The system map remains understandable with motion disabled and through its semantic alternative.
+- [X} A designer can understand what ForgeGate found without reading a raw definition list. The system map's grouped, labeled nodes are the primary view; the raw `dl` is now secondary (collapsed).
+- [X} A developer can inspect every underlying path, command, and adapter result. Unchanged from P0.2 — all prior diagnostic detail is still present, just now below the system map.
+- [X} The system map remains understandable with motion disabled and through its semantic alternative. Trivially true (no motion exists yet); the semantic `<table>` alternative is verified to carry the same three data points (relationship, status, detail) per node as the SVG.
 
 ## P0.4 — Designer-ready component inventory
 
