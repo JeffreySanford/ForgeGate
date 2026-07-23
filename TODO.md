@@ -145,24 +145,26 @@ Primary references:
 
 ## P0.5 — Button component assurance record
 
-- [ ] Implement the Button component header and identity section.
+This slice generalizes to any component, not just a Button specifically — there is still no real Button anywhere in ForgeGate's own tooling (no fixture repo yet, P0.6 item below), so `ComponentDetailPage` was built and tested against synthetic-but-realistic CEM data instead of a real Button.
+
+- [X} Implement the component header and identity section. `ComponentDetailPage` (`app/components/component-detail-page.ts`) — name, full id, framework/adapter, source files, lifecycle, owner, all real fields from the matched `ComponentManifest`.
 - [ ] Implement the coded-preview surface with explicit source labeling.
-- [ ] Distinguish live Storybook preview, static capture, blueprint reference, temporary generated preview, and unavailable preview.
-- [ ] Add the coverage strip for states, stories, tokens, tests, reviews, and documentation.
-- [ ] Add the readiness rail with explicit blocking reasons and one recommended next action.
-- [ ] Add the required state/story matrix.
-- [ ] Add anatomy and token-mapping sections.
-- [ ] Add contract, evidence, accessibility, documentation, and release detail through progressive disclosure.
-- [ ] Show current commit and evidence freshness identity.
-- [ ] Show unsupported and not-yet-connected sections honestly.
-- [ ] Never display blueprint examples as repository implementation evidence.
-- [ ] Add responsive layouts for wide, medium, and narrow desktop windows.
+- [ ] Distinguish live Storybook preview, static capture, blueprint reference, temporary generated preview, and unavailable preview. Only one state exists: an honest "No preview connected" message (Storybook connection is P0.6, not built). The full distinction between preview *kinds* is moot until at least one kind is real.
+- [X} Add the coverage strip for states, stories, tokens, tests, reviews, and documentation. Six real counts (`manifest.states.length`, `.storyMappings.length`, `.tokenMappings.length`, `.testRequirements.length`, `.manualReviewProcedureIds.length`, `.documentationTargets.length`) — all currently 0 for any CEM-only-mapped component, shown as real zeros, not hidden.
+- [X} Add the readiness rail with explicit blocking reasons. Always "Unknown — no evidence connected" (honest — no findings/evidence pipeline exists) plus a real per-category list of why (no states declared, no Storybook connection, etc.), derived from the same manifest fields as the coverage strip. No "recommended next action" yet — that needs a policy engine that doesn't exist.
+- [X} Add the required state/story matrix. Renders `manifest.states` as a real table when populated, an explicit "No required states declared" empty state otherwise (always the empty state today, since nothing populates `states` from a CEM).
+- [ ] Add anatomy and token-mapping sections. Token mapping renders (real table or explicit empty state); anatomy is not implemented — CEM data has no anatomy/part-to-token concept to draw from yet.
+- [X} Add contract detail. Inputs/outputs/content/public methods/style parts render as real tables from `manifest.contract`, which is the one genuinely rich, non-empty section — verified by a test using a manifest with real fields, a method, an event, a slot, and a CSS part. Evidence, accessibility, and release detail through progressive disclosure are not implemented — no evidence pipeline exists to disclose.
+- [ ] Show current commit and evidence freshness identity. Not implemented — the detail page doesn't yet read `WorkspaceService.gitStatus()` for a per-component freshness stamp.
+- [X} Show unsupported and not-yet-connected sections honestly. Preview, token mapping, states, and documentation sections all read explicit "not connected/declared" text rather than blank space or a fabricated value.
+- [X} Never display blueprint examples as repository implementation evidence. N/A by construction — there is no blueprint/example data path in this component at all yet (Blueprint Studio is P2).
+- [ ] Add responsive layouts for wide, medium, and narrow desktop windows. Not implemented — single fixed-ish layout, not yet tested at narrow widths.
 
 ### P0.5 exit criteria
 
-- [ ] A designer can understand what the Button is, what it looks like, what coverage exists, why it is blocked, and what to do next without opening source files.
-- [ ] An engineer can reach the manifest, source, story IDs, commands, evidence, and raw artifacts.
-- [ ] No readiness percentage conceals a blocking condition.
+- [ ] A designer can understand what the Button is, what it looks like, what coverage exists, why it is blocked, and what to do next without opening source files. Coverage and "why blocked" are real and honest; "what it looks like" is not met — no preview exists yet, so this criterion is not fully satisfied.
+- [X} An engineer can reach the manifest, source, story IDs, commands, evidence, and raw artifacts. Source files, full contract, and manifest id are all shown directly; story IDs/commands/evidence are honestly absent because they don't exist as real data yet, not hidden behind a false success state.
+- [X} No readiness percentage conceals a blocking condition. There is no percentage at all — readiness is always the explicit text "Unknown — no evidence connected" plus a real reasons list, never a number.
 
 ## P0.6 — P0 data connections required for credibility
 
