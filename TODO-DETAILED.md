@@ -125,7 +125,7 @@ The completed marker intentionally follows the project convention requested for 
 - [X} Add Rust command tests. `src-tauri/src/lib.rs` `#[cfg(test)]` module — path validation and a live `read_git_status` check against this repository.
 - [ ] Add desktop end-to-end smoke tests.
 - [X} Add CI for lint, test, type-check, and build. `.github/workflows/ci.yml` also runs `cargo-test`.
-- [ ] Produce unsigned development installers.
+- [X} Produce unsigned development installers for Windows and Linux. `.github/workflows/build-desktop.yml` (`workflow_dispatch`, matrix: `windows-latest` → NSIS, `ubuntu-latest` → .deb/.AppImage), unsigned by design (real code signing needs paid certs, deferred). Verified locally: `npx tauri build --bundles nsis` produced a real, launchable `ForgeGate_0.1.0_x64-setup.exe` at `apps/forgegate-desktop/src-tauri/target/release/bundle/nsis/`, fixing a silent `frontendDist` path bug in `tauri.conf.json` (was 2 levels of `../`, needed 3 to reach the repo-root `dist/` — never caught before because `tauri dev` uses `devUrl`, not `frontendDist`, so it was only ever exercised by a real build). Linux build not yet confirmed in CI — macOS intentionally out of scope for now (see `documentation/20-risks-and-decisions.md`).
 
 ### Phase 1 exit criteria
 

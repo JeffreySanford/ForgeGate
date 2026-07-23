@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.truenorth.forgegate",
   "build": {
-    "frontendDist": "../../dist/apps/forgegate-desktop/browser",
+    "frontendDist": "../../../dist/apps/forgegate-desktop/browser",
     "devUrl": "http://localhost:4200",
     "beforeDevCommand": "pnpm nx run forgegate-desktop:serve",
     "beforeBuildCommand": "pnpm nx run forgegate-desktop:build"
