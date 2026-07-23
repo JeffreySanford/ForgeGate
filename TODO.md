@@ -185,7 +185,7 @@ Not yet split out as their own entities (currently folded into `TestExecution`/`
 - [X} Define timestamps and source provenance. `Provenance` in `packages/core/domain/src/lib/provenance.ts`.
 - [X} Define tool and adapter version metadata. Covered by `Provenance.sourceAdapter`/`adapterVersion`.
 - [X} Define deterministic identifiers. `buildComponentId`, `buildProcedureId`, `generateRecordId` in `packages/core/domain/src/lib/identifiers.ts`.
-- [ ] Define JSON schemas for all portable records. TypeScript types exist; no JSON Schema files yet.
+- [X} Define JSON schemas for all portable records. Ajv schemas colocated with each entity (`schemas.ts` in each of `core-domain`/`core-manifest`/`core-evidence`/`core-policy`), validated against fixtures built through the `create*` factories — including a schema-level `if`/`then` rule mirroring `createReleaseDecision`'s "no authorized-candidate without an approver" invariant. Not yet covered: `Policy`, `Blueprint`, and `Compliance profile` schemas, since those entities don't exist in TypeScript yet.
 
 Also done, not itemized above: the unknown/unsupported-value model (`ExtractedValue<T>`, `packages/core/domain/src/lib/extracted-value.ts`) from the "Unknown and unsupported values" section of `16-data-and-schema-model.md`.
 

@@ -20,6 +20,8 @@
     "@angular/ssr": "22.0.6",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.2",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "express": "^4.21.2",
     "rxjs": "~7.8.0",
     "zone.js": "0.16.2"
