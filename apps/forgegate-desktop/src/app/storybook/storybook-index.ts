@@ -89,7 +89,7 @@ export function parseStorybookIndex(text: string): StorybookIndex {
 
 function comparableSourcePath(path: string): string {
   return path
-    .replaceAll('\\', '/')
+    .replace(/\\/g, '/')
     .replace(/^\.\//, '')
     .replace(/[?#].*$/, '')
     .replace(/\.(?:stories|story)\.[^./]+$/i, '')
