@@ -214,7 +214,7 @@ See [`22-reactive-data-flow.md`](../documentation/22-reactive-data-flow.md).
 
 ## Repository scanning
 
-- [ ] Detect Git repositories. Not a distinct capability yet — `read_git_status` assumes the folder is already a Git repo; a non-repo folder surfaces as a raw `git` error rather than a clean "not a Git repository" result.
+- [X} Detect Git repositories. `is_git_repository` in `lib.rs` checks for `.git` before running any `git` command; a non-repo folder now gets a clean "is not a Git repository" error instead of a raw `git` stderr dump.
 - [X} Read current branch and commit SHA. `read_git_status` in `apps/forgegate-desktop/src-tauri/src/lib.rs`.
 - [X} Detect dirty working trees. `read_git_status`'s `dirty` field.
 - [X} Detect package manager from lockfiles and metadata. `detect_package_manager` in `workspace_scan.rs` — pnpm/yarn/bun/npm, by lockfile presence, top-level only.
@@ -259,7 +259,9 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 - [X} Define safe write locations. `safeWriteLocations` plus `isWithinSafeWriteLocation()`, a simple glob-prefix check (not a full glob engine yet).
 - [X} Validate configuration against schema. `repositoryConfigSchema` (Ajv), tested against both a real config and deliberately invalid records.
 
-**Not yet done**, and needed before this is actually usable: no Tauri command reads or writes `.forgegate/config.yaml` from a real repository yet — `packages/core/config` is a pure, framework-neutral library with no filesystem access of its own, by design (per the `scope:core` boundary). Wiring it to `read_text_file`/`prepare_file_changes`/`apply_approved_changes` Tauri commands, and building the actual diff-and-approve UI from `documentation/02-system-architecture.md`'s "Repository write flow", is separate follow-up work.
+**Reading is now wired end to end**: `read_repository_config_file` (Rust, `lib.rs`) reads the raw text of `.forgegate/config.yaml` if present — `None` if absent is a normal state, not an error — and `WorkspaceService` (Angular) parses/validates it through `@forgegate/core-config`'s `parseRepositoryConfig`. A malformed config file reports its own error without blanking out the Git status or workspace scan the user already sees. `app.html` shows configured/not-configured/invalid states. 2 new Rust tests, 3 new Angular tests (absent, valid, malformed).
+
+**Still not done**: no *write* path exists yet — nothing lets a user create or edit `.forgegate/config.yaml` from the app. That needs the diff-and-approve UI from `documentation/02-system-architecture.md`'s "Repository write flow" (`prepare_file_changes`/`apply_approved_changes` Tauri commands), which is a real, separate feature, not a small follow-up.
 
 ### Phase 3 exit criteria
 

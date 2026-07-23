@@ -40,6 +40,22 @@
     </dl>
   }
 
+  @if (workspace.repositoryConfig(); as config) {
+    <dl>
+      <dt>Repository configuration</dt>
+      <dd>
+        .forgegate/config.yaml ({{ config.projectMappings.length }} project mapping(s),
+        {{ config.safeWriteLocations.length }} safe write location(s))
+      </dd>
+    </dl>
+  } @else if (!workspace.repositoryConfigError() && workspace.workspacePath()) {
+    <p>Repository configuration: not configured yet (no .forgegate/config.yaml).</p>
+  }
+
+  @if (workspace.repositoryConfigError(); as configError) {
+    <p role="alert">Repository configuration is invalid: {{ configError }}</p>
+  }
+
   @if (workspace.error(); as error) {
     <p role="alert">{{ error }}</p>
   }

@@ -20,7 +20,8 @@
             "input": "apps/forgegate-desktop/public"
           }
         ],
-        "styles": ["apps/forgegate-desktop/src/styles.css"]
+        "styles": ["apps/forgegate-desktop/src/styles.css"],
+        "allowedCommonJsDependencies": ["ajv", "ajv-formats"]
       },
       "configurations": {
         "production": {

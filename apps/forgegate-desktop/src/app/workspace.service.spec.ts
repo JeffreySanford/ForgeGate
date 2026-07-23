@@ -8,6 +8,24 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: invokeMock,
 }));
 
+const scanFixture = {
+  packageManager: 'pnpm',
+  workspaceManager: 'nx',
+  storybookProjects: [],
+  starlightProjects: [],
+  hasZeroheight: false,
+  tokenFiles: [],
+  testRunners: ['vitest'],
+  visualRegressionProviders: [],
+  ciProviders: ['github-actions'],
+};
+
+const gitStatusFixture = {
+  branch: 'master',
+  commit: 'a'.repeat(40),
+  dirty: false,
+};
+
 describe('WorkspaceService', () => {
   let service: WorkspaceService;
 
@@ -27,68 +45,76 @@ describe('WorkspaceService', () => {
     expect(invokeMock).toHaveBeenCalledWith('select_workspace');
   });
 
-  it('loads Git status and the workspace scan after a workspace is selected', async () => {
+  it('loads Git status, workspace scan, and an absent repository config', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
-      .mockResolvedValueOnce({
-        branch: 'master',
-        commit: 'a'.repeat(40),
-        dirty: false,
-      })
-      .mockResolvedValueOnce({
-        packageManager: 'pnpm',
-        workspaceManager: 'nx',
-        storybookProjects: [],
-        starlightProjects: [],
-        hasZeroheight: false,
-        tokenFiles: [],
-        testRunners: ['vitest'],
-        visualRegressionProviders: [],
-        ciProviders: ['github-actions'],
-      });
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
 
     await service.selectWorkspace();
 
     expect(service.workspacePath()).toBe('D:/repos/ForgeGate');
-    expect(service.gitStatus()).toEqual({
-      branch: 'master',
-      commit: 'a'.repeat(40),
-      dirty: false,
-    });
-    expect(service.workspaceScan()).toEqual({
-      packageManager: 'pnpm',
-      workspaceManager: 'nx',
-      storybookProjects: [],
-      starlightProjects: [],
-      hasZeroheight: false,
-      tokenFiles: [],
-      testRunners: ['vitest'],
-      visualRegressionProviders: [],
-      ciProviders: ['github-actions'],
-    });
+    expect(service.gitStatus()).toEqual(gitStatusFixture);
+    expect(service.workspaceScan()).toEqual(scanFixture);
+    expect(service.repositoryConfig()).toBeNull();
+    expect(service.repositoryConfigError()).toBeNull();
     expect(service.error()).toBeNull();
   });
 
-  it('surfaces an error and clears Git status and scan when the status read fails', async () => {
+  it('parses a present, valid repository config file', async () => {
+    const yaml = [
+      'configVersion: 0.1.0',
+      'projectMappings: []',
+      'packageMappings: []',
+      'commandMappings: {}',
+      'documentationMappings: {}',
+      'adapterConfiguration: {}',
+      'ignorePatterns: []',
+      'safeWriteLocations:',
+      '  - src/content/docs/generated/**',
+      '',
+    ].join('\n');
+
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(yaml);
+
+    await service.selectWorkspace();
+
+    expect(service.repositoryConfig()?.safeWriteLocations).toEqual(['src/content/docs/generated/**']);
+    expect(service.repositoryConfigError()).toBeNull();
+  });
+
+  it('reports a malformed repository config without clearing Git status or the scan', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce('not: [valid');
+
+    await service.selectWorkspace();
+
+    expect(service.gitStatus()).toEqual(gitStatusFixture);
+    expect(service.workspaceScan()).toEqual(scanFixture);
+    expect(service.repositoryConfig()).toBeNull();
+    expect(service.repositoryConfigError()).toContain('not valid YAML');
+  });
+
+  it('surfaces an error and clears Git status, scan, and config when the status read fails', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/not-a-git-repo')
       .mockRejectedValueOnce('Workspace path does not exist')
-      .mockResolvedValueOnce({
-        packageManager: null,
-        workspaceManager: null,
-        storybookProjects: [],
-        starlightProjects: [],
-        hasZeroheight: false,
-        tokenFiles: [],
-        testRunners: [],
-        visualRegressionProviders: [],
-        ciProviders: [],
-      });
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
 
     await service.selectWorkspace();
 
     expect(service.gitStatus()).toBeNull();
     expect(service.workspaceScan()).toBeNull();
+    expect(service.repositoryConfig()).toBeNull();
     expect(service.error()).toBe('Workspace path does not exist');
   });
 });

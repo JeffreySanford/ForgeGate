@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use tauri_plugin_dialog::DialogExt;
@@ -6,7 +7,7 @@ use tauri_plugin_dialog::DialogExt;
 mod workspace_scan;
 use workspace_scan::{scan_workspace, WorkspaceScan};
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct GitStatus {
     branch: String,
     commit: String,
@@ -45,9 +46,18 @@ fn resolve_workspace_path(path: &str) -> Result<PathBuf, String> {
     Ok(canonical)
 }
 
+/// A `.git` entry can be a directory (an ordinary repository) or a file (a
+/// worktree or submodule pointer); either counts as "this is a Git repository".
+fn is_git_repository(workspace: &std::path::Path) -> bool {
+    workspace.join(".git").exists()
+}
+
 #[tauri::command]
 fn read_git_status(path: String) -> Result<GitStatus, String> {
     let workspace = resolve_workspace_path(&path)?;
+    if !is_git_repository(&workspace) {
+        return Err(format!("{} is not a Git repository", workspace.display()));
+    }
 
     let run_git = |args: &[&str]| -> Result<String, String> {
         let output = Command::new("git")
@@ -79,6 +89,24 @@ fn read_workspace_scan(path: String) -> Result<WorkspaceScan, String> {
     scan_workspace(&workspace)
 }
 
+/// Returns the raw text of `.forgegate/config.yaml`, or `None` if the
+/// workspace has not been configured yet — that is a normal, expected
+/// state, not an error. Parsing and schema validation happen in
+/// `@forgegate/core-config` on the TypeScript side, per the architecture
+/// split in documentation/02-system-architecture.md: Rust owns the
+/// privileged filesystem read only, not the config's business logic.
+#[tauri::command]
+fn read_repository_config_file(path: String) -> Result<Option<String>, String> {
+    let workspace = resolve_workspace_path(&path)?;
+    let config_path = workspace.join(".forgegate").join("config.yaml");
+    if !config_path.is_file() {
+        return Ok(None);
+    }
+    fs::read_to_string(&config_path)
+        .map(Some)
+        .map_err(|error| format!("Failed to read {}: {error}", config_path.display()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,6 +126,44 @@ mod tests {
     fn accepts_an_existing_directory() {
         let dir = std::env::temp_dir();
         assert!(resolve_workspace_path(&dir.display().to_string()).is_ok());
+    }
+
+    #[test]
+    fn reports_a_clean_not_a_git_repository_error_for_a_plain_folder() {
+        let dir = std::env::temp_dir().join(format!("forgegate-not-a-repo-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("should create temp dir");
+
+        let error = read_git_status(dir.display().to_string())
+            .expect_err("a plain folder with no .git should be rejected");
+        assert!(error.contains("is not a Git repository"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn returns_none_when_no_repository_config_exists() {
+        let dir = std::env::temp_dir().join(format!("forgegate-no-config-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("should create temp dir");
+
+        let result = read_repository_config_file(dir.display().to_string())
+            .expect("reading an absent config file should not itself be an error");
+        assert!(result.is_none());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reads_repository_config_file_contents_when_present() {
+        let dir = std::env::temp_dir().join(format!("forgegate-with-config-{}", std::process::id()));
+        let forgegate_dir = dir.join(".forgegate");
+        std::fs::create_dir_all(&forgegate_dir).expect("should create .forgegate dir");
+        std::fs::write(forgegate_dir.join("config.yaml"), "configVersion: 0.1.0\n").unwrap();
+
+        let result = read_repository_config_file(dir.display().to_string())
+            .expect("reading an existing config file should succeed");
+        assert_eq!(result, Some("configVersion: 0.1.0\n".to_string()));
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -136,7 +202,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             select_workspace,
             read_git_status,
-            read_workspace_scan
+            read_workspace_scan,
+            read_repository_config_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
