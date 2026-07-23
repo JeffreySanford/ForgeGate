@@ -33,7 +33,10 @@ function parseEntry(entryKey: string, value: unknown): StorybookIndexEntry {
   }
 
   const rawTags = value['tags'];
-  if (rawTags !== undefined && (!Array.isArray(rawTags) || rawTags.some((tag) => typeof tag !== 'string'))) {
+  if (
+    rawTags !== undefined &&
+    (!Array.isArray(rawTags) || rawTags.some((tag) => typeof tag !== 'string'))
+  ) {
     throw new Error(`Storybook index entry "${entryKey}" property "tags" must be an array of strings`);
   }
 
@@ -63,7 +66,9 @@ export function parseStorybookIndex(text: string): StorybookIndex {
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    throw new Error(`Invalid Storybook index JSON: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Invalid Storybook index JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   if (!isRecord(parsed)) {
