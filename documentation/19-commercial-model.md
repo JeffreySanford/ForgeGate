@@ -34,6 +34,10 @@ They may use ForgeGate as a delivery platform installed during component-library
 
 They need repeatable evidence for components and application interfaces without uploading proprietary source code to another hosted platform.
 
+### Federal design-system teams building from scratch
+
+Large federal teams standing up a new agency-wide or cross-agency design system are a directly observed source of this pain, not a hypothetical buyer category. They are actively assembling component evidence, accessibility procedures, and documentation across disconnected tools today, and they need VPAT-ready accessibility evidence as part of standard procurement. See [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md).
+
 ## User versus buyer
 
 Possible users:
@@ -150,6 +154,12 @@ Potential capabilities:
 - Premium support
 
 Edition boundaries must not trap a customer’s critical data in a proprietary format.
+
+## Licensing direction
+
+The current lean is **proprietary-closed or source-available**, not open source. Source-available means evaluators and customers can read the code to build trust — a meaningful factor for federal and security-conscious enterprise buyers who want to verify local-first claims — without the right to freely use, modify, or redistribute it. This is a lean, not a final decision; exact license text remains open. See [`20-risks-and-decisions.md`](20-risks-and-decisions.md).
+
+This direction reinforces the local-first pitch: a source-available desktop tool that provably never uploads customer code is a stronger trust story for a federal buyer than a closed-source hosted SaaS product making the same claim.
 
 ## Pricing models to evaluate
 

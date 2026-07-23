@@ -135,6 +135,28 @@ Templates should be:
 - Protected against arbitrary code execution
 - Testable with fixtures
 
+### Audience-tier templates
+
+Design-system documentation serves at least two different readers with different needs, and a single fixed template forces a compromise that under-serves both. ForgeGate should generate the same underlying component record into one of three audience-tier profiles, selected per organization, per library, or per page:
+
+| Tier | Primary reader | Emphasis |
+|---|---|---|
+| Designer-heavy | Designers, content designers, product managers | Anatomy, visual states, tokens, usage guidance, do/don't examples, minimal or no code |
+| Balanced | Mixed design-system teams, most default sites | Overview, anatomy, states, API, tokens, accessibility, evidence — the current default section set |
+| Developer-heavy | Frontend engineers, platform teams, integrators | Public API, events, slots, token consumption, code examples, migration and versioning detail |
+
+All three tiers are generated from the same manifest, evidence, and token data. A tier changes section selection, ordering, and depth; it must never change the underlying facts. A component cannot be "ready" in one tier's documentation and unready in another's.
+
+Tier selection should be configurable:
+
+- Organization or library default, set in policy.
+- Per-page override in frontmatter, for example `forgegate: { audience: developer-heavy }`.
+- Optional dual publication, where a component page links to a companion page in a different tier rather than forcing one page to serve both audiences.
+
+Each tier is a composition of the same canonical sections listed above, not a separate section vocabulary. A tier definition specifies, per canonical section: included, excluded, summarized, or expanded. For example, the developer-heavy tier expands **Public API** and **Events and callbacks** into full signatures and includes runnable code snippets, while the designer-heavy tier summarizes the same section as a plain-language list of what the component accepts and omits code entirely.
+
+Tier definitions are organization-overridable templates, subject to the same versioning, protected-content, and validation rules as any other template.
+
 ## Generated status blocks
 
 Example:

@@ -4,21 +4,22 @@
 
 The MVP must prove that ForgeGate can act as a real component assurance center, not merely a repository browser or Storybook launcher.
 
-The MVP is complete when a user can open one Angular/Nx design-system repository, evaluate one button component through automated and manual requirements, understand current release readiness, generate accurate Starlight documentation, and export portable evidence.
+The MVP is complete when a user can open one Web Components design-system repository, evaluate one button component through automated and manual requirements, understand current release readiness, generate accurate Starlight documentation, and export portable evidence.
+
+Web Components is the MVP target framework rather than Angular because it is the strongest proof that the manifest, evidence, policy, and documentation model are genuinely framework-neutral, and because it best matches how teams building a design system from scratch — including federal teams standardizing across agencies and stacks — choose a framework-agnostic component layer. The ForgeGate desktop UI itself is still built in Angular; that is an implementation detail of the tool, not a constraint on which frameworks it can assure.
 
 ## Supported environment
 
 - Windows 11
 - Tauri 2 desktop shell
-- Angular desktop UI
-- pnpm
-- Nx workspace
-- Modern Angular component library
+- Angular desktop UI (ForgeGate's own UI, independent of the target repository's framework)
+- pnpm or npm workspace
+- Lit or vanilla Custom Elements component library, with or without a Custom Elements Manifest
 - Local Storybook
 - Astro Starlight target
 - Git repository
 
-Other operating systems, workspace managers, frameworks, and remote Storybooks are not required for MVP completion, although the core contracts must not prevent them.
+Other operating systems, workspace managers, target frameworks, and remote Storybooks are not required for MVP completion, although the core contracts must not prevent them. Angular repository support is the next validation target immediately after the Web Components MVP, to confirm the same contracts hold for a compiler-driven framework.
 
 ## Scenario
 
@@ -50,7 +51,7 @@ The fixture or pilot repository contains:
 - ForgeGate explains requested access.
 - ForgeGate identifies the Git repository.
 - ForgeGate displays branch, commit, and dirty state.
-- ForgeGate identifies pnpm, Nx, Angular, Storybook, test tools, tokens, and Starlight.
+- ForgeGate identifies the package manager, Web Components tooling (Lit or vanilla Custom Elements), Storybook, test tools, tokens, and Starlight.
 - Uncertain discovery is shown for confirmation.
 
 ### 3. Create or confirm configuration
@@ -242,9 +243,9 @@ If the product cannot demonstrate that complete statement, the MVP is not comple
 
 After MVP completion:
 
-- Test with a second Angular repository.
+- Test with a second Web Components repository.
 - Test with a real design-system team.
 - Measure evidence-assembly time before and after.
-- Implement one React or Web Component adapter.
+- Implement the Angular adapter and validate the same contracts against a compiler-driven framework.
 - Refine the adapter SDK based on actual differences.
 - Decide whether safe artifact generation enters the next release.

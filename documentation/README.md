@@ -26,6 +26,10 @@ This folder defines the product, architecture, data contracts, integrations, com
 20. [`19-commercial-model.md`](19-commercial-model.md) — target buyers, pilot offer, editions, pricing hypotheses, and distribution.
 21. [`20-risks-and-decisions.md`](20-risks-and-decisions.md) — major risks, mitigations, open decisions, and explicit non-goals.
 22. [`21-mvp-acceptance-criteria.md`](21-mvp-acceptance-criteria.md) — end-to-end definition of the first commercially meaningful vertical slice.
+23. [`22-reactive-data-flow.md`](22-reactive-data-flow.md) — RxJS observable and subject usage that keeps the core, adapters, and desktop UI synchronized.
+24. [`23-design-tokens-and-figma-bridge.md`](23-design-tokens-and-figma-bridge.md) — DTCG token format adoption and one-directional Figma token export ingestion.
+25. [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md) — VPAT support, FedRAMP/authorization posture, and NIST RMF Rev 5 alignment scope.
+26. [`decisions/`](decisions/README.md) — numbered ADRs closing the primary-user, buyer, pilot-repository, MVP-scope, and workspace-architecture decisions needed to begin Phase 1.
 
 ## Documentation ownership
 
@@ -34,8 +38,10 @@ This folder defines the product, architecture, data contracts, integrations, com
 - Active implementation status belongs in the root [`TODO.md`](../TODO.md).
 - Framework-specific implementation details should eventually live under `documentation/frameworks/`.
 - Component-specific blueprint documents should eventually live under `documentation/blueprints/`.
-- Architecture decisions should eventually live under `documentation/decisions/` as numbered ADRs.
+- Architecture and product decisions live under [`documentation/decisions/`](decisions/README.md) as numbered ADRs.
 
 ## Current documentation status
 
-The initial documentation is intentionally expansive. It captures the complete product idea before implementation begins. As engineering starts, these documents should be refined into validated contracts, diagrams, schemas, examples, and acceptance evidence rather than left as aspirational prose.
+Broad planning is complete. The repository has enough product definition, architecture, risk analysis, phased work, and MVP acceptance criteria to begin implementation, and the five ADRs in [`decisions/`](decisions/README.md) close the remaining decisions that would otherwise block Phase 1. Further large planning documents are not needed right now; the next work should be code against [`TODO.md`](../TODO.md) Phase 1, validated by showing a working prototype to real users rather than by writing more prose.
+
+As engineering proceeds, these documents should be refined into validated contracts, diagrams, schemas, examples, and acceptance evidence.

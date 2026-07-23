@@ -13,7 +13,7 @@ The completed marker intentionally follows the project convention requested for 
 
 - A phase is not complete merely because code exists.
 - Every implemented feature must include documentation, tests, error handling, and acceptance evidence appropriate to the phase.
-- Framework-specific logic must live behind adapters unless the work is explicitly part of the initial Angular proof of concept.
+- Framework-specific logic must live behind adapters unless the work is explicitly part of the initial Web Components proof of concept.
 - Repository-controlled manifests and evidence exports remain the durable source of truth.
 - Local SQLite state is a cache and workflow aid, not the only copy of critical data.
 - Automated accessibility results must never be represented as complete legal compliance.
@@ -33,7 +33,7 @@ The completed marker intentionally follows the project convention requested for 
 - [X} Define Astro Starlight as the preferred open documentation target.
 - [X} Define Zeroheight as an optional enterprise adapter.
 - [X} Define repository truth, execution truth, and review truth.
-- [X} Define the initial vertical slice around one Angular/Nx button component.
+- [X} Define the initial vertical slice around one Web Components button component (Angular follows as the second framework target).
 - [X} Establish support for all major modern web frameworks through adapters.
 - [X} Establish Section 508 and WCAG-oriented compliance evidence as a core capability.
 - [X} Create a verbose root README.
@@ -185,11 +185,24 @@ The completed marker intentionally follows the project convention requested for 
 - [ ] Define deterministic identifiers.
 - [ ] Define JSON schemas for all portable records.
 
+## Reactive evidence bus
+
+- [ ] Define the source stream contracts: file change, Git status, command output, workspace scan progress.
+- [ ] Define the domain stream contracts: affected components, evidence freshness, readiness, documentation drift.
+- [ ] Define subject usage rules: `BehaviorSubject` for current state, `ReplaySubject` for buffered command output, `Subject` for discrete events.
+- [ ] Implement the Tauri-event-to-observable bridge.
+- [ ] Implement `catchError` isolation so one failing adapter stream cannot break the shared evidence bus.
+- [ ] Implement `shareReplay` multicasting for shared domain streams consumed by multiple UI panels.
+- [ ] Write marble tests for freshness and readiness recalculation.
+
+See [`22-reactive-data-flow.md`](../documentation/22-reactive-data-flow.md).
+
 ### Phase 2 exit criteria
 
 - [ ] Domain contracts compile independently of Angular, React, Vue, or other framework packages.
 - [ ] Schemas validate example component and evidence records.
 - [ ] The domain model can represent one Angular button and one framework-neutral Web Component without special cases.
+- [ ] Readiness and documentation-drift streams recompute correctly in marble tests when upstream sources change.
 
 ---
 
@@ -243,7 +256,7 @@ The completed marker intentionally follows the project convention requested for 
 ### Phase 3 exit criteria
 
 - [ ] ForgeGate opens Public Sector Federation or a replacement fixture workspace.
-- [ ] The app identifies its Angular/Nx project, Storybook, tests, tokens, and documentation targets.
+- [ ] The app identifies its Web Components project, Storybook, tests, tokens, and documentation targets.
 - [ ] Discovery errors are actionable rather than silent.
 
 ---
@@ -272,12 +285,12 @@ The completed marker intentionally follows the project convention requested for 
 
 ## Component discovery
 
+- [ ] Discover Lit and Web Components.
 - [ ] Discover Angular components.
 - [ ] Discover React components.
 - [ ] Discover Vue components.
 - [ ] Discover Svelte components.
 - [ ] Discover Solid components.
-- [ ] Discover Lit and Web Components.
 - [ ] Discover Qwik components.
 - [ ] Discover Astro components.
 - [ ] Discover framework-neutral packages.
@@ -583,6 +596,15 @@ The completed marker intentionally follows the project convention requested for 
 - [ ] Validate Starlight build after generation.
 - [ ] Create a reusable Starlight plugin package.
 
+## Audience-tier templates
+
+- [ ] Define the designer-heavy, balanced, and developer-heavy section compositions.
+- [ ] Add `audience` to generated frontmatter and manifest-linked policy.
+- [ ] Implement tier-aware rendering for each Starlight plugin component.
+- [ ] Support per-organization, per-library, and per-page tier overrides.
+- [ ] Support optional dual-page publication with cross-linked companion pages.
+- [ ] Verify the same underlying evidence produces identical facts across tiers in tests.
+
 ## Storybook documentation output
 
 - [ ] Generate or update MDX.
@@ -731,7 +753,17 @@ The completed marker intentionally follows the project convention requested for 
 - [ ] Define adapter compatibility and versioning.
 - [ ] Define adapter test harness.
 
-## Angular adapter
+## Web Components and Lit adapter (first target — MVP framework)
+
+- [ ] Custom Elements Manifest support.
+- [ ] Attributes, properties, events, slots, parts, and CSS custom properties.
+- [ ] Lit metadata extraction.
+- [ ] Vanilla Custom Elements metadata extraction without a manifest.
+- [ ] Framework-neutral Storybook mapping.
+- [ ] Test mappings.
+- [ ] Initial templates.
+
+## Angular adapter (second target — validates a compiler-driven framework)
 
 - [ ] Angular CLI workspace discovery.
 - [ ] Nx Angular project discovery.
@@ -769,15 +801,6 @@ The completed marker intentionally follows the project convention requested for 
 - [ ] Test mappings.
 - [ ] Initial templates.
 
-## Web Components and Lit adapter
-
-- [ ] Custom Elements Manifest support.
-- [ ] Attributes, properties, events, slots, parts, and CSS custom properties.
-- [ ] Lit metadata extraction.
-- [ ] Framework-neutral Storybook mapping.
-- [ ] Test mappings.
-- [ ] Initial templates.
-
 ## Additional adapters
 
 - [ ] Solid.
@@ -788,8 +811,8 @@ The completed marker intentionally follows the project convention requested for 
 
 ### Phase 12 exit criteria
 
-- [ ] Angular adapter supports the complete MVP path.
-- [ ] At least one non-Angular adapter validates framework neutrality.
+- [ ] Web Components adapter supports the complete MVP path.
+- [ ] The Angular adapter validates the same contracts against a compiler-driven framework.
 - [ ] Adapter failures do not destabilize the core application.
 
 ---
@@ -1064,8 +1087,8 @@ These are the first items to work in order.
 The first MVP is complete only when all of the following are true:
 
 - [ ] ForgeGate installs and launches on Windows.
-- [ ] A user can open an Angular/Nx repository.
-- [ ] ForgeGate detects Git, package manager, Nx, Angular, Storybook, tests, tokens, and Starlight.
+- [ ] A user can open a Web Components repository.
+- [ ] ForgeGate detects Git, package manager, Web Components tooling, Storybook, tests, tokens, and Starlight.
 - [ ] ForgeGate discovers a button component.
 - [ ] ForgeGate associates its stories and tests.
 - [ ] ForgeGate runs configured unit, Storybook, Playwright, axe, lint, and build gates.

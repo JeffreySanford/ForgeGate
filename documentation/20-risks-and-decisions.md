@@ -37,7 +37,7 @@ Mitigation:
 
 Mitigation:
 
-- Complete the Angular button vertical slice first.
+- Complete the Web Components button vertical slice first, then Angular.
 - Delay multi-framework generation.
 - Delay team collaboration.
 - Delay full Zeroheight authoring.
@@ -161,6 +161,30 @@ Mitigation:
 - Support keyboard, screen readers, forced colors, zoom, and reduced motion.
 - Dogfood ForgeGate.
 
+## Federal and regulated-buyer risks
+
+### Risk: "Local-first" does not fully answer federal procurement questions
+
+ForgeGate's local-first architecture avoids uploading source code, which addresses one major federal objection, but federal buyers will still ask about authorization posture for any component that is hosted or coordinates across users — for example a future team-edition coordination service, license server, or update channel.
+
+Mitigation:
+
+- Keep the desktop application's core value fully local and offline-capable, independent of any hosted component.
+- Treat FedRAMP (including the FedRAMP 20x pilot authorization path) and NIST SP 800-53 Rev. 5 / Risk Management Framework alignment as a deliberate future milestone for any hosted or coordination service, not a day-one requirement for the desktop MVP.
+- Design the hosted coordination service (if and when built) with RMF control families in mind from the start — audit logging, access control, encryption, configuration management — so a later authorization effort is not a rewrite.
+- Document this posture explicitly for buyers rather than making unverified compliance claims. See [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md).
+
+### Risk: VPAT and accessibility evidence claims are legally overstated
+
+Federal buyers will ask whether ForgeGate can produce a VPAT (Voluntary Product Accessibility Template). Overstating what generated evidence proves is a compliance and legal liability, consistent with the existing "ForgeGate overstates compliance" risk above.
+
+Mitigation:
+
+- Treat VPAT export as evidence-assembly assistance, not an automated legal certification.
+- Require human review and sign-off before any VPAT-formatted export is treated as final.
+- Keep automated, manual, and hybrid evidence sources clearly distinguished in VPAT-formatted output.
+- Scope VPAT export as a post-MVP capability; do not let it block the Web Components vertical slice. See [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md).
+
 ## Commercial risks
 
 ### Risk: Buyers like the idea but lack budget
@@ -189,18 +213,60 @@ Mitigation:
 - Generate manual publication packages.
 - Preserve open Starlight path.
 
+## Resolved decisions
+
+- **First MVP framework target: Lit/vanilla Web Components, not Angular.** Web Components best prove framework neutrality and match how teams building a design system from scratch — including federal teams — increasingly standardize across agencies. Angular (ForgeGate's own UI framework) follows as the second validation target. Decided 2026-07-22.
+- **Licensing direction: proprietary-closed or source-available, not open source.** The intended buyer is federal and large enterprise; source-available (visible to evaluators, not free to use or redistribute) is the current lean over fully closed, to support buyer evaluation. Final license text still undecided. Decided 2026-07-22.
+- **Federal posture: local-first now, FedRAMP/RMF-aware architecture for any future hosted component.** ForgeGate does not pursue FedRAMP or NIST RMF Rev 5 authorization for the MVP. Any future hosted coordination service must be designed with RMF control families in mind from the start. Decided 2026-07-22.
+- **Design tokens: adopt the DTCG (Design Tokens Community Group) format**, including Figma's DTCG-compatible token JSON export, as the primary token interchange format rather than inventing a proprietary token schema. Decided 2026-07-22. See [`23-design-tokens-and-figma-bridge.md`](23-design-tokens-and-figma-bridge.md).
+
+## Decisions closed by ADR
+
+These no longer need discussion in this document; see [`decisions/`](decisions/README.md) for full context.
+
+- Primary MVP user (engineer, accessibility specialist secondary) — [`decisions/0001-primary-mvp-user.md`](decisions/0001-primary-mvp-user.md).
+- Initial buyer (regulated design-system leader, federal leading example not federal-only) — [`decisions/0002-initial-buyer.md`](decisions/0002-initial-buyer.md).
+- Pilot repository (Public Sector Federation for the real demo, a small synthetic fixture for CI) — [`decisions/0003-pilot-repository.md`](decisions/0003-pilot-repository.md). This ADR also records an **unresolved tension**: it assumes an Angular/Nx pilot repository, while the framework-sequencing decision above picks Web Components as the first adapter. Revisit before adapter work begins.
+- MVP generation scope (assure existing components; propose but do not generate new ones) — [`decisions/0004-mvp-generation-scope.md`](decisions/0004-mvp-generation-scope.md).
+- Workspace architecture (pnpm, Nx, Angular UI, Tauri 2, Rust boundary only, TypeScript everywhere else) — [`decisions/0005-workspace-architecture.md`](decisions/0005-workspace-architecture.md).
+
 ## Open product decisions
 
-- Should the product be called ForgeGate permanently?
+- Should the product be called ForgeGate permanently, or should it take a different name under the True North umbrella?
 - Should the descriptive category be “Component Assurance Studio,” “Component Operations,” or another term?
-- Which user is primary for MVP: engineer or accessibility specialist?
-- Which buyer owns the initial budget?
-- Should the first pilot use Public Sector Federation or a clean purpose-built fixture?
-- Should ForgeGate create components in MVP or only assure existing components?
 - Should manual review records be committed to the repository by default?
 - Which evidence belongs in Git versus external artifact storage?
 - Which compliance profile can be responsibly provided as a starter template?
-- Which second framework best validates neutrality: React or Lit/Web Components?
+- How soon should VPAT export, FedRAMP 20x alignment, and NIST RMF Rev 5 alignment enter the roadmap relative to core assurance features?
+
+## Decisions that can wait
+
+These are real open questions but are explicitly not required to start Phase 1 and should not be resolved by adding more planning documents:
+
+- Final pricing
+- Open-source versus proprietary license text (direction is recorded; exact terms are not)
+- React versus Web Components as the *second* adapter after the first two are settled
+- Evidence signing
+- Zeroheight write capabilities
+- Cloud collaboration
+- Team accounts
+- SSO
+- Marketplace or plugin distribution
+- Advanced AST-based stale-evidence classification
+- AI generation
+
+## Validation threshold
+
+ForgeGate should be treated as a validated opportunity, not just a strong hypothesis, only after:
+
+1. Five design-system or frontend-platform professionals confirm evidence freshness and release readiness are genuinely painful.
+2. At least two people identify who owns the budget for this.
+3. One organization lets ForgeGate analyze a real repository.
+4. The prototype measurably reduces release-evidence assembly work.
+5. One organization pays at least $15,000 for a pilot, or signs a credible purchase commitment.
+6. The buyer specifically values stale-evidence detection, guided review, or release assurance — not merely custom software development.
+
+As of 2026-07-22, none of these have occurred. Product interviews and a working prototype should proceed in parallel, per [`decisions/0001-primary-mvp-user.md`](decisions/0001-primary-mvp-user.md) — a working demonstration produces far better interview feedback than a verbal description.
 
 ## Open architecture decisions
 
@@ -218,13 +284,13 @@ Mitigation:
 
 ## Open commercial decisions
 
-- License model
-- Source availability
+- Exact license text (proprietary-closed versus source-available terms)
 - Free edition boundaries
 - Per-user versus per-design-system pricing
 - Offline enterprise licensing
 - Channel partner strategy
 - Professional services scope
+- Whether to pursue FedRAMP 20x pilot authorization for a hosted coordination service, and when
 
 ## Explicit non-goals for MVP
 

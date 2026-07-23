@@ -18,6 +18,8 @@ Initial profiles should focus on:
 
 Future profiles may include additional procurement, brand, security, privacy, documentation, or regulated-delivery requirements, but accessibility remains the initial compliance domain.
 
+The evidence model in this document is also the foundation for post-MVP VPAT export and federal buyer requirements. See [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md).
+
 ## Important language rule
 
 ForgeGate must not claim that a component is legally compliant merely because automated checks pass.

@@ -51,7 +51,7 @@ ForgeGate is designed around a framework-adapter architecture rather than one ha
 - Astro component projects
 - Framework-neutral HTML, CSS, JavaScript, and TypeScript component packages
 
-The first implementation should be narrow and deep: Angular and Nx, followed by React, Vue, Svelte, and Web Components. The platform contracts, manifests, evidence model, policy engine, and documentation adapters must remain framework-neutral from the beginning.
+The first implementation should be narrow and deep: Lit and vanilla Web Components, followed by Angular and Nx, then React, Vue, Svelte, and the remaining adapters. Web Components ship first because they prove the framework-neutral contract honestly and match how teams building a design system from scratch — including federal teams standardizing across many agencies — often choose a framework-agnostic component layer. The platform contracts, manifests, evidence model, policy engine, and documentation adapters must remain framework-neutral from the beginning.
 
 ## Major capabilities
 
@@ -170,8 +170,8 @@ See:
 
 The first demonstrable vertical slice is:
 
-> Open an Angular/Nx design-system repository, discover one button component and its Storybook stories, run configured checks, complete a guided Section 508-oriented manual review, calculate release readiness for the current commit, export evidence, and generate an Astro Starlight component page.
+> Open a Web Components (Lit or vanilla Custom Elements) design-system repository, discover one button component and its Storybook stories, run configured checks, complete a guided Section 508-oriented manual review, calculate release readiness for the current commit, export evidence, and generate an Astro Starlight component page.
 
 ## License and commercial status
 
-No open-source license has been selected. Until a license is intentionally added, this private repository and its contents should be treated as proprietary and not redistributed.
+No license has been finalized. The current leaning is proprietary-closed or source-available (visible to evaluators, not free to use or redistribute) rather than open source, given the intended federal and enterprise buyer. Until a license is intentionally added, this private repository and its contents should be treated as proprietary and not redistributed. See [`19-commercial-model.md`](documentation/19-commercial-model.md) and [`20-risks-and-decisions.md`](documentation/20-risks-and-decisions.md).

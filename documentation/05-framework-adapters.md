@@ -268,14 +268,16 @@ Every adapter should have fixture repositories covering:
 
 ## Delivery sequence
 
-1. Angular and Nx
-2. React
-3. Vue
-4. Svelte
-5. Lit and Web Components
+1. Lit, vanilla Custom Elements, and Web Components
+2. Angular and Nx
+3. React
+4. Vue
+5. Svelte
 6. Solid
 7. Qwik
 8. Astro components
 9. Framework-neutral fallback
+
+Web Components ship first because they are the truest proof of the framework-neutral contract, and because organizations building a design system from scratch — including federal teams standardizing across many agencies and stacks — increasingly choose a framework-agnostic component layer specifically to avoid locking every consuming team into one frontend framework. Validating discovery, contract extraction, and evidence against Web Components before Angular keeps the core model honest: if the portable schema only really works for Angular, it is not actually framework-neutral.
 
 The portable schema, policy, evidence, and publication layers must be usable before all adapters are complete.

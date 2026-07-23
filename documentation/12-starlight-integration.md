@@ -86,6 +86,35 @@ User-authored purpose and guidance.
 <EvidenceSummary component="up-design-system.button" />
 ```
 
+## Audience-tier output
+
+The Starlight adapter is the primary implementation of the audience-tier templates defined in [`10-documentation-publishing.md`](10-documentation-publishing.md). The same manifest, evidence, and token data can render as designer-heavy, balanced, or developer-heavy Starlight pages.
+
+Frontmatter records the active tier so drift detection and regeneration stay consistent:
+
+```mdx
+---
+title: Button
+description: Triggers an immediate action.
+forgegate:
+  componentId: up-design-system.button
+  version: 1.2.0
+  lifecycle: candidate
+  evidenceCommit: b91d20e
+  audience: designer-heavy
+---
+```
+
+Representative differences per tier:
+
+- **Designer-heavy** — leads with `StateMatrix` and `TokenTable`, includes annotated visual examples of each state, summarizes API as plain-language capabilities, omits code blocks, expands usage and content guidance, and surfaces accessibility requirements as behavior descriptions rather than ARIA attribute tables.
+- **Balanced** — the current default page shape: overview, examples, API, tokens, accessibility, assurance, in the order already shown above.
+- **Developer-heavy** — leads with `ApiTable` and installation and import snippets, expands `EvidenceSummary` with raw gate detail and links to CI runs, includes full prop, event, and slot signatures, includes copyable code examples per state, and expands migration and changelog detail.
+
+Sites may publish one tier per component, or publish two linked pages, for example `components/button.mdx` for the balanced default and `components/button--for-developers.mdx` for the developer-heavy companion, cross-linked in frontmatter. ForgeGate should never fork the underlying facts between linked pages; only presentation differs.
+
+The `@forgegate/starlight` plugin components (`ComponentStatus`, `StoryPreview`, `StateMatrix`, `TokenTable`, `ApiTable`, `AccessibilityRequirements`, `EvidenceSummary`, `ConsumerValidation`, `ReleaseHistory`, `DeprecationNotice`) each accept the active tier and adjust their own verbosity, so a tier change does not require different components, only different composition and props.
+
 ## Protected content
 
 ForgeGate needs a safe way to update generated sections without destroying user-authored content.

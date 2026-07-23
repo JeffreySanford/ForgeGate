@@ -37,7 +37,8 @@ The architecture should separate:
 │  ├── Evidence Normalizer                                     │
 │  ├── Freshness Engine                                        │
 │  ├── Readiness Evaluator                                     │
-│  └── Publication Planner                                     │
+│  ├── Publication Planner                                     │
+│  └── Reactive Evidence Bus (RxJS)                             │
 │                                                              │
 │  Adapter Runtime                                             │
 │  ├── Workspace Adapters                                      │
@@ -113,6 +114,10 @@ Responsibilities include:
 - Evidence package assembly
 
 The core layer must not import Angular compiler APIs, React tooling, Storybook packages, Playwright APIs, or Zeroheight clients.
+
+### Reactive synchronization
+
+All working parts of the core layer, the adapter runtime, and the desktop UI stay synchronized through RxJS observables and subjects rather than polling or ad hoc callbacks. File changes, Git state, command output, adapter results, manual review progress, and policy evaluation are modeled as streams that compose into shared, multicast domain streams such as evidence freshness, readiness, and documentation drift. See [`22-reactive-data-flow.md`](22-reactive-data-flow.md) for the stream taxonomy, subject usage, adapter streaming contracts, and error-handling rules.
 
 ## Adapter runtime
 
