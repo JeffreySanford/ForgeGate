@@ -165,25 +165,27 @@ The completed marker intentionally follows the project convention requested for 
 
 ## Lifecycle and status
 
-- [ ] Define proposal status.
-- [ ] Define candidate status.
-- [ ] Define approved status.
-- [ ] Define deprecated status.
-- [ ] Define retired status.
-- [ ] Define blocked and warning states independently from lifecycle.
-- [ ] Define status transition rules.
-- [ ] Record who changed status and why.
-- [ ] Tie release decisions to commit, build, and version.
+- [X} Define proposal status.
+- [X} Define candidate status.
+- [X} Define approved status.
+- [X} Define deprecated status.
+- [X} Define retired status.
+- [X} Define blocked and warning states independently from lifecycle. `ReadinessFlag` in `packages/core/domain/src/lib/lifecycle.ts`.
+- [X} Define status transition rules. `isLifecycleTransitionAllowed`/`assertLifecycleTransitionAllowed`, tested.
+- [X} Record who changed status and why. `LifecycleTransition` interface (`changedBy`, `reason`, `at`) — not yet wired to a persisted transition log.
+- [ ] Tie release decisions to commit, build, and version. Needs the `ReleaseDecision` entity first.
 
 ## Internal result format
 
-- [ ] Define normalized statuses: passed, failed, warning, blocked, skipped, incomplete, not-applicable, and unknown.
-- [ ] Define severity levels.
+- [X} Define normalized statuses: passed, failed, warning, blocked, skipped, incomplete, not-applicable, and unknown. `ResultStatus` in `packages/core/domain/src/lib/result.ts`, plus `isBlockingResult`.
+- [X} Define severity levels. `Severity` — critical/serious/moderate/minor/informational, matching the compliance-profile example in `07-compliance-testing.md`.
 - [ ] Define evidence attachment types.
-- [ ] Define timestamps and source provenance.
-- [ ] Define tool and adapter version metadata.
-- [ ] Define deterministic identifiers.
-- [ ] Define JSON schemas for all portable records.
+- [X} Define timestamps and source provenance. `Provenance` in `packages/core/domain/src/lib/provenance.ts`.
+- [X} Define tool and adapter version metadata. Covered by `Provenance.sourceAdapter`/`adapterVersion`.
+- [X} Define deterministic identifiers. `buildComponentId`, `buildProcedureId`, `generateRecordId` in `packages/core/domain/src/lib/identifiers.ts`.
+- [ ] Define JSON schemas for all portable records. TypeScript types exist; no JSON Schema files yet.
+
+Also done, not itemized above: the unknown/unsupported-value model (`ExtractedValue<T>`, `packages/core/domain/src/lib/extracted-value.ts`) from the "Unknown and unsupported values" section of `16-data-and-schema-model.md`.
 
 ## Reactive evidence bus
 
