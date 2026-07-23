@@ -2,7 +2,11 @@
 
 ## Position
 
-ForgeGate is not a Figma replacement, consistent with [`00-product-overview.md`](00-product-overview.md). It does not edit visual designs and does not compete with Figma's canvas. It does, however, need to consume the one artifact Figma already produces that is genuinely machine-readable and useful to a coded design system: exported design tokens.
+ForgeGate is not a general Figma replacement, consistent with [`00-product-overview.md`](00-product-overview.md). It does not attempt to reproduce Figma's freeform canvas, vector-editing tools, page composition, prototyping, or broad interface-design workflow.
+
+ForgeGate does provide a narrower visual-authoring environment through [`27-blueprint-studio.md`](27-blueprint-studio.md). Blueprint Studio edits structured component proposals: contracts, variants, states, anatomy, tokens, semantics, behavior, coverage requirements, and reviewable generated artifacts.
+
+Figma and other design tools remain important sources of design intent. ForgeGate's integration should progress in deliberate levels rather than promising complete bidirectional synchronization before identity, API capability, and conflict behavior are proven.
 
 ## DTCG as the token format
 
@@ -13,61 +17,178 @@ ForgeGate adopts DTCG as its primary token interchange format rather than invent
 Reasons:
 
 - DTCG is a real, versioned community standard, not a single vendor's format.
-- Figma, and other design tools that support DTCG export, become token *sources* ForgeGate can ingest without becoming a design tool itself.
-- Style Dictionary, Tokens Studio, and other established token pipelines already target DTCG or DTCG-adjacent formats, so ForgeGate does not have to own the transform step from token to CSS custom property, Sass variable, or platform-specific output.
-- A component manifest that references DTCG token names is portable across organizations that already use the standard.
+- Figma and other DTCG-capable design tools can become token sources without defining ForgeGate's internal model.
+- Style Dictionary, Tokens Studio, and established token pipelines already target DTCG or DTCG-adjacent formats.
+- A component manifest or Blueprint Studio proposal that references DTCG token names remains portable.
 
-## What ForgeGate does with tokens
+## Current token capabilities
 
-- **Ingest** DTCG-format token files from a repository, from a design tool export, or from a configured token pipeline output.
-- **Map** token references onto component contracts: which tokens a component consumes for color, spacing, typography, motion, and elevation.
-- **Detect drift** between a component's actual implementation (source code, computed styles, or a build-time token consumption report) and its declared token mappings.
-- **Detect drift** between the token file currently in the repository and the token file a design tool most recently exported, when both are available.
-- **Present** token tables and state matrices in generated documentation, per the audience-tier templates in [`10-documentation-publishing.md`](10-documentation-publishing.md) and [`12-starlight-integration.md`](12-starlight-integration.md).
-- **Never** transform, publish, or write back to a design tool. Token flow is one-directional: design tool or repository → ForgeGate. ForgeGate does not attempt to push generated tokens back into Figma.
+ForgeGate should:
 
-## Token pipeline position
+- **Ingest** DTCG-format token files from a repository, design-tool export, or configured token-pipeline output.
+- **Map** token references onto component contracts and Blueprint Studio anatomy slots.
+- **Detect drift** between actual implementation and declared token mappings.
+- **Detect drift** between repository token files and newer design-tool exports when both are available.
+- **Present** token tables, alias chains, theme matrices, and state mappings in ForgeGate and generated documentation.
+- **Preserve provenance** for token files and values.
+
+For the MVP, token flow remains one-directional:
 
 ```text
-Figma variables (or another DTCG-capable design tool)
-        │  export
+Design tool or repository
+        │
+        │ export or commit
         ▼
-DTCG token JSON  ──────────────┐
-        │ (repository-committed)│
-        ▼                       │
-Token transform (Style          │
-Dictionary or equivalent,       │  ForgeGate reads the same
-outside ForgeGate)               │  DTCG file directly
-        │                       │
-        ▼                       ▼
-Platform tokens            Component token
-(CSS, Sass, Swift, ...)    mappings + drift detection
+DTCG token JSON
+        │
+        ├── token transform pipeline
+        │       └── CSS, Sass, Swift, Android, or other platform output
+        │
+        └── ForgeGate
+                ├── component token mappings
+                ├── Blueprint Studio token slots
+                ├── theme coverage
+                └── drift detection
 ```
 
-ForgeGate sits alongside the existing token transform step, not in place of it. Teams keep whatever pipeline already turns DTCG tokens into CSS custom properties or platform-specific output; ForgeGate reads the same DTCG source to reason about component-level consumption and drift.
+ForgeGate sits alongside the existing token-transform step, not in place of it.
+
+## Figma interoperability levels
+
+### Level 1 — DTCG token ingestion
+
+This is the initial supported level.
+
+- Read repository-controlled token exports.
+- Record source tool, source path, export date, and commit provenance.
+- Compare themes and modes.
+- Map tokens to component parts and states.
+- Detect missing, deprecated, hard-coded, or unresolved values.
+
+No Figma authentication or write-back is required.
+
+### Level 2 — Linked design reference
+
+A component record or Blueprint Studio proposal may link to a Figma component or component set.
+
+ForgeGate may store:
+
+- Figma file identity
+- Node or component-set identity
+- Design-system library identity
+- Last inspected version or timestamp
+- Variant-property mappings
+- Design-variable mappings
+- Storybook story mappings
+
+At this level ForgeGate may compare metadata and show drift, but it must not claim that a Figma node and coded component are automatically equivalent.
+
+### Level 3 — Property and variant mapping
+
+When supported reliably by the Figma API, plugin environment, Code Connect, or another explicit export format, ForgeGate may map:
+
+- Figma component properties to portable manifest properties
+- Figma variants to Blueprint Studio variant groups and states
+- Figma variables to DTCG token references
+- Figma examples to Storybook stories or content fixtures
+- Code Connect mappings to framework implementation references
+
+Mappings require explicit identity and remain reviewable.
+
+### Level 4 — Structured export from ForgeGate
+
+Blueprint Studio may export a portable component specification for use by a Figma plugin or another design tool.
+
+The export may include:
+
+- Contract properties and allowed values
+- Variant and state identifiers
+- Anatomy
+- Token slots
+- Content fixtures
+- Accessibility and behavior notes
+- Story and documentation identifiers
+
+This is structured interoperability, not a rendering promise. A design-tool plugin decides how to represent those concepts visually.
+
+### Level 5 — Governed synchronization
+
+A future optional adapter may propose updates in either direction only when:
+
+- Vendor capabilities are sufficient and stable.
+- Source and destination identities are explicit.
+- The user chooses the synchronization direction.
+- Every proposed change is previewed.
+- Conflicts are visible.
+- No repository or design content is silently overwritten.
+- Unsupported properties remain visible rather than being discarded.
+
+Full bidirectional synchronization is not required for the first Blueprint Studio release.
+
+## Blueprint Studio token experience
+
+Blueprint Studio should allow designers to select approved tokens instead of typing raw values by default.
+
+The visual experience should show:
+
+- Primitive, semantic, and component-token layers
+- Alias chains
+- Light and dark modes
+- Brand themes
+- Token ownership and descriptions
+- Contrast implications
+- Affected anatomy parts
+- Missing theme values
+- Deprecated tokens
+- Hard-coded exploration values
+- Repository and design-export drift
+
+Exploratory raw values may be stored in a draft, but policy may prevent an engineering handoff until required token slots are mapped.
 
 ## Data model
 
 The token schema referenced from [`16-data-and-schema-model.md`](16-data-and-schema-model.md) should:
 
-- Preserve the DTCG token structure (`$value`, `$type`, `$description`, aliasing via `{token.path}` references) rather than flattening it into a ForgeGate-specific shape.
-- Record token file provenance: source path, source tool (Figma export, hand-authored, pipeline output), export or commit date, and DTCG format version where declared.
-- Support multiple token sets for themes, modes, and brands, consistent with how Figma variable collections and modes work.
-- Represent unresolved alias references and unknown token types honestly, using the unknown-value model already defined in [`16-data-and-schema-model.md`](16-data-and-schema-model.md), rather than silently dropping them.
+- Preserve DTCG structure (`$value`, `$type`, `$description`, alias references) rather than flattening it into a ForgeGate-specific shape.
+- Record file and value provenance.
+- Support multiple token sets, themes, modes, and brands.
+- Represent unresolved aliases and unknown token types honestly.
+- Associate tokens with component anatomy, variants, states, and Blueprint Studio proposals.
+- Preserve optional external design identities without making them the portable primary key.
 
 ## Drift and evidence
 
-Token drift is a first-class evidence type, not a cosmetic warning:
+Token and design-reference drift are first-class evidence types, not cosmetic warnings.
 
-- A component references a token that no longer exists in the current token file.
-- A component's computed styling no longer matches its declared token mapping.
-- The repository's committed token file is older than the most recently available design-tool export.
-- A token's type or value changed in a way that could alter component appearance without a corresponding component version bump.
+Examples:
 
-Token drift feeds the same freshness and readiness model described in [`22-reactive-data-flow.md`](22-reactive-data-flow.md); a token file change is a source stream event that can mark downstream evidence stale.
+- A component references a token that no longer exists.
+- Computed styling no longer matches a declared token mapping.
+- A repository token file is older than the newest available design export.
+- A token value changes without corresponding component review.
+- A Figma variant exists without a coded state or Storybook story.
+- A coded public property exists without a linked design property.
+- A design reference points to a deleted or inaccessible node.
 
-## Non-goals
+Drift feeds the same freshness and readiness model described in [`22-reactive-data-flow.md`](22-reactive-data-flow.md). It must explain the source, affected components, and required follow-up.
 
-- ForgeGate does not render or preview Figma files.
-- ForgeGate does not authenticate to Figma's API to pull live variables in the MVP; it reads exported DTCG files already present in or added to the repository. A live Figma API adapter may be considered later as an optional integration, not a requirement.
-- ForgeGate does not generate or opinionatedly restructure a token taxonomy; it consumes whatever DTCG structure the organization already has.
+## Security and privacy
+
+- Repository token ingestion remains local-first.
+- Figma authentication is optional and post-MVP.
+- Credentials belong in the operating-system credential vault.
+- Remote design content must not receive privileged Tauri capabilities.
+- ForgeGate must disclose which metadata is requested from a design tool.
+- Offline workflows must remain functional without Figma.
+
+## Non-goals for the MVP
+
+- Rendering or editing complete Figma files
+- Authenticating to Figma to pull live variables
+- Writing variables or component changes back to Figma
+- Automatic design-to-code equivalence
+- Pixel-diff certification between Figma and browser output
+- Generating or restructuring an organization's token taxonomy
+- Requiring Figma for Blueprint Studio
+
+A live Figma adapter, linked component metadata, Code Connect integration, and governed synchronization remain later capabilities described by [`27-blueprint-studio.md`](27-blueprint-studio.md) and ADR [`decisions/0006-blueprint-studio-boundary.md`](decisions/0006-blueprint-studio-boundary.md).

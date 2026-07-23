@@ -27,10 +27,13 @@ This folder defines the product, architecture, data contracts, integrations, com
 21. [`20-risks-and-decisions.md`](20-risks-and-decisions.md) — major risks, mitigations, open decisions, and explicit non-goals.
 22. [`21-mvp-acceptance-criteria.md`](21-mvp-acceptance-criteria.md) — end-to-end definition of the first commercially meaningful vertical slice.
 23. [`22-reactive-data-flow.md`](22-reactive-data-flow.md) — RxJS observable and subject usage that keeps the core, adapters, and desktop UI synchronized.
-24. [`23-design-tokens-and-figma-bridge.md`](23-design-tokens-and-figma-bridge.md) — DTCG token format adoption and one-directional Figma token export ingestion.
+24. [`23-design-tokens-and-figma-bridge.md`](23-design-tokens-and-figma-bridge.md) — DTCG token adoption plus staged Figma token, property, variant, and governed-interoperability direction.
 25. [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md) — VPAT support, FedRAMP/authorization posture, and NIST RMF Rev 5 alignment scope.
-26. [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md) — implementation-ready information architecture, visual language, component-record composition, states, and acceptance criteria for the first polished button assurance experience.
-27. [`decisions/`](decisions/README.md) — numbered ADRs closing the primary-user, buyer, pilot-repository, MVP-scope, and workspace-architecture decisions needed to begin Phase 1.
+26. [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md) — implementation-ready component-record experience for the first polished button assurance slice.
+27. [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md) — data visualization, infographics, spatial relationships, and accessible motion for the workspace command center.
+28. [`27-blueprint-studio.md`](27-blueprint-studio.md) — the first-class post-MVP visual component-authoring initiative, product boundary, designer workflow, generation model, Figma relationship, and acceptance criteria.
+29. [`28-blueprint-studio-implementation-plan.md`](28-blueprint-studio-implementation-plan.md) — staged domain, UI, adapter, generation, testing, handoff, assurance, and design-tool workstreams for Blueprint Studio.
+30. [`decisions/`](decisions/README.md) — numbered ADRs for primary users, buyer, pilot repository, MVP generation scope, workspace architecture, and Blueprint Studio boundaries.
 
 ## Documentation ownership
 
@@ -40,12 +43,16 @@ This folder defines the product, architecture, data contracts, integrations, com
 - Framework-specific implementation details should eventually live under `documentation/frameworks/`.
 - Component-specific blueprint documents should eventually live under `documentation/blueprints/`.
 - Architecture and product decisions live under [`documentation/decisions/`](decisions/README.md) as numbered ADRs.
-- Executable screen composition and visual acceptance criteria for the first polished UI slice belong in [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md).
+- Executable component-screen composition belongs in [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md).
+- Workspace-level visualization and motion belong in [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md), supported by [`prototypes/workspace-command-center.html`](prototypes/workspace-command-center.html).
+- Structured creation of new components belongs in [`27-blueprint-studio.md`](27-blueprint-studio.md), with engineering sequencing in [`28-blueprint-studio-implementation-plan.md`](28-blueprint-studio-implementation-plan.md).
 
 ## Current documentation status
 
-Broad product planning is complete. The repository has enough product definition, architecture, risk analysis, phased work, and MVP acceptance criteria to continue implementation, and the five ADRs in [`decisions/`](decisions/README.md) close the decisions that would otherwise block Phase 1.
+The current MVP remains focused on assuring existing components. The designer-ready component and workspace documents translate that MVP into polished, accessible experiences without changing its implementation scope.
 
-The designer-ready vertical-slice document is not a new expansion of product scope. It translates the existing button MVP and user-experience direction into an implementable screen hierarchy, visual contract, connected-data map, and acceptance checklist. Further large planning documents are not needed right now; the next work should be code against [`TODO.md`](../TODO.md), using the vertical-slice document as the UI reference and validating the result with real design-system users.
+Blueprint Studio is now explicitly preserved as a first-class post-MVP initiative. It is not a general graphics editor and does not move full component generation into the MVP. It defines how proven ForgeGate blueprints, manifests, tokens, adapters, safe generation, and assurance contracts can later support a designer-friendly visual workflow for proposing new components.
 
-As engineering proceeds, these documents should be refined into validated contracts, diagrams, schemas, examples, and acceptance evidence.
+The next implementation work should continue against [`TODO.md`](../TODO.md). Blueprint Studio domain and schema exploration may proceed in parallel only when it does not delay the existing-component assurance vertical slice.
+
+As engineering proceeds, these documents should be refined into validated contracts, schemas, prototypes, examples, and acceptance evidence.

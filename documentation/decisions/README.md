@@ -22,3 +22,4 @@ Records are numbered in the order they were made, not by topic. A superseded rec
 - [`0003-pilot-repository.md`](0003-pilot-repository.md) — demonstrate against a real repository, then build a small deterministic fixture for CI.
 - [`0004-mvp-generation-scope.md`](0004-mvp-generation-scope.md) — MVP assures existing components; it proposes missing artifacts but does not generate components from scratch.
 - [`0005-workspace-architecture.md`](0005-workspace-architecture.md) — pnpm + Nx + Angular desktop UI + Tauri 2 + Rust boundary + TypeScript domain/adapters.
+- [`0006-blueprint-studio-boundary.md`](0006-blueprint-studio-boundary.md) — Blueprint Studio is a first-class post-MVP structured visual component-authoring workflow, not a general graphics canvas or a change to MVP generation scope.
