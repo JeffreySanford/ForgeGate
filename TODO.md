@@ -297,7 +297,7 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 
 ## Component discovery
 
-- [ ] Discover Lit and Web Components.
+- [ ] Discover Lit and Web Components. Partially started: `packages/adapters/web-components` (new `adapter-web-components` lib) maps an already-produced Custom Elements Manifest (CEM) into `ComponentManifest` records — per documentation/05-framework-adapters.md's "prefer Custom Elements Manifest when available". This is the mapping/transform half only. Not done: actually *producing* a CEM from real source (running `@custom-elements-manifest/analyzer` or reading a package's pre-published `custom-elements.json`) — that needs the user-approved command-execution UI from `02-system-architecture.md`'s "Command execution flow", which doesn't exist yet. So this cannot yet discover components in a real repository end to end.
 - [ ] Discover Angular components.
 - [ ] Discover React components.
 - [ ] Discover Vue components.
@@ -309,6 +309,18 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 - [ ] Detect exported versus internal components.
 - [ ] Detect stories and tests by convention.
 - [ ] Allow adapter-specific metadata extraction.
+
+### What the CEM mapper actually does
+
+`mapCustomElementsManifestToComponentManifests(manifest, options)` in `packages/adapters/web-components/src/lib/map-custom-elements-manifest.ts`:
+
+- Finds every `customElement: true` declaration with a `tagName` across all modules (`customElementDeclarations`).
+- Maps CEM fields → `contract.inputs` (public/no-privacy only; private/protected excluded), CEM methods → `contract.publicMethods` (same privacy filter), CEM events → `contract.outputs`, CEM slots → `contract.content` (empty-string default slot renamed to `"default"`), and CEM `cssParts` + `cssProperties` both → `contract.styleParts` (one bucket, not two — same simplification as the manifest schema itself).
+- Builds the component id as `organization.library.tagName` via `buildComponentId`.
+- Does **not** populate `states`, `themes`, `densities`, `viewports`, `tokenMappings`, `testRequirements`, or anything else outside the contract — a CEM only describes a component's API shape, not its required coverage. Populating the rest is manual authoring today; blueprint-driven completion checking (`14-component-blueprints.md`) is future work.
+- This is a practical CEM subset (`custom-elements-manifest.ts`), not the full spec — no mixins, no superclass chains, no deprecation flags yet.
+
+9 tests, all passing.
 
 ## Inventory user experience
 
