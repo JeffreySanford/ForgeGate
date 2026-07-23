@@ -4,7 +4,10 @@
  * `@custom-elements-manifest/analyzer` generates and many Web Component
  * libraries already publish as `custom-elements.json`. Only the fields
  * ForgeGate actually maps are typed here — this is not the full spec
- * (no mixins, superclass chains, deprecation flags, etc. yet).
+ * (no mixins, multi-level superclass chains, deprecation flags, etc. yet).
+ * `superclass` is typed (immediate superclass name only, not the full
+ * chain) specifically because `map-custom-elements-manifest.ts` uses it to
+ * distinguish a Lit component from a plain vanilla one.
  */
 
 export interface CemType {
@@ -57,11 +60,16 @@ export interface CemCssPart {
   readonly description?: string;
 }
 
+export interface CemSuperclass {
+  readonly name?: string;
+}
+
 export interface CemCustomElementDeclaration {
   readonly kind: 'class';
   readonly name: string;
   readonly customElement?: true;
   readonly tagName?: string;
+  readonly superclass?: CemSuperclass;
   readonly members?: readonly CemMember[];
   readonly events?: readonly CemEvent[];
   readonly slots?: readonly CemSlot[];

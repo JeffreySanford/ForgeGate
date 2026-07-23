@@ -92,6 +92,104 @@ describe('mapCustomElementsManifestToComponentManifests', () => {
     expect(mapButton().adapter).toBe('framework.web-components');
   });
 
+  it('detects a Lit component from its superclass and reports framework.lit without an explicit override', () => {
+    const litManifest: CustomElementsManifest = {
+      schemaVersion: '1.0.0',
+      modules: [
+        {
+          kind: 'javascript-module',
+          path: 'src/up-lit-button.ts',
+          declarations: [
+            {
+              kind: 'class',
+              name: 'UpLitButton',
+              customElement: true,
+              tagName: 'up-lit-button',
+              superclass: { name: 'LitElement' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = firstOrThrow(
+      mapCustomElementsManifestToComponentManifests(litManifest, {
+        organization: 'up',
+        library: 'design-system',
+        packagePath: 'packages/design-system',
+      }).manifests,
+    );
+
+    expect(result.framework).toBe('lit');
+    expect(result.adapter).toBe('framework.lit');
+  });
+
+  it('lets an explicit framework/adapter override win over superclass auto-detection', () => {
+    const litManifest: CustomElementsManifest = {
+      schemaVersion: '1.0.0',
+      modules: [
+        {
+          kind: 'javascript-module',
+          path: 'src/up-lit-button.ts',
+          declarations: [
+            {
+              kind: 'class',
+              name: 'UpLitButton',
+              customElement: true,
+              tagName: 'up-lit-button',
+              superclass: { name: 'LitElement' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = firstOrThrow(
+      mapCustomElementsManifestToComponentManifests(litManifest, {
+        organization: 'up',
+        library: 'design-system',
+        packagePath: 'packages/design-system',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+      }).manifests,
+    );
+
+    expect(result.framework).toBe('web-components');
+    expect(result.adapter).toBe('framework.web-components');
+  });
+
+  it('mixes vanilla and Lit components correctly within the same manifest', () => {
+    const mixedManifest: CustomElementsManifest = {
+      schemaVersion: '1.0.0',
+      modules: [
+        ...manifest.modules,
+        {
+          kind: 'javascript-module',
+          path: 'src/up-lit-card.ts',
+          declarations: [
+            {
+              kind: 'class',
+              name: 'UpLitCard',
+              customElement: true,
+              tagName: 'up-lit-card',
+              superclass: { name: 'LitElement' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = mapCustomElementsManifestToComponentManifests(mixedManifest, {
+      organization: 'up',
+      library: 'design-system',
+      packagePath: 'packages/design-system',
+    });
+
+    const byId = new Map(result.manifests.map((m) => [m.id, m]));
+    expect(byId.get('up.design-system.up-button')?.framework).toBe('web-components');
+    expect(byId.get('up.design-system.up-lit-card')?.framework).toBe('lit');
+  });
+
   it('returns no failures for well-formed declarations', () => {
     const result = mapCustomElementsManifestToComponentManifests(manifest, {
       organization: 'up',

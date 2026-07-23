@@ -12,9 +12,14 @@ export interface MapCemOptions {
   readonly organization: string;
   readonly library: string;
   readonly packagePath: string;
-  /** Defaults to `'framework.web-components'`; pass `'framework.lit'` for a Lit-specific adapter identity. */
+  /**
+   * Overrides auto-detection for every declaration in the manifest. Leave
+   * unset to let each declaration's own `superclass` decide — a real
+   * package can mix vanilla and Lit components, so a single manifest-wide
+   * value would misreport whichever component the caller didn't intend.
+   */
   readonly adapter?: string;
-  /** Defaults to `'web-components'`, per the framework identity convention in documentation/05-framework-adapters.md. */
+  /** See `adapter` — same override/auto-detect relationship. */
   readonly framework?: string;
 }
 
@@ -27,6 +32,33 @@ export interface MapCemFailure {
 export interface MapCemResult {
   readonly manifests: readonly ComponentManifest[];
   readonly failures: readonly MapCemFailure[];
+}
+
+interface FrameworkIdentity {
+  readonly framework: string;
+  readonly adapter: string;
+}
+
+/**
+ * Framework identity per document 05's convention: `web-components`/
+ * `framework.web-components` is the honest default for anything not
+ * recognized (including no superclass at all — the analyzer omits
+ * `superclass` for a plain `class extends HTMLElement {}` in some
+ * configurations). Only superclasses ForgeGate can positively identify get
+ * a more specific identity; an unrecognized superclass name (a private
+ * base class, a typo, a framework ForgeGate doesn't know about yet) stays
+ * `web-components` rather than guessing.
+ */
+const KNOWN_SUPERCLASS_FRAMEWORKS: Readonly<Record<string, FrameworkIdentity>> = {
+  LitElement: { framework: 'lit', adapter: 'framework.lit' },
+};
+
+const DEFAULT_FRAMEWORK_IDENTITY: FrameworkIdentity = { framework: 'web-components', adapter: 'framework.web-components' };
+
+function detectFrameworkIdentity(declaration: CemCustomElementDeclaration): FrameworkIdentity {
+  const superclassName = declaration.superclass?.name;
+  const known = superclassName ? KNOWN_SUPERCLASS_FRAMEWORKS[superclassName] : undefined;
+  return known ?? DEFAULT_FRAMEWORK_IDENTITY;
 }
 
 /**
@@ -88,10 +120,11 @@ function mapDeclaration(
     throw new Error(`Declaration "${declaration.name}" has customElement: true but no tagName`);
   }
 
+  const detected = detectFrameworkIdentity(declaration);
   return createComponentManifest({
     id: buildComponentId(options.organization, options.library, tagName),
-    framework: options.framework ?? 'web-components',
-    adapter: options.adapter ?? 'framework.web-components',
+    framework: options.framework ?? detected.framework,
+    adapter: options.adapter ?? detected.adapter,
     packagePath: options.packagePath,
     sourceFiles: [modulePath],
     contract: buildContract(declaration),
