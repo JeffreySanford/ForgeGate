@@ -1,22 +1,24 @@
 use serde::Serialize;
 use serde_json::Value;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-/// Non-recursive, top-level workspace detection, per documentation/16-data-and-schema-model.md
-/// ("Workspace") and TODO.md Phase 3 ("Repository scanning"). This is a first
-/// slice: it reads directory entries and, where a claim needs more than a
-/// filename match (Starlight, Zeroheight, visual-regression providers), a
-/// small amount of file content — it never walks into node_modules or
-/// recurses beyond one extra level for token files. Deeper, adapter-driven
-/// discovery (frameworks, versions) is later Phase 5/12 work.
+/// Workspace detection, per documentation/16-data-and-schema-model.md
+/// ("Workspace") and TODO.md Phase 3 ("Repository scanning"). Most checks
+/// are workspace-root-only; Storybook and Starlight are also checked one
+/// level into `apps/*` and `packages/*`, because real Nx monorepos put
+/// per-project Storybook and Starlight configs inside a project directory
+/// rather than at the workspace root — confirmed against a real fixture
+/// repository, not assumed. This still never walks into node_modules or
+/// recurses more than one level. Deeper, adapter-driven discovery
+/// (frameworks, versions) is later Phase 5/12 work.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScan {
     package_manager: Option<String>,
     workspace_manager: Option<String>,
-    has_storybook: bool,
-    has_starlight: bool,
+    storybook_projects: Vec<String>,
+    starlight_projects: Vec<String>,
     has_zeroheight: bool,
     token_files: Vec<String>,
     test_runners: Vec<String>,
@@ -27,12 +29,13 @@ pub struct WorkspaceScan {
 pub fn scan_workspace(root: &Path) -> WorkspaceScan {
     let entries = top_level_entry_names(root);
     let package_json = read_package_json(root, &entries);
+    let project_dirs = candidate_project_dirs(root, &entries);
 
     WorkspaceScan {
         package_manager: detect_package_manager(&entries),
         workspace_manager: detect_workspace_manager(&entries, package_json.as_ref()),
-        has_storybook: entries.contains(&".storybook".to_string()),
-        has_starlight: detect_starlight(root, &entries),
+        storybook_projects: detect_storybook_projects(root, &project_dirs),
+        starlight_projects: detect_starlight_projects(root, &project_dirs),
         has_zeroheight: detect_zeroheight(&entries, package_json.as_ref()),
         token_files: detect_token_files(root, &entries),
         test_runners: detect_test_runners(&entries),
@@ -49,6 +52,33 @@ fn top_level_entry_names(root: &Path) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// The workspace root itself, plus every immediate child directory of
+/// `apps/` and `packages/` (the layout this repository and the observed
+/// real-world fixture both use). One level deep only.
+fn candidate_project_dirs(root: &Path, entries: &[String]) -> Vec<PathBuf> {
+    let mut dirs = vec![root.to_path_buf()];
+    for group in ["apps", "packages"] {
+        if entries.contains(&group.to_string()) {
+            if let Ok(read) = fs::read_dir(root.join(group)) {
+                for entry in read.filter_map(|entry| entry.ok()) {
+                    if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                        dirs.push(entry.path());
+                    }
+                }
+            }
+        }
+    }
+    dirs
+}
+
+fn relative_display(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .display()
+        .to_string()
+        .replace('\\', "/")
 }
 
 fn read_package_json(root: &Path, entries: &[String]) -> Option<Value> {
@@ -109,15 +139,30 @@ fn detect_workspace_manager(entries: &[String], package_json: Option<&Value>) ->
     None
 }
 
-fn detect_starlight(root: &Path, entries: &[String]) -> bool {
-    ["astro.config.mjs", "astro.config.ts", "astro.config.js"]
+fn detect_storybook_projects(root: &Path, project_dirs: &[PathBuf]) -> Vec<String> {
+    project_dirs
         .iter()
-        .filter(|name| entries.contains(&(**name).to_string()))
-        .any(|name| {
-            fs::read_to_string(root.join(name))
-                .map(|contents| contents.to_lowercase().contains("starlight"))
-                .unwrap_or(false)
+        .map(|dir| dir.join(".storybook"))
+        .filter(|storybook_dir| storybook_dir.is_dir())
+        .map(|storybook_dir| relative_display(root, &storybook_dir))
+        .collect()
+}
+
+fn detect_starlight_projects(root: &Path, project_dirs: &[PathBuf]) -> Vec<String> {
+    let config_names = ["astro.config.mjs", "astro.config.ts", "astro.config.js"];
+    project_dirs
+        .iter()
+        .filter_map(|dir| {
+            config_names.iter().find_map(|name| {
+                let config_file = dir.join(name);
+                let contents = fs::read_to_string(&config_file).ok()?;
+                contents
+                    .to_lowercase()
+                    .contains("starlight")
+                    .then(|| relative_display(root, dir))
+            })
         })
+        .collect()
 }
 
 fn detect_zeroheight(entries: &[String], package_json: Option<&Value>) -> bool {
@@ -243,8 +288,8 @@ mod tests {
 
         assert_eq!(scan.package_manager, Some("pnpm".to_string()));
         assert_eq!(scan.workspace_manager, Some("nx".to_string()));
-        assert!(!scan.has_storybook, "ForgeGate does not use Storybook on itself");
-        assert!(!scan.has_starlight, "ForgeGate does not use Starlight on itself");
+        assert!(scan.storybook_projects.is_empty(), "ForgeGate does not use Storybook on itself");
+        assert!(scan.starlight_projects.is_empty(), "ForgeGate does not use Starlight on itself");
         assert!(!scan.has_zeroheight);
         assert!(scan.token_files.is_empty());
         assert!(scan.test_runners.contains(&"vitest".to_string()));
@@ -262,8 +307,8 @@ mod tests {
 
         assert_eq!(scan.package_manager, None);
         assert_eq!(scan.workspace_manager, None);
-        assert!(!scan.has_storybook);
-        assert!(!scan.has_starlight);
+        assert!(scan.storybook_projects.is_empty());
+        assert!(scan.starlight_projects.is_empty());
         assert!(!scan.has_zeroheight);
         assert!(scan.token_files.is_empty());
         assert!(scan.test_runners.is_empty());
@@ -336,6 +381,32 @@ mod tests {
 
         let scan = scan_workspace(&dir);
         assert!(scan.has_zeroheight);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    /// This layout — Storybook nested under an `apps/*` project rather than
+    /// at the workspace root, and Astro Starlight likewise under its own
+    /// `apps/*` project — was found by testing against a real Nx-based
+    /// design-system monorepo, not assumed. A root-only scan silently missed
+    /// both.
+    #[test]
+    fn detects_storybook_and_starlight_nested_under_apps() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-nested-test-{}", std::process::id()));
+        let qa_remote_storybook = dir.join("apps").join("qa-remote").join(".storybook");
+        let starlight_app = dir.join("apps").join("starlight");
+        fs::create_dir_all(&qa_remote_storybook).unwrap();
+        fs::create_dir_all(&starlight_app).unwrap();
+        fs::write(
+            starlight_app.join("astro.config.mjs"),
+            "import starlight from '@astrojs/starlight';\nexport default { integrations: [starlight({})] };",
+        )
+        .unwrap();
+
+        let scan = scan_workspace(&dir);
+
+        assert_eq!(scan.storybook_projects, vec!["apps/qa-remote/.storybook".to_string()]);
+        assert_eq!(scan.starlight_projects, vec!["apps/starlight".to_string()]);
 
         fs::remove_dir_all(&dir).ok();
     }

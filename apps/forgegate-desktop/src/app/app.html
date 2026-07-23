@@ -24,9 +24,9 @@
       <dt>Workspace manager</dt>
       <dd>{{ scan.workspaceManager ?? 'Not detected' }}</dd>
       <dt>Storybook</dt>
-      <dd>{{ scan.hasStorybook ? 'Detected' : 'Not detected' }}</dd>
+      <dd>{{ scan.storybookProjects.length ? scan.storybookProjects.join(', ') : 'Not detected' }}</dd>
       <dt>Astro Starlight</dt>
-      <dd>{{ scan.hasStarlight ? 'Detected' : 'Not detected' }}</dd>
+      <dd>{{ scan.starlightProjects.length ? scan.starlightProjects.join(', ') : 'Not detected' }}</dd>
       <dt>Zeroheight</dt>
       <dd>{{ scan.hasZeroheight ? 'Detected' : 'Not detected' }}</dd>
       <dt>Design tokens</dt>

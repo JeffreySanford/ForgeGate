@@ -225,15 +225,15 @@ See [`22-reactive-data-flow.md`](../documentation/22-reactive-data-flow.md).
 - [X} Detect Lage. `lage.config.{js,json}` presence, via `detect_workspace_manager`.
 - [X} Detect conventional workspace layouts. `package.json` `workspaces` field and `pnpm-workspace.yaml`, both via `detect_workspace_manager`. Priority order when more than one marker is present: Nx > Turborepo > Rush > Lage > pnpm-workspaces > package.json workspaces.
 - [ ] Detect framework packages and versions. Deferred to the framework adapters themselves (Phase 5/12) rather than generic workspace scanning.
-- [X} Detect Storybook configurations. `.storybook` directory presence only — not story count or config validity.
-- [X} Detect Astro Starlight configurations. `detect_starlight` — an `astro.config.{mjs,ts,js}` file whose contents mention "starlight".
+- [X} Detect Storybook configurations. `.storybook` directory at the workspace root or one level into `apps/*`/`packages/*` — real Nx monorepos put Storybook inside a project directory, not at the root; confirmed by testing against Public Sector Federation (`apps/qa-remote/.storybook`), which a root-only scan missed entirely before this fix. Still not story count or config validity.
+- [X} Detect Astro Starlight configurations. `detect_starlight_projects` — same root-or-one-level-into-`apps`/`packages` search as Storybook, content-checked for "starlight". Also confirmed against Public Sector Federation (`apps/starlight`).
 - [X} Detect Zeroheight configuration files or project mappings. `detect_zeroheight` — a `zeroheight.config.*` file, or a `zeroheight`-named key in `package.json` dependencies/devDependencies.
-- [X} Detect token files and formats. `detect_token_files` — `*.tokens.json`/`*.tokens` at the workspace root or one level into `tokens/`/`design-tokens/`. Not yet DTCG-content-aware (filename pattern only).
+- [X} Detect token files and formats — but confirmed incomplete against a real repository. `detect_token_files` matches `*.tokens.json`/`*.tokens` filenames only, at the workspace root or one level into `tokens/`/`design-tokens/`. Tested against Public Sector Federation's real token package (`packages/tokens/src/design-tokens.json`, `primitives.json`, `themes.json`, plus an actual `figma-dtcg.sample.json` validating the DTCG bridge concept in `23-design-tokens-and-figma-bridge.md`) and it found **zero** token files there — real-world token files don't reliably follow a `.tokens.json` naming convention, and this repository's tokens live two levels deep (`packages/tokens/src/`), past our one-level search. Fixing this needs content-aware detection (looking for DTCG `$type`/`$value` markers inside JSON files) rather than filename guessing — real follow-up work, not done here.
 - [X} Detect unit and browser test runners. `detect_test_runners` — vitest/jest/playwright config file presence.
 - [X} Detect visual-regression providers. `detect_visual_regression_providers` — Chromatic, Percy, BackstopJS, Loki, Applitools, by `package.json` dependency keys.
 - [X} Detect CI provider files. `detect_ci_providers` — GitHub Actions (`.github/workflows` with at least one file), GitLab CI, Azure Pipelines.
 
-All detection above is intentionally non-recursive (workspace root only, plus one level into a couple of known token directories) to stay fast and avoid walking into `node_modules`. Monorepo-wide scanning across `apps/`/`packages/` is separate, later work.
+All detection above stays shallow on purpose (workspace root, plus one level into `apps/*`/`packages/*` for Storybook and Starlight, plus one level into a couple of known token directories) to stay fast and avoid walking into `node_modules`. This one-level reach is confirmed sufficient for Storybook/Starlight against a real repository, but confirmed *insufficient* for tokens (see above).
 
 ## Workspace screen
 
@@ -241,8 +241,8 @@ All detection above is intentionally non-recursive (workspace root only, plus on
 - [X} Show detected package manager and workspace manager. `app.html` — package manager and workspace manager (Nx/Turborepo/Rush/Lage/pnpm-workspaces/package.json-workspaces).
 - [ ] Show detected frameworks. No framework detection exists yet (see above).
 - [ ] Show component-library candidates.
-- [X} Show Storybook targets. Detected/not-detected only, no target list yet.
-- [X} Show documentation targets. Starlight and Zeroheight detected/not-detected only.
+- [X} Show Storybook targets. `app.html` now lists each detected Storybook project path (e.g. `apps/qa-remote/.storybook`), not just a boolean.
+- [X} Show documentation targets. Starlight lists each project path found; Zeroheight remains detected/not-detected only (it has no meaningful per-project path).
 - [X} Show testing tools. `app.html` — detected test runners, visual-regression providers, and CI providers.
 - [ ] Show missing or unsupported configuration.
 - [ ] Allow user correction of discovery results.
@@ -263,9 +263,9 @@ All detection above is intentionally non-recursive (workspace root only, plus on
 
 ### Phase 3 exit criteria
 
-- [ ] ForgeGate opens Public Sector Federation or a replacement fixture workspace.
-- [ ] The app identifies its Web Components project, Storybook, tests, tokens, and documentation targets.
-- [ ] Discovery errors are actionable rather than silent.
+- [X} ForgeGate opens Public Sector Federation or a replacement fixture workspace. Validated 2026-07-23 by running `scan_workspace` directly against `D:/repos/public-sector-federation` (not committed as a test — that path only exists on this machine). Not yet clicked through the live GUI folder picker against it; do that with `pnpm desktop:dev` to fully confirm.
+- [ ] The app identifies its Web Components project, Storybook, tests, tokens, and documentation targets. Partially true against Public Sector Federation: Storybook, Playwright, and Astro Starlight were all correctly found (including nested under `apps/*`), but design tokens were missed entirely (see "Repository scanning" above) and there is still no framework identification at all, so "Web Components project" specifically cannot be confirmed.
+- [ ] Discovery errors are actionable rather than silent. `read_git_status` surfaces real errors; `workspace_scan`'s directory read still silently defaults to empty results (`unwrap_or_default()`) rather than reporting a read failure. Not fixed.
 
 ---
 

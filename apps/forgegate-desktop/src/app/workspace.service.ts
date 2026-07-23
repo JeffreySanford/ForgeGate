@@ -10,8 +10,8 @@ export interface GitStatus {
 export interface WorkspaceScan {
   packageManager: string | null;
   workspaceManager: string | null;
-  hasStorybook: boolean;
-  hasStarlight: boolean;
+  storybookProjects: string[];
+  starlightProjects: string[];
   hasZeroheight: boolean;
   tokenFiles: string[];
   testRunners: string[];

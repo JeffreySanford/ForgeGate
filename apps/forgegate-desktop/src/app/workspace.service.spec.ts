@@ -38,8 +38,8 @@ describe('WorkspaceService', () => {
       .mockResolvedValueOnce({
         packageManager: 'pnpm',
         workspaceManager: 'nx',
-        hasStorybook: false,
-        hasStarlight: false,
+        storybookProjects: [],
+        starlightProjects: [],
         hasZeroheight: false,
         tokenFiles: [],
         testRunners: ['vitest'],
@@ -58,8 +58,8 @@ describe('WorkspaceService', () => {
     expect(service.workspaceScan()).toEqual({
       packageManager: 'pnpm',
       workspaceManager: 'nx',
-      hasStorybook: false,
-      hasStarlight: false,
+      storybookProjects: [],
+      starlightProjects: [],
       hasZeroheight: false,
       tokenFiles: [],
       testRunners: ['vitest'],
@@ -76,8 +76,8 @@ describe('WorkspaceService', () => {
       .mockResolvedValueOnce({
         packageManager: null,
         workspaceManager: null,
-        hasStorybook: false,
-        hasStarlight: false,
+        storybookProjects: [],
+        starlightProjects: [],
         hasZeroheight: false,
         tokenFiles: [],
         testRunners: [],
