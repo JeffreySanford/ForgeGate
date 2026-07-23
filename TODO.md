@@ -191,22 +191,22 @@ Also done, not itemized above: the unknown/unsupported-value model (`ExtractedVa
 
 ## Reactive evidence bus
 
-- [ ] Define the source stream contracts: file change, Git status, command output, workspace scan progress.
-- [ ] Define the domain stream contracts: affected components, evidence freshness, readiness, documentation drift.
-- [ ] Define subject usage rules: `BehaviorSubject` for current state, `ReplaySubject` for buffered command output, `Subject` for discrete events.
-- [ ] Implement the Tauri-event-to-observable bridge.
-- [ ] Implement `catchError` isolation so one failing adapter stream cannot break the shared evidence bus.
-- [ ] Implement `shareReplay` multicasting for shared domain streams consumed by multiple UI panels.
-- [ ] Write marble tests for freshness and readiness recalculation.
+- [ ] Define the source stream contracts: file change, Git status, command output, workspace scan progress. Not started — these depend on real Tauri event sources, which don't exist until Phase 3 workspace discovery.
+- [X} Define the domain stream contracts: affected components, evidence freshness, readiness, documentation drift. `readiness$`/`computeReadiness` and `documentationDrift$`/`computeDocumentationDrift` in `packages/core/reactive/src/lib/`. "Affected components" and a real freshness engine (as opposed to readiness from a fixed findings list) are not started — they need file-change/commit source streams from Phase 3.
+- [X} Define subject usage rules: `BehaviorSubject` for current state, `ReplaySubject` for buffered command output, `Subject` for discrete events. `EvidenceBus` uses `BehaviorSubject` for current findings/component version/documentation target, per `documentation/22-reactive-data-flow.md`. `ReplaySubject` command-output buffering has no real command-streaming source yet (Phase 3+).
+- [ ] Implement the Tauri-event-to-observable bridge. Deferred to Phase 3 — no real Tauri event source exists to bridge yet.
+- [X} Implement `catchError` isolation so one failing adapter stream cannot break the shared evidence bus. `isolate()` in `packages/core/reactive/src/lib/isolation.ts`.
+- [X} Implement `shareReplay` multicasting for shared domain streams consumed by multiple UI panels. `EvidenceBus.readiness$`/`documentationDrift$` both use `shareReplay({ bufferSize: 1, refCount: true })`; tested with two independent subscribers seeing consistent state.
+- [X} Write marble tests for freshness and readiness recalculation. `readiness.spec.ts` and `documentation-drift.spec.ts`, using `TestScheduler`.
 
 See [`22-reactive-data-flow.md`](../documentation/22-reactive-data-flow.md).
 
 ### Phase 2 exit criteria
 
-- [ ] Domain contracts compile independently of Angular, React, Vue, or other framework packages.
-- [ ] Schemas validate example component and evidence records.
-- [ ] The domain model can represent one Angular button and one framework-neutral Web Component without special cases.
-- [ ] Readiness and documentation-drift streams recompute correctly in marble tests when upstream sources change.
+- [X} Domain contracts compile independently of Angular, React, Vue, or other framework packages. `core-domain`/`core-manifest`/`core-evidence`/`core-policy`/`core-reactive` import no framework packages; enforced by the `scope:core` ESLint module-boundary rule.
+- [X} Schemas validate example component and evidence records. 76 tests across the four `schemas.spec.ts` files, each validating both a real fixture (built through a `create*` factory) and a deliberately invalid record.
+- [ ] The domain model can represent one Angular button and one framework-neutral Web Component without special cases. Not concretely demonstrated — no framework identity field exists on `Component`/`ComponentVersion` yet (framework/adapter identity is explicitly Phase 4 manifest-specification work), and no actual Angular or Web Component fixture has been run through the model.
+- [X} Readiness and documentation-drift streams recompute correctly in marble tests when upstream sources change. `readiness.spec.ts`, `documentation-drift.spec.ts`, `isolation.spec.ts` (all `TestScheduler`-based).
 
 ---
 
