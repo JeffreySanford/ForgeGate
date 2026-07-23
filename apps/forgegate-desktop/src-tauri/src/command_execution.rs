@@ -2,7 +2,23 @@ use serde::Serialize;
 use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
+
+/// How long to wait for the stdout/stderr reader threads to finish after
+/// the process has already stopped (normally) or been killed (on timeout),
+/// before giving up and returning whatever was captured so far. In the
+/// normal-completion case this is never actually hit — the pipes close as
+/// soon as the process exits, so the readers finish almost immediately.
+/// It matters for the case documented on `build_command`: on Windows,
+/// killing a `cmd /C`-wrapped process does not reliably cascade to a real
+/// child it spawned (e.g. `cmd /C npx ...` spawning `node`), so that
+/// orphan can keep holding the pipe open well past the requested timeout.
+/// Without this bound, `run_command` would silently ignore its own
+/// `timeout` argument in exactly that case — it would report `timed_out:
+/// true` correctly, but not actually *return* until the orphan exited on
+/// its own, which defeats the entire point of a timeout.
+const READER_DRAIN_GRACE_PERIOD: Duration = Duration::from_millis(500);
 
 /// First real slice of the "Command execution flow" in
 /// documentation/02-system-architecture.md. What this does: runs a
@@ -26,12 +42,49 @@ pub struct CommandResult {
     pub duration_ms: u128,
 }
 
+/// On Windows, many real-world tools (`npx`, `npm`, `yarn`, `pnpm`, and
+/// anything else installed as an npm-style shim) resolve to a `.cmd`/`.bat`
+/// batch-file wrapper, not a native `.exe`. `CreateProcess` — what
+/// `std::process::Command` calls under the hood — cannot launch a batch
+/// file directly the way an interactive shell can; spawning it fails with
+/// a plain "program not found", even though the same name works fine
+/// typed into a terminal. The standard, documented workaround is to run it
+/// through the command processor (`cmd /C <command> <args...>`), which is
+/// exactly what a terminal does implicitly. Everywhere else, the command
+/// runs directly, with no shell involved.
+///
+/// Known limitation this introduces on Windows specifically: killing the
+/// `cmd.exe` wrapper process on timeout does not reliably cascade to the
+/// real child process it launched (Windows has no automatic process-group
+/// kill the way Unix does for a plain child) — confirmed empirically: a
+/// killed `cmd /C powershell -Command "Start-Sleep -Seconds 5"` left
+/// `powershell.exe` running for its own full 5 seconds. `run_command`
+/// itself still returns promptly (see `READER_DRAIN_GRACE_PERIOD` — it
+/// stops waiting on the now-orphaned process's output pipes rather than
+/// blocking until the orphan exits), but the orphan process keeps running
+/// in the background regardless. Fixing that leak properly needs a
+/// Windows Job Object, which is real, separate follow-up work — the
+/// timeout's *latency* guarantee is fixed here; the *resource cleanup*
+/// guarantee is not.
+#[cfg(windows)]
+fn build_command(command: &str, args: &[String]) -> Command {
+    let mut wrapped = Command::new("cmd");
+    wrapped.arg("/C").arg(command).args(args);
+    wrapped
+}
+
+#[cfg(not(windows))]
+fn build_command(command: &str, args: &[String]) -> Command {
+    let mut direct = Command::new(command);
+    direct.args(args);
+    direct
+}
+
 pub fn run_command(cwd: &Path, command: &str, args: &[String], timeout: Duration) -> Result<CommandResult, String> {
     let start = Instant::now();
 
-    let mut child = Command::new(command)
+    let mut child = build_command(command, args)
         .current_dir(cwd)
-        .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -40,10 +93,19 @@ pub fn run_command(cwd: &Path, command: &str, args: &[String], timeout: Duration
 
     // Read stdout/stderr on their own threads so a chatty process can't
     // deadlock us by filling a pipe buffer while we're busy waiting on it.
+    // Results come back over a channel, not a plain JoinHandle, so the
+    // main thread can give up after READER_DRAIN_GRACE_PERIOD instead of
+    // blocking forever on .join() — see that constant's doc comment.
     let stdout_pipe = child.stdout.take();
     let stderr_pipe = child.stderr.take();
-    let stdout_thread = std::thread::spawn(move || read_all(stdout_pipe));
-    let stderr_thread = std::thread::spawn(move || read_all(stderr_pipe));
+    let (stdout_tx, stdout_rx) = mpsc::channel();
+    let (stderr_tx, stderr_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = stdout_tx.send(read_all(stdout_pipe));
+    });
+    std::thread::spawn(move || {
+        let _ = stderr_tx.send(read_all(stderr_pipe));
+    });
 
     let timed_out;
     let exit_code;
@@ -68,8 +130,8 @@ pub fn run_command(cwd: &Path, command: &str, args: &[String], timeout: Duration
         }
     }
 
-    let stdout = stdout_thread.join().unwrap_or_default();
-    let stderr = stderr_thread.join().unwrap_or_default();
+    let stdout = stdout_rx.recv_timeout(READER_DRAIN_GRACE_PERIOD).unwrap_or_default();
+    let stderr = stderr_rx.recv_timeout(READER_DRAIN_GRACE_PERIOD).unwrap_or_default();
 
     Ok(CommandResult {
         exit_code,
@@ -136,6 +198,13 @@ mod tests {
         assert!(!result.stderr.is_empty());
     }
 
+    /// On Unix, a nonexistent command fails at `spawn()` itself — there is
+    /// no shell in between to catch it. On Windows, spawning goes through
+    /// `cmd /C` (see `build_command`'s doc comment), so `cmd.exe` itself
+    /// always exists and starts fine; the "not found" failure shows up as
+    /// a non-zero exit code and stderr message instead of a Rust `Err`.
+    /// Both are legitimate ways to report the same underlying problem.
+    #[cfg(not(windows))]
     #[test]
     fn fails_to_start_a_nonexistent_command() {
         let cwd = std::env::temp_dir();
@@ -147,6 +216,48 @@ mod tests {
         )
         .expect_err("a nonexistent command must fail to even start");
         assert!(error.contains("Failed to start"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn reports_a_nonexistent_command_as_a_failed_run_rather_than_a_spawn_error() {
+        let cwd = std::env::temp_dir();
+        let result = run_command(
+            &cwd,
+            "forgegate-definitely-not-a-real-command",
+            &[],
+            Duration::from_secs(5),
+        )
+        .expect("cmd.exe itself always exists, so spawning must succeed even for an unknown inner command");
+        assert_ne!(result.exit_code, Some(0));
+    }
+
+    /// Regression test for the actual bug this fix addresses: real tools
+    /// like npx/npm/yarn/pnpm resolve to a `.cmd` batch-file wrapper on
+    /// Windows, which `Command::new(...).spawn()` cannot launch directly.
+    /// Uses the batch file's absolute path rather than a bare filename:
+    /// cmd.exe's non-interactive `/C` command search does not reliably
+    /// check the working directory for a bare relative name the way an
+    /// interactive prompt does (confirmed empirically — a bare `"hello.cmd"`
+    /// with `current_dir` correctly set to the directory containing it
+    /// still gets "not recognized"), so this test intentionally avoids
+    /// that ambiguity and exercises the same absolute-path/PATH-resolved
+    /// pattern the real npx/npm/yarn call sites actually use.
+    #[cfg(windows)]
+    #[test]
+    fn runs_a_windows_batch_script_wrapper_like_npx_cmd() {
+        let dir = std::env::temp_dir().join(format!("forgegate-cmd-batch-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("should create temp dir");
+        let script_path = dir.join("hello.cmd");
+        std::fs::write(&script_path, "@echo off\r\necho hello-from-batch\r\n").unwrap();
+
+        let result = run_command(&dir, &script_path.display().to_string(), &[], Duration::from_secs(10))
+            .expect("running a .cmd batch file should succeed, matching how npx.cmd/npm.cmd work on Windows");
+
+        assert_eq!(result.exit_code, Some(0));
+        assert!(result.stdout.contains("hello-from-batch"));
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
