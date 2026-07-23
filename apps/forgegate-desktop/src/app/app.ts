@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { customElementDeclarations } from '@forgegate/adapter-web-components';
 import { WorkspaceService } from './workspace.service';
 
 @Component({
@@ -11,6 +12,16 @@ import { WorkspaceService } from './workspace.service';
 export class App {
   protected title = 'ForgeGate';
   protected workspace = inject(WorkspaceService);
+
+  protected readonly customElementTags = computed(() => {
+    const manifest = this.workspace.customElementsManifest();
+    if (!manifest) {
+      return [];
+    }
+    return customElementDeclarations(manifest)
+      .map(({ declaration }) => declaration.tagName)
+      .filter((tagName): tagName is string => Boolean(tagName));
+  });
 
   openWorkspace(): void {
     void this.workspace.selectWorkspace();

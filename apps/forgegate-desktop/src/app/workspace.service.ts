@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { parseRepositoryConfig, type RepositoryConfig } from '@forgegate/core-config';
+import { parseCustomElementsManifest, type CustomElementsManifest } from '@forgegate/adapter-web-components';
 
 export interface GitStatus {
   branch: string;
@@ -18,6 +19,7 @@ export interface WorkspaceScan {
   testRunners: string[];
   visualRegressionProviders: string[];
   ciProviders: string[];
+  customElementsManifests: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -27,11 +29,14 @@ export class WorkspaceService {
   readonly workspaceScan = signal<WorkspaceScan | null>(null);
   readonly repositoryConfig = signal<RepositoryConfig | null>(null);
   readonly repositoryConfigError = signal<string | null>(null);
+  readonly customElementsManifest = signal<CustomElementsManifest | null>(null);
+  readonly customElementsManifestError = signal<string | null>(null);
   readonly error = signal<string | null>(null);
 
   async selectWorkspace(): Promise<void> {
     this.error.set(null);
     this.repositoryConfigError.set(null);
+    this.customElementsManifestError.set(null);
     const path = await invoke<string | null>('select_workspace');
     if (!path) {
       return;
@@ -46,10 +51,12 @@ export class WorkspaceService {
       this.gitStatus.set(status);
       this.workspaceScan.set(scan);
       this.applyConfigText(configText);
+      await this.loadCustomElementsManifest(path, scan);
     } catch (error) {
       this.gitStatus.set(null);
       this.workspaceScan.set(null);
       this.repositoryConfig.set(null);
+      this.customElementsManifest.set(null);
       this.error.set(String(error));
     }
   }
@@ -70,6 +77,30 @@ export class WorkspaceService {
     } catch (error) {
       this.repositoryConfig.set(null);
       this.repositoryConfigError.set(String(error));
+    }
+  }
+
+  /**
+   * Reads and parses the first Custom Elements Manifest the scan found, if
+   * any. A workspace can have zero (nothing published yet — normal, not an
+   * error) or several; only the first is loaded automatically for now.
+   * Failures here are reported on their own signal, same reasoning as
+   * applyConfigText: one broken file must not blank out everything else.
+   */
+  private async loadCustomElementsManifest(workspacePath: string, scan: WorkspaceScan): Promise<void> {
+    this.customElementsManifest.set(null);
+    const [relativePath] = scan.customElementsManifests;
+    if (!relativePath) {
+      return;
+    }
+    try {
+      const text = await invoke<string>('read_text_file', {
+        workspacePath,
+        relativePath,
+      });
+      this.customElementsManifest.set(parseCustomElementsManifest(text));
+    } catch (error) {
+      this.customElementsManifestError.set(String(error));
     }
   }
 }

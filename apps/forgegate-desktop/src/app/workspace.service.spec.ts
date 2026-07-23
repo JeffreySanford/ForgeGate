@@ -18,6 +18,12 @@ const scanFixture = {
   testRunners: ['vitest'],
   visualRegressionProviders: [],
   ciProviders: ['github-actions'],
+  customElementsManifests: [],
+};
+
+const scanFixtureWithCem = {
+  ...scanFixture,
+  customElementsManifests: ['dist/custom-elements.json'],
 };
 
 const gitStatusFixture = {
@@ -101,6 +107,64 @@ describe('WorkspaceService', () => {
     expect(service.workspaceScan()).toEqual(scanFixture);
     expect(service.repositoryConfig()).toBeNull();
     expect(service.repositoryConfigError()).toContain('not valid YAML');
+  });
+
+  it('does not attempt to read a Custom Elements Manifest when none was found', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+
+    await service.selectWorkspace();
+
+    expect(invokeMock).toHaveBeenCalledTimes(4);
+    expect(service.customElementsManifest()).toBeNull();
+    expect(service.customElementsManifestError()).toBeNull();
+  });
+
+  it('reads and parses the first Custom Elements Manifest the scan found', async () => {
+    const cemJson = JSON.stringify({
+      schemaVersion: '1.0.0',
+      modules: [
+        {
+          kind: 'javascript-module',
+          path: 'src/up-button.ts',
+          declarations: [{ kind: 'class', name: 'UpButton', customElement: true, tagName: 'up-button' }],
+        },
+      ],
+    });
+
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithCem)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(cemJson);
+
+    await service.selectWorkspace();
+
+    expect(invokeMock).toHaveBeenLastCalledWith('read_text_file', {
+      workspacePath: 'D:/repos/ForgeGate',
+      relativePath: 'dist/custom-elements.json',
+    });
+    expect(service.customElementsManifest()?.modules).toHaveLength(1);
+    expect(service.customElementsManifestError()).toBeNull();
+  });
+
+  it('reports a Custom Elements Manifest read/parse failure without clearing the workspace scan', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithCem)
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce('dist/custom-elements.json does not exist in this workspace');
+
+    await service.selectWorkspace();
+
+    expect(service.workspaceScan()).toEqual(scanFixtureWithCem);
+    expect(service.customElementsManifest()).toBeNull();
+    expect(service.customElementsManifestError()).toBe('dist/custom-elements.json does not exist in this workspace');
   });
 
   it('surfaces an error and clears Git status, scan, and config when the status read fails', async () => {

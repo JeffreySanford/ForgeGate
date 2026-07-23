@@ -107,6 +107,28 @@ fn read_repository_config_file(path: String) -> Result<Option<String>, String> {
         .map_err(|error| format!("Failed to read {}: {error}", config_path.display()))
 }
 
+/// Reads any text file inside the workspace, given a path relative to it —
+/// used for scan-discovered files like a Custom Elements Manifest whose
+/// exact location varies per project. The resolved path is required to
+/// canonicalize to somewhere still inside the workspace root, so a
+/// `relative_path` containing `..` cannot escape it, even though the
+/// workspace itself was already user-approved via the folder picker.
+#[tauri::command]
+fn read_text_file(workspace_path: String, relative_path: String) -> Result<String, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    let candidate = workspace.join(&relative_path);
+    let resolved = candidate
+        .canonicalize()
+        .map_err(|_| format!("{relative_path} does not exist in this workspace"))?;
+    if !resolved.starts_with(&workspace) {
+        return Err(format!("{relative_path} resolves outside the workspace"));
+    }
+    if !resolved.is_file() {
+        return Err(format!("{relative_path} is not a file"));
+    }
+    fs::read_to_string(&resolved).map_err(|error| format!("Failed to read {relative_path}: {error}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,6 +189,44 @@ mod tests {
     }
 
     #[test]
+    fn reads_a_text_file_relative_to_the_workspace() {
+        let dir = std::env::temp_dir().join(format!("forgegate-read-text-{}", std::process::id()));
+        let nested = dir.join("dist");
+        std::fs::create_dir_all(&nested).expect("should create nested dir");
+        std::fs::write(nested.join("custom-elements.json"), "{\"schemaVersion\":\"1.0.0\"}").unwrap();
+
+        let result = read_text_file(dir.display().to_string(), "dist/custom-elements.json".to_string())
+            .expect("reading a file inside the workspace should succeed");
+        assert_eq!(result, "{\"schemaVersion\":\"1.0.0\"}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn rejects_a_relative_path_that_escapes_the_workspace() {
+        let dir = std::env::temp_dir().join(format!("forgegate-read-text-escape-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("should create temp dir");
+
+        let error = read_text_file(dir.display().to_string(), "../../etc/passwd".to_string())
+            .expect_err("a path escaping the workspace must be rejected");
+        assert!(error.contains("does not exist") || error.contains("resolves outside"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn rejects_a_relative_path_that_does_not_exist() {
+        let dir = std::env::temp_dir().join(format!("forgegate-read-text-missing-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("should create temp dir");
+
+        let error = read_text_file(dir.display().to_string(), "does-not-exist.json".to_string())
+            .expect_err("a missing file must be rejected");
+        assert!(error.contains("does not exist"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn reads_git_status_of_the_forgegate_repository() {
         // CARGO_MANIFEST_DIR is .../apps/forgegate-desktop/src-tauri; the
         // repository root is three levels up.
@@ -203,7 +263,8 @@ pub fn run() {
             select_workspace,
             read_git_status,
             read_workspace_scan,
-            read_repository_config_file
+            read_repository_config_file,
+            read_text_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

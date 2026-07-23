@@ -297,7 +297,7 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 
 ## Component discovery
 
-- [ ] Discover Lit and Web Components. Partially started: `packages/adapters/web-components` (new `adapter-web-components` lib) maps an already-produced Custom Elements Manifest (CEM) into `ComponentManifest` records — per documentation/05-framework-adapters.md's "prefer Custom Elements Manifest when available". This is the mapping/transform half only. Not done: actually *producing* a CEM from real source (running `@custom-elements-manifest/analyzer` or reading a package's pre-published `custom-elements.json`) — that needs the user-approved command-execution UI from `02-system-architecture.md`'s "Command execution flow", which doesn't exist yet. So this cannot yet discover components in a real repository end to end.
+- [ ] Discover Lit and Web Components. Real progress, still not end to end. What now works, wired through the actual app: `workspace_scan.rs`'s `detect_custom_elements_manifests` finds a package's CEM via its `package.json` `"customElements"` field (the spec-standard convention) or the conventional `custom-elements.json` filename, one level into `apps/*`/`packages/*`; a new generic `read_text_file` Tauri command (path-traversal-checked — the resolved file must canonicalize to somewhere still inside the workspace) reads it; `WorkspaceService` parses it (`parseCustomElementsManifest`, schema-checked) and the UI lists the discovered custom-element tag names. What's still missing: *producing* a CEM for the (much more common) case where a repository doesn't already publish one — that needs `@custom-elements-manifest/analyzer` run through the user-approved command-execution UI from `02-system-architecture.md`'s "Command execution flow", which doesn't exist yet. Real-world check: Public Sector Federation (the fixture used throughout Phase 3) doesn't publish a CEM at all — it's Angular/PrimeNG-based — so this round's validation used synthetic fixtures replicating the real `package.json` `"customElements"` pattern rather than a live hit; a genuine Web Components fixture is still needed to validate this for real.
 - [ ] Discover Angular components.
 - [ ] Discover React components.
 - [ ] Discover Vue components.
@@ -319,8 +319,9 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 - Builds the component id as `organization.library.tagName` via `buildComponentId`.
 - Does **not** populate `states`, `themes`, `densities`, `viewports`, `tokenMappings`, `testRequirements`, or anything else outside the contract — a CEM only describes a component's API shape, not its required coverage. Populating the rest is manual authoring today; blueprint-driven completion checking (`14-component-blueprints.md`) is future work.
 - This is a practical CEM subset (`custom-elements-manifest.ts`), not the full spec — no mixins, no superclass chains, no deprecation flags yet.
+- `parseCustomElementsManifest` (new) parses and loosely schema-validates the raw JSON before mapping — loose on purpose, so unmodeled real-world CEM fields don't make a valid manifest fail to load.
 
-9 tests, all passing.
+`adapter-web-components` now has 9 tests (up from 5 in the initial mapper-only commit — the new `parseCustomElementsManifest` file added 4). Plus: 3 new Rust tests for `detect_custom_elements_manifests` (declared-path detection, filename fallback, declared-but-missing path is not reported) and 3 new Rust tests for `read_text_file` (reads a nested file, rejects a path escaping the workspace, rejects a missing file). 3 new `WorkspaceService` tests covering "no CEM found" (no extra read attempted), "CEM found and parsed", and "CEM read/parse failure doesn't blank the rest of the UI".
 
 ## Inventory user experience
 

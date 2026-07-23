@@ -37,7 +37,26 @@
       <dd>{{ scan.visualRegressionProviders.length ? scan.visualRegressionProviders.join(', ') : 'None found' }}</dd>
       <dt>CI providers</dt>
       <dd>{{ scan.ciProviders.length ? scan.ciProviders.join(', ') : 'None found' }}</dd>
+      <dt>Custom Elements Manifest</dt>
+      <dd>{{ scan.customElementsManifests.length ? scan.customElementsManifests.join(', ') : 'None found' }}</dd>
     </dl>
+  }
+
+  @if (workspace.customElementsManifest()) {
+    <dl>
+      <dt>Web Components discovered</dt>
+      <dd>
+        @if (customElementTags().length) {
+          {{ customElementTags().join(', ') }}
+        } @else {
+          Manifest present but no custom elements found in it
+        }
+      </dd>
+    </dl>
+  }
+
+  @if (workspace.customElementsManifestError(); as cemError) {
+    <p role="alert">Custom Elements Manifest could not be read: {{ cemError }}</p>
   }
 
   @if (workspace.repositoryConfig(); as config) {

@@ -24,6 +24,7 @@ pub struct WorkspaceScan {
     test_runners: Vec<String>,
     visual_regression_providers: Vec<String>,
     ci_providers: Vec<String>,
+    custom_elements_manifests: Vec<String>,
 }
 
 /// Fails loudly if the workspace root itself cannot be read (permissions,
@@ -48,6 +49,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         test_runners: detect_test_runners(&entries),
         visual_regression_providers: detect_visual_regression_providers(package_json.as_ref()),
         ci_providers: detect_ci_providers(root, &entries),
+        custom_elements_manifests: detect_custom_elements_manifests(root, &project_dirs),
     })
 }
 
@@ -92,7 +94,11 @@ fn read_package_json(root: &Path, entries: &[String]) -> Option<Value> {
     if !entries.contains(&"package.json".to_string()) {
         return None;
     }
-    let contents = fs::read_to_string(root.join("package.json")).ok()?;
+    read_package_json_at(root)
+}
+
+fn read_package_json_at(dir: &Path) -> Option<Value> {
+    let contents = fs::read_to_string(dir.join("package.json")).ok()?;
     serde_json::from_str(&contents).ok()
 }
 
@@ -271,6 +277,32 @@ fn detect_visual_regression_providers(package_json: Option<&Value>) -> Vec<Strin
     providers
 }
 
+/// A package declares where its Custom Elements Manifest lives via the
+/// standard `"customElements"` field in `package.json`
+/// (https://github.com/webcomponents/custom-elements-manifest); fall back
+/// to a conventional `custom-elements.json` at the project root if that
+/// field is absent. Only manifest files that actually exist are returned —
+/// a declared-but-missing path (for example, not yet built) is silently
+/// skipped here rather than treated as an error, since scan_workspace only
+/// fails loudly for the workspace root itself.
+fn detect_custom_elements_manifests(root: &Path, project_dirs: &[PathBuf]) -> Vec<String> {
+    project_dirs
+        .iter()
+        .filter_map(|dir| {
+            let declared_path = read_package_json_at(dir)
+                .and_then(|package_json| package_json.get("customElements").cloned())
+                .and_then(|value| value.as_str().map(|s| s.to_string()));
+
+            let candidate = match declared_path {
+                Some(relative) => dir.join(relative),
+                None => dir.join("custom-elements.json"),
+            };
+
+            candidate.is_file().then(|| relative_display(root, &candidate))
+        })
+        .collect()
+}
+
 fn detect_ci_providers(root: &Path, entries: &[String]) -> Vec<String> {
     let mut providers = Vec::new();
 
@@ -321,6 +353,7 @@ mod tests {
         assert!(!scan.test_runners.contains(&"jest".to_string()));
         assert!(scan.visual_regression_providers.is_empty());
         assert!(scan.ci_providers.contains(&"github-actions".to_string()));
+        assert!(scan.custom_elements_manifests.is_empty(), "ForgeGate does not publish a CEM on itself");
     }
 
     #[test]
@@ -339,6 +372,7 @@ mod tests {
         assert!(scan.test_runners.is_empty());
         assert!(scan.visual_regression_providers.is_empty());
         assert!(scan.ci_providers.is_empty());
+        assert!(scan.custom_elements_manifests.is_empty());
 
         fs::remove_dir_all(&dir).ok();
     }
@@ -415,6 +449,53 @@ mod tests {
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
         assert!(scan.has_zeroheight);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn detects_a_custom_elements_manifest_declared_in_package_json() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-declared-{}", std::process::id()));
+        let dist_dir = dir.join("dist");
+        fs::create_dir_all(&dist_dir).expect("should create dist dir");
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name": "up-design-system", "customElements": "dist/custom-elements.json"}"#,
+        )
+        .unwrap();
+        fs::write(dist_dir.join("custom-elements.json"), r#"{"schemaVersion": "1.0.0", "modules": []}"#).unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+        assert_eq!(scan.custom_elements_manifests, vec!["dist/custom-elements.json".to_string()]);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn falls_back_to_the_conventional_filename_when_package_json_does_not_declare_one() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-fallback-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("should create temp dir");
+        fs::write(dir.join("custom-elements.json"), r#"{"schemaVersion": "1.0.0", "modules": []}"#).unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+        assert_eq!(scan.custom_elements_manifests, vec!["custom-elements.json".to_string()]);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn does_not_report_a_declared_manifest_path_that_does_not_actually_exist() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-missing-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("should create temp dir");
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name": "up-design-system", "customElements": "dist/custom-elements.json"}"#,
+        )
+        .unwrap();
+        // dist/custom-elements.json is declared but never actually built.
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+        assert!(scan.custom_elements_manifests.is_empty());
 
         fs::remove_dir_all(&dir).ok();
     }
