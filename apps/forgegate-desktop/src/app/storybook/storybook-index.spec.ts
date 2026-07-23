@@ -1,4 +1,7 @@
-import { findStoriesForSourceFiles, parseStorybookIndex } from './storybook-index';
+import {
+  findStoriesForSourceFiles,
+  parseStorybookIndex,
+} from './storybook-index';
 
 const storyEntry = {
   type: 'story',
