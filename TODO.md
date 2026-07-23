@@ -170,7 +170,7 @@ This slice generalizes to any component, not just a Button specifically — ther
 
 These are functional dependencies that must advance with the P0 interface. The UI may render honest disconnected states before each adapter is complete, but the first polished vertical slice is not credible until these connections work for one Button.
 
-- [ ] Confirm one Lit or vanilla Web Components fixture repository for deterministic development and CI.
+- [X} Confirm one Lit or vanilla Web Components fixture repository for deterministic development and CI. `fixtures/acme-button-library/` — a real, working vanilla `HTMLElement` custom element (`src/acme-button.js`), a hand-authored Custom Elements Manifest that accurately describes it, and a real DTCG token file. Deliberately outside the pnpm/Nx workspace (no package install, excluded from ESLint) since it's scan *content*, not ForgeGate source. Guarded by a new Rust test, `detects_the_acme_button_library_fixture_correctly`, that scans the real checked-in directory (not a synthetic tempdir) so a future edit that breaks detection fails CI immediately. This is the "small deterministic fixture" ADR 0003 called for; Public Sector Federation (the real pilot repository) is still not connected to anything — that's a separate, larger effort.
 - [ ] Complete Web Components framework and adapter identity detection.
 - [ ] Read one Storybook `index.json` and associate stories with the Button manifest.
 - [ ] Connect one real Button story to the preview surface.

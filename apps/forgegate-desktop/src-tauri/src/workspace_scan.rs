@@ -353,6 +353,10 @@ mod tests {
             .to_path_buf()
     }
 
+    fn fixture_root() -> std::path::PathBuf {
+        repository_root().join("fixtures/acme-button-library")
+    }
+
     #[test]
     fn detects_this_repository_correctly() {
         let scan = scan_workspace(&repository_root()).expect("scan should succeed");
@@ -369,6 +373,22 @@ mod tests {
         assert!(scan.visual_regression_providers.is_empty());
         assert!(scan.ci_providers.contains(&"github-actions".to_string()));
         assert!(scan.custom_elements_manifests.is_empty(), "ForgeGate does not publish a CEM on itself");
+    }
+
+    /// Regression protection for the checked-in ADR 0003 fixture
+    /// (`fixtures/acme-button-library/`): scans it for real, the same way a
+    /// developer pointing ForgeGate at it would, so a future edit to the
+    /// fixture that breaks detection fails CI immediately rather than
+    /// silently drifting out of sync with what it claims to demonstrate.
+    #[test]
+    fn detects_the_acme_button_library_fixture_correctly() {
+        let scan = scan_workspace(&fixture_root()).expect("scan should succeed");
+
+        assert_eq!(scan.package_name, Some("@acme/button-library".to_string()));
+        assert_eq!(scan.custom_elements_manifests, vec!["custom-elements.json".to_string()]);
+        assert_eq!(scan.token_files, vec!["tokens/acme.tokens.json".to_string()]);
+        assert!(scan.storybook_projects.is_empty(), "the fixture deliberately has no Storybook connection yet");
+        assert!(scan.test_runners.is_empty(), "the fixture deliberately has no test runner yet");
     }
 
     #[test]

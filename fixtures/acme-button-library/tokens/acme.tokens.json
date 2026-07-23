@@ -1,0 +1,23 @@
+{
+  "color": {
+    "action": {
+      "$type": "color",
+      "$value": "#335dff",
+      "$description": "Primary button background."
+    },
+    "action-hover": {
+      "$type": "color",
+      "$value": "#163cc7"
+    },
+    "text-inverse": {
+      "$type": "color",
+      "$value": "#f3f6fb"
+    }
+  },
+  "radius": {
+    "button": {
+      "$type": "dimension",
+      "$value": "8px"
+    }
+  }
+}

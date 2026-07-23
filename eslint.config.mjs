@@ -11,6 +11,10 @@ export default [
       '**/vitest.config.*.timestamp*',
       '**/src-tauri/target/**',
       '**/src-tauri/gen/**',
+      // Deterministic scan-target fixture (ADR 0003) — real source a
+      // developer points ForgeGate at, not part of ForgeGate's own lint
+      // surface or Nx project graph.
+      'fixtures/**',
     ],
   },
   {

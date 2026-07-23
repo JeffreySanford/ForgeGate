@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "src/acme-button.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "A minimal, real vanilla Web Component button.",
+          "name": "AcmeButton",
+          "customElement": true,
+          "tagName": "acme-button",
+          "members": [
+            {
+              "kind": "field",
+              "name": "variant",
+              "description": "Visual variant: \"primary\" or \"secondary\".",
+              "type": { "text": "string" },
+              "privacy": "public"
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "description": "Moves keyboard focus to the rendered button element.",
+              "privacy": "public"
+            }
+          ],
+          "events": [
+            {
+              "name": "acme-click",
+              "type": { "text": "CustomEvent" },
+              "description": "Fired when the button is activated and not disabled."
+            }
+          ],
+          "slots": [
+            {
+              "name": "",
+              "description": "Button label content."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "The root <button> element."
+            }
+          ],
+          "attributes": [
+            {
+              "name": "variant",
+              "fieldName": "variant",
+              "type": { "text": "string" },
+              "description": "Visual variant: \"primary\" or \"secondary\"."
+            },
+            {
+              "name": "disabled",
+              "type": { "text": "boolean" },
+              "description": "Disables the button and suppresses the acme-click event."
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "AcmeButton",
+          "declaration": { "name": "AcmeButton", "module": "src/acme-button.js" }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "acme-button",
+          "declaration": { "name": "AcmeButton", "module": "src/acme-button.js" }
+        }
+      ]
+    }
+  ]
+}
