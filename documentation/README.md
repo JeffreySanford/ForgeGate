@@ -29,7 +29,8 @@ This folder defines the product, architecture, data contracts, integrations, com
 23. [`22-reactive-data-flow.md`](22-reactive-data-flow.md) — RxJS observable and subject usage that keeps the core, adapters, and desktop UI synchronized.
 24. [`23-design-tokens-and-figma-bridge.md`](23-design-tokens-and-figma-bridge.md) — DTCG token format adoption and one-directional Figma token export ingestion.
 25. [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md) — VPAT support, FedRAMP/authorization posture, and NIST RMF Rev 5 alignment scope.
-26. [`decisions/`](decisions/README.md) — numbered ADRs closing the primary-user, buyer, pilot-repository, MVP-scope, and workspace-architecture decisions needed to begin Phase 1.
+26. [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md) — implementation-ready information architecture, visual language, component-record composition, states, and acceptance criteria for the first polished button assurance experience.
+27. [`decisions/`](decisions/README.md) — numbered ADRs closing the primary-user, buyer, pilot-repository, MVP-scope, and workspace-architecture decisions needed to begin Phase 1.
 
 ## Documentation ownership
 
@@ -39,9 +40,12 @@ This folder defines the product, architecture, data contracts, integrations, com
 - Framework-specific implementation details should eventually live under `documentation/frameworks/`.
 - Component-specific blueprint documents should eventually live under `documentation/blueprints/`.
 - Architecture and product decisions live under [`documentation/decisions/`](decisions/README.md) as numbered ADRs.
+- Executable screen composition and visual acceptance criteria for the first polished UI slice belong in [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md).
 
 ## Current documentation status
 
-Broad planning is complete. The repository has enough product definition, architecture, risk analysis, phased work, and MVP acceptance criteria to begin implementation, and the five ADRs in [`decisions/`](decisions/README.md) close the remaining decisions that would otherwise block Phase 1. Further large planning documents are not needed right now; the next work should be code against [`TODO.md`](../TODO.md) Phase 1, validated by showing a working prototype to real users rather than by writing more prose.
+Broad product planning is complete. The repository has enough product definition, architecture, risk analysis, phased work, and MVP acceptance criteria to continue implementation, and the five ADRs in [`decisions/`](decisions/README.md) close the decisions that would otherwise block Phase 1.
+
+The designer-ready vertical-slice document is not a new expansion of product scope. It translates the existing button MVP and user-experience direction into an implementable screen hierarchy, visual contract, connected-data map, and acceptance checklist. Further large planning documents are not needed right now; the next work should be code against [`TODO.md`](../TODO.md), using the vertical-slice document as the UI reference and validating the result with real design-system users.
 
 As engineering proceeds, these documents should be refined into validated contracts, diagrams, schemas, examples, and acceptance evidence.
