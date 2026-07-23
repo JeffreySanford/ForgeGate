@@ -325,21 +325,21 @@ All detection above stays shallow on purpose (workspace root, plus one level int
 
 ## Inventory user experience
 
-- [ ] Show all components.
-- [ ] Filter by package, framework, lifecycle, owner, readiness, and finding severity.
+- [X} Show all components. `app.html` now renders a real component-inventory table (id, framework/adapter, source files, and input/output/slot/method/style-part counts) built from live `ComponentManifest[]` — the actual mapper output, not a mock. Wired via `deriveOrganizationAndLibrary` (new, `adapter-web-components`), which derives `organization`/`library` from the workspace's `package.json` name (`@up/design-system` → `up`/`design-system`; unscoped or absent falls back to `unscoped`/`unconfigured`) — a documented naming convention, not real configured identity, since `.forgegate/config.yaml` has no dedicated identity field yet.
+- [ ] Filter by package, framework, lifecycle, owner, readiness, and finding severity. Not started — there's only ever one package's worth of components shown right now, from one CEM.
 - [ ] Show missing manifests.
 - [ ] Show missing stories.
 - [ ] Show missing tests.
 - [ ] Show stale evidence.
 - [ ] Show documentation drift.
 - [ ] Show consuming applications.
-- [ ] Provide a component detail route.
+- [ ] Provide a component detail route. Everything is one flat table on the workspace screen; no per-component route/page exists yet.
 
 ### Phase 4 exit criteria
 
-- [ ] One button component appears with source, story, token, test, and documentation mappings.
-- [ ] Unregistered components are visible.
-- [ ] Manifest changes can be previewed before writing.
+- [ ] One button component appears with source, story, token, test, and documentation mappings. Partially true: a real component (if the workspace has one) appears with its id, framework, and source file — genuine, not mocked. Story/token/test/documentation mappings are structurally present on `ComponentManifest` but always empty for a CEM-derived component, since a CEM only describes API shape (see Phase 4's "Component discovery" notes above) — nothing populates them yet.
+- [X} Unregistered components are visible. Every custom-element declaration in the CEM shows up in the inventory table automatically — there's no separate "registration" step to be missing from; discovery IS the inventory here.
+- [ ] Manifest changes can be previewed before writing. Not applicable yet — nothing writes a `ComponentManifest` to `.forgegate/components/*.yaml` at all (see Phase 4's "Manifest specification" — the write path was explicitly deferred there too).
 
 ---
 

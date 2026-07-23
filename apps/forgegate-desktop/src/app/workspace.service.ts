@@ -10,6 +10,7 @@ export interface GitStatus {
 }
 
 export interface WorkspaceScan {
+  packageName: string | null;
   packageManager: string | null;
   workspaceManager: string | null;
   storybookProjects: string[];

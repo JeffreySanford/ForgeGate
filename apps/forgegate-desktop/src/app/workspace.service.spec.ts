@@ -9,6 +9,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 const scanFixture = {
+  packageName: '@up/design-system',
   packageManager: 'pnpm',
   workspaceManager: 'nx',
   storybookProjects: [],

@@ -43,16 +43,39 @@
   }
 
   @if (workspace.customElementsManifest()) {
-    <dl>
-      <dt>Web Components discovered</dt>
-      <dd>
-        @if (customElementTags().length) {
-          {{ customElementTags().join(', ') }}
-        } @else {
-          Manifest present but no custom elements found in it
-        }
-      </dd>
-    </dl>
+    @if (componentManifests().length) {
+      <h2>Component inventory</h2>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Component</th>
+            <th scope="col">Framework</th>
+            <th scope="col">Source</th>
+            <th scope="col">Inputs</th>
+            <th scope="col">Outputs</th>
+            <th scope="col">Slots</th>
+            <th scope="col">Methods</th>
+            <th scope="col">Style parts</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (manifest of componentManifests(); track manifest.id) {
+            <tr>
+              <td>{{ manifest.id }}</td>
+              <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
+              <td>{{ manifest.sourceFiles.join(', ') }}</td>
+              <td>{{ manifest.contract.inputs.length }}</td>
+              <td>{{ manifest.contract.outputs.length }}</td>
+              <td>{{ manifest.contract.content.length }}</td>
+              <td>{{ manifest.contract.publicMethods.length }}</td>
+              <td>{{ manifest.contract.styleParts.length }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p>Manifest present but no custom elements found in it.</p>
+    }
   }
 
   @if (workspace.customElementsManifestError(); as cemError) {

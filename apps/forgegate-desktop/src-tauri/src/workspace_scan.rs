@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScan {
+    package_name: Option<String>,
     package_manager: Option<String>,
     workspace_manager: Option<String>,
     storybook_projects: Vec<String>,
@@ -40,6 +41,11 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
     let project_dirs = candidate_project_dirs(root, &entries);
 
     Ok(WorkspaceScan {
+        package_name: package_json
+            .as_ref()
+            .and_then(|value| value.get("name"))
+            .and_then(|value| value.as_str())
+            .map(|name| name.to_string()),
         package_manager: detect_package_manager(&entries),
         workspace_manager: detect_workspace_manager(&entries, package_json.as_ref()),
         storybook_projects: detect_storybook_projects(root, &project_dirs),
@@ -343,6 +349,7 @@ mod tests {
     fn detects_this_repository_correctly() {
         let scan = scan_workspace(&repository_root()).expect("scan should succeed");
 
+        assert_eq!(scan.package_name, Some("forgegate".to_string()));
         assert_eq!(scan.package_manager, Some("pnpm".to_string()));
         assert_eq!(scan.workspace_manager, Some("nx".to_string()));
         assert!(scan.storybook_projects.is_empty(), "ForgeGate does not use Storybook on itself");
@@ -363,6 +370,7 @@ mod tests {
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
 
+        assert_eq!(scan.package_name, None);
         assert_eq!(scan.package_manager, None);
         assert_eq!(scan.workspace_manager, None);
         assert!(scan.storybook_projects.is_empty());
@@ -437,6 +445,18 @@ mod tests {
         let scan = scan_workspace(&dir).expect("scan should succeed");
         assert!(scan.visual_regression_providers.contains(&"chromatic".to_string()));
         assert!(scan.visual_regression_providers.contains(&"percy".to_string()));
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reports_the_scoped_package_name_from_package_json() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-pkgname-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("should create temp dir");
+        fs::write(dir.join("package.json"), r#"{"name": "@up/design-system"}"#).unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+        assert_eq!(scan.package_name, Some("@up/design-system".to_string()));
 
         fs::remove_dir_all(&dir).ok();
     }
