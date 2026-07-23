@@ -94,9 +94,8 @@ export function parseStorybookIndex(text: string): StorybookIndex {
     throw new Error('Storybook index requires an "entries" object');
   }
 
-  // Guard `v` independently. Checking `entries` only narrows `parsed` to a
-  // record containing `entries`; it does not make arbitrary properties safe.
-  const version = 'v' in parsed && typeof parsed.v === 'number' ? parsed.v : 0;
+  const rawVersion = parsed['v'];
+  const version = typeof rawVersion === 'number' ? rawVersion : 0;
   const entries: Record<string, StorybookIndexEntry> = {};
 
   for (const [entryKey, value] of Object.entries(rawEntries)) {
