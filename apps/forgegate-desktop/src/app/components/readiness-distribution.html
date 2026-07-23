@@ -1,0 +1,71 @@
+<section class="readiness-distribution" aria-labelledby="readiness-distribution-title">
+  <h2 id="readiness-distribution-title">Readiness distribution</h2>
+
+  @if (manifests().length === 0) {
+    <p class="readiness-distribution__empty">No components to distribute yet.</p>
+  } @else {
+    <div class="readiness-distribution__groups">
+      <div class="readiness-distribution__group">
+        <h3>By lifecycle</h3>
+        <ul class="readiness-distribution__bars">
+          @for (bucket of lifecycleBuckets(); track bucket.value) {
+            <li>
+              <button
+                type="button"
+                class="readiness-distribution__bar-button"
+                [class.is-selected]="selectedLifecycle() === bucket.value"
+                [attr.aria-pressed]="selectedLifecycle() === bucket.value"
+                (click)="selectLifecycle(bucket.value)"
+              >
+                <span class="readiness-distribution__bar-label">{{ bucket.value }} ({{ bucket.count }})</span>
+                <span class="readiness-distribution__bar-track">
+                  <span class="readiness-distribution__bar-fill" [style.width.%]="bucket.percent"></span>
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+        <p class="readiness-distribution__hint">Select a lifecycle bar to filter the inventory below.</p>
+      </div>
+
+      <div class="readiness-distribution__group">
+        <h3>By readiness</h3>
+        <ul class="readiness-distribution__bars">
+          @for (bucket of readinessBuckets(); track bucket.value) {
+            <li>
+              <span class="readiness-distribution__bar-label">{{ bucket.value }} ({{ bucket.count }})</span>
+              <span class="readiness-distribution__bar-track">
+                <span class="readiness-distribution__bar-fill readiness-distribution__bar-fill--unknown" [style.width.%]="bucket.percent"></span>
+              </span>
+            </li>
+          }
+        </ul>
+        <p class="readiness-distribution__hint">
+          Always "unknown" today — ForgeGate has no findings/evidence pipeline connected yet.
+        </p>
+      </div>
+    </div>
+
+    <details class="readiness-distribution__table">
+      <summary>Semantic table (same counts, no bars)</summary>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Lifecycle</th>
+            <th scope="col">Count</th>
+            <th scope="col">Percent</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (bucket of lifecycleBuckets(); track bucket.value) {
+            <tr>
+              <th scope="row">{{ bucket.value }}</th>
+              <td>{{ bucket.count }}</td>
+              <td>{{ bucket.percent }}%</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </details>
+  }
+</section>

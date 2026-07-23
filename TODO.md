@@ -222,10 +222,10 @@ Primary reference:
 
 ## P1.2 — Component landscape and readiness distribution
 
-- [ ] Visualize components by lifecycle and readiness without collapsing them into a single health score.
-- [ ] Show blocked, warning, stale, unknown, and not-evaluated components distinctly.
-- [ ] Allow selection and filtering to update the accessible inventory.
-- [ ] Provide a semantic table equivalent.
+- [X} Visualize components by lifecycle and readiness without collapsing them into a single health score. `ReadinessDistribution` (`app/components/readiness-distribution.ts`) renders on `/components` above the existing inventory — a real per-lifecycle bar breakdown (computed from the actual manifest list, not hardcoded) plus a readiness breakdown, never a single percentage or score.
+- [ ] Show blocked, warning, stale, unknown, and not-evaluated components distinctly. Structurally ready (the readiness bucket computation is a real reduction over the manifest list, documented to start reporting real splits the moment evidence exists) but currently always renders one honest "unknown (100%)" bar — ForgeGate still has no findings/evidence pipeline to derive blocked/warning/stale from, same root gap as P0.5's readiness rail.
+- [X} Allow selection and filtering to update the accessible inventory. Clicking a lifecycle bar (a real `<button aria-pressed>`, not a fake `role="button"` `<div>` — P0.7's axe pass specifically caught and fixed that mistake elsewhere) sets the same `lifecycleFilter` signal the search/dropdown filters already drive, verified by a test that clicks a bar and asserts the emitted value, plus toggle-off-on-second-click.
+- [X} Provide a semantic table equivalent. A `<details>`-disclosed table alongside the bars carries the same lifecycle/count/percent data.
 
 ## P1.3 — Evidence freshness timeline
 

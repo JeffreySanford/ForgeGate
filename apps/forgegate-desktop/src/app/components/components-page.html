@@ -12,6 +12,12 @@
     @if (manifests().length === 0 && failures().length === 0) {
       <p class="components-page__empty">The connected manifest declares no custom elements.</p>
     } @else {
+      <app-readiness-distribution
+        [manifests]="manifests()"
+        [selectedLifecycle]="selectedLifecycle()"
+        (lifecycleSelect)="onLifecycleSelect($event)"
+      />
+
       <div class="components-page__controls">
         <label class="components-page__search">
           <span>Search</span>
@@ -51,7 +57,7 @@
       @if (filtered().length === 0) {
         <p class="components-page__empty">No components match the current search and filters.</p>
       } @else if (viewMode() === 'table') {
-        <table>
+        <table class="components-page__inventory-table">
           <caption class="sr-only">Component inventory</caption>
           <thead>
             <tr>

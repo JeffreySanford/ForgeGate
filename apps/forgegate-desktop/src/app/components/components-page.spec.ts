@@ -92,7 +92,7 @@ describe('ComponentsPage', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const rows = Array.from(compiled.querySelectorAll('tbody tr'));
+    const rows = Array.from(compiled.querySelectorAll('.components-page__inventory-table tbody tr'));
     expect(rows).toHaveLength(2);
 
     const firstRowCells = Array.from(rows[0].querySelectorAll('td')).map((cell) => cell.textContent?.trim());
@@ -124,7 +124,7 @@ describe('ComponentsPage', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const rows = Array.from(compiled.querySelectorAll('tbody tr'));
+    const rows = Array.from(compiled.querySelectorAll('.components-page__inventory-table tbody tr'));
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('acme-card');
   });
@@ -188,7 +188,7 @@ describe('ComponentsPage', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(compiled.querySelectorAll('.components-page__inventory-table tbody tr')).toHaveLength(2);
     expect(compiled.querySelector('.components-page__failures')?.textContent).toContain('Broken');
   });
 

@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
+import { ReadinessDistribution } from './readiness-distribution';
 
 type LifecycleFilter = 'all' | ComponentManifest['lifecycle'];
 type ViewMode = 'table' | 'cards';
@@ -22,7 +23,7 @@ type ViewMode = 'table' | 'cards';
  */
 @Component({
   selector: 'app-components-page',
-  imports: [RouterLink],
+  imports: [RouterLink, ReadinessDistribution],
   templateUrl: './components-page.html',
   styleUrl: './components-page.css',
 })
@@ -87,6 +88,15 @@ export class ComponentsPage {
 
   protected setViewMode(mode: ViewMode): void {
     this.viewMode.set(mode);
+  }
+
+  protected readonly selectedLifecycle = computed<ComponentManifest['lifecycle'] | null>(() => {
+    const lifecycle = this.lifecycleFilter();
+    return lifecycle === 'all' ? null : lifecycle;
+  });
+
+  protected onLifecycleSelect(lifecycle: ComponentManifest['lifecycle'] | null): void {
+    this.lifecycleFilter.set(lifecycle ?? 'all');
   }
 }
 
