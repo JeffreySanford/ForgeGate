@@ -30,7 +30,8 @@ This folder defines the product, architecture, data contracts, integrations, com
 24. [`23-design-tokens-and-figma-bridge.md`](23-design-tokens-and-figma-bridge.md) — DTCG token format adoption and one-directional Figma token export ingestion.
 25. [`24-federal-compliance-and-vpat.md`](24-federal-compliance-and-vpat.md) — VPAT support, FedRAMP/authorization posture, and NIST RMF Rev 5 alignment scope.
 26. [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md) — implementation-ready information architecture, visual language, component-record composition, states, and acceptance criteria for the first polished button assurance experience.
-27. [`decisions/`](decisions/README.md) — numbered ADRs closing the primary-user, buyer, pilot-repository, MVP-scope, and workspace-architecture decisions needed to begin Phase 1.
+27. [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md) — data-visualization, infographic, spatial, and motion language for an engaging workspace command center, with an accessible standalone reference prototype.
+28. [`decisions/`](decisions/README.md) — numbered ADRs closing the primary-user, buyer, pilot-repository, MVP-scope, and workspace-architecture decisions needed to begin Phase 1.
 
 ## Documentation ownership
 
@@ -40,12 +41,15 @@ This folder defines the product, architecture, data contracts, integrations, com
 - Framework-specific implementation details should eventually live under `documentation/frameworks/`.
 - Component-specific blueprint documents should eventually live under `documentation/blueprints/`.
 - Architecture and product decisions live under [`documentation/decisions/`](decisions/README.md) as numbered ADRs.
-- Executable screen composition and visual acceptance criteria for the first polished UI slice belong in [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md).
+- Executable screen composition and visual acceptance criteria for the first polished component slice belong in [`25-designer-ready-vertical-slice.md`](25-designer-ready-vertical-slice.md).
+- Workspace-level data visualization, infographics, animation, and accessible motion behavior belong in [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md), supported by the fixture-only reference prototype in [`prototypes/workspace-command-center.html`](prototypes/workspace-command-center.html).
 
 ## Current documentation status
 
 Broad product planning is complete. The repository has enough product definition, architecture, risk analysis, phased work, and MVP acceptance criteria to continue implementation, and the five ADRs in [`decisions/`](decisions/README.md) close the decisions that would otherwise block Phase 1.
 
-The designer-ready vertical-slice document is not a new expansion of product scope. It translates the existing button MVP and user-experience direction into an implementable screen hierarchy, visual contract, connected-data map, and acceptance checklist. Further large planning documents are not needed right now; the next work should be code against [`TODO.md`](../TODO.md), using the vertical-slice document as the UI reference and validating the result with real design-system users.
+The two designer-focused vertical-slice documents are not expansions of the product into a general design or analytics platform. They translate the existing button MVP and workspace-discovery direction into implementable component and workspace experiences. The workspace visualization slice specifies where meaningful charts, diagrams, motion, and infographics improve comprehension, and explicitly rejects decorative or misleading metrics.
+
+Further large planning documents are not needed right now; the next work should be code against [`TODO.md`](../TODO.md), using these slices and the standalone workspace prototype as visual references and validating the results with real design-system users.
 
 As engineering proceeds, these documents should be refined into validated contracts, diagrams, schemas, examples, and acceptance evidence.
