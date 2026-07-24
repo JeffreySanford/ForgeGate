@@ -25,20 +25,32 @@ export interface AnatomyItem {
   readonly contractSectionId: 'contract-content' | 'contract-style-parts';
 }
 
+export type PreviewKind =
+  | 'live-storybook'
+  | 'static-capture'
+  | 'blueprint-reference'
+  | 'temporary-generated'
+  | 'unavailable';
+
+export interface PreviewSourceOption {
+  readonly kind: Exclude<PreviewKind, 'unavailable'>;
+  readonly label: string;
+  readonly status: 'Connected' | 'Not connected' | 'Unsupported here';
+  readonly detail: string;
+}
+
+const LOCAL_STORYBOOK_ORIGIN = 'http://localhost:6006';
+
 /**
  * The Button/component assurance record (P0.5,
  * documentation/25-designer-ready-vertical-slice.md "Suggested Angular UI
  * composition" — header, preview, coverage strip, readiness rail, states,
  * tokens, contract, evidence, documentation, in one route).
  *
- * Scoped honestly to what's real today: the contract panel (inputs,
- * outputs, slots, methods, style parts) is real, rich data straight from
- * the Custom Elements Manifest mapping. Everything that depends on a
- * feature ForgeGate doesn't have yet — Storybook connection (P0.6), a
- * findings/evidence pipeline, token mapping, manual review, documentation
- * drift — is shown as an explicit disconnected/not-evaluated state, per
- * document 25 ("The UI should render these as clear disconnected or
- * not-evaluated states"), never a fabricated value.
+ * The record combines Custom Elements Manifest contract data with connected
+ * Storybook, repository-authored state/token/documentation mappings, and test
+ * evidence. Any unavailable source is shown as an explicit disconnected or
+ * not-evaluated state, per document 25, never as a fabricated value.
  */
 @Component({
   selector: 'app-component-detail-page',
@@ -257,12 +269,75 @@ export class ComponentDetailPage {
     );
   });
 
-  protected readonly previewUrl = computed<SafeResourceUrl | null>(() => {
+  protected readonly previewKind = computed<PreviewKind>(() =>
+    this.activeStory() ? 'live-storybook' : 'unavailable',
+  );
+
+  protected readonly previewHref = computed<string | null>(() => {
     const story = this.activeStory();
-    if (!story) return null;
-    const url = `http://localhost:6006/iframe.html?id=${encodeURIComponent(story.id)}&viewMode=story`;
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    return story
+      ? `${LOCAL_STORYBOOK_ORIGIN}/iframe.html?id=${encodeURIComponent(story.id)}&viewMode=story`
+      : null;
   });
+
+  protected readonly previewUrl = computed<SafeResourceUrl | null>(() => {
+    const href = this.previewHref();
+    return href ? this.sanitizer.bypassSecurityTrustResourceUrl(href) : null;
+  });
+
+  protected readonly previewUnavailableReason = computed<string>(() => {
+    const scan = this.workspace.workspaceScan();
+    const manifest = this.manifest();
+    if (!scan?.storybookProjects.length) {
+      return 'Storybook was not detected in this workspace.';
+    }
+    if (this.workspace.storybookIndexError()) {
+      return 'The Storybook index was found but could not be validated.';
+    }
+    if (!this.workspace.storybookIndex()) {
+      return 'Storybook was detected, but storybook-static/index.json is not connected.';
+    }
+    if (!manifest?.storyMappings.length) {
+      return 'No Storybook story is mapped to this component.';
+    }
+    return 'The mapped story IDs were not found in the connected Storybook index.';
+  });
+
+  protected readonly previewSources = computed<readonly PreviewSourceOption[]>(
+    () => {
+      const story = this.activeStory();
+      return [
+        {
+          kind: 'live-storybook',
+          label: 'Live Storybook',
+          status: story ? 'Connected' : 'Not connected',
+          detail: story
+            ? `Mapped to ${story.id}; availability of the local runtime is not probed.`
+            : this.previewUnavailableReason(),
+        },
+        {
+          kind: 'static-capture',
+          label: 'Static capture',
+          status: 'Not connected',
+          detail: 'No static preview artifact is declared for this component.',
+        },
+        {
+          kind: 'blueprint-reference',
+          label: 'Blueprint reference',
+          status: 'Unsupported here',
+          detail:
+            'Blueprint references belong to Blueprint Studio, not repository evidence.',
+        },
+        {
+          kind: 'temporary-generated',
+          label: 'Temporary generated preview',
+          status: 'Unsupported here',
+          detail:
+            'No temporary generation adapter is connected to this record.',
+        },
+      ];
+    },
+  );
 
   protected readonly blockingReasons = computed<readonly string[]>(() => {
     const manifest = this.manifest();
@@ -272,8 +347,8 @@ export class ComponentDetailPage {
     const reasons: string[] = [];
     if (manifest.states.length === 0)
       reasons.push('No required states declared');
-    if (manifest.storyMappings.length === 0)
-      reasons.push('No Storybook connection (not yet built — P0.6)');
+    if (this.previewKind() === 'unavailable')
+      reasons.push(`Preview unavailable — ${this.previewUnavailableReason()}`);
     if (manifest.tokenMappings.length === 0)
       reasons.push('No token mappings connected');
     const executions = this.testExecutions();

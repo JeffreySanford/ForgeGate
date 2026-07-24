@@ -1,11 +1,31 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet } from '@angular/router';
-import type { CustomElementsManifest } from '@forgegate/adapter-web-components';
-import { createComponentManifest } from '@forgegate/core-manifest';
+import {
+  parseCustomElementsManifest,
+  type CustomElementsManifest,
+} from '@forgegate/adapter-web-components';
+import {
+  createComponentManifest,
+  parseComponentManifest,
+} from '@forgegate/core-manifest';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ComponentDetailPage } from './component-detail-page';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
+import { parseStorybookIndex } from '../storybook/storybook-index';
+
+const fixtureRoot = [
+  resolve(process.cwd(), 'fixtures/acme-button-library'),
+  resolve(process.cwd(), '../../fixtures/acme-button-library'),
+].find((candidate) => existsSync(candidate));
+
+if (!fixtureRoot) {
+  throw new Error(
+    'Unable to locate the checked-in acme-button-library fixture',
+  );
+}
 
 const scan: WorkspaceScan = {
   packageName: '@acme/design-system',
@@ -180,7 +200,13 @@ describe('ComponentDetailPage', () => {
     const reasons = Array.from(
       compiled.querySelectorAll('.component-detail__blocking-reasons li'),
     ).map((li) => li.textContent);
-    expect(reasons).toContain('No Storybook connection (not yet built — P0.6)');
+    expect(reasons).toContain(
+      'Preview unavailable — Storybook was not detected in this workspace.',
+    );
+    expect(compiled.textContent).toContain('Preview type: Unavailable');
+    expect(compiled.textContent).toContain('Static capture');
+    expect(compiled.textContent).toContain('Blueprint reference');
+    expect(compiled.textContent).toContain('Temporary generated preview');
 
     expect(compiled.textContent).toContain('variant');
     expect(compiled.textContent).toContain('focus');
@@ -279,6 +305,67 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain(
       'without same-origin or Tauri privileges',
     );
+    expect(compiled.textContent).toContain('Preview type: Live Storybook');
+    expect(compiled.textContent).toContain(
+      'Story mapped; local server availability not verified',
+    );
+    const openStorybook = Array.from(compiled.querySelectorAll('a')).find(
+      (link) => link.textContent?.includes('Open in Storybook'),
+    );
+    expect(openStorybook?.getAttribute('href')).toContain(
+      'components-acmebutton--primary',
+    );
+    expect(openStorybook?.getAttribute('target')).toBe('_blank');
+    expect(openStorybook?.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('connects the checked-in fixture Button manifest to its real Storybook index', async () => {
+    workspaceService.workspacePath.set(fixtureRoot);
+    workspaceService.workspaceScan.set({
+      ...scan,
+      packageName: '@acme/button-library',
+      storybookProjects: ['.storybook'],
+      componentManifests: [
+        '.forgegate/components/acme.button-library.acme-button.yaml',
+      ],
+    });
+    workspaceService.customElementsManifest.set(
+      parseCustomElementsManifest(
+        readFileSync(`${fixtureRoot}/custom-elements.json`, 'utf8'),
+      ),
+    );
+    workspaceService.componentManifestOverrides.set([
+      parseComponentManifest(
+        readFileSync(
+          `${fixtureRoot}/.forgegate/components/acme.button-library.acme-button.yaml`,
+          'utf8',
+        ),
+      ),
+    ]);
+    workspaceService.storybookIndex.set(
+      parseStorybookIndex(
+        readFileSync(`${fixtureRoot}/storybook-static/index.json`, 'utf8'),
+      ),
+    );
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.button-library.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const storyButtons = Array.from(
+      compiled.querySelectorAll('.component-detail__story-picker button'),
+    ).map((button) => button.textContent?.trim());
+    expect(storyButtons).toEqual(['Primary', 'Secondary', 'Disabled']);
+    expect(
+      compiled
+        .querySelector('.component-detail__preview-frame')
+        ?.getAttribute('src'),
+    ).toContain('components-acmebutton--primary');
+    expect(compiled.textContent).toContain('./src/acme-button.stories.js');
   });
 
   it('merges repository-authored states and token mappings with CEM contract data', async () => {

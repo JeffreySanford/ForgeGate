@@ -40,6 +40,11 @@
 
   <section class="component-detail__panel" aria-labelledby="preview-title">
     <h2 id="preview-title">Preview</h2>
+    <p>
+      <strong>Preview type:</strong>
+      {{ previewKind() === 'live-storybook' ? 'Live Storybook' : 'Unavailable'
+      }}
+    </p>
     @if (activeStory(); as story) {
     <div class="component-detail__story-picker" role="group" aria-label="Story">
       @for (option of stories(); track option.id) {
@@ -67,8 +72,15 @@
       <dt>Index source</dt>
       <dd>storybook-static/index.json</dd>
       <dt>Preview origin</dt>
-      <dd>Local Storybook at localhost:6006</dd>
+      <dd>{{ previewHref() }}</dd>
+      <dt>Runtime status</dt>
+      <dd>Story mapped; local server availability not verified</dd>
     </dl>
+    <p>
+      <a [href]="previewHref()" target="_blank" rel="noopener noreferrer"
+        >Open in Storybook</a
+      >
+    </p>
     <p class="component-detail__preview-note">
       Preview content runs in a sandbox without same-origin or Tauri privileges.
       Start this workspace's Storybook server on port 6006 if the frame is
@@ -76,9 +88,18 @@
     </p>
     } @else {
     <p class="component-detail__unavailable">
-      No mapped Storybook story is connected for this component.
+      {{ previewUnavailableReason() }}
     </p>
     }
+    <details>
+      <summary>Preview source availability</summary>
+      <dl class="component-detail__preview-provenance">
+        @for (source of previewSources(); track source.kind) {
+        <dt>{{ source.label }}</dt>
+        <dd><strong>{{ source.status }}</strong> — {{ source.detail }}</dd>
+        }
+      </dl>
+    </details>
   </section>
 
   <section class="component-detail__panel" aria-labelledby="coverage-title">

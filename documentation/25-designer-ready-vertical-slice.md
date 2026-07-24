@@ -406,6 +406,17 @@ Below or beside the canvas, show:
 - Last successful render time.
 - Open-in-Storybook action.
 
+The connected component record classifies its active preview explicitly as
+**Live Storybook** or **Unavailable**. A mapped story uses the checked-in
+Storybook index and exposes its story ID, source import, index convention,
+local iframe target, and open-in-Storybook action. The local server is not
+probed, so the UI says that runtime availability is unverified.
+
+The source-availability disclosure separately names static capture, blueprint
+reference, and temporary generated preview. Each remains not connected or
+unsupported until a corresponding adapter and artifact exist; ForgeGate never
+substitutes one of those sources for coded repository evidence.
+
 ## Coverage strip
 
 Directly below the header or preview, show five coverage groups:
