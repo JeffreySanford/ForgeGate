@@ -14,6 +14,7 @@ Contents:
   ```
 - [`tokens/acme.tokens.json`](tokens/acme.tokens.json) — a real DTCG-format token file.
 - [`.forgegate/components/acme.button-library.acme-button.yaml`](.forgegate/components/acme.button-library.acme-button.yaml) — the repository-controlled ForgeGate manifest that maps the Button's required states, stories, and DTCG token paths without replacing the CEM-derived public contract.
+- [`src/content/docs/components/button.md`](src/content/docs/components/button.md) — a repository-owned Button documentation target. The minimal [`astro.config.mjs`](astro.config.mjs) is a deterministic Starlight detection marker; this fixture does not install or build Astro.
 
 `apps/forgegate-desktop/src/generate-cem-command.spec.ts` runs that exact command (via `GENERATE_CEM_COMMAND`/`GENERATE_CEM_ARGS`, no mocks) against a disposable copy of this fixture — the regression test for the real `npm error 404` a user hit when those constants had a misspelled package name (`.../analyze` instead of the real `.../analyzer`) and were missing the required `analyze` subcommand.
 

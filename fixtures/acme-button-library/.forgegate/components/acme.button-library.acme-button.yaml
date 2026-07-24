@@ -53,5 +53,7 @@ storyMappings:
     stateName: disabled
 testRequirements: []
 manualReviewProcedureIds: []
-documentationTargets: []
+documentationTargets:
+  - adapter: starlight
+    pathOrPageId: src/content/docs/components/button.md
 consumerApplicationIds: []

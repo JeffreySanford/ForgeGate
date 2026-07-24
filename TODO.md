@@ -177,7 +177,7 @@ These are functional dependencies that must advance with the P0 interface. The U
 - [X} Populate one required-state/story mapping. The fixture's repository-controlled `.forgegate/components/acme.button-library.acme-button.yaml` declares five required states and maps the default and disabled states to real Storybook IDs. ForgeGate scans and validates the manifest, then merges it with CEM-derived contract data.
 - [X} Populate one token mapping from repository-controlled DTCG data. The same manifest connects four required token paths to the fixture's real `tokens/acme.tokens.json`; the detail view labels both the DTCG token source and the mapping manifest source. Token-value resolution and usage inference remain future work.
 - [ ] Connect one configured test result to the Button record.
-- [ ] Connect one documentation target and drift state.
+- [ ] Connect one documentation target and drift state. The deterministic Button fixture now has a real repository-owned Starlight page and a manifest mapping to it. The detail record shows the target path and an explicit `drift not evaluated` state because the current manifest schema does not yet carry published component-version metadata; adding and comparing that metadata remains required before this item is complete.
 - [ ] Preserve all raw adapter output and failures for diagnostics.
 
 ## P0.7 — P0 quality and accessibility gate
