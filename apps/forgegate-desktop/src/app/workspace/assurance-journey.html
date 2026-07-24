@@ -1,0 +1,47 @@
+<section class="assurance-journey" aria-labelledby="assurance-journey-heading">
+  <div class="assurance-journey__heading">
+    <div>
+      <p class="assurance-journey__eyebrow">Connected assurance</p>
+      <h2 id="assurance-journey-heading">Assurance journey</h2>
+    </div>
+    <p>
+      Each stage reports its own evidence. These states are not combined into a
+      health score.
+    </p>
+  </div>
+
+  @if (recommendedStage(); as recommended) {
+  <aside
+    class="assurance-journey__recommendation"
+    aria-labelledby="recommended-action-heading"
+  >
+    <div>
+      <h3 id="recommended-action-heading">Recommended next action</h3>
+      <p><strong>{{ recommended.title }}:</strong> {{ recommended.detail }}</p>
+    </div>
+    <a [routerLink]="recommended.actionLink">{{ recommended.actionLabel }}</a>
+  </aside>
+  }
+
+  <ol class="assurance-journey__stages">
+    @for (stage of stages(); track stage.id; let stageNumber = $index) {
+    <li
+      class="assurance-journey__stage"
+      [class]="'assurance-journey__stage assurance-journey__stage--' + stage.status"
+      [attr.aria-current]="recommendedStage()?.id === stage.id ? 'step' : null"
+    >
+      <div class="assurance-journey__stage-heading">
+        <span class="assurance-journey__number" aria-hidden="true"
+          >{{ stageNumber + 1 }}</span
+        >
+        <h3>{{ stage.title }}</h3>
+      </div>
+      <p class="assurance-journey__status">{{ statusLabel(stage.status) }}</p>
+      <p>{{ stage.detail }}</p>
+      @if (stage.actionLink) {
+      <a [routerLink]="stage.actionLink">{{ stage.actionLabel }}</a>
+      }
+    </li>
+    }
+  </ol>
+</section>

@@ -306,6 +306,28 @@ The stages are different kinds of work. They must not be added into one percenta
 - Stage labels and counts remain visible at 200% zoom.
 - On narrow windows, stages become a vertical timeline.
 
+### Initial connected implementation
+
+The workspace command center now renders the seven stages as its primary
+semantic ordered list. Each item includes its status text, connected-data
+summary, and a link to the component work that needs attention. The same data
+drives the visual treatment, so there is no separate accessible view that can
+drift from the ribbon.
+
+The first incomplete stage with an available action becomes the workspace's
+recommended next action. Completion is intentionally conservative:
+
+- Discover counts mapped component manifests.
+- Specify requires both declared states and token mappings.
+- Preview requires a mapped Storybook story.
+- Test and Review remain incomplete when requirements exist but result or
+  decision evidence is not connected.
+- Document requires a target whose adapter was detected in the workspace.
+- Release remains not connected until a release-decision source exists.
+
+The initial action links open the component inventory. Stage-specific
+inventory filtering remains a later enhancement.
+
 ### Animation
 
 When scan or evidence data changes, only the affected stage updates:
