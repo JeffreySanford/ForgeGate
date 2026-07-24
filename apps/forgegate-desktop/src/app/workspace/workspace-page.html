@@ -8,6 +8,51 @@
   <app-system-map />
 
   @if (workspace.workspaceScan(); as scan) {
+  <section aria-labelledby="ui-technologies-heading">
+    <h2 id="ui-technologies-heading">UI and styling technologies</h2>
+    <p>
+      Confirmed from direct package dependencies. Transitive lockfile entries
+      are not treated as repository usage.
+    </p>
+    @if (scan.uiTechnologies.length) {
+    <table>
+      <caption>
+        Detected component and styling technologies
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Technology</th>
+          <th scope="col">Type</th>
+          <th scope="col">Version</th>
+          <th scope="col">Project</th>
+          <th scope="col">Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (technology of scan.uiTechnologies; track technology.projectPath +
+        technology.id) {
+        <tr>
+          <th scope="row">{{ technology.name }}</th>
+          <td>{{ technology.category }}</td>
+          <td>{{ technology.version }}</td>
+          <td>{{ technology.projectPath }}</td>
+          <td>
+            <code>{{ technology.detectedPackage }}</code> in {{
+            technology.evidenceSource }} ({{ technology.confidence }})
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+    } @else {
+    <p class="workspace-page__empty">
+      No supported UI or styling technology was found in direct dependencies.
+      Native HTML may still be present and will be analyzed by a framework or
+      native-pattern adapter rather than inferred from dependencies alone.
+    </p>
+    }
+  </section>
+
   <details class="workspace-page__raw-scan">
     <summary>Raw workspace scan diagnostics</summary>
     <dl>

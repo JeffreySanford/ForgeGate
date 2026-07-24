@@ -31,6 +31,22 @@ export interface ComponentPackageCandidate {
   manifestPath: string;
 }
 
+export interface UiTechnologyDetection {
+  id: string;
+  name: string;
+  category:
+    | 'component-library'
+    | 'css-component-library'
+    | 'utility-css'
+    | 'css-preprocessor'
+    | 'css-in-js';
+  version: string;
+  projectPath: string;
+  detectedPackage: string;
+  evidenceSource: string;
+  confidence: 'confirmed';
+}
+
 export interface WorkspaceScan {
   packageName: string | null;
   packageManager: string | null;
@@ -45,6 +61,7 @@ export interface WorkspaceScan {
   customElementsManifests: string[];
   componentPackages: ComponentPackageCandidate[];
   componentManifests?: string[];
+  uiTechnologies: UiTechnologyDetection[];
 }
 
 export interface CommandResult {

@@ -21,6 +21,12 @@ Key fields:
 - Configuration version
 - Projects
 - Adapter selections
+- Detected UI and styling technologies
+
+Each technology detection records a normalized ID and category, requested
+version, project path, detected package, evidence source, and confidence.
+Technology availability is workspace context; it is not itself proof that a
+particular component is used.
 
 ### Project
 

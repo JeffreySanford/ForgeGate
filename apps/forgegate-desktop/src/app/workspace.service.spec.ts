@@ -20,6 +20,7 @@ const scanFixture = {
   visualRegressionProviders: [],
   ciProviders: ['github-actions'],
   customElementsManifests: [],
+  uiTechnologies: [],
   componentPackages: [
     {
       name: '@up/design-system',

@@ -15,6 +15,7 @@ const emptyScan: WorkspaceScan = {
   visualRegressionProviders: [],
   ciProviders: [],
   customElementsManifests: ['custom-elements.json'],
+  uiTechnologies: [],
   componentPackages: [],
 };
 
@@ -85,6 +86,50 @@ describe('WorkspacePage', () => {
     expect(compiled.textContent).toContain(
       'Manifest present but no custom elements found in it',
     );
+  });
+
+  it('shows detected UI and styling technologies with package provenance', async () => {
+    workspaceService.workspaceScan.set({
+      ...emptyScan,
+      uiTechnologies: [
+        {
+          id: 'primeng',
+          name: 'PrimeNG',
+          category: 'component-library',
+          version: '^20.0.0',
+          projectPath: 'apps/portal',
+          detectedPackage: 'primeng',
+          evidenceSource: 'apps/portal/package.json:dependencies',
+          confidence: 'confirmed',
+        },
+        {
+          id: 'bootstrap',
+          name: 'Bootstrap',
+          category: 'css-component-library',
+          version: '^5.3.8',
+          projectPath: '.',
+          detectedPackage: 'bootstrap',
+          evidenceSource: 'package.json:dependencies',
+          confidence: 'confirmed',
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const table = compiled.querySelector(
+      '[aria-labelledby="ui-technologies-heading"] table',
+    );
+    expect(table?.textContent).toContain('PrimeNG');
+    expect(table?.textContent).toContain('component-library');
+    expect(table?.textContent).toContain(
+      'apps/portal/package.json:dependencies',
+    );
+    expect(table?.textContent).toContain('Bootstrap');
+    expect(table?.textContent).toContain('package.json:dependencies');
   });
 
   it('has no automated accessibility violations with a populated component inventory', async () => {

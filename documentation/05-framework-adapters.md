@@ -28,16 +28,60 @@ Each adapter must declare capabilities and limitations.
 
 Framework-specific concepts should map into portable concepts:
 
-| Portable concept | Angular | React | Vue | Svelte | Web Components |
-|---|---|---|---|---|---|
-| Inputs | `@Input`, signal inputs | props | props | props | properties/attributes |
-| Outputs | `@Output` | callbacks | emits | events/callbacks | custom events |
-| Content | projection | children | slots | slots/snippets | slots |
-| Public methods | component API | refs/imperative handle | exposed methods | component exports | element methods |
-| Styling API | classes/tokens | classes/tokens | classes/tokens | classes/tokens | parts/custom properties |
-| Story states | args | args | args | args | args/attributes |
+| Portable concept | Angular                 | React                  | Vue             | Svelte            | Web Components          |
+| ---------------- | ----------------------- | ---------------------- | --------------- | ----------------- | ----------------------- |
+| Inputs           | `@Input`, signal inputs | props                  | props           | props             | properties/attributes   |
+| Outputs          | `@Output`               | callbacks              | emits           | events/callbacks  | custom events           |
+| Content          | projection              | children               | slots           | slots/snippets    | slots                   |
+| Public methods   | component API           | refs/imperative handle | exposed methods | component exports | element methods         |
+| Styling API      | classes/tokens          | classes/tokens         | classes/tokens  | classes/tokens    | parts/custom properties |
+| Story states     | args                    | args                   | args            | args              | args/attributes         |
 
 The portable model should not erase meaningful framework differences. Adapter extensions preserve details that cannot be represented generically.
+
+## Component and styling technology detection
+
+Workspace scanning identifies directly declared UI and styling technologies
+before a framework adapter attempts component extraction. Initial normalized
+categories are:
+
+- Component library, such as PrimeNG, Angular Material, Material UI, Ant
+  Design, Chakra UI, Fluent UI, or Carbon
+- CSS component library, such as Bootstrap, USWDS, or daisyUI
+- Utility CSS, such as Tailwind CSS
+- CSS preprocessor, such as Sass or Less
+- CSS-in-JS, such as Emotion, styled-components, or vanilla-extract
+
+A detection must retain the project path, declared package, requested version,
+dependency section, confidence, and evidence source. Direct `package.json`
+dependencies are confirmed evidence. A transitive lockfile entry alone is not
+evidence that a repository intentionally uses the technology.
+
+Technology detection is not component discovery. For example, finding
+`primeng` establishes that PrimeNG is available in a project; it does not prove
+that every PrimeNG component is used or governed by that repository.
+
+## Native and enhanced-native components
+
+Component discovery must support more than wrapper elements:
+
+- Custom elements such as `<acme-button>`
+- Framework components such as PrimeNG `<p-button>` or React `<Button>`
+- Enhanced native elements such as `<button pButton>` or
+  `<button mat-button>`
+- CSS components such as `<button class="btn btn-primary">`
+- Repository-owned native patterns such as `<button class="ds-button">`
+
+A plain native element occurrence is usage evidence, not automatically a
+catalog component. A native element becomes a component candidate when an
+adapter finds a stable reusable contract: an exported Angular selector or
+directive, framework import, library-owned CSS selector, Storybook story,
+explicit ForgeGate manifest, or equivalent repository-owned definition.
+
+Adapters should preserve the underlying native element, selector, provider,
+ownership, source, and confidence. An owned wrapper around a third-party
+component should retain both layers instead of being flattened into either
+“owned” or “dependency.”
 
 ## Angular adapter
 
