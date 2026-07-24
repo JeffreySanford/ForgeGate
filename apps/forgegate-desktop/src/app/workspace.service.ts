@@ -1,8 +1,17 @@
-import { Injectable, signal } from '@angular/core';
-import { invoke } from '@tauri-apps/api/core';
-import { parseRepositoryConfig, type RepositoryConfig } from '@forgegate/core-config';
-import { parseCustomElementsManifest, type CustomElementsManifest } from '@forgegate/adapter-web-components';
-import { parseStorybookIndex, type StorybookIndex } from './storybook/storybook-index';
+import { Injectable, signal } from "@angular/core";
+import { invoke } from "@tauri-apps/api/core";
+import {
+  parseRepositoryConfig,
+  type RepositoryConfig,
+} from "@forgegate/core-config";
+import {
+  parseCustomElementsManifest,
+  type CustomElementsManifest,
+} from "@forgegate/adapter-web-components";
+import {
+  parseStorybookIndex,
+  type StorybookIndex,
+} from "./storybook/storybook-index";
 
 export interface GitStatus {
   branch: string;
@@ -49,44 +58,52 @@ export interface CemGenerationPlan {
   excludedGlobs: string[];
 }
 
-const GENERATE_CEM_COMMAND = 'npx';
+const GENERATE_CEM_COMMAND = "npx";
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
-const CEM_EXCLUDED_GLOBS = ['node_modules/**', 'dist/**', 'coverage/**', '.nx/**', 'storybook-static/**'];
+const CEM_EXCLUDED_GLOBS = [
+  "node_modules/**",
+  "dist/**",
+  "coverage/**",
+  ".nx/**",
+  "storybook-static/**",
+];
 
-export function createCemGenerationPlan(target: ComponentPackageCandidate): CemGenerationPlan {
+export function createCemGenerationPlan(
+  target: ComponentPackageCandidate,
+): CemGenerationPlan {
   const args = [
-    '@custom-elements-manifest/analyzer',
-    'analyze',
-    '--litelement',
-    '--globs',
+    "@custom-elements-manifest/analyzer",
+    "analyze",
+    "--litelement",
+    "--globs",
     target.sourceGlob,
-    ...CEM_EXCLUDED_GLOBS.flatMap((glob) => ['--exclude', glob]),
-    '--outdir',
+    ...CEM_EXCLUDED_GLOBS.flatMap((glob) => ["--exclude", glob]),
+    "--outdir",
     target.outputDirectory,
-    '--packagejson',
-    'false',
+    "--packagejson",
+    "false",
   ];
   return {
     target,
     command: GENERATE_CEM_COMMAND,
     args,
-    commandText: `${GENERATE_CEM_COMMAND} ${args.map((arg) => (arg.includes('*') ? `"${arg}"` : arg)).join(' ')}`,
+    commandText: `${GENERATE_CEM_COMMAND} ${args.map((arg) => (arg.includes("*") ? `"${arg}"` : arg)).join(" ")}`,
     excludedGlobs: [...CEM_EXCLUDED_GLOBS],
   };
 }
 
 /**
  * `storybook build`'s default output directory is `storybook-static`, and
- * `index.json` is the file it writes there describing every story — this
+ * `index.json` is the file it writes there describing every story ? this
  * is the standard convention, not a ForgeGate-specific one. There is no
  * scan-time confirmation this file exists (the workspace scan only
  * detects the `.storybook` config directory, not a build having happened),
  * so a missing file at this path is a normal, silent "not built yet"
  * state, not an error.
  */
-const STORYBOOK_INDEX_CONVENTIONAL_PATH = 'storybook-static/index.json';
+const STORYBOOK_INDEX_CONVENTIONAL_PATH = "storybook-static/index.json";
 
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: "root" })
 export class WorkspaceService {
   readonly workspacePath = signal<string | null>(null);
   readonly gitStatus = signal<GitStatus | null>(null);
@@ -110,20 +127,24 @@ export class WorkspaceService {
     this.storybookIndexError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
-    const path = await invoke<string | null>('select_workspace');
+    const path = await invoke<string | null>("select_workspace");
     if (!path) {
       return;
     }
     this.workspacePath.set(path);
     try {
       const [status, scan, configText] = await Promise.all([
-        invoke<GitStatus>('read_git_status', { path }),
-        invoke<WorkspaceScan>('read_workspace_scan', { path }),
-        invoke<string | null>('read_repository_config_file', { path }),
+        invoke<GitStatus>("read_git_status", { path }),
+        invoke<WorkspaceScan>("read_workspace_scan", { path }),
+        invoke<string | null>("read_repository_config_file", { path }),
       ]);
       this.gitStatus.set(status);
       this.workspaceScan.set(scan);
-      this.selectedComponentPackagePath.set(scan.componentPackages.length === 1 ? scan.componentPackages[0].path : null);
+      this.selectedComponentPackagePath.set(
+        scan.componentPackages.length === 1
+          ? scan.componentPackages[0].path
+          : null,
+      );
       this.applyConfigText(configText);
       await this.loadCustomElementsManifest(path, scan);
       await this.loadStorybookIndex(path, scan);
@@ -145,7 +166,9 @@ export class WorkspaceService {
 
   cemGenerationPlan(): CemGenerationPlan | null {
     const selectedPath = this.selectedComponentPackagePath();
-    const target = this.workspaceScan()?.componentPackages.find((candidate) => candidate.path === selectedPath);
+    const target = this.workspaceScan()?.componentPackages.find(
+      (candidate) => candidate.path === selectedPath,
+    );
     return target ? createCemGenerationPlan(target) : null;
   }
 
@@ -164,7 +187,7 @@ export class WorkspaceService {
     this.cemGenerationError.set(null);
     this.cemGenerationResult.set(null);
     try {
-      const result = await invoke<CommandResult>('run_workspace_command', {
+      const result = await invoke<CommandResult>("run_workspace_command", {
         workspacePath: path,
         relativeCwd: plan.target.path,
         command: plan.command,
@@ -173,10 +196,13 @@ export class WorkspaceService {
       });
       this.cemGenerationResult.set(result);
       if (result.exitCode === 0) {
-        const relativePath = [plan.target.path === '.' ? '' : plan.target.path, plan.target.manifestPath]
+        const relativePath = [
+          plan.target.path === "." ? "" : plan.target.path,
+          plan.target.manifestPath,
+        ]
           .filter(Boolean)
-          .join('/');
-        const text = await invoke<string>('read_text_file', {
+          .join("/");
+        const text = await invoke<string>("read_text_file", {
           workspacePath: path,
           relativePath,
         });
@@ -185,7 +211,10 @@ export class WorkspaceService {
         if (scan && !scan.customElementsManifests.includes(relativePath)) {
           this.workspaceScan.set({
             ...scan,
-            customElementsManifests: [...scan.customElementsManifests, relativePath],
+            customElementsManifests: [
+              ...scan.customElementsManifests,
+              relativePath,
+            ],
           });
         }
       }
@@ -198,7 +227,7 @@ export class WorkspaceService {
 
   /**
    * A malformed .forgegate/config.yaml must not blank out the Git status
-   * and workspace scan the user already sees successfully — it is reported
+   * and workspace scan the user already sees successfully ? it is reported
    * on its own, separate signal, per the "never silently accept an invalid
    * config" rule in documentation/02-system-architecture.md.
    */
@@ -217,19 +246,22 @@ export class WorkspaceService {
 
   /**
    * Reads and parses the first Custom Elements Manifest the scan found, if
-   * any. A workspace can have zero (nothing published yet — normal, not an
+   * any. A workspace can have zero (nothing published yet ? normal, not an
    * error) or several; only the first is loaded automatically for now.
    * Failures here are reported on their own signal, same reasoning as
    * applyConfigText: one broken file must not blank out everything else.
    */
-  private async loadCustomElementsManifest(workspacePath: string, scan: WorkspaceScan): Promise<void> {
+  private async loadCustomElementsManifest(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
     this.customElementsManifest.set(null);
     const [relativePath] = scan.customElementsManifests;
     if (!relativePath) {
       return;
     }
     try {
-      const text = await invoke<string>('read_text_file', {
+      const text = await invoke<string>("read_text_file", {
         workspacePath,
         relativePath,
       });
@@ -244,19 +276,22 @@ export class WorkspaceService {
    * path, only when the scan already found a `.storybook` config
    * directory (no point probing a workspace with no Storybook at all). A
    * missing file here is the normal "configured but not built yet" state,
-   * not an error — this genuinely doesn't know in advance whether a build
+   * not an error ? this genuinely doesn't know in advance whether a build
    * exists, unlike `loadCustomElementsManifest`, which only ever attempts
    * a read the scan already confirmed should succeed. Only a read that
    * *succeeds* but doesn't parse as a valid index is reported as an error.
    */
-  private async loadStorybookIndex(workspacePath: string, scan: WorkspaceScan): Promise<void> {
+  private async loadStorybookIndex(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
     this.storybookIndex.set(null);
     if (!scan.storybookProjects.length) {
       return;
     }
     let text: string;
     try {
-      text = await invoke<string>('read_text_file', {
+      text = await invoke<string>("read_text_file", {
         workspacePath,
         relativePath: STORYBOOK_INDEX_CONVENTIONAL_PATH,
       });
