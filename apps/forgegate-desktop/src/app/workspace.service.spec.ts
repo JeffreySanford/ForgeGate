@@ -1,9 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { invoke } from '@tauri-apps/api/core';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { WorkspaceService } from './workspace.service';
 
-const invokeMock = vi.mocked(invoke);
+const invokeMock = globalThis.__forgegateTauriInvokeMock;
 
 const scanFixture = {
   packageName: '@up/design-system',
