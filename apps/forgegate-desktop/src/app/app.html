@@ -4,30 +4,57 @@
   <nav class="app-nav" aria-label="Primary">
     <p class="app-nav__brand">ForgeGate</p>
     <ul>
-      <li><a routerLink="/workspace" routerLinkActive="is-active" ariaCurrentWhenActive="page">Workspace</a></li>
-      <li><a routerLink="/components" routerLinkActive="is-active" ariaCurrentWhenActive="page">Components</a></li>
+      <li>
+        <a
+          routerLink="/workspace"
+          routerLinkActive="is-active"
+          ariaCurrentWhenActive="page"
+          >Workspace</a
+        >
+      </li>
+      <li>
+        <a
+          routerLink="/components"
+          routerLinkActive="is-active"
+          ariaCurrentWhenActive="page"
+          >Components</a
+        >
+      </li>
     </ul>
   </nav>
 
   <div class="app-shell__body">
     <header class="workspace-context-bar" aria-label="Workspace context">
       @if (workspace.workspacePath(); as path) {
-        <span class="workspace-context-bar__path" [title]="path">{{ path }}</span>
-        @if (workspace.gitStatus(); as status) {
-          <span class="workspace-context-bar__fact">Branch {{ status.branch }}</span>
-          <span class="workspace-context-bar__fact">Commit {{ status.commit }}</span>
-          <span class="workspace-context-bar__fact" [class.workspace-context-bar__fact--dirty]="status.dirty">
-            {{ status.dirty ? 'Uncommitted changes' : 'Clean' }}
-          </span>
-        }
-      } @else {
-        <span class="workspace-context-bar__empty">No workspace open</span>
+      <span class="workspace-context-bar__path" [title]="path">{{ path }}</span>
+      @if (workspace.gitStatus(); as status) {
+      <span class="workspace-context-bar__fact"
+        >Branch {{ status.branch }}</span
+      >
+      <span class="workspace-context-bar__fact"
+        >Commit {{ status.commit }}</span
+      >
+      <span
+        class="workspace-context-bar__fact"
+        [class.workspace-context-bar__fact--dirty]="status.dirty"
+      >
+        {{ status.dirty ? 'Uncommitted changes' : 'Clean' }}
+      </span>
+      } } @else {
+      <span class="workspace-context-bar__empty">No workspace open</span>
       }
-      <button type="button" (click)="openWorkspace()">Open workspace…</button>
+      <button
+        type="button"
+        [disabled]="workspace.scanProgress()?.state === 'running'"
+        (click)="openWorkspace()"
+      >
+        {{ workspace.scanProgress()?.state === 'running' ? 'Scanning workspace…'
+        : 'Open workspace…' }}
+      </button>
     </header>
 
     @if (workspace.error(); as error) {
-      <p role="alert" class="app-shell__error">{{ error }}</p>
+    <p role="alert" class="app-shell__error">{{ error }}</p>
     }
 
     <main id="main-content" #mainContent tabindex="-1">

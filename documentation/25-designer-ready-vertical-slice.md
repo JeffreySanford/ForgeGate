@@ -232,6 +232,23 @@ Examples:
 
 The exact command and security-sensitive detail remain visible before execution, but they belong in a deliberate confirmation surface rather than in the middle of the discovery summary.
 
+### Connected scan progress
+
+The workspace command center reports repository discovery as five real checks:
+
+1. Repository metadata and ForgeGate configuration.
+2. Component contracts from a Custom Elements Manifest.
+3. Repository-controlled component governance.
+4. Storybook story-index connection.
+5. Native and styling-library component patterns.
+
+Folder selection is announced before those checks begin. The current check,
+completed count, and pending checks remain available as text in an ordered
+list, not only through an animated indicator. A completed summary remains
+visible after discovery; a failure preserves the number of completed checks
+and labels the remainder as not checked. Starting a second concurrent scan is
+disabled so results from different selections cannot race.
+
 ## Component inventory route
 
 The inventory should feel like a design-system catalog with assurance status, not a database dump.

@@ -1,0 +1,47 @@
+@if (workspace.scanProgress(); as progress) {
+<section
+  class="scan-progress"
+  [class.scan-progress--failed]="progress.state === 'failed'"
+  aria-labelledby="scan-progress-title"
+>
+  <div class="scan-progress__summary" aria-live="polite" aria-atomic="true">
+    <div>
+      <p class="scan-progress__eyebrow">Repository discovery</p>
+      <h2 id="scan-progress-title">{{ progress.label }}</h2>
+    </div>
+    <p>{{ progress.completed }} of {{ progress.total }} checks complete</p>
+  </div>
+
+  <progress
+    [attr.aria-label]="progress.label"
+    [max]="progress.total"
+    [value]="progress.completed"
+  >
+    {{ progress.completed }} of {{ progress.total }}
+  </progress>
+
+  <ol class="scan-progress__steps">
+    @for (step of steps; track step.phase; let index = $index) {
+    <li
+      [class.scan-progress__step--complete]="index < progress.completed"
+      [class.scan-progress__step--current]="
+        progress.state === 'running' &&
+        progress.phase !== 'selecting' &&
+        index === progress.completed
+      "
+      [attr.aria-current]="
+        progress.state === 'running' &&
+        progress.phase !== 'selecting' &&
+        index === progress.completed
+          ? 'step'
+          : null
+      "
+    >
+      <span aria-hidden="true">{{ index + 1 }}</span>
+      <span>{{ step.label }}</span>
+      <strong>{{ stepStatus(index, progress) }}</strong>
+    </li>
+    }
+  </ol>
+</section>
+}

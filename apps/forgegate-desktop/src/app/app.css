@@ -115,6 +115,11 @@
   background: var(--fg-color-action-hover);
 }
 
+.workspace-context-bar button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .app-shell__error {
   margin: 0;
   padding: var(--fg-space-3) var(--fg-space-5);

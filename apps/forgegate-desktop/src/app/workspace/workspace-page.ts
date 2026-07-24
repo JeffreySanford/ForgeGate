@@ -3,9 +3,10 @@ import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import { AssuranceJourney } from './assurance-journey';
 import { SystemMap } from './system-map';
+import { WorkspaceScanProgressView } from './workspace-scan-progress';
 
 @Component({
-  imports: [AssuranceJourney, SystemMap],
+  imports: [AssuranceJourney, SystemMap, WorkspaceScanProgressView],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',
