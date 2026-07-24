@@ -15,6 +15,7 @@ const emptyScan: WorkspaceScan = {
   visualRegressionProviders: [],
   ciProviders: [],
   customElementsManifests: ['custom-elements.json'],
+  componentPackages: [],
 };
 
 describe('WorkspacePage', () => {
