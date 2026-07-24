@@ -76,6 +76,32 @@ export class ComponentDetailPage {
     () => this.workspace.workspaceScan()?.tokenFiles[0] ?? null,
   );
 
+  protected documentationConnection(
+    adapter: string,
+    pathOrPageId?: string,
+  ): string {
+    if (this.isDocumentationAdapterDetected(adapter, pathOrPageId)) {
+      return 'Target configured; drift not evaluated';
+    }
+    return 'Target configured; adapter not detected';
+  }
+
+  protected isDocumentationAdapterDetected(
+    adapter: string,
+    pathOrPageId?: string,
+  ): boolean {
+    if (adapter !== 'starlight' || !pathOrPageId) return false;
+    const normalizedPath = pathOrPageId.replace(/\\/g, '/');
+    return (
+      this.workspace
+        .workspaceScan()
+        ?.starlightProjects.some(
+          (project) =>
+            project === '.' || normalizedPath.startsWith(`${project}/`),
+        ) ?? false
+    );
+  }
+
   protected readonly coverage = computed<readonly CoverageItem[]>(() => {
     const manifest = this.manifest();
     if (!manifest) {

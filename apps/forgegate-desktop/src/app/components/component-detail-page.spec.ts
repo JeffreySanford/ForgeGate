@@ -255,6 +255,7 @@ describe('ComponentDetailPage', () => {
     workspaceService.workspaceScan.set({
       ...scan,
       tokenFiles: ['tokens/acme.tokens.json'],
+      starlightProjects: ['.'],
       componentManifests: [
         '.forgegate/components/acme.design-system.acme-button.yaml',
       ],
@@ -274,6 +275,12 @@ describe('ComponentDetailPage', () => {
         tokenMappings: [
           { tokenPath: 'color.action', category: 'color', required: true },
         ],
+        documentationTargets: [
+          {
+            adapter: 'starlight',
+            pathOrPageId: 'src/content/docs/components/button.md',
+          },
+        ],
       }),
     ]);
 
@@ -288,13 +295,26 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain('2States');
     expect(compiled.textContent).toContain('1Tokens');
     expect(compiled.textContent).toContain('color.action');
+    expect(compiled.textContent).toContain('1Documentation');
     expect(compiled.textContent).toContain('tokens/acme.tokens.json');
     expect(compiled.textContent).toContain(
       '.forgegate/components/acme.design-system.acme-button.yaml',
     );
     expect(compiled.textContent).toContain('variant');
+    expect(compiled.textContent).toContain(
+      'src/content/docs/components/button.md',
+    );
+    expect(compiled.textContent).toContain(
+      'Target configured; drift not evaluated',
+    );
+    expect(compiled.textContent).toContain(
+      'no published component version metadata is available for comparison',
+    );
     expect(compiled.textContent).not.toContain('No required states declared');
     expect(compiled.textContent).not.toContain('No token mappings connected');
+    expect(compiled.textContent).not.toContain(
+      'No documentation target connected',
+    );
   });
 
   it('has no automated accessibility violations for a matched component', async () => {

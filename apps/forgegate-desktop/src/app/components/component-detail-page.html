@@ -204,13 +204,33 @@
       No documentation target connected for this component yet.
     </p>
     } @else {
-    <ul>
-      @for (target of m.documentationTargets; track target.adapter) {
-      <li>
-        {{ target.adapter }}: {{ target.pathOrPageId ?? 'Unknown location' }}
-      </li>
-      }
-    </ul>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Adapter</th>
+          <th scope="col">Repository path</th>
+          <th scope="col">Drift state</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (target of m.documentationTargets; track target.adapter) {
+        <tr>
+          <td>{{ target.adapter }}</td>
+          <td>{{ target.pathOrPageId ?? 'Unknown location' }}</td>
+          <td>
+            {{ documentationConnection(target.adapter, target.pathOrPageId) }}
+            @if (isDocumentationAdapterDetected(target.adapter,
+            target.pathOrPageId)) {
+            <span class="component-detail__status-explanation">
+              — no published component version metadata is available for
+              comparison.
+            </span>
+            }
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
     }
   </section>
   }
