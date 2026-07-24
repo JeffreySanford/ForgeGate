@@ -84,16 +84,55 @@
 
   @if (workspace.workspaceScan(); as scanForCem) {
     @if (!scanForCem.customElementsManifests.length) {
-      <section>
-        <p>No Custom Elements Manifest was found. ForgeGate can try to generate one:</p>
-        <p><code>{{ generateCemCommandText }}</code></p>
-        <button
-          type="button"
-          [disabled]="workspace.cemGenerationRunning()"
-          (click)="generateCustomElementsManifest()"
-        >
-          {{ workspace.cemGenerationRunning() ? 'Running…' : 'Generate Custom Elements Manifest' }}
-        </button>
+      <section aria-labelledby="cem-generation-heading">
+        <h2 id="cem-generation-heading">Generate a Custom Elements Manifest</h2>
+        <p>Select the component package ForgeGate may analyze. Nothing runs until you review the resolved plan and approve it.</p>
+
+        @if (scanForCem.componentPackages.length) {
+          <label for="cem-package">Target package</label>
+          <select
+            id="cem-package"
+            #packageSelect
+            (change)="selectComponentPackage(packageSelect.value)"
+            [disabled]="workspace.cemGenerationRunning()"
+          >
+            <option value="">Select a package…</option>
+            @for (candidate of scanForCem.componentPackages; track candidate.path) {
+              <option
+                [value]="candidate.path"
+                [selected]="workspace.selectedComponentPackagePath() === candidate.path"
+              >
+                {{ candidate.name }} — {{ candidate.path }}
+              </option>
+            }
+          </select>
+
+          @if (workspace.cemGenerationPlan(); as plan) {
+            <dl aria-label="Generation plan">
+              <dt>Working directory</dt>
+              <dd><code>{{ plan.target.path }}</code></dd>
+              <dt>Source pattern</dt>
+              <dd><code>{{ plan.target.sourceGlob }}</code></dd>
+              <dt>Excluded</dt>
+              <dd><code>{{ plan.excludedGlobs.join(', ') }}</code></dd>
+              <dt>Expected output</dt>
+              <dd><code>{{ plan.target.path }}/{{ plan.target.manifestPath }}</code></dd>
+              <dt>Package manifest mutation</dt>
+              <dd>Disabled</dd>
+              <dt>Command</dt>
+              <dd><code>{{ plan.commandText }}</code></dd>
+            </dl>
+            <button
+              type="button"
+              [disabled]="workspace.cemGenerationRunning()"
+              (click)="generateCustomElementsManifest()"
+            >
+              {{ workspace.cemGenerationRunning() ? 'Running…' : 'Approve and generate manifest' }}
+            </button>
+          }
+        } @else {
+          <p role="status">No package with both a package.json and source directory was found. ForgeGate will not run the analyzer at the workspace root.</p>
+        }
 
         @if (workspace.cemGenerationResult(); as cemRunResult) {
           <dl>
