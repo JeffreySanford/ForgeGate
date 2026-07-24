@@ -1,17 +1,17 @@
-import { Injectable, signal } from "@angular/core";
-import { invoke } from "@tauri-apps/api/core";
+import { Injectable, signal } from '@angular/core';
+import { invoke } from '@tauri-apps/api/core';
 import {
   parseRepositoryConfig,
   type RepositoryConfig,
-} from "@forgegate/core-config";
+} from '@forgegate/core-config';
 import {
   parseCustomElementsManifest,
   type CustomElementsManifest,
-} from "@forgegate/adapter-web-components";
+} from '@forgegate/adapter-web-components';
 import {
   parseStorybookIndex,
   type StorybookIndex,
-} from "./storybook/storybook-index";
+} from './storybook/storybook-index';
 
 export interface GitStatus {
   branch: string;
@@ -58,36 +58,36 @@ export interface CemGenerationPlan {
   excludedGlobs: string[];
 }
 
-const GENERATE_CEM_COMMAND = "npx";
+const GENERATE_CEM_COMMAND = 'npx';
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
 const CEM_EXCLUDED_GLOBS = [
-  "node_modules/**",
-  "dist/**",
-  "coverage/**",
-  ".nx/**",
-  "storybook-static/**",
+  'node_modules/**',
+  'dist/**',
+  'coverage/**',
+  '.nx/**',
+  'storybook-static/**',
 ];
 
 export function createCemGenerationPlan(
   target: ComponentPackageCandidate,
 ): CemGenerationPlan {
   const args = [
-    "@custom-elements-manifest/analyzer",
-    "analyze",
-    "--litelement",
-    "--globs",
+    '@custom-elements-manifest/analyzer',
+    'analyze',
+    '--litelement',
+    '--globs',
     target.sourceGlob,
-    ...CEM_EXCLUDED_GLOBS.flatMap((glob) => ["--exclude", glob]),
-    "--outdir",
+    ...CEM_EXCLUDED_GLOBS.flatMap((glob) => ['--exclude', glob]),
+    '--outdir',
     target.outputDirectory,
-    "--packagejson",
-    "false",
+    '--packagejson',
+    'false',
   ];
   return {
     target,
     command: GENERATE_CEM_COMMAND,
     args,
-    commandText: `${GENERATE_CEM_COMMAND} ${args.map((arg) => (arg.includes("*") ? `"${arg}"` : arg)).join(" ")}`,
+    commandText: `${GENERATE_CEM_COMMAND} ${args.map((arg) => (arg.includes('*') ? `"${arg}"` : arg)).join(' ')}`,
     excludedGlobs: [...CEM_EXCLUDED_GLOBS],
   };
 }
@@ -101,9 +101,9 @@ export function createCemGenerationPlan(
  * so a missing file at this path is a normal, silent "not built yet"
  * state, not an error.
  */
-const STORYBOOK_INDEX_CONVENTIONAL_PATH = "storybook-static/index.json";
+const STORYBOOK_INDEX_CONVENTIONAL_PATH = 'storybook-static/index.json';
 
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class WorkspaceService {
   readonly workspacePath = signal<string | null>(null);
   readonly gitStatus = signal<GitStatus | null>(null);
@@ -127,16 +127,16 @@ export class WorkspaceService {
     this.storybookIndexError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
-    const path = await invoke<string | null>("select_workspace");
+    const path = await invoke<string | null>('select_workspace');
     if (!path) {
       return;
     }
     this.workspacePath.set(path);
     try {
       const [status, scan, configText] = await Promise.all([
-        invoke<GitStatus>("read_git_status", { path }),
-        invoke<WorkspaceScan>("read_workspace_scan", { path }),
-        invoke<string | null>("read_repository_config_file", { path }),
+        invoke<GitStatus>('read_git_status', { path }),
+        invoke<WorkspaceScan>('read_workspace_scan', { path }),
+        invoke<string | null>('read_repository_config_file', { path }),
       ]);
       this.gitStatus.set(status);
       this.workspaceScan.set(scan);
@@ -187,7 +187,7 @@ export class WorkspaceService {
     this.cemGenerationError.set(null);
     this.cemGenerationResult.set(null);
     try {
-      const result = await invoke<CommandResult>("run_workspace_command", {
+      const result = await invoke<CommandResult>('run_workspace_command', {
         workspacePath: path,
         relativeCwd: plan.target.path,
         command: plan.command,
@@ -197,12 +197,12 @@ export class WorkspaceService {
       this.cemGenerationResult.set(result);
       if (result.exitCode === 0) {
         const relativePath = [
-          plan.target.path === "." ? "" : plan.target.path,
+          plan.target.path === '.' ? '' : plan.target.path,
           plan.target.manifestPath,
         ]
           .filter(Boolean)
-          .join("/");
-        const text = await invoke<string>("read_text_file", {
+          .join('/');
+        const text = await invoke<string>('read_text_file', {
           workspacePath: path,
           relativePath,
         });
@@ -261,7 +261,7 @@ export class WorkspaceService {
       return;
     }
     try {
-      const text = await invoke<string>("read_text_file", {
+      const text = await invoke<string>('read_text_file', {
         workspacePath,
         relativePath,
       });
@@ -291,7 +291,7 @@ export class WorkspaceService {
     }
     let text: string;
     try {
-      text = await invoke<string>("read_text_file", {
+      text = await invoke<string>('read_text_file', {
         workspacePath,
         relativePath: STORYBOOK_INDEX_CONVENTIONAL_PATH,
       });
