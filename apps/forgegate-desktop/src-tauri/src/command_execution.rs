@@ -80,6 +80,24 @@ fn build_command(command: &str, args: &[String]) -> Command {
     direct
 }
 
+#[cfg(windows)]
+fn terminate_process_tree(child: &mut std::process::Child) {
+    let process_id = child.id().to_string();
+    let _ = Command::new("taskkill")
+        .args(["/PID", &process_id, "/T", "/F"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    let _ = child.wait();
+}
+
+#[cfg(not(windows))]
+fn terminate_process_tree(child: &mut std::process::Child) {
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 pub fn run_command(cwd: &Path, command: &str, args: &[String], timeout: Duration) -> Result<CommandResult, String> {
     let start = Instant::now();
 
@@ -118,8 +136,7 @@ pub fn run_command(cwd: &Path, command: &str, args: &[String], timeout: Duration
             }
             Ok(None) => {
                 if start.elapsed() >= timeout {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    terminate_process_tree(&mut child);
                     timed_out = true;
                     exit_code = None;
                     break;
