@@ -186,6 +186,23 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain('focus');
     expect(compiled.textContent).toContain('acme-click');
     expect(compiled.textContent).toContain('base');
+    const anatomyItems = compiled.querySelectorAll(
+      '.component-detail__anatomy li',
+    );
+    expect(anatomyItems).toHaveLength(2);
+    expect(anatomyItems[0]?.textContent).toContain('base');
+    expect(anatomyItems[0]?.textContent).toContain('Styling part');
+    expect(anatomyItems[0]?.querySelector('a')?.getAttribute('href')).toBe(
+      '#contract-style-parts',
+    );
+    expect(anatomyItems[1]?.textContent).toContain('default');
+    expect(anatomyItems[1]?.textContent).toContain('Content slot');
+    expect(anatomyItems[1]?.querySelector('a')?.getAttribute('href')).toBe(
+      '#contract-content',
+    );
+    expect(compiled.textContent).toContain(
+      'ForgeGate does not infer hidden implementation structure',
+    );
   });
 
   it('updates to show the newly navigated component when moving directly between two detail routes', async () => {
@@ -212,6 +229,9 @@ describe('ComponentDetailPage', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent,
     ).toContain('acme-card');
+    expect(fixture.nativeElement.textContent).toContain(
+      'Anatomy not yet described',
+    );
   });
 
   it('renders a sandboxed local Storybook preview with source provenance', async () => {
@@ -326,6 +346,9 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).not.toContain('No token mappings connected');
     expect(compiled.textContent).not.toContain(
       'No documentation target connected',
+    );
+    expect(compiled.textContent).toContain(
+      'Part-to-token relationships are not declared',
     );
 
     const currentOverride = workspaceService.componentManifestOverrides()[0];

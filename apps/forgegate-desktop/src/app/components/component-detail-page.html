@@ -180,15 +180,56 @@
     }
   </section>
 
+  <section class="component-detail__panel" aria-labelledby="anatomy-title">
+    <h2 id="anatomy-title">Anatomy</h2>
+    @if (anatomy().length === 0) {
+    <p class="component-detail__unavailable">
+      Anatomy not yet described. No public content slots or CSS parts were found
+      in the connected component contract.
+    </p>
+    } @else {
+    <p>
+      Derived from public slots and CSS parts in the connected Custom Elements
+      Manifest. ForgeGate does not infer hidden implementation structure.
+    </p>
+    <div class="component-detail__anatomy">
+      <div class="component-detail__anatomy-host">
+        <strong>{{ componentName(m.id) }}</strong>
+        <span>Component host</span>
+      </div>
+      <ul>
+        @for (item of anatomy(); track item.kind + item.name) {
+        <li>
+          <div>
+            <strong>{{ item.name }}</strong>
+            <span>{{ item.kind }}</span>
+          </div>
+          <p>{{ item.description }}</p>
+          <a [attr.href]="'#' + item.contractSectionId"
+            >Open contract definition</a
+          >
+        </li>
+        }
+      </ul>
+    </div>
+    <p class="component-detail__anatomy-note">
+      Part-to-token relationships are not declared by the current manifest
+      schema. <a href="#tokens-title">Review component token mappings</a>
+      without assuming which anatomy part consumes them.
+    </p>
+    }
+  </section>
+
   <section class="component-detail__panel" aria-labelledby="contract-title">
     <h2 id="contract-title">Contract</h2>
 
-    @for (group of [ { title: 'Inputs', members: m.contract.inputs }, { title:
-    'Outputs', members: m.contract.outputs }, { title: 'Content', members:
-    m.contract.content }, { title: 'Public methods', members:
-    m.contract.publicMethods }, { title: 'Style parts', members:
-    m.contract.styleParts }, ]; track group.title) {
-    <h3>{{ group.title }}</h3>
+    @for (group of [ { id: 'contract-inputs', title: 'Inputs', members:
+    m.contract.inputs }, { id: 'contract-outputs', title: 'Outputs', members:
+    m.contract.outputs }, { id: 'contract-content', title: 'Content', members:
+    m.contract.content }, { id: 'contract-methods', title: 'Public methods',
+    members: m.contract.publicMethods }, { id: 'contract-style-parts', title:
+    'Style parts', members: m.contract.styleParts }, ]; track group.id) {
+    <h3 [id]="group.id">{{ group.title }}</h3>
     @if (group.members.length === 0) {
     <p class="component-detail__unavailable">None declared.</p>
     } @else {

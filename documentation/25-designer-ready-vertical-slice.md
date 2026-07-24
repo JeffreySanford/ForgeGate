@@ -533,6 +533,15 @@ The anatomy view may begin as a semantic diagram rather than a pixel-perfect des
 
 If anatomy cannot be inferred, show **Anatomy not yet described** and offer a manifest or documentation action. Do not invent parts.
 
+The initial connected anatomy view is intentionally contract-bounded. It
+shows only public content slots and CSS parts from the Custom Elements
+Manifest beneath the known component host. Each item links to its exact
+contract group. CSS custom properties are not presented as structural parts,
+and components without slots or parts show **Anatomy not yet described**.
+Because the current component-manifest token mapping has no anatomy-part
+field, the view links to the component token table while explicitly declining
+to infer which part consumes a token.
+
 ## Token mapping section
 
 Designers should be able to follow the relationship from component styling to system intent.

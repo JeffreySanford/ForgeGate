@@ -18,6 +18,13 @@ export interface CoverageItem {
   readonly connected: boolean;
 }
 
+export interface AnatomyItem {
+  readonly kind: 'Content slot' | 'Styling part';
+  readonly name: string;
+  readonly description: string;
+  readonly contractSectionId: 'contract-content' | 'contract-style-parts';
+}
+
 /**
  * The Button/component assurance record (P0.5,
  * documentation/25-designer-ready-vertical-slice.md "Suggested Angular UI
@@ -207,6 +214,26 @@ export class ComponentDetailPage {
         connected: manifest.documentationTargets.length > 0,
       },
     ];
+  });
+
+  protected readonly anatomy = computed<readonly AnatomyItem[]>(() => {
+    const manifest = this.manifest();
+    if (!manifest) return [];
+    const content: AnatomyItem[] = manifest.contract.content.map((member) => ({
+      kind: 'Content slot',
+      name: member.name,
+      description: member.description ?? 'No description declared.',
+      contractSectionId: 'contract-content',
+    }));
+    const stylingParts: AnatomyItem[] = manifest.contract.styleParts
+      .filter((member) => !member.name.startsWith('--'))
+      .map((member) => ({
+        kind: 'Styling part',
+        name: member.name,
+        description: member.description ?? 'No description declared.',
+        contractSectionId: 'contract-style-parts',
+      }));
+    return [...stylingParts, ...content];
   });
 
   protected readonly stories = computed<readonly StorybookIndexEntry[]>(() => {
