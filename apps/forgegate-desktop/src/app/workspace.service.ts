@@ -1,5 +1,4 @@
-import { Injectable, signal } from '@angular/core';
-import { invoke } from '@tauri-apps/api/core';
+import { inject, Injectable, signal } from '@angular/core';
 import {
   parseRepositoryConfig,
   type RepositoryConfig,
@@ -20,6 +19,7 @@ import {
   parseStorybookIndex,
   type StorybookIndex,
 } from './storybook/storybook-index';
+import { TAURI_INVOKE } from './tauri-invoke';
 
 export interface GitStatus {
   branch: string;
@@ -131,6 +131,7 @@ const STORYBOOK_INDEX_CONVENTIONAL_PATH = 'storybook-static/index.json';
 
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
+  private readonly invoke = inject(TAURI_INVOKE);
   readonly workspacePath = signal<string | null>(null);
   readonly gitStatus = signal<GitStatus | null>(null);
   readonly workspaceScan = signal<WorkspaceScan | null>(null);
@@ -163,16 +164,16 @@ export class WorkspaceService {
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
-    const path = await invoke<string | null>('select_workspace');
+    const path = await this.invoke<string | null>('select_workspace');
     if (!path) {
       return;
     }
     this.workspacePath.set(path);
     try {
       const [status, scan, configText] = await Promise.all([
-        invoke<GitStatus>('read_git_status', { path }),
-        invoke<WorkspaceScan>('read_workspace_scan', { path }),
-        invoke<string | null>('read_repository_config_file', { path }),
+        this.invoke<GitStatus>('read_git_status', { path }),
+        this.invoke<WorkspaceScan>('read_workspace_scan', { path }),
+        this.invoke<string | null>('read_repository_config_file', { path }),
       ]);
       this.gitStatus.set(status);
       this.workspaceScan.set(scan);
@@ -227,7 +228,7 @@ export class WorkspaceService {
     this.cemGenerationError.set(null);
     this.cemGenerationResult.set(null);
     try {
-      const result = await invoke<CommandResult>('run_workspace_command', {
+      const result = await this.invoke<CommandResult>('run_workspace_command', {
         workspacePath: path,
         relativeCwd: plan.target.path,
         command: plan.command,
@@ -242,7 +243,7 @@ export class WorkspaceService {
         ]
           .filter(Boolean)
           .join('/');
-        const text = await invoke<string>('read_text_file', {
+        const text = await this.invoke<string>('read_text_file', {
           workspacePath: path,
           relativePath,
         });
@@ -301,7 +302,7 @@ export class WorkspaceService {
       return;
     }
     try {
-      const text = await invoke<string>('read_text_file', {
+      const text = await this.invoke<string>('read_text_file', {
         workspacePath,
         relativePath,
       });
@@ -319,7 +320,7 @@ export class WorkspaceService {
     const manifests: ComponentManifest[] = [];
     for (const relativePath of scan.componentManifests ?? []) {
       try {
-        const text = await invoke<string>('read_text_file', {
+        const text = await this.invoke<string>('read_text_file', {
           workspacePath,
           relativePath,
         });
@@ -351,7 +352,7 @@ export class WorkspaceService {
     }
     let text: string;
     try {
-      text = await invoke<string>('read_text_file', {
+      text = await this.invoke<string>('read_text_file', {
         workspacePath,
         relativePath: STORYBOOK_INDEX_CONVENTIONAL_PATH,
       });
@@ -373,7 +374,7 @@ export class WorkspaceService {
     const settled = await Promise.allSettled(
       (scan.uiSourceFiles ?? []).map(async (relativePath) => ({
         path: relativePath,
-        content: await invoke<string>('read_text_file', {
+        content: await this.invoke<string>('read_text_file', {
           workspacePath,
           relativePath,
         }),

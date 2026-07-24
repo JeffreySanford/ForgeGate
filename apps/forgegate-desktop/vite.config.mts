@@ -17,10 +17,6 @@ export default defineConfig(() => ({
     watch: false,
     globals: true,
     environment: 'jsdom',
-    // Angular's shared TestBed and the module-level Tauri boundary mock are
-    // process-global. Concurrent files can cache the real Tauri module before
-    // WorkspaceService's mock is installed, producing CI-only failures.
-    fileParallelism: false,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     setupFiles: ['src/test-setup.ts'],
     reporters: ['default'],
