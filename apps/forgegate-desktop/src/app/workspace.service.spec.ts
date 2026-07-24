@@ -265,8 +265,6 @@ describe('WorkspaceService', () => {
         'storybook-static/**',
         '--outdir',
         'dist',
-        '--packagejson',
-        'false',
       ],
       timeoutSeconds: 120,
     });
