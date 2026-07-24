@@ -1,12 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { invoke } from '@tauri-apps/api/core';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { WorkspaceService } from './workspace.service';
 
-const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
-
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: invokeMock,
-}));
+const invokeMock = vi.mocked(invoke);
 
 const scanFixture = {
   packageName: '@up/design-system',
