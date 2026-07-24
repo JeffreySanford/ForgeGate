@@ -41,3 +41,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: npx nx format:check --base="remotes/origin/master"
       - run: npx nx run-many -t lint test build typecheck cargo-test
+
+  visual:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - name: Compare primary screens with reviewed Edge baselines
+        run: pnpm exec nx run forgegate-desktop:responsive-check
+
+      - name: Upload visual evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forgegate-visual-regression-evidence
+          path: dist/responsive-evidence
+          if-no-files-found: warn

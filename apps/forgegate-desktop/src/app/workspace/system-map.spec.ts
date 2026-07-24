@@ -61,6 +61,11 @@ describe('SystemMap', () => {
     expect(
       compiled.querySelector('#system-map-summary')?.textContent,
     ).toContain('No workspace is open yet');
+    expect(
+      Array.from(compiled.querySelectorAll('.node-status-label')).map((label) =>
+        label.textContent?.trim(),
+      ),
+    ).toEqual(rows.map(([, status]) => status));
   });
 
   it('reports repository as connected once git status is known, with branch and dirty state', async () => {
@@ -174,7 +179,7 @@ describe('SystemMap', () => {
     expect(rows.find(([title]) => title === 'Release')).toEqual([
       'Release',
       'not connected',
-      'Not connected — release policy not implemented yet',
+      'Release policy not implemented',
     ]);
   });
 
