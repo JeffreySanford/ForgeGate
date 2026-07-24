@@ -72,6 +72,16 @@ export class ComponentDetailPage {
   protected readonly workspace = inject(WorkspaceService);
   protected readonly selectedStoryId = signal<string | null>(null);
 
+  protected focusSection(event: MouseEvent, href: `#${string}`): void {
+    const target = document.getElementById(href.slice(1));
+    if (!target) return;
+
+    event.preventDefault();
+    window.history.pushState(null, '', href);
+    target.focus();
+    target.scrollIntoView?.({ block: 'start' });
+  }
+
   /**
    * Reactive, not just `route.snapshot` — Angular reuses this component
    * instance when navigating directly from one component's detail route to

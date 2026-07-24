@@ -46,7 +46,9 @@
     <p class="component-detail__eyebrow">Recommended next action</p>
     <h2 id="next-action-title">{{ action.title }}</h2>
     <p>{{ action.detail }}</p>
-    <a [attr.href]="action.href">{{ action.label }}</a>
+    <a [attr.href]="action.href" (click)="focusSection($event, action.href)"
+      >{{ action.label }}</a
+    >
   </aside>
 
   <section class="component-detail__panel" aria-labelledby="preview-title">
