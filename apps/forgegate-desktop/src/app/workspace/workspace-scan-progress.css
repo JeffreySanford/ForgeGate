@@ -1,0 +1,98 @@
+.scan-progress {
+  display: grid;
+  gap: var(--fg-space-3);
+  padding: var(--fg-space-4);
+  border: 1px solid var(--fg-color-action);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface);
+}
+
+.scan-progress--failed {
+  border-color: var(--fg-color-status-failed);
+}
+
+.scan-progress__summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--fg-space-4);
+}
+
+.scan-progress__summary h2,
+.scan-progress__summary p {
+  margin: 0;
+}
+
+.scan-progress__eyebrow {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.scan-progress progress {
+  width: 100%;
+  height: 0.5rem;
+  accent-color: var(--fg-color-action);
+}
+
+.scan-progress__steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(8rem, 1fr));
+  gap: var(--fg-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scan-progress__steps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--fg-space-1) var(--fg-space-2);
+  align-items: center;
+  padding: var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  color: var(--fg-color-text-muted);
+}
+
+.scan-progress__steps li > span:first-child {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: var(--fg-type-size-sm);
+}
+
+.scan-progress__steps strong {
+  grid-column: 2;
+  font-size: var(--fg-type-size-sm);
+}
+
+.scan-progress__step--complete,
+.scan-progress__step--current {
+  color: var(--fg-color-text) !important;
+}
+
+.scan-progress__step--complete {
+  border-color: var(--fg-color-status-passed) !important;
+}
+
+.scan-progress__step--current {
+  border-color: var(--fg-color-action) !important;
+  background: var(--fg-color-surface-selected);
+}
+
+@media (max-width: 760px) {
+  .scan-progress__summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .scan-progress__steps {
+    grid-template-columns: 1fr;
+  }
+}

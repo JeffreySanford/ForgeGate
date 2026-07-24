@@ -64,6 +64,7 @@ describe('WorkspaceService', () => {
     expect(service.workspacePath()).toBeNull();
     expect(invokeMock).toHaveBeenCalledTimes(1);
     expect(invokeMock).toHaveBeenCalledWith('select_workspace');
+    expect(service.scanProgress()).toBeNull();
   });
 
   it('loads Git status, workspace scan, and an absent repository config', async () => {
@@ -81,6 +82,57 @@ describe('WorkspaceService', () => {
     expect(service.repositoryConfig()).toBeNull();
     expect(service.repositoryConfigError()).toBeNull();
     expect(service.error()).toBeNull();
+    expect(service.scanProgress()).toEqual({
+      phase: 'complete',
+      state: 'complete',
+      label: 'Workspace scan complete',
+      completed: 5,
+      total: 5,
+    });
+  });
+
+  it('reports selection and repository inspection while their work is in flight', async () => {
+    let resolvePath!: (path: string) => void;
+    let resolveStatus!: (status: typeof gitStatusFixture) => void;
+    const pathPromise = new Promise<string>((resolve) => {
+      resolvePath = resolve;
+    });
+    const statusPromise = new Promise<typeof gitStatusFixture>((resolve) => {
+      resolveStatus = resolve;
+    });
+    invokeMock
+      .mockReturnValueOnce(pathPromise)
+      .mockReturnValueOnce(statusPromise)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+
+    const selection = service.selectWorkspace();
+    expect(service.scanProgress()?.phase).toBe('selecting');
+
+    resolvePath('D:/repos/ForgeGate');
+    await vi.waitFor(() => {
+      expect(service.scanProgress()?.phase).toBe('repository');
+    });
+
+    resolveStatus(gitStatusFixture);
+    await selection;
+    expect(service.scanProgress()?.phase).toBe('complete');
+  });
+
+  it('ignores a duplicate selection request while a scan is running', async () => {
+    let resolvePath!: (path: null) => void;
+    invokeMock.mockReturnValueOnce(
+      new Promise<null>((resolve) => {
+        resolvePath = resolve;
+      }),
+    );
+
+    const selection = service.selectWorkspace();
+    await service.selectWorkspace();
+
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    resolvePath(null);
+    await selection;
   });
 
   it('parses a present, valid repository config file', async () => {

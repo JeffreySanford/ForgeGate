@@ -24,8 +24,12 @@ describe('App shell', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.app-nav__brand')?.textContent).toContain('ForgeGate');
-    const links = Array.from(compiled.querySelectorAll('.app-nav a')).map((a) => a.getAttribute('href'));
+    expect(compiled.querySelector('.app-nav__brand')?.textContent).toContain(
+      'ForgeGate',
+    );
+    const links = Array.from(compiled.querySelectorAll('.app-nav a')).map((a) =>
+      a.getAttribute('href'),
+    );
     expect(links).toEqual(['/workspace', '/components']);
   });
 
@@ -35,7 +39,9 @@ describe('App shell', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.workspace-context-bar__empty')?.textContent).toContain('No workspace open');
+    expect(
+      compiled.querySelector('.workspace-context-bar__empty')?.textContent,
+    ).toContain('No workspace open');
   });
 
   it('shows workspace path and git status facts in the context bar once a workspace is open', async () => {
@@ -47,9 +53,17 @@ describe('App shell', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.workspace-context-bar__path')?.textContent).toContain('/repos/example');
-    const facts = Array.from(compiled.querySelectorAll('.workspace-context-bar__fact')).map((el) => el.textContent?.trim());
-    expect(facts).toEqual(['Branch main', 'Commit abc1234', 'Uncommitted changes']);
+    expect(
+      compiled.querySelector('.workspace-context-bar__path')?.textContent,
+    ).toContain('/repos/example');
+    const facts = Array.from(
+      compiled.querySelectorAll('.workspace-context-bar__fact'),
+    ).map((el) => el.textContent?.trim());
+    expect(facts).toEqual([
+      'Branch main',
+      'Commit abc1234',
+      'Uncommitted changes',
+    ]);
   });
 
   it('calls WorkspaceService.selectWorkspace when "Open workspace…" is clicked', async () => {
@@ -57,11 +71,35 @@ describe('App shell', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const selectWorkspace = vi.spyOn(workspaceService, 'selectWorkspace').mockResolvedValue();
+    const selectWorkspace = vi
+      .spyOn(workspaceService, 'selectWorkspace')
+      .mockResolvedValue();
     const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector<HTMLButtonElement>('.workspace-context-bar button')?.click();
+    compiled
+      .querySelector<HTMLButtonElement>('.workspace-context-bar button')
+      ?.click();
 
     expect(selectWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables duplicate workspace selection while discovery is running', async () => {
+    workspaceService.scanProgress.set({
+      phase: 'repository',
+      state: 'running',
+      label: 'Inspecting repository metadata and configuration',
+      completed: 0,
+      total: 5,
+    });
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const button = (fixture.nativeElement as HTMLElement).querySelector(
+      '.workspace-context-bar button',
+    ) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.textContent).toContain('Scanning workspace');
   });
 
   it('surfaces a workspace-level error as an alert', async () => {
@@ -72,7 +110,9 @@ describe('App shell', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain('Failed to read git status');
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      'Failed to read git status',
+    );
   });
 
   it('moves focus to the main content landmark after a route change', async () => {
@@ -85,7 +125,9 @@ describe('App shell', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const main = (fixture.nativeElement as HTMLElement).querySelector('#main-content');
+    const main = (fixture.nativeElement as HTMLElement).querySelector(
+      '#main-content',
+    );
     expect(document.activeElement).toBe(main);
   });
 

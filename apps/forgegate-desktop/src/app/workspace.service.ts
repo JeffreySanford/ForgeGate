@@ -70,6 +70,24 @@ export interface WorkspaceScan {
   uiSourceFilesTruncated?: boolean;
 }
 
+export type WorkspaceScanPhase =
+  | 'selecting'
+  | 'repository'
+  | 'contracts'
+  | 'governance'
+  | 'storybook'
+  | 'native-patterns'
+  | 'complete'
+  | 'failed';
+
+export interface WorkspaceScanProgress {
+  readonly phase: WorkspaceScanPhase;
+  readonly state: 'running' | 'complete' | 'failed';
+  readonly label: string;
+  readonly completed: number;
+  readonly total: number;
+}
+
 export interface CommandResult {
   exitCode: number | null;
   stdout: string;
@@ -128,6 +146,7 @@ export function createCemGenerationPlan(
  * state, not an error.
  */
 const STORYBOOK_INDEX_CONVENTIONAL_PATH = 'storybook-static/index.json';
+const WORKSPACE_SCAN_STEP_COUNT = 5;
 
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
@@ -135,6 +154,7 @@ export class WorkspaceService {
   readonly workspacePath = signal<string | null>(null);
   readonly gitStatus = signal<GitStatus | null>(null);
   readonly workspaceScan = signal<WorkspaceScan | null>(null);
+  readonly scanProgress = signal<WorkspaceScanProgress | null>(null);
   readonly repositoryConfig = signal<RepositoryConfig | null>(null);
   readonly repositoryConfigError = signal<string | null>(null);
   readonly customElementsManifest = signal<CustomElementsManifest | null>(null);
@@ -156,6 +176,9 @@ export class WorkspaceService {
   readonly error = signal<string | null>(null);
 
   async selectWorkspace(): Promise<void> {
+    if (this.scanProgress()?.state === 'running') {
+      return;
+    }
     this.error.set(null);
     this.repositoryConfigError.set(null);
     this.customElementsManifestError.set(null);
@@ -164,12 +187,19 @@ export class WorkspaceService {
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
-    const path = await this.invoke<string | null>('select_workspace');
-    if (!path) {
-      return;
-    }
-    this.workspacePath.set(path);
+    this.setScanProgress('selecting', 'Choose a repository folder', 0);
     try {
+      const path = await this.invoke<string | null>('select_workspace');
+      if (!path) {
+        this.scanProgress.set(null);
+        return;
+      }
+      this.workspacePath.set(path);
+      this.setScanProgress(
+        'repository',
+        'Inspecting repository metadata and configuration',
+        0,
+      );
       const [status, scan, configText] = await Promise.all([
         this.invoke<GitStatus>('read_git_status', { path }),
         this.invoke<WorkspaceScan>('read_workspace_scan', { path }),
@@ -183,10 +213,33 @@ export class WorkspaceService {
           : null,
       );
       this.applyConfigText(configText);
+      this.setScanProgress('contracts', 'Loading component contracts', 1);
       await this.loadCustomElementsManifest(path, scan);
+      this.setScanProgress(
+        'governance',
+        'Loading ForgeGate component governance',
+        2,
+      );
       await this.loadComponentManifests(path, scan);
+      this.setScanProgress(
+        'storybook',
+        'Connecting the Storybook story index',
+        3,
+      );
       await this.loadStorybookIndex(path, scan);
+      this.setScanProgress(
+        'native-patterns',
+        'Analyzing native and styling-library component patterns',
+        4,
+      );
       await this.loadNativeComponentSignals(path, scan);
+      this.scanProgress.set({
+        phase: 'complete',
+        state: 'complete',
+        label: 'Workspace scan complete',
+        completed: WORKSPACE_SCAN_STEP_COUNT,
+        total: WORKSPACE_SCAN_STEP_COUNT,
+      });
     } catch (error) {
       this.gitStatus.set(null);
       this.workspaceScan.set(null);
@@ -196,7 +249,29 @@ export class WorkspaceService {
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.error.set(String(error));
+      const completed = this.scanProgress()?.completed ?? 0;
+      this.scanProgress.set({
+        phase: 'failed',
+        state: 'failed',
+        label: `Workspace scan failed after ${completed} of ${WORKSPACE_SCAN_STEP_COUNT} checks`,
+        completed,
+        total: WORKSPACE_SCAN_STEP_COUNT,
+      });
     }
+  }
+
+  private setScanProgress(
+    phase: WorkspaceScanPhase,
+    label: string,
+    completed: number,
+  ): void {
+    this.scanProgress.set({
+      phase,
+      state: 'running',
+      label,
+      completed,
+      total: WORKSPACE_SCAN_STEP_COUNT,
+    });
   }
 
   selectComponentPackage(path: string): void {
