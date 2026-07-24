@@ -18,6 +18,7 @@ const scan: WorkspaceScan = {
   visualRegressionProviders: [],
   ciProviders: [],
   customElementsManifests: ['custom-elements.json'],
+  componentPackages: [],
 };
 
 const richManifest: CustomElementsManifest = {
@@ -33,10 +34,27 @@ const richManifest: CustomElementsManifest = {
           customElement: true,
           tagName: 'acme-button',
           members: [
-            { kind: 'field', name: 'variant', type: { text: 'string' }, description: 'Visual variant', privacy: 'public' },
-            { kind: 'method', name: 'focus', description: 'Focuses the button', privacy: 'public' },
+            {
+              kind: 'field',
+              name: 'variant',
+              type: { text: 'string' },
+              description: 'Visual variant',
+              privacy: 'public',
+            },
+            {
+              kind: 'method',
+              name: 'focus',
+              description: 'Focuses the button',
+              privacy: 'public',
+            },
           ],
-          events: [{ name: 'acme-click', type: { text: 'CustomEvent' }, description: 'Fired on activation' }],
+          events: [
+            {
+              name: 'acme-click',
+              type: { text: 'CustomEvent' },
+              description: 'Fired on activation',
+            },
+          ],
           slots: [{ name: '', description: 'Button label content' }],
           cssParts: [{ name: 'base', description: 'The root element' }],
         },
@@ -45,7 +63,14 @@ const richManifest: CustomElementsManifest = {
     {
       kind: 'javascript-module',
       path: 'src/acme-card.ts',
-      declarations: [{ kind: 'class', name: 'AcmeCard', customElement: true, tagName: 'acme-card' }],
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeCard',
+          customElement: true,
+          tagName: 'acme-card',
+        },
+      ],
     },
   ],
 };
@@ -63,7 +88,11 @@ describe('ComponentDetailPage', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [HostComponent],
-      providers: [provideRouter([{ path: 'components/:componentId', component: ComponentDetailPage }])],
+      providers: [
+        provideRouter([
+          { path: 'components/:componentId', component: ComponentDetailPage },
+        ]),
+      ],
     }).compileComponents();
     workspaceService = TestBed.inject(WorkspaceService);
     router = TestBed.inject(Router);
@@ -76,9 +105,11 @@ describe('ComponentDetailPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.component-detail__empty')?.textContent).toContain(
-      'No workspace open yet',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.component-detail__empty',
+      )?.textContent,
+    ).toContain('No workspace open yet');
   });
 
   it('shows an explicit not-found state when the id is not in the connected manifest', async () => {
@@ -92,9 +123,11 @@ describe('ComponentDetailPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.component-detail__empty')?.textContent).toContain(
-      'No component with id "acme.design-system.does-not-exist"',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.component-detail__empty',
+      )?.textContent,
+    ).toContain('No component with id "acme.design-system.does-not-exist"');
   });
 
   it('renders real identity, coverage, readiness, and contract data for a matched component', async () => {
@@ -111,15 +144,29 @@ describe('ComponentDetailPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('acme-button');
-    expect(compiled.querySelector('.component-detail__id')?.textContent).toContain('acme.design-system.acme-button');
+    expect(
+      compiled.querySelector('.component-detail__id')?.textContent,
+    ).toContain('acme.design-system.acme-button');
 
-    const coverageCounts = Array.from(compiled.querySelectorAll('.component-detail__coverage-strip li')).map((li) =>
-      li.textContent?.replace(/\s+/g, ' ').trim(),
-    );
-    expect(coverageCounts).toEqual(['0States', '0Stories', '0Tokens', '0Tests', '0Reviews', '0Documentation']);
+    const coverageCounts = Array.from(
+      compiled.querySelectorAll('.component-detail__coverage-strip li'),
+    ).map((li) => li.textContent?.replace(/\s+/g, ' ').trim());
+    expect(coverageCounts).toEqual([
+      '0States',
+      '0Stories',
+      '0Tokens',
+      '0Tests',
+      '0Reviews',
+      '0Documentation',
+    ]);
 
-    expect(compiled.querySelector('.component-detail__readiness-status')?.textContent).toContain('Unknown');
-    const reasons = Array.from(compiled.querySelectorAll('.component-detail__blocking-reasons li')).map((li) => li.textContent);
+    expect(
+      compiled.querySelector('.component-detail__readiness-status')
+        ?.textContent,
+    ).toContain('Unknown');
+    const reasons = Array.from(
+      compiled.querySelectorAll('.component-detail__blocking-reasons li'),
+    ).map((li) => li.textContent);
     expect(reasons).toContain('No Storybook connection (not yet built — P0.6)');
 
     expect(compiled.textContent).toContain('variant');
@@ -140,14 +187,65 @@ describe('ComponentDetailPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toContain('acme-button');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent,
+    ).toContain('acme-button');
 
     await router.navigateByUrl('/components/acme.design-system.acme-card');
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toContain('acme-card');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent,
+    ).toContain('acme-card');
+  });
+
+  it('renders a sandboxed local Storybook preview with source provenance', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set({
+      ...scan,
+      storybookProjects: ['.storybook'],
+    });
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.storybookIndex.set({
+      v: 5,
+      entries: {
+        'components-acmebutton--primary': {
+          type: 'story',
+          id: 'components-acmebutton--primary',
+          name: 'Primary',
+          title: 'Components/AcmeButton',
+          importPath: './src/acme-button.stories.ts',
+          exportName: 'Primary',
+          tags: ['dev', 'test'],
+        },
+      },
+    });
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const frame = compiled.querySelector<HTMLIFrameElement>(
+      '.component-detail__preview-frame',
+    );
+    expect(frame).not.toBeNull();
+    expect(frame?.getAttribute('sandbox')).toBe('allow-scripts allow-forms');
+    expect(frame?.getAttribute('src')).toContain(
+      'components-acmebutton--primary',
+    );
+    expect(
+      compiled.querySelector('.component-detail__preview-provenance')
+        ?.textContent,
+    ).toContain('./src/acme-button.stories.ts');
+    expect(compiled.textContent).toContain(
+      'without same-origin or Tauri privileges',
+    );
   });
 
   it('has no automated accessibility violations for a matched component', async () => {
