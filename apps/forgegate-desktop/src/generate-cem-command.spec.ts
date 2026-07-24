@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { GENERATE_CEM_ARGS, GENERATE_CEM_COMMAND } from './app/workspace.service';
+import { createCemGenerationPlan } from './app/workspace.service';
 
 const execFileAsync = promisify(execFile);
 
@@ -58,7 +58,15 @@ describe('GENERATE_CEM_COMMAND / GENERATE_CEM_ARGS (real command, no mocks)', ()
       try {
         await cp(fixtureSource, tempDir, { recursive: true });
 
-        await execFileAsync(GENERATE_CEM_COMMAND, [...GENERATE_CEM_ARGS], {
+        const plan = createCemGenerationPlan({
+          name: '@forgegate/acme-button-library',
+          path: '.',
+          sourceGlob: 'src/**/*.{js,ts,jsx,tsx}',
+          outputDirectory: '.',
+          manifestPath: 'custom-elements.json',
+        });
+
+        await execFileAsync(plan.command, plan.args, {
           cwd: tempDir,
           shell: true,
           timeout: 150_000,
