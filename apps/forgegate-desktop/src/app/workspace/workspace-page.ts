@@ -1,13 +1,13 @@
-import { Component, inject } from "@angular/core";
-import { ComponentInventoryService } from "../component-inventory.service";
-import { WorkspaceService } from "../workspace.service";
-import { SystemMap } from "./system-map";
+import { Component, inject } from '@angular/core';
+import { ComponentInventoryService } from '../component-inventory.service';
+import { WorkspaceService } from '../workspace.service';
+import { SystemMap } from './system-map';
 
 @Component({
   imports: [SystemMap],
-  selector: "app-workspace-page",
-  templateUrl: "./workspace-page.html",
-  styleUrl: "./workspace-page.css",
+  selector: 'app-workspace-page',
+  templateUrl: './workspace-page.html',
+  styleUrl: './workspace-page.css',
 })
 export class WorkspacePage {
   protected readonly workspace = inject(WorkspaceService);
