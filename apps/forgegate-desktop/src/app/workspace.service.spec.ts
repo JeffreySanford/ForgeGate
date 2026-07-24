@@ -1,12 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { TAURI_INVOKE } from './tauri-invoke';
 import { WorkspaceService } from './workspace.service';
 
-const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
-
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: invokeMock,
-}));
+const invokeMock = vi.fn();
 
 const scanFixture = {
   packageName: '@up/design-system',
@@ -53,7 +50,9 @@ describe('WorkspaceService', () => {
 
   beforeEach(() => {
     invokeMock.mockReset();
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [{ provide: TAURI_INVOKE, useValue: invokeMock }],
+    });
     service = TestBed.inject(WorkspaceService);
   });
 
