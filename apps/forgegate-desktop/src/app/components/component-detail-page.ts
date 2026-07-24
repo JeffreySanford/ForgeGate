@@ -1,10 +1,12 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { map } from 'rxjs';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
+import type { StorybookIndexEntry } from '../storybook/storybook-index';
 
 export interface CoverageItem {
   readonly label: string;
@@ -36,7 +38,9 @@ export interface CoverageItem {
 export class ComponentDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly inventory = inject(ComponentInventoryService);
+  private readonly sanitizer = inject(DomSanitizer);
   protected readonly workspace = inject(WorkspaceService);
+  protected readonly selectedStoryId = signal<string | null>(null);
 
   /**
    * Reactive, not just `route.snapshot` — Angular reuses this component
@@ -44,9 +48,12 @@ export class ComponentDetailPage {
    * another's (e.g. via the inventory table), so a one-time snapshot read
    * would keep showing the previous component.
    */
-  protected readonly id = toSignal(this.route.paramMap.pipe(map((params) => params.get('componentId'))), {
-    initialValue: this.route.snapshot.paramMap.get('componentId'),
-  });
+  protected readonly id = toSignal(
+    this.route.paramMap.pipe(map((params) => params.get('componentId'))),
+    {
+      initialValue: this.route.snapshot.paramMap.get('componentId'),
+    },
+  );
 
   protected readonly manifest = computed<ComponentManifest | null>(() => {
     const id = this.id();
@@ -59,13 +66,65 @@ export class ComponentDetailPage {
       return [];
     }
     return [
-      { label: 'States', count: manifest.states.length, connected: manifest.states.length > 0 },
-      { label: 'Stories', count: manifest.storyMappings.length, connected: manifest.storyMappings.length > 0 },
-      { label: 'Tokens', count: manifest.tokenMappings.length, connected: manifest.tokenMappings.length > 0 },
-      { label: 'Tests', count: manifest.testRequirements.length, connected: manifest.testRequirements.length > 0 },
-      { label: 'Reviews', count: manifest.manualReviewProcedureIds.length, connected: manifest.manualReviewProcedureIds.length > 0 },
-      { label: 'Documentation', count: manifest.documentationTargets.length, connected: manifest.documentationTargets.length > 0 },
+      {
+        label: 'States',
+        count: manifest.states.length,
+        connected: manifest.states.length > 0,
+      },
+      {
+        label: 'Stories',
+        count: manifest.storyMappings.length,
+        connected: manifest.storyMappings.length > 0,
+      },
+      {
+        label: 'Tokens',
+        count: manifest.tokenMappings.length,
+        connected: manifest.tokenMappings.length > 0,
+      },
+      {
+        label: 'Tests',
+        count: manifest.testRequirements.length,
+        connected: manifest.testRequirements.length > 0,
+      },
+      {
+        label: 'Reviews',
+        count: manifest.manualReviewProcedureIds.length,
+        connected: manifest.manualReviewProcedureIds.length > 0,
+      },
+      {
+        label: 'Documentation',
+        count: manifest.documentationTargets.length,
+        connected: manifest.documentationTargets.length > 0,
+      },
     ];
+  });
+
+  protected readonly stories = computed<readonly StorybookIndexEntry[]>(() => {
+    const manifest = this.manifest();
+    const index = this.workspace.storybookIndex();
+    if (!manifest || !index) return [];
+    const mappedIds = new Set(
+      manifest.storyMappings.map((mapping) => mapping.storybookStoryId),
+    );
+    return Object.values(index.entries).filter((entry) =>
+      mappedIds.has(entry.id),
+    );
+  });
+
+  protected readonly activeStory = computed<StorybookIndexEntry | null>(() => {
+    const stories = this.stories();
+    return (
+      stories.find((story) => story.id === this.selectedStoryId()) ??
+      stories[0] ??
+      null
+    );
+  });
+
+  protected readonly previewUrl = computed<SafeResourceUrl | null>(() => {
+    const story = this.activeStory();
+    if (!story) return null;
+    const url = `http://localhost:6006/iframe.html?id=${encodeURIComponent(story.id)}&viewMode=story`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   });
 
   protected readonly blockingReasons = computed<readonly string[]>(() => {
@@ -74,12 +133,18 @@ export class ComponentDetailPage {
       return [];
     }
     const reasons: string[] = [];
-    if (manifest.states.length === 0) reasons.push('No required states declared');
-    if (manifest.storyMappings.length === 0) reasons.push('No Storybook connection (not yet built — P0.6)');
-    if (manifest.tokenMappings.length === 0) reasons.push('No token mappings connected');
-    if (manifest.testRequirements.length === 0) reasons.push('No automated evidence connected');
-    if (manifest.manualReviewProcedureIds.length === 0) reasons.push('No manual review recorded');
-    if (manifest.documentationTargets.length === 0) reasons.push('No documentation target connected');
+    if (manifest.states.length === 0)
+      reasons.push('No required states declared');
+    if (manifest.storyMappings.length === 0)
+      reasons.push('No Storybook connection (not yet built — P0.6)');
+    if (manifest.tokenMappings.length === 0)
+      reasons.push('No token mappings connected');
+    if (manifest.testRequirements.length === 0)
+      reasons.push('No automated evidence connected');
+    if (manifest.manualReviewProcedureIds.length === 0)
+      reasons.push('No manual review recorded');
+    if (manifest.documentationTargets.length === 0)
+      reasons.push('No documentation target connected');
     return reasons;
   });
 

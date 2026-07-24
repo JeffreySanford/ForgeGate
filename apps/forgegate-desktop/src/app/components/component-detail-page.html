@@ -1,163 +1,211 @@
 <div class="component-detail">
-  <a class="component-detail__back" routerLink="/components">← Back to components</a>
+  <a class="component-detail__back" routerLink="/components"
+    >← Back to components</a
+  >
 
   @if (!workspace.workspacePath()) {
-    <p class="component-detail__empty">No workspace open yet. Use "Open workspace…" above to select a repository.</p>
+  <p class="component-detail__empty">
+    No workspace open yet. Use "Open workspace…" above to select a repository.
+  </p>
   } @else if (!manifest()) {
-    <p class="component-detail__empty">
-      No component with id "{{ id() }}" is currently in the connected manifest. It may have been removed, or the
-      workspace may need to be rescanned.
+  <p class="component-detail__empty">
+    No component with id "{{ id() }}" is currently in the connected manifest. It
+    may have been removed, or the workspace may need to be rescanned.
+  </p>
+  } @else { @let m = manifest()!;
+
+  <header class="component-detail__header">
+    <h1>{{ componentName(m.id) }}</h1>
+    <p class="component-detail__id">{{ m.id }}</p>
+    <dl class="component-detail__identity">
+      <dt>Framework</dt>
+      <dd>{{ m.framework }} ({{ m.adapter }})</dd>
+      <dt>Lifecycle</dt>
+      <dd>{{ m.lifecycle }}</dd>
+      <dt>Source</dt>
+      <dd>{{ m.sourceFiles.join(', ') || 'Unknown' }}</dd>
+      <dt>Owner</dt>
+      <dd>{{ m.owner ?? 'Unknown' }}</dd>
+    </dl>
+  </header>
+
+  <section class="component-detail__panel" aria-labelledby="preview-title">
+    <h2 id="preview-title">Preview</h2>
+    @if (activeStory(); as story) {
+    <div class="component-detail__story-picker" role="group" aria-label="Story">
+      @for (option of stories(); track option.id) {
+      <button
+        type="button"
+        [attr.aria-pressed]="story.id === option.id"
+        (click)="selectedStoryId.set(option.id)"
+      >
+        {{ option.name }}
+      </button>
+      }
+    </div>
+    <iframe
+      class="component-detail__preview-frame"
+      [src]="previewUrl()"
+      [title]="componentName(m.id) + ' — ' + story.name + ' Storybook preview'"
+      sandbox="allow-scripts allow-forms"
+      referrerpolicy="no-referrer"
+    ></iframe>
+    <dl class="component-detail__preview-provenance">
+      <dt>Story</dt>
+      <dd>{{ story.id }}</dd>
+      <dt>Story source</dt>
+      <dd>{{ story.importPath }}</dd>
+      <dt>Index source</dt>
+      <dd>storybook-static/index.json</dd>
+      <dt>Preview origin</dt>
+      <dd>Local Storybook at localhost:6006</dd>
+    </dl>
+    <p class="component-detail__preview-note">
+      Preview content runs in a sandbox without same-origin or Tauri privileges.
+      Start this workspace's Storybook server on port 6006 if the frame is
+      unavailable.
     </p>
-  } @else {
-    @let m = manifest()!;
+    } @else {
+    <p class="component-detail__unavailable">
+      No mapped Storybook story is connected for this component.
+    </p>
+    }
+  </section>
 
-    <header class="component-detail__header">
-      <h1>{{ componentName(m.id) }}</h1>
-      <p class="component-detail__id">{{ m.id }}</p>
-      <dl class="component-detail__identity">
-        <dt>Framework</dt>
-        <dd>{{ m.framework }} ({{ m.adapter }})</dd>
-        <dt>Lifecycle</dt>
-        <dd>{{ m.lifecycle }}</dd>
-        <dt>Source</dt>
-        <dd>{{ m.sourceFiles.join(', ') || 'Unknown' }}</dd>
-        <dt>Owner</dt>
-        <dd>{{ m.owner ?? 'Unknown' }}</dd>
-      </dl>
-    </header>
+  <section class="component-detail__panel" aria-labelledby="coverage-title">
+    <h2 id="coverage-title">Coverage</h2>
+    <ul class="component-detail__coverage-strip">
+      @for (item of coverage(); track item.label) {
+      <li [class.is-connected]="item.connected">
+        <span class="component-detail__coverage-count">{{ item.count }}</span>
+        <span class="component-detail__coverage-label">{{ item.label }}</span>
+      </li>
+      }
+    </ul>
+  </section>
 
-    <section class="component-detail__panel" aria-labelledby="preview-title">
-      <h2 id="preview-title">Preview</h2>
-      <p class="component-detail__unavailable">
-        No preview connected. ForgeGate does not have a Storybook connection for this workspace yet (P0.6).
-      </p>
-    </section>
+  <section class="component-detail__panel" aria-labelledby="readiness-title">
+    <h2 id="readiness-title">Readiness</h2>
+    <p class="component-detail__readiness-status">
+      Unknown — no evidence connected. ForgeGate has no findings/evidence
+      pipeline wired into the desktop app yet.
+    </p>
+    @if (blockingReasons().length) {
+    <ul class="component-detail__blocking-reasons">
+      @for (reason of blockingReasons(); track reason) {
+      <li>{{ reason }}</li>
+      }
+    </ul>
+    }
+  </section>
 
-    <section class="component-detail__panel" aria-labelledby="coverage-title">
-      <h2 id="coverage-title">Coverage</h2>
-      <ul class="component-detail__coverage-strip">
-        @for (item of coverage(); track item.label) {
-          <li [class.is-connected]="item.connected">
-            <span class="component-detail__coverage-count">{{ item.count }}</span>
-            <span class="component-detail__coverage-label">{{ item.label }}</span>
-          </li>
+  <section class="component-detail__panel" aria-labelledby="states-title">
+    <h2 id="states-title">States and stories</h2>
+    @if (m.states.length === 0) {
+    <p class="component-detail__unavailable">
+      No required states declared for this component yet.
+    </p>
+    } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">State</th>
+          <th scope="col">Required</th>
+          <th scope="col">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (state of m.states; track state.name) {
+        <tr>
+          <td>{{ state.name }}</td>
+          <td>{{ state.required ? 'Yes' : 'No' }}</td>
+          <td>{{ state.description ?? '—' }}</td>
+        </tr>
         }
-      </ul>
-    </section>
+      </tbody>
+    </table>
+    }
+  </section>
 
-    <section class="component-detail__panel" aria-labelledby="readiness-title">
-      <h2 id="readiness-title">Readiness</h2>
-      <p class="component-detail__readiness-status">
-        Unknown — no evidence connected. ForgeGate has no findings/evidence pipeline wired into the desktop app yet.
-      </p>
-      @if (blockingReasons().length) {
-        <ul class="component-detail__blocking-reasons">
-          @for (reason of blockingReasons(); track reason) {
-            <li>{{ reason }}</li>
-          }
-        </ul>
-      }
-    </section>
+  <section class="component-detail__panel" aria-labelledby="contract-title">
+    <h2 id="contract-title">Contract</h2>
 
-    <section class="component-detail__panel" aria-labelledby="states-title">
-      <h2 id="states-title">States and stories</h2>
-      @if (m.states.length === 0) {
-        <p class="component-detail__unavailable">No required states declared for this component yet.</p>
-      } @else {
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">State</th>
-              <th scope="col">Required</th>
-              <th scope="col">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (state of m.states; track state.name) {
-              <tr>
-                <td>{{ state.name }}</td>
-                <td>{{ state.required ? 'Yes' : 'No' }}</td>
-                <td>{{ state.description ?? '—' }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </section>
-
-    <section class="component-detail__panel" aria-labelledby="contract-title">
-      <h2 id="contract-title">Contract</h2>
-
-      @for (group of [
-        { title: 'Inputs', members: m.contract.inputs },
-        { title: 'Outputs', members: m.contract.outputs },
-        { title: 'Content', members: m.contract.content },
-        { title: 'Public methods', members: m.contract.publicMethods },
-        { title: 'Style parts', members: m.contract.styleParts },
-      ]; track group.title) {
-        <h3>{{ group.title }}</h3>
-        @if (group.members.length === 0) {
-          <p class="component-detail__unavailable">None declared.</p>
-        } @else {
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Type</th>
-                <th scope="col">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (member of group.members; track member.name) {
-                <tr>
-                  <td>{{ member.name }}</td>
-                  <td>{{ member.type ?? '—' }}</td>
-                  <td>{{ member.description ?? '—' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    @for (group of [ { title: 'Inputs', members: m.contract.inputs }, { title:
+    'Outputs', members: m.contract.outputs }, { title: 'Content', members:
+    m.contract.content }, { title: 'Public methods', members:
+    m.contract.publicMethods }, { title: 'Style parts', members:
+    m.contract.styleParts }, ]; track group.title) {
+    <h3>{{ group.title }}</h3>
+    @if (group.members.length === 0) {
+    <p class="component-detail__unavailable">None declared.</p>
+    } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Type</th>
+          <th scope="col">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (member of group.members; track member.name) {
+        <tr>
+          <td>{{ member.name }}</td>
+          <td>{{ member.type ?? '—' }}</td>
+          <td>{{ member.description ?? '—' }}</td>
+        </tr>
         }
-      }
-    </section>
+      </tbody>
+    </table>
+    } }
+  </section>
 
-    <section class="component-detail__panel" aria-labelledby="tokens-title">
-      <h2 id="tokens-title">Token mapping</h2>
-      @if (m.tokenMappings.length === 0) {
-        <p class="component-detail__unavailable">No token mappings connected for this component yet.</p>
-      } @else {
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Token</th>
-              <th scope="col">Category</th>
-              <th scope="col">Required</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (mapping of m.tokenMappings; track mapping.tokenPath) {
-              <tr>
-                <td>{{ mapping.tokenPath }}</td>
-                <td>{{ mapping.category }}</td>
-                <td>{{ mapping.required ? 'Yes' : 'No' }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </section>
+  <section class="component-detail__panel" aria-labelledby="tokens-title">
+    <h2 id="tokens-title">Token mapping</h2>
+    @if (m.tokenMappings.length === 0) {
+    <p class="component-detail__unavailable">
+      No token mappings connected for this component yet.
+    </p>
+    } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Token</th>
+          <th scope="col">Category</th>
+          <th scope="col">Required</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (mapping of m.tokenMappings; track mapping.tokenPath) {
+        <tr>
+          <td>{{ mapping.tokenPath }}</td>
+          <td>{{ mapping.category }}</td>
+          <td>{{ mapping.required ? 'Yes' : 'No' }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+    }
+  </section>
 
-    <section class="component-detail__panel" aria-labelledby="documentation-title">
-      <h2 id="documentation-title">Documentation</h2>
-      @if (m.documentationTargets.length === 0) {
-        <p class="component-detail__unavailable">No documentation target connected for this component yet.</p>
-      } @else {
-        <ul>
-          @for (target of m.documentationTargets; track target.adapter) {
-            <li>{{ target.adapter }}: {{ target.pathOrPageId ?? 'Unknown location' }}</li>
-          }
-        </ul>
+  <section
+    class="component-detail__panel"
+    aria-labelledby="documentation-title"
+  >
+    <h2 id="documentation-title">Documentation</h2>
+    @if (m.documentationTargets.length === 0) {
+    <p class="component-detail__unavailable">
+      No documentation target connected for this component yet.
+    </p>
+    } @else {
+    <ul>
+      @for (target of m.documentationTargets; track target.adapter) {
+      <li>
+        {{ target.adapter }}: {{ target.pathOrPageId ?? 'Unknown location' }}
+      </li>
       }
-    </section>
+    </ul>
+    }
+  </section>
   }
 </div>
