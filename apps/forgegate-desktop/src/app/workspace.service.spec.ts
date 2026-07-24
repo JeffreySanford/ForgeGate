@@ -36,6 +36,11 @@ const scanFixtureWithCem = {
   customElementsManifests: ['dist/custom-elements.json'],
 };
 
+const scanFixtureWithComponentManifest = {
+  ...scanFixture,
+  componentManifests: ['.forgegate/components/up.design-system.up-button.yaml'],
+};
+
 const gitStatusFixture = {
   branch: 'master',
   commit: 'a'.repeat(40),
@@ -188,6 +193,60 @@ describe('WorkspaceService', () => {
     expect(service.customElementsManifestError()).toBe(
       'dist/custom-elements.json does not exist in this workspace',
     );
+  });
+
+  it('loads and validates repository-controlled component manifests', async () => {
+    const yaml = [
+      'schemaVersion: 0.1.0',
+      'id: up.design-system.up-button',
+      'framework: web-components',
+      'adapter: framework.web-components',
+      'packagePath: .',
+      'sourceFiles: [src/up-button.ts]',
+      'lifecycle: candidate',
+      'reviewers: []',
+      'contract:',
+      '  inputs: []',
+      '  outputs: []',
+      '  content: []',
+      '  publicMethods: []',
+      '  styleParts: []',
+      'states:',
+      '  - name: default',
+      '    required: true',
+      'themes: []',
+      'densities: []',
+      'viewports: []',
+      'environments: []',
+      'tokenMappings:',
+      '  - tokenPath: color.action',
+      '    category: color',
+      '    required: true',
+      'storyMappings: []',
+      'testRequirements: []',
+      'manualReviewProcedureIds: []',
+      'documentationTargets: []',
+      'consumerApplicationIds: []',
+      '',
+    ].join('\n');
+
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithComponentManifest)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(yaml);
+
+    await service.selectWorkspace();
+
+    expect(service.componentManifestOverrides()).toHaveLength(1);
+    expect(service.componentManifestOverrides()[0]?.states[0]?.name).toBe(
+      'default',
+    );
+    expect(
+      service.componentManifestOverrides()[0]?.tokenMappings[0]?.tokenPath,
+    ).toBe('color.action');
+    expect(service.componentManifestError()).toBeNull();
   });
 
   it('does not generate until a component package is explicitly selected when several exist', async () => {

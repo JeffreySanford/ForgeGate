@@ -9,6 +9,10 @@ import {
   type CustomElementsManifest,
 } from '@forgegate/adapter-web-components';
 import {
+  parseComponentManifest,
+  type ComponentManifest,
+} from '@forgegate/core-manifest';
+import {
   parseStorybookIndex,
   type StorybookIndex,
 } from './storybook/storybook-index';
@@ -40,6 +44,7 @@ export interface WorkspaceScan {
   ciProviders: string[];
   customElementsManifests: string[];
   componentPackages: ComponentPackageCandidate[];
+  componentManifests?: string[];
 }
 
 export interface CommandResult {
@@ -110,6 +115,10 @@ export class WorkspaceService {
   readonly repositoryConfigError = signal<string | null>(null);
   readonly customElementsManifest = signal<CustomElementsManifest | null>(null);
   readonly customElementsManifestError = signal<string | null>(null);
+  readonly componentManifestOverrides = signal<readonly ComponentManifest[]>(
+    [],
+  );
+  readonly componentManifestError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
   readonly selectedComponentPackagePath = signal<string | null>(null);
@@ -122,6 +131,7 @@ export class WorkspaceService {
     this.error.set(null);
     this.repositoryConfigError.set(null);
     this.customElementsManifestError.set(null);
+    this.componentManifestError.set(null);
     this.storybookIndexError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
@@ -145,12 +155,14 @@ export class WorkspaceService {
       );
       this.applyConfigText(configText);
       await this.loadCustomElementsManifest(path, scan);
+      await this.loadComponentManifests(path, scan);
       await this.loadStorybookIndex(path, scan);
     } catch (error) {
       this.gitStatus.set(null);
       this.workspaceScan.set(null);
       this.repositoryConfig.set(null);
       this.customElementsManifest.set(null);
+      this.componentManifestOverrides.set([]);
       this.storybookIndex.set(null);
       this.error.set(String(error));
     }
@@ -267,6 +279,26 @@ export class WorkspaceService {
     } catch (error) {
       this.customElementsManifestError.set(String(error));
     }
+  }
+
+  private async loadComponentManifests(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.componentManifestOverrides.set([]);
+    const manifests: ComponentManifest[] = [];
+    for (const relativePath of scan.componentManifests ?? []) {
+      try {
+        const text = await invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        manifests.push(parseComponentManifest(text));
+      } catch (error) {
+        this.componentManifestError.set(`${relativePath}: ${String(error)}`);
+      }
+    }
+    this.componentManifestOverrides.set(manifests);
   }
 
   /**

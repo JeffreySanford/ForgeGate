@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet } from '@angular/router';
 import type { CustomElementsManifest } from '@forgegate/adapter-web-components';
+import { createComponentManifest } from '@forgegate/core-manifest';
 import { ComponentDetailPage } from './component-detail-page';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
@@ -19,6 +20,7 @@ const scan: WorkspaceScan = {
   ciProviders: [],
   customElementsManifests: ['custom-elements.json'],
   componentPackages: [],
+  componentManifests: [],
 };
 
 const richManifest: CustomElementsManifest = {
@@ -246,6 +248,53 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain(
       'without same-origin or Tauri privileges',
     );
+  });
+
+  it('merges repository-authored states and token mappings with CEM contract data', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set({
+      ...scan,
+      tokenFiles: ['tokens/acme.tokens.json'],
+      componentManifests: [
+        '.forgegate/components/acme.design-system.acme-button.yaml',
+      ],
+    });
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        lifecycle: 'candidate',
+        states: [
+          { name: 'default', required: true },
+          { name: 'disabled', required: true },
+        ],
+        tokenMappings: [
+          { tokenPath: 'color.action', category: 'color', required: true },
+        ],
+      }),
+    ]);
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('2States');
+    expect(compiled.textContent).toContain('1Tokens');
+    expect(compiled.textContent).toContain('color.action');
+    expect(compiled.textContent).toContain('tokens/acme.tokens.json');
+    expect(compiled.textContent).toContain(
+      '.forgegate/components/acme.design-system.acme-button.yaml',
+    );
+    expect(compiled.textContent).toContain('variant');
+    expect(compiled.textContent).not.toContain('No required states declared');
+    expect(compiled.textContent).not.toContain('No token mappings connected');
   });
 
   it('has no automated accessibility violations for a matched component', async () => {

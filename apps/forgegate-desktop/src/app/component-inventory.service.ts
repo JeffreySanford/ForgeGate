@@ -4,6 +4,10 @@ import {
   mapCustomElementsManifestToComponentManifests,
   type MapCemResult,
 } from '@forgegate/adapter-web-components';
+import type {
+  ComponentManifest,
+  ManifestStoryMapping,
+} from '@forgegate/core-manifest';
 import { findStoriesForSourceFiles } from './storybook/storybook-index';
 import { WorkspaceService } from './workspace.service';
 
@@ -59,15 +63,27 @@ export class ComponentInventoryService {
     });
 
     const storybookIndex = this.workspace.storybookIndex();
-    const enriched = storybookIndex
-      ? mapped.manifests.map((componentManifest) => ({
-          ...componentManifest,
-          storyMappings: findStoriesForSourceFiles(
+    const overrides = new Map(
+      this.workspace
+        .componentManifestOverrides()
+        .map((item) => [item.id, item]),
+    );
+    const enriched = mapped.manifests.map((componentManifest) => {
+      const discoveredStories = storybookIndex
+        ? findStoriesForSourceFiles(
             storybookIndex,
             componentManifest.sourceFiles,
-          ),
-        }))
-      : mapped.manifests;
+          )
+        : [];
+      const override = overrides.get(componentManifest.id);
+      return override
+        ? applyRepositoryOverride(
+            componentManifest,
+            override,
+            discoveredStories,
+          )
+        : { ...componentManifest, storyMappings: discoveredStories };
+    });
     const groups = new Map<string, (typeof enriched)[number][]>();
     for (const componentManifest of enriched) {
       const group = groups.get(componentManifest.id) ?? [];
@@ -119,6 +135,52 @@ export class ComponentInventoryService {
       ).length,
     };
   });
+}
+
+/**
+ * CEM remains authoritative for discovered source and public contract.
+ * Repository manifests add the governance data CEM cannot express.
+ */
+function applyRepositoryOverride(
+  discovered: ComponentManifest,
+  override: ComponentManifest,
+  discoveredStories: readonly ManifestStoryMapping[],
+): ComponentManifest {
+  return {
+    ...discovered,
+    lifecycle: override.lifecycle,
+    owner: override.owner,
+    reviewers: override.reviewers,
+    states: override.states,
+    themes: override.themes,
+    densities: override.densities,
+    viewports: override.viewports,
+    environments: override.environments,
+    tokenMappings: override.tokenMappings,
+    storyMappings: mergeStoryMappings(
+      override.storyMappings,
+      discoveredStories,
+    ),
+    testRequirements: override.testRequirements,
+    manualReviewProcedureIds: override.manualReviewProcedureIds,
+    documentationTargets: override.documentationTargets,
+    consumerApplicationIds: override.consumerApplicationIds,
+    policyId: override.policyId,
+    deprecatedInFavorOf: override.deprecatedInFavorOf,
+    deprecationNotice: override.deprecationNotice,
+  };
+}
+
+function mergeStoryMappings(
+  authored: readonly ManifestStoryMapping[],
+  discovered: readonly ManifestStoryMapping[],
+): readonly ManifestStoryMapping[] {
+  const mappings = new Map<string, ManifestStoryMapping>();
+  for (const mapping of [...authored, ...discovered]) {
+    const key = `${mapping.storybookStoryId}\0${mapping.stateName ?? ''}`;
+    mappings.set(key, mapping);
+  }
+  return [...mappings.values()];
 }
 
 function resolveSourcePackage(

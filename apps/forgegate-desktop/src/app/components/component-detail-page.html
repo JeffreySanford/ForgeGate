@@ -101,7 +101,9 @@
 
   <section class="component-detail__panel" aria-labelledby="states-title">
     <h2 id="states-title">States and stories</h2>
-    @if (m.states.length === 0) {
+    @if (authoredManifestPath(); as path) {
+    <p>Configuration source: {{ path }}</p>
+    } @if (m.states.length === 0) {
     <p class="component-detail__unavailable">
       No required states declared for this component yet.
     </p>
@@ -162,7 +164,11 @@
 
   <section class="component-detail__panel" aria-labelledby="tokens-title">
     <h2 id="tokens-title">Token mapping</h2>
-    @if (m.tokenMappings.length === 0) {
+    @if (tokenSourcePath(); as path) {
+    <p>Token source (DTCG): {{ path }}</p>
+    } @if (authoredManifestPath(); as path) {
+    <p>Mapping source: {{ path }}</p>
+    } @if (m.tokenMappings.length === 0) {
     <p class="component-detail__unavailable">
       No token mappings connected for this component yet.
     </p>

@@ -43,6 +43,7 @@ pub struct WorkspaceScan {
     ci_providers: Vec<String>,
     custom_elements_manifests: Vec<String>,
     component_packages: Vec<ComponentPackageCandidate>,
+    component_manifests: Vec<String>,
 }
 
 /// Fails loudly if the workspace root itself cannot be read (permissions,
@@ -74,7 +75,24 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         ci_providers: detect_ci_providers(root, &entries),
         custom_elements_manifests: detect_custom_elements_manifests(root, &project_dirs),
         component_packages: detect_component_packages(root, &project_dirs),
+        component_manifests: detect_component_manifests(root),
     })
+}
+
+fn detect_component_manifests(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("components");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut manifests = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| matches!(path.extension().and_then(|ext| ext.to_str()), Some("yaml" | "yml")))
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    manifests.sort();
+    manifests
 }
 
 fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
@@ -432,6 +450,10 @@ mod tests {
         assert_eq!(scan.custom_elements_manifests, vec!["custom-elements.json".to_string()]);
         assert_eq!(scan.token_files, vec!["tokens/acme.tokens.json".to_string()]);
         assert_eq!(scan.storybook_projects, vec![".storybook".to_string()]);
+        assert_eq!(
+            scan.component_manifests,
+            vec![".forgegate/components/acme.button-library.acme-button.yaml".to_string()]
+        );
         assert!(scan.test_runners.is_empty(), "the fixture deliberately has no test runner yet");
     }
 
@@ -453,6 +475,7 @@ mod tests {
         assert!(scan.visual_regression_providers.is_empty());
         assert!(scan.ci_providers.is_empty());
         assert!(scan.custom_elements_manifests.is_empty());
+        assert!(scan.component_manifests.is_empty());
 
         fs::remove_dir_all(&dir).ok();
     }

@@ -60,6 +60,22 @@ export class ComponentDetailPage {
     return this.inventory.result().manifests.find((m) => m.id === id) ?? null;
   });
 
+  protected readonly authoredManifestPath = computed<string | null>(() => {
+    const id = this.manifest()?.id;
+    if (!id) return null;
+    return (
+      this.workspace
+        .workspaceScan()
+        ?.componentManifests?.find((path) =>
+          path.replace(/\\/g, '/').endsWith(`/${id}.yaml`),
+        ) ?? null
+    );
+  });
+
+  protected readonly tokenSourcePath = computed<string | null>(
+    () => this.workspace.workspaceScan()?.tokenFiles[0] ?? null,
+  );
+
   protected readonly coverage = computed<readonly CoverageItem[]>(() => {
     const manifest = this.manifest();
     if (!manifest) {
