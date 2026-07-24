@@ -26,6 +26,15 @@
       <dd>{{ m.sourceFiles.join(', ') || 'Unknown' }}</dd>
       <dt>Owner</dt>
       <dd>{{ m.owner ?? 'Unknown' }}</dd>
+      <dt>Repository revision</dt>
+      <dd>
+        @if (workspace.gitStatus(); as git) {
+        <code>{{ git.branch }}&#64;{{ shortCommit() }}</code>
+        ({{ git.dirty ? 'uncommitted changes' : 'clean working tree' }}) } @else
+        { Unknown }
+      </dd>
+      <dt>Evidence freshness</dt>
+      <dd>{{ evidenceFreshness() }}</dd>
     </dl>
   </header>
 

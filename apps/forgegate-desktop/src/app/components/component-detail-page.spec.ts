@@ -137,6 +137,11 @@ describe('ComponentDetailPage', () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);
     workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.gitStatus.set({
+      branch: 'feature/button',
+      commit: '1234567890abcdef1234567890abcdef12345678',
+      dirty: false,
+    });
 
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
@@ -150,6 +155,11 @@ describe('ComponentDetailPage', () => {
     expect(
       compiled.querySelector('.component-detail__id')?.textContent,
     ).toContain('acme.design-system.acme-button');
+    expect(compiled.textContent).toContain('feature/button@12345678');
+    expect(compiled.textContent).toContain('clean working tree');
+    expect(compiled.textContent).toContain(
+      'no evidence records are connected to commit 12345678',
+    );
 
     const coverageCounts = Array.from(
       compiled.querySelectorAll('.component-detail__coverage-strip li'),

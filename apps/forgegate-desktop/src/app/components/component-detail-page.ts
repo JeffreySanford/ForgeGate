@@ -79,6 +79,18 @@ export class ComponentDetailPage {
     () => this.workspace.workspaceScan()?.tokenFiles[0] ?? null,
   );
 
+  protected readonly shortCommit = computed<string | null>(
+    () => this.workspace.gitStatus()?.commit.slice(0, 8) ?? null,
+  );
+
+  protected readonly evidenceFreshness = computed<string>(() => {
+    const commit = this.shortCommit();
+    if (!commit) {
+      return 'Not evaluated — current Git revision is unavailable';
+    }
+    return `Not evaluated — no evidence records are connected to commit ${commit}`;
+  });
+
   protected documentationDriftState(
     target: ManifestDocumentationTarget,
   ): string {
