@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { SystemMap } from './system-map';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
-import { WorkspaceService, type GitStatus, type WorkspaceScan } from '../workspace.service';
+import {
+  WorkspaceService,
+  type GitStatus,
+  type WorkspaceScan,
+} from '../workspace.service';
 
 const scanWithNothingDetected: WorkspaceScan = {
   packageName: null,
@@ -15,13 +19,20 @@ const scanWithNothingDetected: WorkspaceScan = {
   visualRegressionProviders: [],
   ciProviders: [],
   customElementsManifests: [],
+  uiTechnologies: [],
 };
 
-const gitStatus: GitStatus = { branch: 'main', commit: 'abc1234', dirty: false };
+const gitStatus: GitStatus = {
+  branch: 'main',
+  commit: 'abc1234',
+  dirty: false,
+};
 
 function rowsAsTuples(compiled: HTMLElement): Array<[string, string, string]> {
   return Array.from(compiled.querySelectorAll('table tbody tr')).map((row) => {
-    const cells = Array.from(row.querySelectorAll('th, td')).map((cell) => cell.textContent?.trim() ?? '');
+    const cells = Array.from(row.querySelectorAll('th, td')).map(
+      (cell) => cell.textContent?.trim() ?? '',
+    );
     return [cells[0], cells[1], cells[2]];
   });
 }
@@ -47,7 +58,9 @@ describe('SystemMap', () => {
     for (const [, status] of rows) {
       expect(status).toBe('not connected');
     }
-    expect(compiled.querySelector('#system-map-summary')?.textContent).toContain('No workspace is open yet');
+    expect(
+      compiled.querySelector('#system-map-summary')?.textContent,
+    ).toContain('No workspace is open yet');
   });
 
   it('reports repository as connected once git status is known, with branch and dirty state', async () => {
@@ -84,20 +97,34 @@ describe('SystemMap', () => {
       'connected',
       '@acme/design-system',
     ]);
-    expect(rows.find(([title]) => title === 'Storybook')?.[1]).toBe('connected');
-    expect(rows.find(([title]) => title === 'Design tokens')?.[1]).toBe('connected');
+    expect(rows.find(([title]) => title === 'Storybook')?.[1]).toBe(
+      'connected',
+    );
+    expect(rows.find(([title]) => title === 'Design tokens')?.[1]).toBe(
+      'connected',
+    );
   });
 
   it('reports components as partial when the manifest maps some but not all declarations', async () => {
     workspaceService.workspacePath.set('/repos/example');
-    workspaceService.workspaceScan.set({ ...scanWithNothingDetected, packageName: '@acme/design-system' });
+    workspaceService.workspaceScan.set({
+      ...scanWithNothingDetected,
+      packageName: '@acme/design-system',
+    });
     workspaceService.customElementsManifest.set({
       schemaVersion: '1.0.0',
       modules: [
         {
           kind: 'javascript-module',
           path: 'src/up-button.ts',
-          declarations: [{ kind: 'class', name: 'UpButton', customElement: true, tagName: 'up-button' }],
+          declarations: [
+            {
+              kind: 'class',
+              name: 'UpButton',
+              customElement: true,
+              tagName: 'up-button',
+            },
+          ],
         },
         {
           kind: 'javascript-module',
@@ -106,7 +133,14 @@ describe('SystemMap', () => {
           // (buildComponentId's assertSegment), so this declaration maps
           // to a real, reachable failure rather than being silently
           // filtered out like a genuinely missing tagName would be.
-          declarations: [{ kind: 'class', name: 'Broken', customElement: true, tagName: 'up.broken' }],
+          declarations: [
+            {
+              kind: 'class',
+              name: 'Broken',
+              customElement: true,
+              tagName: 'up.broken',
+            },
+          ],
         },
       ],
     });
@@ -126,7 +160,10 @@ describe('SystemMap', () => {
   it('always reports release as not connected, since no release feature exists yet', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.gitStatus.set(gitStatus);
-    workspaceService.workspaceScan.set({ ...scanWithNothingDetected, packageName: '@acme/design-system' });
+    workspaceService.workspaceScan.set({
+      ...scanWithNothingDetected,
+      packageName: '@acme/design-system',
+    });
 
     const fixture = TestBed.createComponent(SystemMap);
     fixture.detectChanges();
@@ -149,7 +186,9 @@ describe('SystemMap', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const svgNodes = compiled.querySelectorAll('svg .map-node');
     expect(svgNodes).toHaveLength(8);
-    expect(svgNodes[0].querySelector('title')?.textContent).toMatch(/Repository, not connected/);
+    expect(svgNodes[0].querySelector('title')?.textContent).toMatch(
+      /Repository, not connected/,
+    );
   });
 
   it('has no automated accessibility violations', async () => {

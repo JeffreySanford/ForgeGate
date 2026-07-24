@@ -28,6 +28,19 @@ pub struct ComponentPackageCandidate {
     pub manifest_path: String,
 }
 
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct UiTechnologyDetection {
+    pub id: String,
+    pub name: String,
+    pub category: String,
+    pub version: String,
+    pub project_path: String,
+    pub detected_package: String,
+    pub evidence_source: String,
+    pub confidence: String,
+}
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScan {
@@ -44,6 +57,7 @@ pub struct WorkspaceScan {
     custom_elements_manifests: Vec<String>,
     component_packages: Vec<ComponentPackageCandidate>,
     component_manifests: Vec<String>,
+    ui_technologies: Vec<UiTechnologyDetection>,
 }
 
 /// Fails loudly if the workspace root itself cannot be read (permissions,
@@ -76,7 +90,90 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         custom_elements_manifests: detect_custom_elements_manifests(root, &project_dirs),
         component_packages: detect_component_packages(root, &project_dirs),
         component_manifests: detect_component_manifests(root),
+        ui_technologies: detect_ui_technologies(root, &project_dirs),
     })
+}
+
+fn detect_ui_technologies(root: &Path, project_dirs: &[PathBuf]) -> Vec<UiTechnologyDetection> {
+    let mut detections = Vec::new();
+    for project_dir in project_dirs {
+        let Some(package_json) = read_package_json_at(project_dir) else {
+            continue;
+        };
+        let project_path = relative_display(root, project_dir);
+        let project_path = if project_path.is_empty() {
+            ".".to_string()
+        } else {
+            project_path
+        };
+        for dependency_kind in ["dependencies", "devDependencies"] {
+            let Some(dependencies) = package_json
+                .get(dependency_kind)
+                .and_then(Value::as_object)
+            else {
+                continue;
+            };
+            for (package_name, version) in dependencies {
+                let Some((id, name, category)) = ui_technology_descriptor(package_name) else {
+                    continue;
+                };
+                if detections.iter().any(|item: &UiTechnologyDetection| {
+                    item.id == id && item.project_path == project_path
+                }) {
+                    continue;
+                }
+                detections.push(UiTechnologyDetection {
+                    id: id.to_string(),
+                    name: name.to_string(),
+                    category: category.to_string(),
+                    version: version.as_str().unwrap_or("unknown").to_string(),
+                    project_path: project_path.clone(),
+                    detected_package: package_name.clone(),
+                    evidence_source: format!(
+                        "{}/package.json:{}",
+                        if project_path == "." { "" } else { &project_path },
+                        dependency_kind
+                    )
+                    .trim_start_matches('/')
+                    .to_string(),
+                    confidence: "confirmed".to_string(),
+                });
+            }
+        }
+    }
+    detections.sort_by(|left, right| {
+        left.project_path
+            .cmp(&right.project_path)
+            .then(left.category.cmp(&right.category))
+            .then(left.name.cmp(&right.name))
+    });
+    detections
+}
+
+fn ui_technology_descriptor(package_name: &str) -> Option<(&'static str, &'static str, &'static str)> {
+    match package_name {
+        "primeng" => Some(("primeng", "PrimeNG", "component-library")),
+        "@angular/material" => Some(("angular-material", "Angular Material", "component-library")),
+        "@mui/material" => Some(("material-ui", "Material UI", "component-library")),
+        "bootstrap" => Some(("bootstrap", "Bootstrap", "css-component-library")),
+        "antd" => Some(("ant-design", "Ant Design", "component-library")),
+        "@chakra-ui/react" => Some(("chakra-ui", "Chakra UI", "component-library")),
+        "@fluentui/react-components" | "@fluentui/react" => {
+            Some(("fluent-ui", "Fluent UI", "component-library"))
+        }
+        "@carbon/react" | "carbon-components-svelte" => {
+            Some(("carbon", "Carbon", "component-library"))
+        }
+        "@uswds/uswds" => Some(("uswds", "U.S. Web Design System", "css-component-library")),
+        "tailwindcss" => Some(("tailwind-css", "Tailwind CSS", "utility-css")),
+        "daisyui" => Some(("daisyui", "daisyUI", "css-component-library")),
+        "sass" | "node-sass" => Some(("sass", "Sass", "css-preprocessor")),
+        "less" => Some(("less", "Less", "css-preprocessor")),
+        "styled-components" => Some(("styled-components", "styled-components", "css-in-js")),
+        "@emotion/react" | "@emotion/styled" => Some(("emotion", "Emotion", "css-in-js")),
+        "@vanilla-extract/css" => Some(("vanilla-extract", "vanilla-extract", "css-in-js")),
+        _ => None,
+    }
 }
 
 fn detect_component_manifests(root: &Path) -> Vec<String> {
@@ -435,6 +532,7 @@ mod tests {
         assert!(scan.visual_regression_providers.is_empty());
         assert!(scan.ci_providers.contains(&"github-actions".to_string()));
         assert!(scan.custom_elements_manifests.is_empty(), "ForgeGate does not publish a CEM on itself");
+        assert!(scan.ui_technologies.is_empty(), "Angular itself is a framework, not a detected UI library");
     }
 
     /// Regression protection for the checked-in ADR 0003 fixture
@@ -456,6 +554,7 @@ mod tests {
             vec![".forgegate/components/acme.button-library.acme-button.yaml".to_string()]
         );
         assert!(scan.test_runners.is_empty(), "the fixture deliberately has no test runner yet");
+        assert!(scan.ui_technologies.is_empty());
     }
 
     #[test]
@@ -477,6 +576,7 @@ mod tests {
         assert!(scan.ci_providers.is_empty());
         assert!(scan.custom_elements_manifests.is_empty());
         assert!(scan.component_manifests.is_empty());
+        assert!(scan.ui_technologies.is_empty());
 
         fs::remove_dir_all(&dir).ok();
     }
@@ -541,6 +641,49 @@ mod tests {
         let scan = scan_workspace(&dir).expect("scan should succeed");
         assert!(scan.visual_regression_providers.contains(&"chromatic".to_string()));
         assert!(scan.visual_regression_providers.contains(&"percy".to_string()));
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn detects_ui_and_styling_technologies_from_direct_project_dependencies() {
+        let dir = std::env::temp_dir().join(format!("forgegate-scan-ui-tech-{}", std::process::id()));
+        let app = dir.join("apps").join("portal");
+        fs::create_dir_all(&app).expect("should create app directory");
+        fs::write(
+            dir.join("package.json"),
+            r#"{"dependencies":{"bootstrap":"^5.3.8","tailwindcss":"^4.1.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            app.join("package.json"),
+            r#"{"dependencies":{"primeng":"^20.0.0","@angular/material":"^20.0.0"},"devDependencies":{"@emotion/styled":"^11.0.0"}}"#,
+        )
+        .unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+
+        assert_eq!(scan.ui_technologies.len(), 5);
+        assert!(scan.ui_technologies.contains(&UiTechnologyDetection {
+            id: "bootstrap".to_string(),
+            name: "Bootstrap".to_string(),
+            category: "css-component-library".to_string(),
+            version: "^5.3.8".to_string(),
+            project_path: ".".to_string(),
+            detected_package: "bootstrap".to_string(),
+            evidence_source: "package.json:dependencies".to_string(),
+            confidence: "confirmed".to_string(),
+        }));
+        assert!(scan.ui_technologies.contains(&UiTechnologyDetection {
+            id: "primeng".to_string(),
+            name: "PrimeNG".to_string(),
+            category: "component-library".to_string(),
+            version: "^20.0.0".to_string(),
+            project_path: "apps/portal".to_string(),
+            detected_package: "primeng".to_string(),
+            evidence_source: "apps/portal/package.json:dependencies".to_string(),
+            confidence: "confirmed".to_string(),
+        }));
 
         fs::remove_dir_all(&dir).ok();
     }

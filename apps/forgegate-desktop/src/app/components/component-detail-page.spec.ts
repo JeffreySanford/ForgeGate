@@ -19,6 +19,7 @@ const scan: WorkspaceScan = {
   visualRegressionProviders: [],
   ciProviders: [],
   customElementsManifests: ['custom-elements.json'],
+  uiTechnologies: [],
   componentPackages: [],
   componentManifests: [],
 };
