@@ -1,10 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
+import { AssuranceJourney } from './assurance-journey';
 import { SystemMap } from './system-map';
 
 @Component({
-  imports: [SystemMap],
+  imports: [AssuranceJourney, SystemMap],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',

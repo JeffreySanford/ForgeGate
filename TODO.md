@@ -109,7 +109,7 @@ Primary references:
 
 - [X} Replace the flat discovery output with a structured workspace command center. `SystemMap` (`app/workspace/system-map.ts`) renders at the top of `/workspace`, above the (now collapsed) raw scan `<details>`. Only the system-map slice is done; the rest of the page (component inventory, CEM generation, repository config) is still flat, not yet regrouped.
 - [X} Group repository, design-system, assurance-tool, and documentation discoveries by user meaning. The system map's eight nodes (Repository, Component library, Storybook, Design tokens, Components, Automated evidence, Documentation, Release) are exactly that grouping, replacing raw scan-field names.
-- [ ] Show one policy-driven or discovery-driven recommended next action. Not implemented — no policy/readiness engine exists yet to drive a recommendation.
+- [X} Show one policy-driven or discovery-driven recommended next action. `AssuranceJourney` selects the first incomplete actionable stage derived from the current component manifests and workspace capabilities, explains the concrete gap, and links to the component work. It does not require or impersonate a future policy engine.
 - [X} Implement a real-data system map for currently detected relationships: repository, component library, Storybook, tokens, components, and documentation. Every node status is computed live from `WorkspaceService`/`ComponentInventoryService` signals — nothing hardcoded, verified by 6 tests covering the open-workspace-with-nothing-detected, connected, and partial-mapping-failure cases. "Tests" and "CI" are folded into a single honestly-partial "Automated evidence" node (tool detection only, no real run results — ForgeGate has no test-execution feature yet). "Release" has no backing feature at all and always reports not-connected.
 - [X} Clearly label unknown, unsupported, missing, and not-connected nodes. Every node has an explicit status (`connected`/`partial`/`stale`/`missing`) shown as text, not just color — `stale` is defined but never produced yet since evidence-freshness tracking (P1.3) doesn't exist.
 - [X} Provide a semantic list or table equivalent for the system map. A `<details>`-disclosed `<table>` beneath the SVG carries the same relationship/status/detail data.
@@ -217,10 +217,10 @@ Primary reference:
 
 ## P1.1 — Assurance journey
 
-- [ ] Implement Discover → Specify → Preview → Test → Review → Document → Release journey status.
-- [ ] Derive each stage from real connected capabilities and evidence.
-- [ ] Let users open the work blocking a stage.
-- [ ] Provide a semantic ordered-list alternative.
+- [X} Implement Discover → Specify → Preview → Test → Review → Document → Release journey status. `AssuranceJourney` renders all seven stages on `/workspace`, including explicit complete, needs-work, blocked, and not-connected labels.
+- [X} Derive each stage from real connected capabilities and evidence. Discovery, specification, preview, and documentation are computed from mapped manifests and detected adapters. Test and review requirements remain incomplete until result/decision evidence exists; release remains not connected rather than being inferred.
+- [X} Let users open the work blocking a stage. Each actionable stage links to the real component inventory; stage-specific pre-filtering remains a later enhancement.
+- [X} Provide a semantic ordered-list alternative. The primary ribbon is itself an `<ol>` with status and detail text, so its semantic representation cannot drift from a separate visual-only implementation.
 
 ## P1.2 — Component landscape and readiness distribution
 

@@ -1,0 +1,123 @@
+.assurance-journey {
+  display: grid;
+  gap: var(--fg-space-4);
+}
+
+.assurance-journey__heading,
+.assurance-journey__recommendation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fg-space-4);
+}
+
+.assurance-journey__heading h2,
+.assurance-journey__heading p,
+.assurance-journey__recommendation h3,
+.assurance-journey__recommendation p {
+  margin: 0;
+}
+
+.assurance-journey__heading > p {
+  max-width: 34rem;
+  color: var(--fg-color-text-muted);
+}
+
+.assurance-journey__eyebrow {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.assurance-journey__recommendation {
+  padding: var(--fg-space-3) var(--fg-space-4);
+  border: 1px solid var(--fg-color-action);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface);
+}
+
+.assurance-journey a {
+  color: var(--fg-color-action);
+  font-weight: 700;
+}
+
+.assurance-journey__recommendation a {
+  flex: 0 0 auto;
+}
+
+.assurance-journey__stages {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(9.5rem, 1fr));
+  gap: var(--fg-space-2);
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.assurance-journey__stage {
+  position: relative;
+  min-height: 13rem;
+  padding: var(--fg-space-3);
+  border: 1px solid var(--fg-color-border);
+  border-top: 0.25rem solid var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+}
+
+.assurance-journey__stage--complete {
+  border-top-color: var(--fg-color-status-passed);
+}
+
+.assurance-journey__stage--partial {
+  border-top-color: var(--fg-color-status-warning);
+}
+
+.assurance-journey__stage--blocked {
+  border-top-color: var(--fg-color-status-failed);
+}
+
+.assurance-journey__stage-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--fg-space-2);
+}
+
+.assurance-journey__stage-heading h3 {
+  margin: 0;
+  font-size: var(--fg-type-size-md);
+}
+
+.assurance-journey__number {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border: 1px solid var(--fg-color-border-strong);
+  border-radius: 50%;
+  font-size: var(--fg-type-size-sm);
+  font-weight: 700;
+}
+
+.assurance-journey__status {
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .assurance-journey__heading,
+  .assurance-journey__recommendation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .assurance-journey__stages {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .assurance-journey__stage {
+    min-height: auto;
+  }
+}
