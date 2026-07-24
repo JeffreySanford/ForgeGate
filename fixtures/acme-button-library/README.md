@@ -13,6 +13,7 @@ Contents:
   npx @custom-elements-manifest/analyzer analyze --litelement --outdir .
   ```
 - [`tokens/acme.tokens.json`](tokens/acme.tokens.json) — a real DTCG-format token file.
+- [`.forgegate/components/acme.button-library.acme-button.yaml`](.forgegate/components/acme.button-library.acme-button.yaml) — the repository-controlled ForgeGate manifest that maps the Button's required states, stories, and DTCG token paths without replacing the CEM-derived public contract.
 
 `apps/forgegate-desktop/src/generate-cem-command.spec.ts` runs that exact command (via `GENERATE_CEM_COMMAND`/`GENERATE_CEM_ARGS`, no mocks) against a disposable copy of this fixture — the regression test for the real `npm error 404` a user hit when those constants had a misspelled package name (`.../analyze` instead of the real `.../analyzer`) and were missing the required `analyze` subcommand.
 
