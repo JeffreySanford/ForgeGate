@@ -105,56 +105,64 @@
     No components match the current search and filters.
   </p>
   } @else if (viewMode() === 'table') {
-  <table class="components-page__inventory-table">
-    <caption class="sr-only">
-      Component inventory
-    </caption>
-    <thead>
-      <tr>
-        <th scope="col">Name</th>
-        <th scope="col">Framework</th>
-        <th scope="col">Package</th>
-        <th scope="col">Classification</th>
-        <th scope="col">Source path</th>
-        <th scope="col">Lifecycle</th>
-        <th scope="col">Readiness</th>
-        <th scope="col">States</th>
-        <th scope="col">Reviews</th>
-        <th scope="col">Documentation</th>
-        <th scope="col">Owner</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (discovery of filtered(); track discovery.manifest.id) { @let
-      manifest = discovery.manifest;
-      <tr>
-        <th scope="row">
-          <a [routerLink]="['/components', manifest.id]"
-            >{{ componentName(manifest.id) }}</a
-          >
-          <span class="components-page__id">{{ manifest.id }}</span>
-        </th>
-        <td>{{ manifest.framework }}</td>
-        <td>{{ discovery.sourcePackage }}</td>
-        <td>{{ discovery.classification }}</td>
-        <td>
-          {{ discovery.canonicalSource }} @if (discovery.declarationCount > 1) {
-          <span
-            >({{ discovery.declarationCount }} declarations across {{
-            discovery.sourceFiles.length }} files)</span
-          >
-          }
-        </td>
-        <td>{{ manifest.lifecycle }}</td>
-        <td>Unknown — no evidence connected</td>
-        <td>{{ stateCoverageLabel(manifest) }}</td>
-        <td>{{ reviewStatusLabel(manifest) }}</td>
-        <td>{{ documentationStatusLabel(manifest) }}</td>
-        <td>{{ ownerLabel(manifest) }}</td>
-      </tr>
-      }
-    </tbody>
-  </table>
+  <div
+    class="components-page__table-scroll"
+    tabindex="0"
+    role="region"
+    aria-label="Scrollable component inventory"
+  >
+    <table class="components-page__inventory-table">
+      <caption class="sr-only">
+        Component inventory
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Framework</th>
+          <th scope="col">Package</th>
+          <th scope="col">Classification</th>
+          <th scope="col">Source path</th>
+          <th scope="col">Lifecycle</th>
+          <th scope="col">Readiness</th>
+          <th scope="col">States</th>
+          <th scope="col">Reviews</th>
+          <th scope="col">Documentation</th>
+          <th scope="col">Owner</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (discovery of filtered(); track discovery.manifest.id) { @let
+        manifest = discovery.manifest;
+        <tr>
+          <th scope="row">
+            <a [routerLink]="['/components', manifest.id]"
+              >{{ componentName(manifest.id) }}</a
+            >
+            <span class="components-page__id">{{ manifest.id }}</span>
+          </th>
+          <td>{{ manifest.framework }}</td>
+          <td>{{ discovery.sourcePackage }}</td>
+          <td>{{ discovery.classification }}</td>
+          <td>
+            {{ discovery.canonicalSource }} @if (discovery.declarationCount > 1)
+            {
+            <span
+              >({{ discovery.declarationCount }} declarations across {{
+              discovery.sourceFiles.length }} files)</span
+            >
+            }
+          </td>
+          <td>{{ manifest.lifecycle }}</td>
+          <td>Unknown — no evidence connected</td>
+          <td>{{ stateCoverageLabel(manifest) }}</td>
+          <td>{{ reviewStatusLabel(manifest) }}</td>
+          <td>{{ documentationStatusLabel(manifest) }}</td>
+          <td>{{ ownerLabel(manifest) }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
   } @else {
   <ul class="components-page__cards">
     @for (discovery of filtered(); track discovery.manifest.id) { @let manifest

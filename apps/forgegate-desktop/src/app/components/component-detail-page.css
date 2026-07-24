@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--fg-space-4);
+  width: 100%;
   max-width: 900px;
+  margin-inline: auto;
   padding: var(--fg-space-5);
 }
 
@@ -46,6 +48,8 @@
 
 .component-detail__identity dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .component-detail__panel {
@@ -54,6 +58,8 @@
   border-radius: var(--fg-radius-md);
   padding: var(--fg-space-4);
   box-shadow: var(--fg-shadow-sm);
+  overflow-x: auto;
+  overflow-wrap: anywhere;
 }
 
 .component-detail__panel h2 {
@@ -85,7 +91,7 @@
 
 .component-detail__preview-frame {
   width: 100%;
-  min-height: 320px;
+  min-height: clamp(14rem, 45vw, 20rem);
   border: 1px solid var(--fg-color-border);
   border-radius: var(--fg-radius-sm);
   background: white;
@@ -191,12 +197,29 @@
 
 .component-detail table {
   width: 100%;
+  min-width: 32rem;
   border-collapse: collapse;
 }
 
 @media (max-width: 760px) {
+  .component-detail {
+    padding: var(--fg-space-3);
+  }
+
+  .component-detail__identity,
+  .component-detail__preview-provenance,
   .component-detail__anatomy {
     grid-template-columns: 1fr;
+  }
+
+  .component-detail__identity dd,
+  .component-detail__preview-provenance dd {
+    margin-bottom: var(--fg-space-2);
+  }
+
+  .component-detail__coverage-strip li {
+    flex: 1 1 calc(50% - var(--fg-space-3));
+    min-width: min(100%, 8rem);
   }
 }
 

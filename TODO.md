@@ -72,18 +72,18 @@ Primary references:
 - [ ] Define explicit visual treatment for current, stale, warning, failed, blocked, unknown, unsupported, and not-connected states. Status _colors_ exist; icon/label pairing per document 25's "status is never color alone" rule is not implemented — no screen has status UI yet.
 - [ ] Define reusable surface, card, panel, status, navigation, control, table, disclosure, and empty-state primitives. Only the current flat diagnostic screen has been restyled onto tokens; no reusable Angular primitive components exist yet.
 - [ ] Establish typography hierarchy suitable for both designers and engineers. Only `sm/md/lg/xl` sizes defined; no applied hierarchy beyond h1/h2 on the one existing screen.
-- [ ] Establish responsive desktop-window breakpoints rather than assuming a browser-sized viewport.
+- [X} Establish responsive desktop-window breakpoints rather than assuming a browser-sized viewport. The shell, workspace, inventory, component record, system map, readiness distribution, scan progress, and assurance journey use explicit 64rem medium, 48rem narrow, and 30rem compact adaptations with local scrolling for dense tables and diagnostics.
 - [ ] Ensure status is never communicated by color alone.
 - [X} Add visible keyboard focus that is distinct from selected state. Global `:focus-visible` rule in `styles.css` using `--fg-color-focus`, separate from the (not-yet-implemented) selected-state token.
 - [X} Add forced-colors behavior. `@media (forced-colors: active)` maps focus/border/status tokens onto system colors (`Highlight`, `CanvasText`), verified by a contract test. Not yet manually reviewed in an actual forced-colors OS mode.
 - [X} Add reduced-motion behavior. `@media (prefers-reduced-motion: reduce)` zeroes `--fg-motion-duration-*`, verified by a contract test.
-- [ ] Add 200% and 400% zoom validation.
+- [X} Add 200% and 400% zoom validation. `forgegate-desktop:responsive-check` renders the real development build in headless Edge using the checked-in Button fixture and verifies `/workspace`, `/components`, and `/components/:id` at 640 CSS px (200%-equivalent on a 1280px window) and 320 CSS px (400%-equivalent), with no page-level horizontal overflow and a visible keyboard focus target.
 - [ ] Add visual regression coverage for the ForgeGate shell and primary states.
 
 ### P0.1 exit criteria
 
-- [ ] Shared visual tokens are used by the shell, workspace, inventory, and component record. Only the existing single diagnostic screen consumes tokens so far — the shell/workspace/inventory/component-record screens themselves don't exist yet (P0.2–P0.5).
-- [ ] Light, dark, forced-colors, reduced-motion, and narrow-window states are testable. Token-level contract tests exist (43 tests, `src/styles/tokens.spec.ts`); no rendered-screen visual regression coverage yet.
+- [X} Shared visual tokens are used by the shell, workspace, inventory, and component record. Their component styles consume the common `--fg-*` surface, text, border, focus, spacing, radius, typography, status, and motion contract rather than route-local color literals.
+- [X} Light, dark, forced-colors, reduced-motion, and narrow-window states are testable. Token contract tests cover theme parity and media overrides; `forgegate-desktop:responsive-check` renders twelve route/viewport combinations spanning light, dark, forced colors, reduced motion, and wide through 400%-equivalent narrow layouts and writes screenshots plus geometry/focus evidence under `dist/responsive-evidence/`.
 - [X} No production screen depends on prototype-only fixture styling. The one real screen (`app.html`/`app.css`) now reads token custom properties instead of being unstyled; verified visually in-browser (light theme, live dev server) with no console errors.
 
 ## P0.2 — Application shell and routes
@@ -160,7 +160,7 @@ This slice generalizes to any component and is tested both with synthetic edge-c
 - [X} Show current commit and evidence freshness identity. The component record reads `WorkspaceService.gitStatus()` and shows branch, short commit, clean/dirty working-tree state, and an explicit per-commit freshness result. Until evidence records exist it reports “Not evaluated” with the exact commit and concrete reason rather than implying freshness.
 - [X} Show unsupported and not-yet-connected sections honestly. Preview, token mapping, states, and documentation sections all read explicit "not connected/declared" text rather than blank space or a fabricated value.
 - [X} Never display blueprint examples as repository implementation evidence. N/A by construction — there is no blueprint/example data path in this component at all yet (Blueprint Studio is P2).
-- [ ] Add responsive layouts for wide, medium, and narrow desktop windows. Not implemented — single fixed-ish layout, not yet tested at narrow widths.
+- [X} Add responsive layouts for wide, medium, and narrow desktop windows. Identity/provenance grids and anatomy collapse, coverage tiles reflow, preview height is bounded, long values wrap, and dense component tables scroll inside panels. The rendered responsive check covers the real fixture record at 1440, 960, 640, and 320 CSS px.
 
 ### P0.5 exit criteria
 
@@ -190,7 +190,7 @@ These are functional dependencies that must advance with the P0 interface. The U
 - [ ] Add manual screen-reader review for the shell, workspace, inventory, and Button record. Not done — needs an actual screen reader, not just axe.
 - [ ] Add forced-colors review. Token-level forced-colors mapping exists (P0.1) and is contract-tested; no manual review in an actual forced-colors OS mode has been done against the real screens.
 - [ ] Add reduced-motion review. Token-level reduced-motion zeroing exists (P0.1); no manual review since P0.2–P0.5 added no new motion to review.
-- [ ] Add zoom and narrow-window review. Not done.
+- [X} Add zoom and narrow-window review. The deterministic Edge check verifies all three primary routes at wide, medium, 200%-equivalent, and 400%-equivalent viewports, rejects page-level overflow or missing focus indication, and stores twelve full-page screenshots plus a JSON geometry report for review.
 - [ ] Add visual regression baselines for supported themes and key states. Not done — no visual regression tooling (Playwright/Chromatic/etc.) is wired into this project yet, despite Playwright being present as an Nx-scaffolded dependency.
 - [ ] Validate that semantic alternatives contain the same meaningful information as graphical views. Partially validated by unit tests for the system map (table vs. SVG carry the same relationship/status/detail) and the component inventory (table vs. cards carry the same fields); not validated as a general principle across every screen.
 

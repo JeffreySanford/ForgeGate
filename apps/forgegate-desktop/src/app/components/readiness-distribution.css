@@ -23,7 +23,7 @@
 
 .readiness-distribution__groups {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: var(--fg-space-5);
 }
 
@@ -110,4 +110,10 @@
   padding: var(--fg-space-2);
   border-bottom: 1px solid var(--fg-color-border);
   font-size: var(--fg-type-size-sm);
+}
+
+@media (max-width: 48rem) {
+  .readiness-distribution {
+    padding: var(--fg-space-3);
+  }
 }
