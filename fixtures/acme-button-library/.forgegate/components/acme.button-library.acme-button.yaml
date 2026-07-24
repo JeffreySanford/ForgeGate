@@ -1,5 +1,6 @@
-schemaVersion: 0.1.0
+schemaVersion: 0.2.0
 id: acme.button-library.acme-button
+componentVersion: 0.1.0
 framework: web-components
 adapter: framework.web-components
 packagePath: .
@@ -56,4 +57,5 @@ manualReviewProcedureIds: []
 documentationTargets:
   - adapter: starlight
     pathOrPageId: src/content/docs/components/button.md
+    publishedVersion: 0.1.0
 consumerApplicationIds: []

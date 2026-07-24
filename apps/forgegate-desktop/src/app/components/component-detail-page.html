@@ -209,6 +209,8 @@
         <tr>
           <th scope="col">Adapter</th>
           <th scope="col">Repository path</th>
+          <th scope="col">Current version</th>
+          <th scope="col">Published version</th>
           <th scope="col">Drift state</th>
         </tr>
       </thead>
@@ -217,16 +219,9 @@
         <tr>
           <td>{{ target.adapter }}</td>
           <td>{{ target.pathOrPageId ?? 'Unknown location' }}</td>
-          <td>
-            {{ documentationConnection(target.adapter, target.pathOrPageId) }}
-            @if (isDocumentationAdapterDetected(target.adapter,
-            target.pathOrPageId)) {
-            <span class="component-detail__status-explanation">
-              — no published component version metadata is available for
-              comparison.
-            </span>
-            }
-          </td>
+          <td>{{ m.componentVersion ?? 'Unavailable' }}</td>
+          <td>{{ target.publishedVersion ?? 'Unavailable' }}</td>
+          <td>{{ documentationDriftState(target) }}</td>
         </tr>
         }
       </tbody>

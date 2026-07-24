@@ -12,7 +12,13 @@ const contractMemberSchema = {
   additionalProperties: false,
 } as const;
 
-const LIFECYCLE_ENUM = ['proposal', 'candidate', 'approved', 'deprecated', 'retired'];
+const LIFECYCLE_ENUM = [
+  'proposal',
+  'candidate',
+  'approved',
+  'deprecated',
+  'retired',
+];
 const TEST_GATE_ENUM = [
   'unit',
   'storybook-interaction',
@@ -36,6 +42,10 @@ export const componentManifestSchema = {
   properties: {
     schemaVersion: { type: 'string', minLength: 1 },
     id: { type: 'string', pattern: '^[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+$' },
+    componentVersion: {
+      type: 'string',
+      pattern: '^\\d+\\.\\d+\\.\\d+(-[\\w.]+)?$',
+    },
     framework: { type: 'string', minLength: 1 },
     adapter: { type: 'string', minLength: 1 },
     packagePath: { type: 'string', minLength: 1 },
@@ -78,7 +88,17 @@ export const componentManifestSchema = {
         type: 'object',
         properties: {
           tokenPath: { type: 'string', minLength: 1 },
-          category: { enum: ['color', 'spacing', 'typography', 'motion', 'elevation', 'border', 'other'] },
+          category: {
+            enum: [
+              'color',
+              'spacing',
+              'typography',
+              'motion',
+              'elevation',
+              'border',
+              'other',
+            ],
+          },
           required: { type: 'boolean' },
         },
         required: ['tokenPath', 'category', 'required'],
@@ -118,6 +138,10 @@ export const componentManifestSchema = {
         properties: {
           adapter: { enum: ['starlight', 'storybook', 'zeroheight'] },
           pathOrPageId: { type: 'string' },
+          publishedVersion: {
+            type: 'string',
+            pattern: '^\\d+\\.\\d+\\.\\d+(-[\\w.]+)?$',
+          },
         },
         required: ['adapter'],
         additionalProperties: false,

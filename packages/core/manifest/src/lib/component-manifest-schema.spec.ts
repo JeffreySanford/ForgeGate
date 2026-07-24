@@ -11,9 +11,19 @@ describe('componentManifestSchema', () => {
       framework: 'web-components',
       adapter: 'framework.lit',
       packagePath: 'packages/design-system/src/button',
+      componentVersion: '1.2.0',
       states: [{ name: 'disabled', required: true }],
-      tokenMappings: [{ tokenPath: 'color.primary.500', category: 'color', required: true }],
+      tokenMappings: [
+        { tokenPath: 'color.primary.500', category: 'color', required: true },
+      ],
       testRequirements: [{ gate: 'axe', scope: 'component', required: true }],
+      documentationTargets: [
+        {
+          adapter: 'starlight',
+          pathOrPageId: 'components/button.mdx',
+          publishedVersion: '1.2.0',
+        },
+      ],
     });
     expect(validate(manifest)).toBe(true);
   });
@@ -29,7 +39,13 @@ describe('componentManifestSchema', () => {
         sourceFiles: [],
         lifecycle: 'shipped',
         reviewers: [],
-        contract: { inputs: [], outputs: [], content: [], publicMethods: [], styleParts: [] },
+        contract: {
+          inputs: [],
+          outputs: [],
+          content: [],
+          publicMethods: [],
+          styleParts: [],
+        },
         states: [],
         themes: [],
         densities: [],
@@ -53,5 +69,26 @@ describe('componentManifestSchema', () => {
       packagePath: 'x',
     });
     expect(validate({ ...manifest, id: 'button' })).toBe(false);
+  });
+
+  it('rejects malformed current and published component versions', () => {
+    const manifest = createComponentManifest({
+      id: 'up.design-system.button',
+      framework: 'web-components',
+      adapter: 'framework.lit',
+      packagePath: 'x',
+    });
+    expect(validate({ ...manifest, componentVersion: 'latest' })).toBe(false);
+    expect(() =>
+      createComponentManifest({
+        id: 'up.design-system.button',
+        framework: 'web-components',
+        adapter: 'framework.lit',
+        packagePath: 'x',
+        documentationTargets: [
+          { adapter: 'starlight', publishedVersion: 'next' },
+        ],
+      }),
+    ).toThrow('not valid semver');
   });
 });
