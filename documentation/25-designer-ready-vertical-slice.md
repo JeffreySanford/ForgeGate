@@ -635,6 +635,14 @@ Each evidence item should show:
 - Raw artifact or notes.
 - Exact reason when blocked, incomplete, or stale.
 
+The connected Button slice reads normalized test executions from
+`.forgegate/evidence/*.json`. Its first deterministic record comes from the
+fixture's dependency-free `node:test` suite and retains the raw TAP path.
+ForgeGate compares a commit-backed record with the repository's current Git
+revision. A mismatch is shown as stale and cannot satisfy the assurance
+journey's Test stage; a source fingerprint that cannot be compared with Git is
+shown as not evaluated.
+
 ## Documentation section
 
 Provide a rendered preview first, then publication detail.

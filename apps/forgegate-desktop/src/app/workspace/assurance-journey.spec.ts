@@ -87,6 +87,44 @@ describe('AssuranceJourney', () => {
     );
   });
 
+  it('completes Test only for current passing evidence covering required gates', () => {
+    const commit = 'a'.repeat(40);
+    const execution = {
+      id: 'button-unit',
+      componentVersionId: governedButton.id,
+      gate: 'unit',
+      tool: 'vitest',
+      toolVersion: '4.1.10',
+      adapterVersion: '0.1.0',
+      status: 'passed' as const,
+      startedAt: '2026-07-24T16:00:00.000Z',
+      commitOrFingerprint: commit,
+    };
+
+    const current = buildAssuranceJourney(
+      '/repos/acme',
+      connectedScan,
+      [governedButton],
+      [execution],
+      commit,
+    );
+    const stale = buildAssuranceJourney(
+      '/repos/acme',
+      connectedScan,
+      [governedButton],
+      [execution],
+      'b'.repeat(40),
+    );
+
+    expect(current.find((stage) => stage.id === 'test')?.status).toBe(
+      'complete',
+    );
+    expect(stale.find((stage) => stage.id === 'test')?.status).toBe('partial');
+    expect(stale.find((stage) => stage.id === 'test')?.detail).toContain(
+      'Evidence is stale',
+    );
+  });
+
   it('renders the first incomplete actionable stage as the recommendation', async () => {
     workspace.workspacePath.set('/repos/acme');
     workspace.workspaceScan.set(connectedScan);

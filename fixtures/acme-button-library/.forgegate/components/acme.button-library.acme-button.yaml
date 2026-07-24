@@ -52,7 +52,10 @@ storyMappings:
     stateName: default
   - storybookStoryId: components-acmebutton--disabled
     stateName: disabled
-testRequirements: []
+testRequirements:
+  - gate: unit
+    scope: component
+    required: true
 manualReviewProcedureIds: []
 documentationTargets:
   - adapter: starlight

@@ -57,6 +57,7 @@ pub struct WorkspaceScan {
     custom_elements_manifests: Vec<String>,
     component_packages: Vec<ComponentPackageCandidate>,
     component_manifests: Vec<String>,
+    test_evidence_files: Vec<String>,
     ui_technologies: Vec<UiTechnologyDetection>,
     ui_source_files: Vec<String>,
     ui_source_files_truncated: bool,
@@ -88,12 +89,13 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         starlight_projects: detect_starlight_projects(root, &project_dirs),
         has_zeroheight: detect_zeroheight(&entries, package_json.as_ref()),
         token_files: detect_token_files(root, &project_dirs),
-        test_runners: detect_test_runners(&entries),
+        test_runners: detect_test_runners(&entries, package_json.as_ref()),
         visual_regression_providers: detect_visual_regression_providers(package_json.as_ref()),
         ci_providers: detect_ci_providers(root, &entries),
         custom_elements_manifests: detect_custom_elements_manifests(root, &project_dirs),
         component_packages: detect_component_packages(root, &project_dirs),
         component_manifests: detect_component_manifests(root),
+        test_evidence_files: detect_test_evidence_files(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
         ui_source_files,
         ui_source_files_truncated,
@@ -265,6 +267,22 @@ fn detect_component_manifests(root: &Path) -> Vec<String> {
         .collect::<Vec<_>>();
     manifests.sort();
     manifests
+}
+
+fn detect_test_evidence_files(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("evidence");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut evidence = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    evidence.sort();
+    evidence
 }
 
 fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
@@ -481,7 +499,7 @@ fn detect_token_files(root: &Path, project_dirs: &[PathBuf]) -> Vec<String> {
     found
 }
 
-fn detect_test_runners(entries: &[String]) -> Vec<String> {
+fn detect_test_runners(entries: &[String], package_json: Option<&Value>) -> Vec<String> {
     let mut runners = Vec::new();
     let has_any = |names: &[&str]| names.iter().any(|name| entries.contains(&(*name).to_string()));
 
@@ -493,6 +511,14 @@ fn detect_test_runners(entries: &[String]) -> Vec<String> {
     }
     if has_any(&["playwright.config.ts", "playwright.config.js"]) {
         runners.push("playwright".to_string());
+    }
+    if package_json
+        .and_then(|value| value.get("scripts"))
+        .and_then(|scripts| scripts.get("test"))
+        .and_then(Value::as_str)
+        .is_some_and(|command| command.contains("node --test"))
+    {
+        runners.push("node:test".to_string());
     }
 
     runners
@@ -628,7 +654,11 @@ mod tests {
             scan.component_manifests,
             vec![".forgegate/components/acme.button-library.acme-button.yaml".to_string()]
         );
-        assert!(scan.test_runners.is_empty(), "the fixture deliberately has no test runner yet");
+        assert_eq!(
+            scan.test_evidence_files,
+            vec![".forgegate/evidence/acme-button-unit.json".to_string()]
+        );
+        assert_eq!(scan.test_runners, vec!["node:test".to_string()]);
         assert!(scan.ui_technologies.is_empty());
     }
 
@@ -651,6 +681,7 @@ mod tests {
         assert!(scan.ci_providers.is_empty());
         assert!(scan.custom_elements_manifests.is_empty());
         assert!(scan.component_manifests.is_empty());
+        assert!(scan.test_evidence_files.is_empty());
         assert!(scan.ui_technologies.is_empty());
         assert!(scan.ui_source_files.is_empty());
         assert!(!scan.ui_source_files_truncated);

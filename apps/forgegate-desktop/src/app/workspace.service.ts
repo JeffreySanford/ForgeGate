@@ -4,6 +4,10 @@ import {
   type RepositoryConfig,
 } from '@forgegate/core-config';
 import {
+  parseTestExecution,
+  type TestExecution,
+} from '@forgegate/core-evidence';
+import {
   parseCustomElementsManifest,
   type CustomElementsManifest,
 } from '@forgegate/adapter-web-components';
@@ -65,6 +69,7 @@ export interface WorkspaceScan {
   customElementsManifests: string[];
   componentPackages: ComponentPackageCandidate[];
   componentManifests?: string[];
+  testEvidenceFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -163,6 +168,8 @@ export class WorkspaceService {
     [],
   );
   readonly componentManifestError = signal<string | null>(null);
+  readonly testExecutions = signal<readonly TestExecution[]>([]);
+  readonly testExecutionError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
   readonly nativeComponentSignals = signal<readonly NativeComponentSignal[]>(
@@ -183,6 +190,7 @@ export class WorkspaceService {
     this.repositoryConfigError.set(null);
     this.customElementsManifestError.set(null);
     this.componentManifestError.set(null);
+    this.testExecutionError.set(null);
     this.storybookIndexError.set(null);
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
@@ -221,6 +229,7 @@ export class WorkspaceService {
         2,
       );
       await this.loadComponentManifests(path, scan);
+      await this.loadTestExecutions(path, scan);
       this.setScanProgress(
         'storybook',
         'Connecting the Storybook story index',
@@ -246,6 +255,7 @@ export class WorkspaceService {
       this.repositoryConfig.set(null);
       this.customElementsManifest.set(null);
       this.componentManifestOverrides.set([]);
+      this.testExecutions.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.error.set(String(error));
@@ -405,6 +415,28 @@ export class WorkspaceService {
       }
     }
     this.componentManifestOverrides.set(manifests);
+  }
+
+  private async loadTestExecutions(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.testExecutions.set([]);
+    const executions: TestExecution[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.testEvidenceFiles ?? []) {
+      try {
+        const text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        executions.push(parseTestExecution(text));
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+      }
+    }
+    this.testExecutions.set(executions);
+    this.testExecutionError.set(errors.length ? errors.join('\n') : null);
   }
 
   /**

@@ -14,8 +14,15 @@ Contents:
   ```
 - [`tokens/acme.tokens.json`](tokens/acme.tokens.json) — a real DTCG-format token file.
 - [`.forgegate/components/acme.button-library.acme-button.yaml`](.forgegate/components/acme.button-library.acme-button.yaml) — the repository-controlled ForgeGate manifest that maps the Button's required states, stories, and DTCG token paths without replacing the CEM-derived public contract.
+- [`test/acme-button.test.js`](test/acme-button.test.js) and [`.forgegate/evidence/acme-button-unit.json`](.forgegate/evidence/acme-button-unit.json) — a real dependency-free `node:test` execution and its normalized, commit-bound ForgeGate result. The raw TAP artifact remains under `.forgegate/evidence/raw/`.
 - [`src/content/docs/components/button.md`](src/content/docs/components/button.md) — a repository-owned Button documentation target. The minimal [`astro.config.mjs`](astro.config.mjs) is a deterministic Starlight detection marker; this fixture does not install or build Astro.
 
 `apps/forgegate-desktop/src/generate-cem-command.spec.ts` runs that exact command (via `GENERATE_CEM_COMMAND`/`GENERATE_CEM_ARGS`, no mocks) against a disposable copy of this fixture — the regression test for the real `npm error 404` a user hit when those constants had a misspelled package name (`.../analyze` instead of the real `.../analyzer`) and were missing the required `analyze` subcommand.
 
 This package is intentionally outside the pnpm/Nx workspace (no `pnpm-workspace.yaml` entry, excluded from ESLint via `fixtures/**` in `eslint.config.mjs`) — it is content ForgeGate scans, not code ForgeGate builds. `apps/forgegate-desktop/src-tauri/src/workspace_scan.rs`'s `detects_the_acme_button_library_fixture_correctly` test scans this directory for real and asserts on the result, so any future edit here that breaks detection fails CI immediately.
+
+Run the configured fixture evidence with:
+
+```bash
+npm test
+```
