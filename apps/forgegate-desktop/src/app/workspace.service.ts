@@ -10,6 +10,14 @@ export interface GitStatus {
   dirty: boolean;
 }
 
+export interface ComponentPackageCandidate {
+  name: string;
+  path: string;
+  sourceGlob: string;
+  outputDirectory: string;
+  manifestPath: string;
+}
+
 export interface WorkspaceScan {
   packageName: string | null;
   packageManager: string | null;
@@ -22,6 +30,7 @@ export interface WorkspaceScan {
   visualRegressionProviders: string[];
   ciProviders: string[];
   customElementsManifests: string[];
+  componentPackages: ComponentPackageCandidate[];
 }
 
 export interface CommandResult {
@@ -32,16 +41,39 @@ export interface CommandResult {
   durationMs: number;
 }
 
-/**
- * The exact command run to generate a Custom Elements Manifest, shown to
- * the user before they approve it — per the "Command execution flow" in
- * documentation/02-system-architecture.md ("ForgeGate displays command...
- * before execution. User approves execution.").
- */
-export const GENERATE_CEM_COMMAND = 'npx';
-export const GENERATE_CEM_ARGS = ['@custom-elements-manifest/analyzer', 'analyze', '--litelement', '--outdir', '.'];
-export const GENERATE_CEM_COMMAND_TEXT = `${GENERATE_CEM_COMMAND} ${GENERATE_CEM_ARGS.join(' ')}`;
+export interface CemGenerationPlan {
+  target: ComponentPackageCandidate;
+  command: string;
+  args: string[];
+  commandText: string;
+  excludedGlobs: string[];
+}
+
+const GENERATE_CEM_COMMAND = 'npx';
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
+const CEM_EXCLUDED_GLOBS = ['node_modules/**', 'dist/**', 'coverage/**', '.nx/**', 'storybook-static/**'];
+
+export function createCemGenerationPlan(target: ComponentPackageCandidate): CemGenerationPlan {
+  const args = [
+    '@custom-elements-manifest/analyzer',
+    'analyze',
+    '--litelement',
+    '--globs',
+    target.sourceGlob,
+    ...CEM_EXCLUDED_GLOBS.flatMap((glob) => ['--exclude', glob]),
+    '--outdir',
+    target.outputDirectory,
+    '--packagejson',
+    'false',
+  ];
+  return {
+    target,
+    command: GENERATE_CEM_COMMAND,
+    args,
+    commandText: `${GENERATE_CEM_COMMAND} ${args.map((arg) => (arg.includes('*') ? `"${arg}"` : arg)).join(' ')}`,
+    excludedGlobs: [...CEM_EXCLUDED_GLOBS],
+  };
+}
 
 /**
  * `storybook build`'s default output directory is `storybook-static`, and
@@ -65,6 +97,7 @@ export class WorkspaceService {
   readonly customElementsManifestError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
+  readonly selectedComponentPackagePath = signal<string | null>(null);
   readonly cemGenerationRunning = signal(false);
   readonly cemGenerationResult = signal<CommandResult | null>(null);
   readonly cemGenerationError = signal<string | null>(null);
@@ -90,6 +123,7 @@ export class WorkspaceService {
       ]);
       this.gitStatus.set(status);
       this.workspaceScan.set(scan);
+      this.selectedComponentPackagePath.set(scan.componentPackages.length === 1 ? scan.componentPackages[0].path : null);
       this.applyConfigText(configText);
       await this.loadCustomElementsManifest(path, scan);
       await this.loadStorybookIndex(path, scan);
@@ -103,19 +137,27 @@ export class WorkspaceService {
     }
   }
 
+  selectComponentPackage(path: string): void {
+    this.selectedComponentPackagePath.set(path || null);
+    this.cemGenerationResult.set(null);
+    this.cemGenerationError.set(null);
+  }
+
+  cemGenerationPlan(): CemGenerationPlan | null {
+    const selectedPath = this.selectedComponentPackagePath();
+    const target = this.workspaceScan()?.componentPackages.find((candidate) => candidate.path === selectedPath);
+    return target ? createCemGenerationPlan(target) : null;
+  }
+
   /**
-   * Runs the CEM analyzer against the workspace root, after the user has
-   * already approved it by clicking the button that calls this — the UI
-   * shows `GENERATE_CEM_COMMAND_TEXT` first. A failure (analyzer not
-   * installed, network unavailable for npx's first download, timeout,
-   * non-zero exit) is reported on its own signal; it does not disturb
-   * anything else the user already sees. On a successful run (exit code
-   * 0), the workspace scan and manifest are refreshed so the newly
-   * generated file shows up without a second manual "Open workspace".
+   * Runs the analyzer only inside the explicitly selected package. The
+   * source glob, exclusions, output directory, and package.json mutation
+   * policy are all shown in the approval preview before this is invoked.
    */
   async generateCustomElementsManifest(): Promise<void> {
     const path = this.workspacePath();
-    if (!path || this.cemGenerationRunning()) {
+    const plan = this.cemGenerationPlan();
+    if (!path || !plan || this.cemGenerationRunning()) {
       return;
     }
     this.cemGenerationRunning.set(true);
@@ -124,16 +166,28 @@ export class WorkspaceService {
     try {
       const result = await invoke<CommandResult>('run_workspace_command', {
         workspacePath: path,
-        relativeCwd: '.',
-        command: GENERATE_CEM_COMMAND,
-        args: GENERATE_CEM_ARGS,
+        relativeCwd: plan.target.path,
+        command: plan.command,
+        args: plan.args,
         timeoutSeconds: GENERATE_CEM_TIMEOUT_SECONDS,
       });
       this.cemGenerationResult.set(result);
       if (result.exitCode === 0) {
-        const scan = await invoke<WorkspaceScan>('read_workspace_scan', { path });
-        this.workspaceScan.set(scan);
-        await this.loadCustomElementsManifest(path, scan);
+        const relativePath = [plan.target.path === '.' ? '' : plan.target.path, plan.target.manifestPath]
+          .filter(Boolean)
+          .join('/');
+        const text = await invoke<string>('read_text_file', {
+          workspacePath: path,
+          relativePath,
+        });
+        this.customElementsManifest.set(parseCustomElementsManifest(text));
+        const scan = this.workspaceScan();
+        if (scan && !scan.customElementsManifests.includes(relativePath)) {
+          this.workspaceScan.set({
+            ...scan,
+            customElementsManifests: [...scan.customElementsManifests, relativePath],
+          });
+        }
       }
     } catch (error) {
       this.cemGenerationError.set(String(error));
