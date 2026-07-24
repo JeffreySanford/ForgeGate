@@ -13,9 +13,9 @@ The completed marker intentionally follows the project convention requested for 
 
 ## Priority convention
 
-- **P0 — Current critical path.** Work that establishes the product experience, prevents expensive rework, or is required for the next credible demonstration.
-- **P1 — Next connected value.** Work that becomes actionable as its real data sources and domain contracts are available.
-- **P2 — Later platform expansion.** Important work that must not delay the assurance MVP.
+- **P0 â€” Current critical path.** Work that establishes the product experience, prevents expensive rework, or is required for the next credible demonstration.
+- **P1 â€” Next connected value.** Work that becomes actionable as its real data sources and domain contracts are available.
+- **P2 â€” Later platform expansion.** Important work that must not delay the assurance MVP.
 
 A priority does not override safety, accessibility, testing, or truthful-data requirements. A visually polished feature is not complete if it invents evidence, hides unsupported states, or cannot be operated with a keyboard and assistive technology.
 
@@ -23,17 +23,17 @@ A priority does not override safety, accessibility, testing, or truthful-data re
 
 ```text
 Repository and component discovery
-        ↓
+        â†“
 P0 visual foundation and application shell
-        ↓
+        â†“
 P0 workspace, inventory, and Button component record
-        ↓
+        â†“
 Storybook, tokens, tests, reviews, and documentation become connected
-        ↓
+        â†“
 P1 evidence-driven visualizations and motion
-        ↓
+        â†“
 Complete assurance MVP and safe repository generation
-        ↓
+        â†“
 P2 Blueprint Studio
 ```
 
@@ -55,7 +55,7 @@ The principal weakness is now presentation and interaction structure. The curren
 
 ---
 
-# P0 — Designer-ready product foundation
+# P0 â€” Designer-ready product foundation
 
 P0 work begins now and should be developed alongside the remaining Web Components discovery and Storybook connections. Do not postpone the entire user experience until every backend phase is complete.
 
@@ -65,11 +65,11 @@ Primary references:
 - [`documentation/26-workspace-visualization-and-motion.md`](documentation/26-workspace-visualization-and-motion.md)
 - [`documentation/prototypes/workspace-command-center.html`](documentation/prototypes/workspace-command-center.html)
 
-## P0.1 — ForgeGate visual system
+## P0.1 â€” ForgeGate visual system
 
-- [X} Define internal ForgeGate semantic UI tokens for color, typography, spacing, radius, elevation, borders, focus, and motion. `apps/forgegate-desktop/src/styles/tokens.css` — `--fg-color-*`, `--fg-space-*`, `--fg-radius-*`, `--fg-shadow-*`, `--fg-type-*`, `--fg-motion-*`, matching the `fg.*` naming in `documentation/25-designer-ready-vertical-slice.md`. Status color tokens included; explicit non-color status treatment (icons/labels) is separate, still open below.
+- [X} Define internal ForgeGate semantic UI tokens for color, typography, spacing, radius, elevation, borders, focus, and motion. `apps/forgegate-desktop/src/styles/tokens.css` â€” `--fg-color-*`, `--fg-space-*`, `--fg-radius-*`, `--fg-shadow-*`, `--fg-type-*`, `--fg-motion-*`, matching the `fg.*` naming in `documentation/25-designer-ready-vertical-slice.md`. Status color tokens included; explicit non-color status treatment (icons/labels) is separate, still open below.
 - [X} Define light and dark themes using the same semantic token contract. `prefers-color-scheme` default plus explicit `[data-theme="light"|"dark"]` override; every `:root` color token has a dark-theme counterpart, enforced by a contract test (not just visual review).
-- [ ] Define explicit visual treatment for current, stale, warning, failed, blocked, unknown, unsupported, and not-connected states. Status *colors* exist; icon/label pairing per document 25's "status is never color alone" rule is not implemented — no screen has status UI yet.
+- [ ] Define explicit visual treatment for current, stale, warning, failed, blocked, unknown, unsupported, and not-connected states. Status _colors_ exist; icon/label pairing per document 25's "status is never color alone" rule is not implemented â€” no screen has status UI yet.
 - [ ] Define reusable surface, card, panel, status, navigation, control, table, disclosure, and empty-state primitives. Only the current flat diagnostic screen has been restyled onto tokens; no reusable Angular primitive components exist yet.
 - [ ] Establish typography hierarchy suitable for both designers and engineers. Only `sm/md/lg/xl` sizes defined; no applied hierarchy beyond h1/h2 on the one existing screen.
 - [ ] Establish responsive desktop-window breakpoints rather than assuming a browser-sized viewport.
@@ -82,20 +82,20 @@ Primary references:
 
 ### P0.1 exit criteria
 
-- [ ] Shared visual tokens are used by the shell, workspace, inventory, and component record. Only the existing single diagnostic screen consumes tokens so far — the shell/workspace/inventory/component-record screens themselves don't exist yet (P0.2–P0.5).
+- [ ] Shared visual tokens are used by the shell, workspace, inventory, and component record. Only the existing single diagnostic screen consumes tokens so far â€” the shell/workspace/inventory/component-record screens themselves don't exist yet (P0.2â€“P0.5).
 - [ ] Light, dark, forced-colors, reduced-motion, and narrow-window states are testable. Token-level contract tests exist (43 tests, `src/styles/tokens.spec.ts`); no rendered-screen visual regression coverage yet.
 - [X} No production screen depends on prototype-only fixture styling. The one real screen (`app.html`/`app.css`) now reads token custom properties instead of being unstyled; verified visually in-browser (light theme, live dev server) with no console errors.
 
-## P0.2 — Application shell and routes
+## P0.2 â€” Application shell and routes
 
-- [X} Add persistent application navigation. `App` (`app.ts`/`app.html`/`app.css`) is now the shell: a left nav with Workspace/Components links, always present around `<router-outlet>`. Tests, Reviews, Documentation, and Releases are deliberately not in the nav yet — see the checklist item below.
-- [X} Add a workspace context bar with repository, branch, commit, dirty state, and workspace actions. Shows workspace path, branch, short commit, and a dirty/clean indicator when a workspace is open, an explicit "No workspace open" state otherwise, and the "Open workspace…" action. Scan state (in-progress indicator) is not shown yet — `WorkspaceService` has no in-flight signal for the scan itself, only for CEM generation.
-- [X} Add `/workspace` route. `WorkspacePage` (`app/workspace/workspace-page.ts`) — holds the scan detail, component inventory, CEM generation, and repository-config sections moved out of the old flat screen.
-- [X} Add `/components` route. `ComponentsPage` — honest coming-soon placeholder; the real designer-ready inventory is P0.4.
-- [X} Add `/components/:componentId` route. `ComponentDetailPage` — honest coming-soon placeholder reading `componentId` from the route; the real Button assurance record is P0.5.
-- [ ] Keep Tests, Reviews, Documentation, and Releases visible only when they have a meaningful connected destination or honest coming-soon state. Not yet added to the nav at all (neither real nor coming-soon) — deferred until closer to P1/P2 work that would give them a destination.
-- [ ] Move raw paths, commands, and adapter diagnostics behind progressive disclosure rather than removing them. `WorkspacePage` still shows all diagnostic detail flat, same as before — this is P0.3's real-data system map work, not done here.
-- [ ] Preserve route state and selected component when scans refresh. Not yet applicable — no component selection state exists until P0.4.
+- [X} Add persistent application navigation. `App` (`app.ts`/`app.html`/`app.css`) is now the shell: a left nav with Workspace/Components links, always present around `<router-outlet>`. Tests, Reviews, Documentation, and Releases are deliberately not in the nav yet â€” see the checklist item below.
+- [X} Add a workspace context bar with repository, branch, commit, dirty state, and workspace actions. Shows workspace path, branch, short commit, and a dirty/clean indicator when a workspace is open, an explicit "No workspace open" state otherwise, and the "Open workspaceâ€¦" action. Scan state (in-progress indicator) is not shown yet â€” `WorkspaceService` has no in-flight signal for the scan itself, only for CEM generation.
+- [X} Add `/workspace` route. `WorkspacePage` (`app/workspace/workspace-page.ts`) â€” holds the scan detail, component inventory, CEM generation, and repository-config sections moved out of the old flat screen.
+- [X} Add `/components` route. `ComponentsPage` â€” honest coming-soon placeholder; the real designer-ready inventory is P0.4.
+- [X} Add `/components/:componentId` route. `ComponentDetailPage` â€” honest coming-soon placeholder reading `componentId` from the route; the real Button assurance record is P0.5.
+- [ ] Keep Tests, Reviews, Documentation, and Releases visible only when they have a meaningful connected destination or honest coming-soon state. Not yet added to the nav at all (neither real nor coming-soon) â€” deferred until closer to P1/P2 work that would give them a destination.
+- [ ] Move raw paths, commands, and adapter diagnostics behind progressive disclosure rather than removing them. `WorkspacePage` still shows all diagnostic detail flat, same as before â€” this is P0.3's real-data system map work, not done here.
+- [ ] Preserve route state and selected component when scans refresh. Not yet applicable â€” no component selection state exists until P0.4.
 - [X} Add route-change focus management. `App`'s constructor subscribes to `Router` `NavigationEnd` and moves focus to the `#main-content` landmark (`tabindex="-1"`), verified by an Angular test that navigates via `Router.navigateByUrl` and asserts `document.activeElement`, and confirmed live in a running dev server.
 - [ ] Add loading, empty, error, partial, and unsupported layouts for every primary route. `WorkspacePage` has an explicit empty state; no loading/partial/unsupported states exist for any route yet.
 
@@ -105,73 +105,73 @@ Primary references:
 - [ ] A keyboard user can move through navigation, workspace context, inventory, and component detail without focus loss. Route-change focus management works; inventory and component-detail screens themselves don't exist yet to evaluate the rest of the flow.
 - [X} Engineers can still reach raw diagnostics and exact source information. All prior diagnostic detail (scan results, manifest mapping failures, CEM generation output, repository-config errors) is preserved verbatim on `/workspace`, just relocated out of the old single screen.
 
-## P0.3 — Workspace command center
+## P0.3 â€” Workspace command center
 
 - [X} Replace the flat discovery output with a structured workspace command center. `SystemMap` (`app/workspace/system-map.ts`) renders at the top of `/workspace`, above the (now collapsed) raw scan `<details>`. Only the system-map slice is done; the rest of the page (component inventory, CEM generation, repository config) is still flat, not yet regrouped.
 - [X} Group repository, design-system, assurance-tool, and documentation discoveries by user meaning. The system map's eight nodes (Repository, Component library, Storybook, Design tokens, Components, Automated evidence, Documentation, Release) are exactly that grouping, replacing raw scan-field names.
-- [ ] Show one policy-driven or discovery-driven recommended next action. Not implemented — no policy/readiness engine exists yet to drive a recommendation.
-- [X} Implement a real-data system map for currently detected relationships: repository, component library, Storybook, tokens, components, and documentation. Every node status is computed live from `WorkspaceService`/`ComponentInventoryService` signals — nothing hardcoded, verified by 6 tests covering the open-workspace-with-nothing-detected, connected, and partial-mapping-failure cases. "Tests" and "CI" are folded into a single honestly-partial "Automated evidence" node (tool detection only, no real run results — ForgeGate has no test-execution feature yet). "Release" has no backing feature at all and always reports not-connected.
-- [X} Clearly label unknown, unsupported, missing, and not-connected nodes. Every node has an explicit status (`connected`/`partial`/`stale`/`missing`) shown as text, not just color — `stale` is defined but never produced yet since evidence-freshness tracking (P1.3) doesn't exist.
+- [ ] Show one policy-driven or discovery-driven recommended next action. Not implemented â€” no policy/readiness engine exists yet to drive a recommendation.
+- [X} Implement a real-data system map for currently detected relationships: repository, component library, Storybook, tokens, components, and documentation. Every node status is computed live from `WorkspaceService`/`ComponentInventoryService` signals â€” nothing hardcoded, verified by 6 tests covering the open-workspace-with-nothing-detected, connected, and partial-mapping-failure cases. "Tests" and "CI" are folded into a single honestly-partial "Automated evidence" node (tool detection only, no real run results â€” ForgeGate has no test-execution feature yet). "Release" has no backing feature at all and always reports not-connected.
+- [X} Clearly label unknown, unsupported, missing, and not-connected nodes. Every node has an explicit status (`connected`/`partial`/`stale`/`missing`) shown as text, not just color â€” `stale` is defined but never produced yet since evidence-freshness tracking (P1.3) doesn't exist.
 - [X} Provide a semantic list or table equivalent for the system map. A `<details>`-disclosed `<table>` beneath the SVG carries the same relationship/status/detail data.
-- [ ] Add discovery/scan progress that explains what ForgeGate is checking. Not implemented — `WorkspaceService.selectWorkspace()` has no in-flight/progress signal.
-- [ ] Animate relationship discovery only when it improves comprehension. Deliberately not implemented this slice — no motion at all on the map yet, which trivially satisfies "no endless decorative movement" but doesn't yet use motion to aid comprehension either.
-- [ ] Stop animation when the scan completes; no endless decorative movement. N/A — no animation exists yet (see above).
+- [ ] Add discovery/scan progress that explains what ForgeGate is checking. Not implemented â€” `WorkspaceService.selectWorkspace()` has no in-flight/progress signal.
+- [ ] Animate relationship discovery only when it improves comprehension. Deliberately not implemented this slice â€” no motion at all on the map yet, which trivially satisfies "no endless decorative movement" but doesn't yet use motion to aid comprehension either.
+- [ ] Stop animation when the scan completes; no endless decorative movement. N/A â€” no animation exists yet (see above).
 - [ ] Preserve exact detected paths and adapter details in expandable diagnostics. Partially done: the raw scan `dl` is now behind a `<details>` disclosure on `/workspace`. Component inventory, CEM generation output, and repository-config detail are still shown flat, not yet moved behind disclosure.
-- [X} Use only live scan data in production; fixture values remain confined to the reference prototype. Verified live in a running dev server (empty state, then real signal values via unit tests) — no hardcoded example data in the shipped component.
+- [X} Use only live scan data in production; fixture values remain confined to the reference prototype. Verified live in a running dev server (empty state, then real signal values via unit tests) â€” no hardcoded example data in the shipped component.
 
 ### P0.3 exit criteria
 
 - [X} A designer can understand what ForgeGate found without reading a raw definition list. The system map's grouped, labeled nodes are the primary view; the raw `dl` is now secondary (collapsed).
-- [X} A developer can inspect every underlying path, command, and adapter result. Unchanged from P0.2 — all prior diagnostic detail is still present, just now below the system map.
+- [X} A developer can inspect every underlying path, command, and adapter result. Unchanged from P0.2 â€” all prior diagnostic detail is still present, just now below the system map.
 - [X} The system map remains understandable with motion disabled and through its semantic alternative. Trivially true (no motion exists yet); the semantic `<table>` alternative is verified to carry the same three data points (relationship, status, detail) per node as the SVG.
 
-## P0.4 — Designer-ready component inventory
+## P0.4 â€” Designer-ready component inventory
 
-- [X} Replace the engineering-only inventory table with the designer-ready inventory defined in document 25. `ComponentsPage` (`app/components/components-page.ts`) at `/components` replaces the old placeholder — real data via `ComponentInventoryService`, same source `WorkspacePage` uses.
+- [X} Replace the engineering-only inventory table with the designer-ready inventory defined in document 25. `ComponentsPage` (`app/components/components-page.ts`) at `/components` replaces the old placeholder â€” real data via `ComponentInventoryService`, same source `WorkspacePage` uses.
 - [X} Show human-readable component name and technical tag or identifier together. Each row/card shows the tag-name segment (`componentName(id)`) as the link text, with the full `organization.library.component` id shown alongside in a smaller, monospace line.
-- [X} Show framework, package/category, lifecycle, readiness, state coverage, review status, documentation status, and owner when known. All columns render; several are honestly static rather than fabricated — see the "unknown values explicit" item below for exactly which ones and why.
+- [X} Show framework, package/category, lifecycle, readiness, state coverage, review status, documentation status, and owner when known. All columns render; several are honestly static rather than fabricated â€” see the "unknown values explicit" item below for exactly which ones and why.
 - [X} Add search by component name or tag. Live substring filter over both the full id and the tag-name segment, covered by a test.
-- [X} Add initial filters for lifecycle, readiness, and missing evidence. Lifecycle filter (populated from the values actually present, not a fixed list) and a "missing evidence only" checkbox are implemented and tested. No readiness filter — see below, readiness has no real values to filter by yet.
-- [X} Keep unknown values explicit instead of substituting optimistic defaults. Readiness always reads "Unknown — no evidence connected" (ForgeGate has no findings/evidence pipeline wired into the desktop app at all yet, so there is nothing honest to compute here). Lifecycle always reads the manifest's own default ("proposal") since nothing populates it from a bare CEM mapping. State coverage/review status/documentation status explicitly read "Not evaluated"/"Not reviewed"/"Not connected" rather than 0% or a blank cell. Owner explicitly reads "Unknown" rather than being blank.
+- [X} Add initial filters for lifecycle, readiness, and missing evidence. Lifecycle filter (populated from the values actually present, not a fixed list) and a "missing evidence only" checkbox are implemented and tested. No readiness filter â€” see below, readiness has no real values to filter by yet.
+- [X} Keep unknown values explicit instead of substituting optimistic defaults. Readiness always reads "Unknown â€” no evidence connected" (ForgeGate has no findings/evidence pipeline wired into the desktop app at all yet, so there is nothing honest to compute here). Lifecycle always reads the manifest's own default ("proposal") since nothing populates it from a bare CEM mapping. State coverage/review status/documentation status explicitly read "Not evaluated"/"Not reviewed"/"Not connected" rather than 0% or a blank cell. Owner explicitly reads "Unknown" rather than being blank.
 - [X} Add optional compact card presentation without removing the dense accessible table. A Table/Cards toggle switches between the existing dense `<table>` and a card grid showing the same fields; tested.
-- [X} Add understandable empty states for no components, no manifest, and mapping failure. Three distinct empty states (no workspace open, no manifest connected, manifest present with zero declared components) plus a filtered-to-nothing state, all tested. "Unsupported adapter" is not a real case yet — Web Components/CEM is the only adapter that exists, so there's nothing to show as unsupported.
+- [X} Add understandable empty states for no components, no manifest, and mapping failure. Three distinct empty states (no workspace open, no manifest connected, manifest present with zero declared components) plus a filtered-to-nothing state, all tested. "Unsupported adapter" is not a real case yet â€” Web Components/CEM is the only adapter that exists, so there's nothing to show as unsupported.
 - [X} Link each component to its detail route. Both table rows and cards link to `/components/:componentId` (the P0.5 placeholder), tested via `getAttribute('href')`.
 
 ### P0.4 exit criteria
 
 - [X} The inventory reads as a design-system catalog with assurance status, not a database dump. Grouped, labeled columns/cards with explicit unknown-state text, not a raw field dump.
 - [X} Mapping failures remain visible and do not remove valid sibling components. Verified by a test: a manifest with 2 valid + 1 invalid (dotted `tagName`) declaration renders exactly 2 rows and shows the 1 failure in its own alert.
-- [ ] The primary table remains accessible and efficient for larger libraries. Basic accessibility (caption, scoped headers, row `<th>`) is in place; not load-tested against a large real library, and no virtualization/pagination exists — untested at scale.
+- [ ] The primary table remains accessible and efficient for larger libraries. Basic accessibility (caption, scoped headers, row `<th>`) is in place; not load-tested against a large real library, and no virtualization/pagination exists â€” untested at scale.
 
-## P0.5 — Button component assurance record
+## P0.5 â€” Button component assurance record
 
-This slice generalizes to any component, not just a Button specifically — there is still no real Button anywhere in ForgeGate's own tooling (no fixture repo yet, P0.6 item below), so `ComponentDetailPage` was built and tested against synthetic-but-realistic CEM data instead of a real Button.
+This slice generalizes to any component, not just a Button specifically â€” there is still no real Button anywhere in ForgeGate's own tooling (no fixture repo yet, P0.6 item below), so `ComponentDetailPage` was built and tested against synthetic-but-realistic CEM data instead of a real Button.
 
-- [X} Implement the component header and identity section. `ComponentDetailPage` (`app/components/component-detail-page.ts`) — name, full id, framework/adapter, source files, lifecycle, owner, all real fields from the matched `ComponentManifest`.
+- [X} Implement the component header and identity section. `ComponentDetailPage` (`app/components/component-detail-page.ts`) â€” name, full id, framework/adapter, source files, lifecycle, owner, all real fields from the matched `ComponentManifest`.
 - [ ] Implement the coded-preview surface with explicit source labeling.
-- [ ] Distinguish live Storybook preview, static capture, blueprint reference, temporary generated preview, and unavailable preview. Only one state exists: an honest "No preview connected" message (Storybook connection is P0.6, not built). The full distinction between preview *kinds* is moot until at least one kind is real.
-- [X} Add the coverage strip for states, stories, tokens, tests, reviews, and documentation. Six real counts (`manifest.states.length`, `.storyMappings.length`, `.tokenMappings.length`, `.testRequirements.length`, `.manualReviewProcedureIds.length`, `.documentationTargets.length`) — all currently 0 for any CEM-only-mapped component, shown as real zeros, not hidden.
-- [X} Add the readiness rail with explicit blocking reasons. Always "Unknown — no evidence connected" (honest — no findings/evidence pipeline exists) plus a real per-category list of why (no states declared, no Storybook connection, etc.), derived from the same manifest fields as the coverage strip. No "recommended next action" yet — that needs a policy engine that doesn't exist.
+- [ ] Distinguish live Storybook preview, static capture, blueprint reference, temporary generated preview, and unavailable preview. Only one state exists: an honest "No preview connected" message (Storybook connection is P0.6, not built). The full distinction between preview _kinds_ is moot until at least one kind is real.
+- [X} Add the coverage strip for states, stories, tokens, tests, reviews, and documentation. Six real counts (`manifest.states.length`, `.storyMappings.length`, `.tokenMappings.length`, `.testRequirements.length`, `.manualReviewProcedureIds.length`, `.documentationTargets.length`) â€” all currently 0 for any CEM-only-mapped component, shown as real zeros, not hidden.
+- [X} Add the readiness rail with explicit blocking reasons. Always "Unknown â€” no evidence connected" (honest â€” no findings/evidence pipeline exists) plus a real per-category list of why (no states declared, no Storybook connection, etc.), derived from the same manifest fields as the coverage strip. No "recommended next action" yet â€” that needs a policy engine that doesn't exist.
 - [X} Add the required state/story matrix. Renders `manifest.states` as a real table when populated, an explicit "No required states declared" empty state otherwise (always the empty state today, since nothing populates `states` from a CEM).
-- [ ] Add anatomy and token-mapping sections. Token mapping renders (real table or explicit empty state); anatomy is not implemented — CEM data has no anatomy/part-to-token concept to draw from yet.
-- [X} Add contract detail. Inputs/outputs/content/public methods/style parts render as real tables from `manifest.contract`, which is the one genuinely rich, non-empty section — verified by a test using a manifest with real fields, a method, an event, a slot, and a CSS part. Evidence, accessibility, and release detail through progressive disclosure are not implemented — no evidence pipeline exists to disclose.
-- [ ] Show current commit and evidence freshness identity. Not implemented — the detail page doesn't yet read `WorkspaceService.gitStatus()` for a per-component freshness stamp.
+- [ ] Add anatomy and token-mapping sections. Token mapping renders (real table or explicit empty state); anatomy is not implemented â€” CEM data has no anatomy/part-to-token concept to draw from yet.
+- [X} Add contract detail. Inputs/outputs/content/public methods/style parts render as real tables from `manifest.contract`, which is the one genuinely rich, non-empty section â€” verified by a test using a manifest with real fields, a method, an event, a slot, and a CSS part. Evidence, accessibility, and release detail through progressive disclosure are not implemented â€” no evidence pipeline exists to disclose.
+- [ ] Show current commit and evidence freshness identity. Not implemented â€” the detail page doesn't yet read `WorkspaceService.gitStatus()` for a per-component freshness stamp.
 - [X} Show unsupported and not-yet-connected sections honestly. Preview, token mapping, states, and documentation sections all read explicit "not connected/declared" text rather than blank space or a fabricated value.
-- [X} Never display blueprint examples as repository implementation evidence. N/A by construction — there is no blueprint/example data path in this component at all yet (Blueprint Studio is P2).
-- [ ] Add responsive layouts for wide, medium, and narrow desktop windows. Not implemented — single fixed-ish layout, not yet tested at narrow widths.
+- [X} Never display blueprint examples as repository implementation evidence. N/A by construction â€” there is no blueprint/example data path in this component at all yet (Blueprint Studio is P2).
+- [ ] Add responsive layouts for wide, medium, and narrow desktop windows. Not implemented â€” single fixed-ish layout, not yet tested at narrow widths.
 
 ### P0.5 exit criteria
 
-- [ ] A designer can understand what the Button is, what it looks like, what coverage exists, why it is blocked, and what to do next without opening source files. Coverage and "why blocked" are real and honest; "what it looks like" is not met — no preview exists yet, so this criterion is not fully satisfied.
+- [ ] A designer can understand what the Button is, what it looks like, what coverage exists, why it is blocked, and what to do next without opening source files. Coverage and "why blocked" are real and honest; "what it looks like" is not met â€” no preview exists yet, so this criterion is not fully satisfied.
 - [X} An engineer can reach the manifest, source, story IDs, commands, evidence, and raw artifacts. Source files, full contract, and manifest id are all shown directly; story IDs/commands/evidence are honestly absent because they don't exist as real data yet, not hidden behind a false success state.
-- [X} No readiness percentage conceals a blocking condition. There is no percentage at all — readiness is always the explicit text "Unknown — no evidence connected" plus a real reasons list, never a number.
+- [X} No readiness percentage conceals a blocking condition. There is no percentage at all â€” readiness is always the explicit text "Unknown â€” no evidence connected" plus a real reasons list, never a number.
 
-## P0.6 — P0 data connections required for credibility
+## P0.6 â€” P0 data connections required for credibility
 
 These are functional dependencies that must advance with the P0 interface. The UI may render honest disconnected states before each adapter is complete, but the first polished vertical slice is not credible until these connections work for one Button.
 
-- [X} Confirm one Lit or vanilla Web Components fixture repository for deterministic development and CI. `fixtures/acme-button-library/` — a real, working vanilla `HTMLElement` custom element (`src/acme-button.js`), a hand-authored Custom Elements Manifest that accurately describes it, and a real DTCG token file. Deliberately outside the pnpm/Nx workspace (no package install, excluded from ESLint) since it's scan *content*, not ForgeGate source. Guarded by a new Rust test, `detects_the_acme_button_library_fixture_correctly`, that scans the real checked-in directory (not a synthetic tempdir) so a future edit that breaks detection fails CI immediately. This is the "small deterministic fixture" ADR 0003 called for; Public Sector Federation (the real pilot repository) is still not connected to anything — that's a separate, larger effort.
-- [X} Complete Web Components framework and adapter identity detection. `mapCustomElementsManifestToComponentManifests` (`packages/adapters/web-components/src/lib/map-custom-elements-manifest.ts`) previously hardcoded every mapped component to `framework: 'web-components'`/`adapter: 'framework.web-components'` regardless of what it actually was. Now types the CEM `superclass` field (real data — confirmed present in the analyzer's actual output against the `acme-button-library` fixture) and derives `lit`/`framework.lit` when the superclass is `LitElement`, per-declaration (a real package can mix vanilla and Lit components in one manifest), falling back to `web-components` for anything unrecognized rather than guessing. An explicit caller override still wins. 3 new tests cover Lit detection, override-wins-over-detection, and a mixed vanilla+Lit manifest.
+- [X} Confirm one Lit or vanilla Web Components fixture repository for deterministic development and CI. `fixtures/acme-button-library/` â€” a real, working vanilla `HTMLElement` custom element (`src/acme-button.js`), a hand-authored Custom Elements Manifest that accurately describes it, and a real DTCG token file. Deliberately outside the pnpm/Nx workspace (no package install, excluded from ESLint) since it's scan _content_, not ForgeGate source. Guarded by a new Rust test, `detects_the_acme_button_library_fixture_correctly`, that scans the real checked-in directory (not a synthetic tempdir) so a future edit that breaks detection fails CI immediately. This is the "small deterministic fixture" ADR 0003 called for; Public Sector Federation (the real pilot repository) is still not connected to anything â€” that's a separate, larger effort.
+- [X} Complete Web Components framework and adapter identity detection. `mapCustomElementsManifestToComponentManifests` (`packages/adapters/web-components/src/lib/map-custom-elements-manifest.ts`) previously hardcoded every mapped component to `framework: 'web-components'`/`adapter: 'framework.web-components'` regardless of what it actually was. Now types the CEM `superclass` field (real data â€” confirmed present in the analyzer's actual output against the `acme-button-library` fixture) and derives `lit`/`framework.lit` when the superclass is `LitElement`, per-declaration (a real package can mix vanilla and Lit components in one manifest), falling back to `web-components` for anything unrecognized rather than guessing. An explicit caller override still wins. 3 new tests cover Lit detection, override-wins-over-detection, and a mixed vanilla+Lit manifest.
 - [ ] Read one Storybook `index.json` and associate stories with the Button manifest.
 - [ ] Connect one real Button story to the preview surface.
 - [ ] Populate one required-state/story mapping.
@@ -180,16 +180,16 @@ These are functional dependencies that must advance with the P0 interface. The U
 - [ ] Connect one documentation target and drift state.
 - [ ] Preserve all raw adapter output and failures for diagnostics.
 
-## P0.7 — P0 quality and accessibility gate
+## P0.7 â€” P0 quality and accessibility gate
 
-- [X} Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states. 89 tests across `app.spec.ts`, `workspace-page.spec.ts`, `system-map.spec.ts`, `components-page.spec.ts`, and `component-detail-page.spec.ts` — built incrementally alongside each P0.1–P0.5 slice, not added after the fact.
+- [X} Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states. 89 tests across `app.spec.ts`, `workspace-page.spec.ts`, `system-map.spec.ts`, `components-page.spec.ts`, and `component-detail-page.spec.ts` â€” built incrementally alongside each P0.1â€“P0.5 slice, not added after the fact.
 - [X} Add keyboard navigation tests. Route-change focus management is tested (`App`'s "moves focus to the main content landmark after a route change"); full tab-order/keyboard-only-operation coverage across every control is not exhaustively tested.
-- [X} Add automated accessibility checks for primary routes. `apps/forgegate-desktop/src/test-a11y.ts` wraps `axe-core`, run against real rendered DOM in jsdom (color-contrast/target-size disabled — jsdom has no real layout, so those checks would be meaningless there, not because they're skipped as a category). Added to the shell, `/workspace`, the system map, `/components` (table and card view), and `/components/:componentId` — 7 new checks. This caught and fixed a real bug: the system map's SVG nodes had `role="img"` on the container with nested `role="button"` children that had no click handler at all — invalid ARIA nesting *and* fake, non-functional interactivity. Fixed by removing the unwired interactivity (an SVG `<title>` per node now carries the same descriptive text non-interactively).
-- [ ] Add manual screen-reader review for the shell, workspace, inventory, and Button record. Not done — needs an actual screen reader, not just axe.
+- [X} Add automated accessibility checks for primary routes. `apps/forgegate-desktop/src/test-a11y.ts` wraps `axe-core`, run against real rendered DOM in jsdom (color-contrast/target-size disabled â€” jsdom has no real layout, so those checks would be meaningless there, not because they're skipped as a category). Added to the shell, `/workspace`, the system map, `/components` (table and card view), and `/components/:componentId` â€” 7 new checks. This caught and fixed a real bug: the system map's SVG nodes had `role="img"` on the container with nested `role="button"` children that had no click handler at all â€” invalid ARIA nesting _and_ fake, non-functional interactivity. Fixed by removing the unwired interactivity (an SVG `<title>` per node now carries the same descriptive text non-interactively).
+- [ ] Add manual screen-reader review for the shell, workspace, inventory, and Button record. Not done â€” needs an actual screen reader, not just axe.
 - [ ] Add forced-colors review. Token-level forced-colors mapping exists (P0.1) and is contract-tested; no manual review in an actual forced-colors OS mode has been done against the real screens.
-- [ ] Add reduced-motion review. Token-level reduced-motion zeroing exists (P0.1); no manual review since P0.2–P0.5 added no new motion to review.
+- [ ] Add reduced-motion review. Token-level reduced-motion zeroing exists (P0.1); no manual review since P0.2â€“P0.5 added no new motion to review.
 - [ ] Add zoom and narrow-window review. Not done.
-- [ ] Add visual regression baselines for supported themes and key states. Not done — no visual regression tooling (Playwright/Chromatic/etc.) is wired into this project yet, despite Playwright being present as an Nx-scaffolded dependency.
+- [ ] Add visual regression baselines for supported themes and key states. Not done â€” no visual regression tooling (Playwright/Chromatic/etc.) is wired into this project yet, despite Playwright being present as an Nx-scaffolded dependency.
 - [ ] Validate that semantic alternatives contain the same meaningful information as graphical views. Partially validated by unit tests for the system map (table vs. SVG carry the same relationship/status/detail) and the component inventory (table vs. cards carry the same fields); not validated as a general principle across every screen.
 
 ### P0 definition of done
@@ -205,7 +205,7 @@ P0 is complete only when:
 
 ---
 
-# P1 — Evidence-driven visualization and motion
+# P1 â€” Evidence-driven visualization and motion
 
 P1 visualizations are not a later cosmetic redesign. They are introduced as soon as their underlying data is real and stable enough to support a decision.
 
@@ -213,56 +213,56 @@ Primary reference:
 
 - [`documentation/26-workspace-visualization-and-motion.md`](documentation/26-workspace-visualization-and-motion.md)
 
-## P1.1 — Assurance journey
+## P1.1 â€” Assurance journey
 
-- [ ] Implement Discover → Specify → Preview → Test → Review → Document → Release journey status.
+- [ ] Implement Discover â†’ Specify â†’ Preview â†’ Test â†’ Review â†’ Document â†’ Release journey status.
 - [ ] Derive each stage from real connected capabilities and evidence.
 - [ ] Let users open the work blocking a stage.
 - [ ] Provide a semantic ordered-list alternative.
 
-## P1.2 — Component landscape and readiness distribution
+## P1.2 â€” Component landscape and readiness distribution
 
-- [X} Visualize components by lifecycle and readiness without collapsing them into a single health score. `ReadinessDistribution` (`app/components/readiness-distribution.ts`) renders on `/components` above the existing inventory — a real per-lifecycle bar breakdown (computed from the actual manifest list, not hardcoded) plus a readiness breakdown, never a single percentage or score.
-- [ ] Show blocked, warning, stale, unknown, and not-evaluated components distinctly. Structurally ready (the readiness bucket computation is a real reduction over the manifest list, documented to start reporting real splits the moment evidence exists) but currently always renders one honest "unknown (100%)" bar — ForgeGate still has no findings/evidence pipeline to derive blocked/warning/stale from, same root gap as P0.5's readiness rail.
-- [X} Allow selection and filtering to update the accessible inventory. Clicking a lifecycle bar (a real `<button aria-pressed>`, not a fake `role="button"` `<div>` — P0.7's axe pass specifically caught and fixed that mistake elsewhere) sets the same `lifecycleFilter` signal the search/dropdown filters already drive, verified by a test that clicks a bar and asserts the emitted value, plus toggle-off-on-second-click.
+- [X} Visualize components by lifecycle and readiness without collapsing them into a single health score. `ReadinessDistribution` (`app/components/readiness-distribution.ts`) renders on `/components` above the existing inventory â€” a real per-lifecycle bar breakdown (computed from the actual manifest list, not hardcoded) plus a readiness breakdown, never a single percentage or score.
+- [ ] Show blocked, warning, stale, unknown, and not-evaluated components distinctly. Structurally ready (the readiness bucket computation is a real reduction over the manifest list, documented to start reporting real splits the moment evidence exists) but currently always renders one honest "unknown (100%)" bar â€” ForgeGate still has no findings/evidence pipeline to derive blocked/warning/stale from, same root gap as P0.5's readiness rail.
+- [X} Allow selection and filtering to update the accessible inventory. Clicking a lifecycle bar (a real `<button aria-pressed>`, not a fake `role="button"` `<div>` â€” P0.7's axe pass specifically caught and fixed that mistake elsewhere) sets the same `lifecycleFilter` signal the search/dropdown filters already drive, verified by a test that clicks a bar and asserts the emitted value, plus toggle-off-on-second-click.
 - [X} Provide a semantic table equivalent. A `<details>`-disclosed table alongside the bars carries the same lifecycle/count/percent data.
 
-## P1.3 — Evidence freshness timeline
+## P1.3 â€” Evidence freshness timeline
 
 - [ ] Visualize evidence creation, source changes, invalidation, reruns, reviews, and decisions over time.
 - [ ] Explain the exact causal event that made evidence stale.
 - [ ] Link timeline events to commits, files, runs, reviews, and raw evidence.
 - [ ] Provide a chronological semantic list.
 
-## P1.4 — Change-impact visualization
+## P1.4 â€” Change-impact visualization
 
 - [ ] Map changed files to affected components, stories, tests, reviews, documentation, and release decisions.
 - [ ] Begin conservatively and show uncertainty.
 - [ ] Never imply dependency precision the adapter does not possess.
 - [ ] Provide an affected-items table.
 
-## P1.5 — Token topology
+## P1.5 â€” Token topology
 
 - [ ] Visualize primitive, semantic, and component-token relationships.
 - [ ] Show alias chains, unresolved references, theme/mode coverage, and hard-coded implementation values.
 - [ ] Link tokens to anatomy parts and states.
 - [ ] Provide an accessible token relationship table.
 
-## P1.6 — Documentation drift map
+## P1.6 â€” Documentation drift map
 
 - [ ] Compare repository contract, stories, tokens, tests, and published documentation.
 - [ ] Show which source changed and which documentation sections are stale.
 - [ ] Link to the generated diff or publication action.
 - [ ] Provide a semantic drift list.
 
-## P1.7 — Adapter constellation
+## P1.7 â€” Adapter constellation
 
 - [ ] Show detected adapters and their declared capabilities.
 - [ ] Distinguish supported, partial, unavailable, unconfigured, and failed capabilities.
 - [ ] Link each capability to diagnostics and setup guidance.
 - [ ] Avoid decorative vendor-logo walls.
 
-## P1.8 — Motion system
+## P1.8 â€” Motion system
 
 - [ ] Implement shared motion tokens and choreography.
 - [ ] Use motion for discovery, causality, selection, focus, transition, and freshness changes.
@@ -283,7 +283,7 @@ P1 is complete only when:
 
 ---
 
-# P2 — Blueprint Studio and post-MVP creation
+# P2 â€” Blueprint Studio and post-MVP creation
 
 Blueprint Studio remains a first-class product initiative, but it does not move ahead of the existing-component assurance MVP or safe generation boundary.
 
@@ -373,3 +373,4 @@ The first MVP is complete only when all of the following are true:
 - [ ] ForgeGate itself passes its required accessibility and quality gates.
 
 Blueprint Studio is not required for this MVP definition of done.
+
