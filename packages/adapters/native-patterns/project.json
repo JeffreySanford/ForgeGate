@@ -1,0 +1,23 @@
+{
+  "name": "adapter-native-patterns",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adapters/native-patterns/src",
+  "projectType": "library",
+  "tags": ["scope:adapter"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.lib.json",
+        "cwd": "packages/adapters/native-patterns"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/tsconfig*.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "outputs": []
+    }
+  }
+}

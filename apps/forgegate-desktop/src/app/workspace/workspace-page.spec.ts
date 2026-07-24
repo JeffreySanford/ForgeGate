@@ -132,6 +132,46 @@ describe('WorkspacePage', () => {
     expect(table?.textContent).toContain('package.json:dependencies');
   });
 
+  it('shows native component signals separately from confirmed inventory', async () => {
+    workspaceService.workspaceScan.set(emptyScan);
+    workspaceService.nativeComponentSignals.set([
+      {
+        kind: 'enhanced-native',
+        selector: 'button[pButton]',
+        nativeElement: 'button',
+        provider: 'primeng',
+        sourceFile: 'apps/portal/src/app.html',
+        line: 12,
+        confidence: 'confirmed',
+        evidence: 'Native <button> enhanced by [pButton]',
+      },
+      {
+        kind: 'css-component',
+        selector: '.ds-button',
+        nativeElement: null,
+        provider: 'repository',
+        sourceFile: 'packages/ui/src/button.scss',
+        line: 4,
+        confidence: 'candidate',
+        evidence: 'Repository-owned component-like CSS selector definition',
+      },
+    ]);
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const table = (fixture.nativeElement as HTMLElement).querySelector(
+      '[aria-labelledby="native-signals-heading"] table',
+    );
+    expect(table?.textContent).toContain('button[pButton]');
+    expect(table?.textContent).toContain('primeng');
+    expect(table?.textContent).toContain('confirmed');
+    expect(table?.textContent).toContain('.ds-button');
+    expect(table?.textContent).toContain('candidate');
+    expect(table?.textContent).toContain('packages/ui/src/button.scss:4');
+  });
+
   it('has no automated accessibility violations with a populated component inventory', async () => {
     workspaceService.workspaceScan.set(emptyScan);
     workspaceService.customElementsManifest.set({

@@ -27,6 +27,9 @@
       "@forgegate/core-config": ["./packages/core/config/src/index.ts"],
       "@forgegate/adapter-web-components": [
         "./packages/adapters/web-components/src/index.ts"
+      ],
+      "@forgegate/adapter-native-patterns": [
+        "./packages/adapters/native-patterns/src/index.ts"
       ]
     }
   },
