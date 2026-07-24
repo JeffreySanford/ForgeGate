@@ -38,8 +38,19 @@
     </dl>
   </header>
 
+  @let action = nextAction();
+  <aside
+    class="component-detail__next-action"
+    aria-labelledby="next-action-title"
+  >
+    <p class="component-detail__eyebrow">Recommended next action</p>
+    <h2 id="next-action-title">{{ action.title }}</h2>
+    <p>{{ action.detail }}</p>
+    <a [attr.href]="action.href">{{ action.label }}</a>
+  </aside>
+
   <section class="component-detail__panel" aria-labelledby="preview-title">
-    <h2 id="preview-title">Preview</h2>
+    <h2 id="preview-title" tabindex="-1">Preview</h2>
     <p>
       <strong>Preview type:</strong>
       {{ previewKind() === 'live-storybook' ? 'Live Storybook' : 'Unavailable'
@@ -115,7 +126,7 @@
   </section>
 
   <section class="component-detail__panel" aria-labelledby="readiness-title">
-    <h2 id="readiness-title">Readiness</h2>
+    <h2 id="readiness-title" tabindex="-1">Readiness</h2>
     <p class="component-detail__readiness-status">{{ readinessStatus() }}</p>
     @if (blockingReasons().length) {
     <ul class="component-detail__blocking-reasons">
@@ -127,7 +138,7 @@
   </section>
 
   <section class="component-detail__panel" aria-labelledby="evidence-title">
-    <h2 id="evidence-title">Tests and evidence</h2>
+    <h2 id="evidence-title" tabindex="-1">Tests and evidence</h2>
     @if (workspace.testExecutionError(); as evidenceError) {
     <p role="alert">
       Some test evidence could not be loaded: {{ evidenceError }}
@@ -171,8 +182,23 @@
     }
   </section>
 
+  <section class="component-detail__panel" aria-labelledby="reviews-title">
+    <h2 id="reviews-title" tabindex="-1">Manual review</h2>
+    @if (m.manualReviewProcedureIds.length === 0) {
+    <p class="component-detail__unavailable">
+      No manual review procedure is connected for this component.
+    </p>
+    } @else {
+    <ul>
+      @for (procedureId of m.manualReviewProcedureIds; track procedureId) {
+      <li><code>{{ procedureId }}</code></li>
+      }
+    </ul>
+    }
+  </section>
+
   <section class="component-detail__panel" aria-labelledby="states-title">
-    <h2 id="states-title">States and stories</h2>
+    <h2 id="states-title" tabindex="-1">States and stories</h2>
     @if (authoredManifestPath(); as path) {
     <p>Configuration source: {{ path }}</p>
     } @if (m.states.length === 0) {
@@ -276,7 +302,7 @@
   </section>
 
   <section class="component-detail__panel" aria-labelledby="tokens-title">
-    <h2 id="tokens-title">Token mapping</h2>
+    <h2 id="tokens-title" tabindex="-1">Token mapping</h2>
     @if (tokenSourcePath(); as path) {
     <p>Token source (DTCG): {{ path }}</p>
     } @if (authoredManifestPath(); as path) {
@@ -311,7 +337,7 @@
     class="component-detail__panel"
     aria-labelledby="documentation-title"
   >
-    <h2 id="documentation-title">Documentation</h2>
+    <h2 id="documentation-title" tabindex="-1">Documentation</h2>
     @if (m.documentationTargets.length === 0) {
     <p class="component-detail__unavailable">
       No documentation target connected for this component yet.

@@ -25,6 +25,13 @@ export interface AnatomyItem {
   readonly contractSectionId: 'contract-content' | 'contract-style-parts';
 }
 
+export interface ComponentNextAction {
+  readonly title: string;
+  readonly detail: string;
+  readonly label: string;
+  readonly href: `#${string}`;
+}
+
 export type PreviewKind =
   | 'live-storybook'
   | 'static-capture'
@@ -378,6 +385,106 @@ export class ComponentDetailPage {
     )
       reasons.push('Documentation is drifted or freshness is not evaluated');
     return reasons;
+  });
+
+  protected readonly nextAction = computed<ComponentNextAction>(() => {
+    const manifest = this.manifest();
+    if (!manifest) {
+      return {
+        title: 'Reconnect component evidence',
+        detail: 'The selected component is not present in the current scan.',
+        label: 'Review component status',
+        href: '#readiness-title',
+      };
+    }
+    const manifestPath =
+      this.authoredManifestPath() ??
+      `.forgegate/components/${manifest.id}.yaml`;
+    if (manifest.states.length === 0) {
+      return {
+        title: 'Declare required states',
+        detail: `Add the states designers must inspect to ${manifestPath}.`,
+        label: 'Review state coverage',
+        href: '#states-title',
+      };
+    }
+    if (manifest.tokenMappings.length === 0) {
+      return {
+        title: 'Connect token mappings',
+        detail: `Map the component's required design tokens in ${manifestPath}.`,
+        label: 'Review token coverage',
+        href: '#tokens-title',
+      };
+    }
+    if (this.previewKind() === 'unavailable') {
+      return {
+        title: 'Connect a coded preview',
+        detail: this.previewUnavailableReason(),
+        label: 'Review preview connection',
+        href: '#preview-title',
+      };
+    }
+    const requiredGates = manifest.testRequirements.filter(
+      (requirement) => requirement.required,
+    );
+    if (requiredGates.length === 0) {
+      return {
+        title: 'Declare automated gates',
+        detail: `Add the automated checks required for this component to ${manifestPath}.`,
+        label: 'Review test requirements',
+        href: '#evidence-title',
+      };
+    }
+    const currentPassingGates = new Set(
+      this.testExecutions()
+        .filter(
+          (execution) =>
+            execution.status === 'passed' && this.executionIsCurrent(execution),
+        )
+        .map((execution) => execution.gate),
+    );
+    const uncoveredGates = requiredGates
+      .map((requirement) => requirement.gate)
+      .filter((gate) => !currentPassingGates.has(gate));
+    if (uncoveredGates.length > 0) {
+      return {
+        title: 'Refresh automated test evidence',
+        detail: `Current passing evidence is required for: ${uncoveredGates.join(', ')}.`,
+        label: 'Review test evidence',
+        href: '#evidence-title',
+      };
+    }
+    if (manifest.manualReviewProcedureIds.length === 0) {
+      return {
+        title: 'Define a manual review procedure',
+        detail: `Record the designer or accessibility review required in ${manifestPath}.`,
+        label: 'Review manual checks',
+        href: '#reviews-title',
+      };
+    }
+    if (
+      manifest.documentationTargets.length === 0 ||
+      manifest.documentationTargets.some(
+        (target) => this.documentationDriftState(target) !== 'Current',
+      )
+    ) {
+      return {
+        title: 'Connect current documentation',
+        detail:
+          manifest.documentationTargets.length === 0
+            ? `Add a repository-owned documentation target to ${manifestPath}.`
+            : 'Update or verify the connected documentation before release.',
+        label: 'Review documentation',
+        href: '#documentation-title',
+      };
+    }
+    return {
+      title: 'Review release readiness',
+      detail:
+        'Connected component evidence is complete; release policy evaluation is the remaining decision.',
+      label: 'Review readiness',
+      href: '#readiness-title',
+    };
   });
 
   protected executionFreshness(execution: TestExecution): string {

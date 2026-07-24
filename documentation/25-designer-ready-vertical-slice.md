@@ -381,6 +381,15 @@ At wide widths, use an 8/4 split:
 
 The right rail should remain visible while the user examines the primary content when window height permits, but it must not become an inaccessible independently scrolling trap.
 
+The implemented P0 record presents one evidence-derived recommended next
+action ahead of the detail panels. It resolves the first incomplete connection
+in a fixed order: required states, token mappings, coded preview, automated
+requirements and current passing results, manual review, then documentation.
+The recommendation links to a keyboard-focusable section heading on the same
+record, so it remains useful before ForgeGate has adapters capable of running
+or editing those sources directly. Once every connected source is complete, it
+points to readiness without claiming that the future release policy has passed.
+
 ## Preview panel
 
 ### Purpose

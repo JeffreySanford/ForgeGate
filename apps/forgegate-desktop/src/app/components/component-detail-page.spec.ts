@@ -207,6 +207,17 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain('Static capture');
     expect(compiled.textContent).toContain('Blueprint reference');
     expect(compiled.textContent).toContain('Temporary generated preview');
+    const nextAction = compiled.querySelector('.component-detail__next-action');
+    expect(nextAction?.textContent).toContain('Declare required states');
+    expect(nextAction?.querySelector('a')?.getAttribute('href')).toBe(
+      '#states-title',
+    );
+    expect(
+      compiled.querySelector('#states-title')?.getAttribute('tabindex'),
+    ).toBe('-1');
+    expect(compiled.textContent).toContain(
+      'No manual review procedure is connected',
+    );
 
     expect(compiled.textContent).toContain('variant');
     expect(compiled.textContent).toContain('focus');
@@ -258,6 +269,43 @@ describe('ComponentDetailPage', () => {
     expect(fixture.nativeElement.textContent).toContain(
       'Anatomy not yet described',
     );
+  });
+
+  it('preserves the selected component route while replacement scan data settles', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(router.url).toBe('/components/acme.design-system.acme-button');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent,
+    ).toContain('acme-button');
+
+    workspaceService.customElementsManifest.set({
+      schemaVersion: '1.0.0',
+      modules: [],
+    });
+    fixture.detectChanges();
+
+    expect(router.url).toBe('/components/acme.design-system.acme-button');
+    expect(fixture.nativeElement.textContent).toContain(
+      'No component with id "acme.design-system.acme-button"',
+    );
+
+    workspaceService.customElementsManifest.set(richManifest);
+    fixture.detectChanges();
+
+    expect(router.url).toBe('/components/acme.design-system.acme-button');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent,
+    ).toContain('acme-button');
   });
 
   it('renders a sandboxed local Storybook preview with source provenance', async () => {
@@ -366,6 +414,13 @@ describe('ComponentDetailPage', () => {
         ?.getAttribute('src'),
     ).toContain('components-acmebutton--primary');
     expect(compiled.textContent).toContain('./src/acme-button.stories.js');
+    const nextAction = compiled.querySelector('.component-detail__next-action');
+    expect(nextAction?.textContent).toContain(
+      'Refresh automated test evidence',
+    );
+    expect(nextAction?.querySelector('a')?.getAttribute('href')).toBe(
+      '#evidence-title',
+    );
   });
 
   it('merges repository-authored states and token mappings with CEM contract data', async () => {
@@ -469,10 +524,25 @@ describe('ComponentDetailPage', () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set({
       ...scan,
+      storybookProjects: ['.storybook'],
       testRunners: ['node:test'],
       testEvidenceFiles: ['.forgegate/evidence/acme-button-unit.json'],
     });
     workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.storybookIndex.set({
+      v: 5,
+      entries: {
+        'components-acmebutton--primary': {
+          type: 'story',
+          id: 'components-acmebutton--primary',
+          name: 'Primary',
+          title: 'Components/AcmeButton',
+          importPath: './src/acme-button.stories.ts',
+          exportName: 'Primary',
+          tags: ['dev', 'test'],
+        },
+      },
+    });
     workspaceService.componentManifestOverrides.set([
       createComponentManifest({
         id: 'acme.design-system.acme-button',
@@ -480,6 +550,16 @@ describe('ComponentDetailPage', () => {
         adapter: 'framework.web-components',
         packagePath: '.',
         componentVersion: '0.1.0',
+        states: [{ name: 'default', required: true }],
+        tokenMappings: [
+          { tokenPath: 'color.action', category: 'color', required: true },
+        ],
+        storyMappings: [
+          {
+            storybookStoryId: 'components-acmebutton--primary',
+            stateName: 'default',
+          },
+        ],
         testRequirements: [
           { gate: 'unit', scope: 'component', required: true },
         ],
@@ -527,6 +607,9 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain(
       'Connected automated evidence is passing',
     );
+    expect(
+      compiled.querySelector('.component-detail__next-action')?.textContent,
+    ).toContain('Define a manual review procedure');
 
     workspaceService.gitStatus.set({
       branch: 'main',
@@ -542,6 +625,9 @@ describe('ComponentDetailPage', () => {
       'connected automated evidence is stale',
     );
     expect(compiled.textContent).toContain('Automated evidence is stale');
+    expect(
+      compiled.querySelector('.component-detail__next-action')?.textContent,
+    ).toContain('Refresh automated test evidence');
   });
 
   it('has no automated accessibility violations for a matched component', async () => {

@@ -95,7 +95,7 @@ Primary references:
 - [X} Add `/components/:componentId` route. `ComponentDetailPage` — honest coming-soon placeholder reading `componentId` from the route; the real Button assurance record is P0.5.
 - [ ] Keep Tests, Reviews, Documentation, and Releases visible only when they have a meaningful connected destination or honest coming-soon state. Not yet added to the nav at all (neither real nor coming-soon) — deferred until closer to P1/P2 work that would give them a destination.
 - [ ] Move raw paths, commands, and adapter diagnostics behind progressive disclosure rather than removing them. `WorkspacePage` still shows all diagnostic detail flat, same as before — this is P0.3's real-data system map work, not done here.
-- [ ] Preserve route state and selected component when scans refresh. Not yet applicable — no component selection state exists until P0.4.
+- [X} Preserve route state and selected component when scans refresh. Component selection is URL-derived rather than duplicated in transient scan state. A component-route regression test replaces the current scan with an empty manifest and then restores it, proving the same `/components/:componentId` URL shows the restored record without navigation or focus-state corruption.
 - [X} Add route-change focus management. `App`'s constructor subscribes to `Router` `NavigationEnd` and moves focus to the `#main-content` landmark (`tabindex="-1"`), verified by an Angular test that navigates via `Router.navigateByUrl` and asserts `document.activeElement`, and confirmed live in a running dev server.
 - [ ] Add loading, empty, error, partial, and unsupported layouts for every primary route. `WorkspacePage` has an explicit empty state; no loading/partial/unsupported states exist for any route yet.
 
@@ -153,7 +153,7 @@ This slice generalizes to any component and is tested both with synthetic edge-c
 - [X} Implement the coded-preview surface with explicit source labeling. The component record embeds the mapped local Storybook story in a sandboxed iframe and labels its story ID, source import, index convention, target URL, runtime-verification limit, and open-in-Storybook action.
 - [X} Distinguish live Storybook preview, static capture, blueprint reference, temporary generated preview, and unavailable preview. A typed preview model selects Live Storybook or an exact unavailable reason, while a semantic source-availability disclosure reports static, blueprint, and temporary sources as not connected or unsupported until real adapters exist.
 - [X} Add the coverage strip for states, stories, tokens, tests, reviews, and documentation. Six real counts (`manifest.states.length`, `.storyMappings.length`, `.tokenMappings.length`, `.testRequirements.length`, `.manualReviewProcedureIds.length`, `.documentationTargets.length`) — all currently 0 for any CEM-only-mapped component, shown as real zeros, not hidden.
-- [X} Add the readiness rail with explicit blocking reasons. Always "Unknown — no evidence connected" (honest — no findings/evidence pipeline exists) plus a real per-category list of why (no states declared, no Storybook connection, etc.), derived from the same manifest fields as the coverage strip. No "recommended next action" yet — that needs a policy engine that doesn't exist.
+- [X} Add the readiness rail with explicit blocking reasons. Readiness remains conservative and never impersonates the future release policy. A separate evidence-derived recommendation selects the first incomplete state, token, preview, automated-test, manual-review, or documentation connection and links to that exact section.
 - [X} Add the required state/story matrix. Renders `manifest.states` as a real table when populated, an explicit "No required states declared" empty state otherwise (always the empty state today, since nothing populates `states` from a CEM).
 - [X} Add anatomy and token-mapping sections. The existing repository-authored token table is paired with a contract-bounded anatomy view derived only from real CEM content slots and CSS parts. Every anatomy item links to its exact contract group; CSS custom properties are not misrepresented as structure, missing anatomy is explicit, and ForgeGate states that part-to-token relationships remain undeclared rather than inferring them.
 - [X} Add contract detail. Inputs/outputs/content/public methods/style parts render as real tables from `manifest.contract`, which is the one genuinely rich, non-empty section — verified by a test using a manifest with real fields, a method, an event, a slot, and a CSS part. Evidence, accessibility, and release detail through progressive disclosure are not implemented — no evidence pipeline exists to disclose.
@@ -164,7 +164,7 @@ This slice generalizes to any component and is tested both with synthetic edge-c
 
 ### P0.5 exit criteria
 
-- [ ] A designer can understand what the Button is, what it looks like, what coverage exists, why it is blocked, and what to do next without opening source files. The live fixture preview, coverage, and blocking reasons are connected; a focused component-level next-action link is still missing.
+- [X} A designer can understand what the Button is, what it looks like, what coverage exists, why it is blocked, and what to do next without opening source files. The live fixture preview, coverage strip, explicit blocking reasons, manual-review state, and evidence-prioritized next-action panel are connected on one record. Each recommendation links to a keyboard-focusable destination heading.
 - [X} An engineer can reach the manifest, source, story IDs, commands, evidence, and raw artifacts. Source files, full contract, and manifest id are all shown directly; story IDs/commands/evidence are honestly absent because they don't exist as real data yet, not hidden behind a false success state.
 - [X} No readiness percentage conceals a blocking condition. There is no percentage at all — readiness is always the explicit text "Unknown — no evidence connected" plus a real reasons list, never a number.
 
@@ -184,7 +184,7 @@ These are functional dependencies that must advance with the P0 interface. The U
 
 ## P0.7 — P0 quality and accessibility gate
 
-- [X} Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states. 89 tests across `app.spec.ts`, `workspace-page.spec.ts`, `system-map.spec.ts`, `components-page.spec.ts`, and `component-detail-page.spec.ts` — built incrementally alongside each P0.1–P0.5 slice, not added after the fact.
+- [X} Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states. The desktop suite now runs 129 tests, including component next-action priorities and scan-replacement route preservation, built incrementally alongside each P0.1–P0.5 slice rather than added after the fact.
 - [X} Add keyboard navigation tests. Route-change focus management is tested (`App`'s "moves focus to the main content landmark after a route change"); full tab-order/keyboard-only-operation coverage across every control is not exhaustively tested.
 - [X} Add automated accessibility checks for primary routes. `apps/forgegate-desktop/src/test-a11y.ts` wraps `axe-core`, run against real rendered DOM in jsdom (color-contrast/target-size disabled — jsdom has no real layout, so those checks would be meaningless there, not because they're skipped as a category). Added to the shell, `/workspace`, the system map, `/components` (table and card view), and `/components/:componentId` — 7 new checks. This caught and fixed a real bug: the system map's SVG nodes had `role="img"` on the container with nested `role="button"` children that had no click handler at all — invalid ARIA nesting _and_ fake, non-functional interactivity. Fixed by removing the unwired interactivity (an SVG `<title>` per node now carries the same descriptive text non-interactively).
 - [ ] Add manual screen-reader review for the shell, workspace, inventory, and Button record. Not done — needs an actual screen reader, not just axe.
@@ -198,10 +198,10 @@ These are functional dependencies that must advance with the P0 interface. The U
 
 P0 is complete only when:
 
-- [ ] ForgeGate presents a coherent application shell rather than a single diagnostic page.
-- [ ] The workspace command center uses real repository scan data.
-- [ ] The inventory presents real discovered components.
-- [ ] One Button has a usable component assurance record.
+- [X} ForgeGate presents a coherent application shell rather than a single diagnostic page. Persistent navigation and workspace context frame the workspace, inventory, and component-detail routes.
+- [X} The workspace command center uses real repository scan data. Its system map, journey, progress, and expandable diagnostics are all derived from `WorkspaceService` scan and adapter signals.
+- [X} The inventory presents real discovered components. CEM-derived and repository-authored manifests feed the accessible table/card catalog, with invalid mappings isolated from valid siblings.
+- [X} One Button has a usable component assurance record. The deterministic fixture connects its coded preview, states, tokens, test requirement/result, documentation freshness, blocking reasons, and evidence-derived next action.
 - [X} Storybook, state coverage, one token mapping, one test result, and one documentation state are connected or explicitly shown as unavailable with a concrete reason. The deterministic Button fixture now exercises every connection, and preview availability reports an exact reason instead of a generic placeholder.
 - [ ] All primary screens pass the ForgeGate accessibility and quality gate.
 
