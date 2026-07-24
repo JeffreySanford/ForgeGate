@@ -270,33 +270,31 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    #[tokio::test]
-    async fn runs_an_approved_command_in_the_workspace() {
-        let result = run_workspace_command(
+    #[test]
+    fn runs_an_approved_command_in_the_workspace() {
+        let result = tauri::async_runtime::block_on(run_workspace_command(
             std::env::temp_dir().display().to_string(),
             ".".to_string(),
             "git".to_string(),
             vec!["--version".to_string()],
             10,
-        )
-        .await
+        ))
         .expect("running git --version in the temp dir should succeed");
         assert_eq!(result.exit_code, Some(0));
     }
 
-    #[tokio::test]
-    async fn rejects_a_working_directory_that_escapes_the_workspace() {
+    #[test]
+    fn rejects_a_working_directory_that_escapes_the_workspace() {
         let dir = std::env::temp_dir().join(format!("forgegate-run-cmd-escape-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("should create temp dir");
 
-        let error = run_workspace_command(
+        let error = tauri::async_runtime::block_on(run_workspace_command(
             dir.display().to_string(),
             "..".to_string(),
             "git".to_string(),
             vec!["--version".to_string()],
             10,
-        )
-        .await
+        ))
         .expect_err("a working directory outside the workspace must be rejected");
         assert!(error.contains("resolves outside"));
 
