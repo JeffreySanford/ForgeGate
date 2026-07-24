@@ -101,6 +101,15 @@ export interface CommandResult {
   durationMs: number;
 }
 
+export interface AdapterDiagnostic {
+  readonly id: string;
+  readonly adapter: string;
+  readonly source: string;
+  readonly status: 'loaded' | 'partial' | 'failed' | 'unavailable';
+  readonly rawOutput: string | null;
+  readonly error: string | null;
+}
+
 export interface CemGenerationPlan {
   target: ComponentPackageCandidate;
   command: string;
@@ -180,6 +189,7 @@ export class WorkspaceService {
   readonly cemGenerationRunning = signal(false);
   readonly cemGenerationResult = signal<CommandResult | null>(null);
   readonly cemGenerationError = signal<string | null>(null);
+  readonly adapterDiagnostics = signal<readonly AdapterDiagnostic[]>([]);
   readonly error = signal<string | null>(null);
 
   async selectWorkspace(): Promise<void> {
@@ -195,6 +205,7 @@ export class WorkspaceService {
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
+    this.adapterDiagnostics.set([]);
     this.setScanProgress('selecting', 'Choose a repository folder', 0);
     try {
       const path = await this.invoke<string | null>('select_workspace');
@@ -215,6 +226,22 @@ export class WorkspaceService {
       ]);
       this.gitStatus.set(status);
       this.workspaceScan.set(scan);
+      this.setAdapterDiagnostic({
+        id: 'workspace-scan',
+        adapter: 'workspace scanner',
+        source: 'read_workspace_scan',
+        status: 'loaded',
+        rawOutput: JSON.stringify(scan, null, 2),
+        error: null,
+      });
+      this.setAdapterDiagnostic({
+        id: 'git-status',
+        adapter: 'Git workspace adapter',
+        source: 'read_git_status',
+        status: 'loaded',
+        rawOutput: JSON.stringify(status, null, 2),
+        error: null,
+      });
       this.selectedComponentPackagePath.set(
         scan.componentPackages.length === 1
           ? (scan.componentPackages[0]?.path ?? null)
@@ -259,6 +286,14 @@ export class WorkspaceService {
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.error.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'workspace-selection',
+        adapter: 'workspace orchestration',
+        source: this.workspacePath() ?? 'workspace selection',
+        status: 'failed',
+        rawOutput: null,
+        error: String(error),
+      });
       const completed = this.scanProgress()?.completed ?? 0;
       this.scanProgress.set({
         phase: 'failed',
@@ -282,6 +317,13 @@ export class WorkspaceService {
       completed,
       total: WORKSPACE_SCAN_STEP_COUNT,
     });
+  }
+
+  private setAdapterDiagnostic(diagnostic: AdapterDiagnostic): void {
+    this.adapterDiagnostics.update((current) => [
+      ...current.filter((item) => item.id !== diagnostic.id),
+      diagnostic,
+    ]);
   }
 
   selectComponentPackage(path: string): void {
@@ -321,6 +363,14 @@ export class WorkspaceService {
         timeoutSeconds: GENERATE_CEM_TIMEOUT_SECONDS,
       });
       this.cemGenerationResult.set(result);
+      this.setAdapterDiagnostic({
+        id: 'cem-generation-command',
+        adapter: 'Custom Elements Manifest analyzer',
+        source: `${plan.target.path}: ${plan.commandText}`,
+        status: result.exitCode === 0 ? 'loaded' : 'failed',
+        rawOutput: JSON.stringify(result, null, 2),
+        error: result.exitCode === 0 ? null : result.stderr || 'Command failed',
+      });
       if (result.exitCode === 0) {
         const relativePath = [
           plan.target.path === '.' ? '' : plan.target.path,
@@ -333,6 +383,14 @@ export class WorkspaceService {
           relativePath,
         });
         this.customElementsManifest.set(parseCustomElementsManifest(text));
+        this.setAdapterDiagnostic({
+          id: `custom-elements-manifest:${relativePath}`,
+          adapter: 'Web Components adapter',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
         const scan = this.workspaceScan();
         if (scan && !scan.customElementsManifests.includes(relativePath)) {
           this.workspaceScan.set({
@@ -346,6 +404,14 @@ export class WorkspaceService {
       }
     } catch (error) {
       this.cemGenerationError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'cem-generation-command',
+        adapter: 'Custom Elements Manifest analyzer',
+        source: `${plan.target.path}: ${plan.commandText}`,
+        status: 'failed',
+        rawOutput: null,
+        error: String(error),
+      });
     } finally {
       this.cemGenerationRunning.set(false);
     }
@@ -360,13 +426,37 @@ export class WorkspaceService {
   private applyConfigText(configText: string | null): void {
     if (configText === null) {
       this.repositoryConfig.set(null);
+      this.setAdapterDiagnostic({
+        id: 'repository-config',
+        adapter: 'repository config adapter',
+        source: '.forgegate/config.yaml',
+        status: 'unavailable',
+        rawOutput: null,
+        error: 'File not present',
+      });
       return;
     }
     try {
       this.repositoryConfig.set(parseRepositoryConfig(configText));
+      this.setAdapterDiagnostic({
+        id: 'repository-config',
+        adapter: 'repository config adapter',
+        source: '.forgegate/config.yaml',
+        status: 'loaded',
+        rawOutput: configText,
+        error: null,
+      });
     } catch (error) {
       this.repositoryConfig.set(null);
       this.repositoryConfigError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'repository-config',
+        adapter: 'repository config adapter',
+        source: '.forgegate/config.yaml',
+        status: 'failed',
+        rawOutput: configText,
+        error: String(error),
+      });
     }
   }
 
@@ -384,16 +474,41 @@ export class WorkspaceService {
     this.customElementsManifest.set(null);
     const [relativePath] = scan.customElementsManifests;
     if (!relativePath) {
+      this.setAdapterDiagnostic({
+        id: 'custom-elements-manifest',
+        adapter: 'Web Components adapter',
+        source: 'Custom Elements Manifest',
+        status: 'unavailable',
+        rawOutput: null,
+        error: 'No manifest detected',
+      });
       return;
     }
+    let text: string | null = null;
     try {
-      const text = await this.invoke<string>('read_text_file', {
+      text = await this.invoke<string>('read_text_file', {
         workspacePath,
         relativePath,
       });
       this.customElementsManifest.set(parseCustomElementsManifest(text));
+      this.setAdapterDiagnostic({
+        id: 'custom-elements-manifest',
+        adapter: 'Web Components adapter',
+        source: relativePath,
+        status: 'loaded',
+        rawOutput: text,
+        error: null,
+      });
     } catch (error) {
       this.customElementsManifestError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'custom-elements-manifest',
+        adapter: 'Web Components adapter',
+        source: relativePath,
+        status: 'failed',
+        rawOutput: text,
+        error: String(error),
+      });
     }
   }
 
@@ -404,14 +519,31 @@ export class WorkspaceService {
     this.componentManifestOverrides.set([]);
     const manifests: ComponentManifest[] = [];
     for (const relativePath of scan.componentManifests ?? []) {
+      let text: string | null = null;
       try {
-        const text = await this.invoke<string>('read_text_file', {
+        text = await this.invoke<string>('read_text_file', {
           workspacePath,
           relativePath,
         });
         manifests.push(parseComponentManifest(text));
+        this.setAdapterDiagnostic({
+          id: `component-manifest:${relativePath}`,
+          adapter: 'component manifest adapter',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
       } catch (error) {
         this.componentManifestError.set(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `component-manifest:${relativePath}`,
+          adapter: 'component manifest adapter',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
       }
     }
     this.componentManifestOverrides.set(manifests);
@@ -425,14 +557,31 @@ export class WorkspaceService {
     const executions: TestExecution[] = [];
     const errors: string[] = [];
     for (const relativePath of scan.testEvidenceFiles ?? []) {
+      let text: string | null = null;
       try {
-        const text = await this.invoke<string>('read_text_file', {
+        text = await this.invoke<string>('read_text_file', {
           workspacePath,
           relativePath,
         });
         executions.push(parseTestExecution(text));
+        this.setAdapterDiagnostic({
+          id: `test-evidence:${relativePath}`,
+          adapter: 'test evidence adapter',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
       } catch (error) {
         errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `test-evidence:${relativePath}`,
+          adapter: 'test evidence adapter',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
       }
     }
     this.testExecutions.set(executions);
@@ -455,6 +604,14 @@ export class WorkspaceService {
   ): Promise<void> {
     this.storybookIndex.set(null);
     if (!scan.storybookProjects.length) {
+      this.setAdapterDiagnostic({
+        id: 'storybook-index',
+        adapter: 'Storybook adapter',
+        source: STORYBOOK_INDEX_CONVENTIONAL_PATH,
+        status: 'unavailable',
+        rawOutput: null,
+        error: 'Storybook not detected',
+      });
       return;
     }
     let text: string;
@@ -463,13 +620,37 @@ export class WorkspaceService {
         workspacePath,
         relativePath: STORYBOOK_INDEX_CONVENTIONAL_PATH,
       });
-    } catch {
+    } catch (error) {
+      this.setAdapterDiagnostic({
+        id: 'storybook-index',
+        adapter: 'Storybook adapter',
+        source: STORYBOOK_INDEX_CONVENTIONAL_PATH,
+        status: 'unavailable',
+        rawOutput: null,
+        error: String(error),
+      });
       return;
     }
     try {
       this.storybookIndex.set(parseStorybookIndex(text));
+      this.setAdapterDiagnostic({
+        id: 'storybook-index',
+        adapter: 'Storybook adapter',
+        source: STORYBOOK_INDEX_CONVENTIONAL_PATH,
+        status: 'loaded',
+        rawOutput: text,
+        error: null,
+      });
     } catch (error) {
       this.storybookIndexError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'storybook-index',
+        adapter: 'Storybook adapter',
+        source: STORYBOOK_INDEX_CONVENTIONAL_PATH,
+        status: 'failed',
+        rawOutput: text,
+        error: String(error),
+      });
     }
   }
 
@@ -478,8 +659,9 @@ export class WorkspaceService {
     scan: WorkspaceScan,
   ): Promise<void> {
     this.nativeComponentSignals.set([]);
+    const sourcePaths = scan.uiSourceFiles ?? [];
     const settled = await Promise.allSettled(
-      (scan.uiSourceFiles ?? []).map(async (relativePath) => ({
+      sourcePaths.map(async (relativePath) => ({
         path: relativePath,
         content: await this.invoke<string>('read_text_file', {
           workspacePath,
@@ -491,13 +673,29 @@ export class WorkspaceService {
       result.status === 'fulfilled' ? [result.value] : [],
     );
     const failedCount = settled.length - files.length;
+    const failures = settled.flatMap((result, index) =>
+      result.status === 'rejected'
+        ? [`${sourcePaths[index]}: ${String(result.reason)}`]
+        : [],
+    );
     if (failedCount) {
       this.nativeComponentSignalsError.set(
-        `${failedCount} UI source file(s) could not be read.`,
+        `${failedCount} UI source file(s) could not be read: ${failures.join('; ')}`,
       );
     }
-    this.nativeComponentSignals.set(
-      discoverNativeComponentSignals(files, scan.uiTechnologies),
-    );
+    const signals = discoverNativeComponentSignals(files, scan.uiTechnologies);
+    this.nativeComponentSignals.set(signals);
+    this.setAdapterDiagnostic({
+      id: 'native-component-signals',
+      adapter: 'native pattern adapter',
+      source: `${sourcePaths.length} discovered UI source file(s)`,
+      status: failures.length
+        ? files.length
+          ? 'partial'
+          : 'failed'
+        : 'loaded',
+      rawOutput: JSON.stringify(signals, null, 2),
+      error: failures.length ? failures.join('\n') : null,
+    });
   }
 }

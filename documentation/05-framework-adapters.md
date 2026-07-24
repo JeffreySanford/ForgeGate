@@ -305,6 +305,16 @@ ForgeGate should distinguish:
 - Generation unsupported
 - Adapter internal error
 
+The desktop vertical slice retains each adapter's source output and exact
+failure text in memory for the active workspace session. Workspace scan, Git,
+repository configuration, Custom Elements Manifest, component manifest,
+Storybook index, test evidence, native-pattern, and CEM-generation records are
+listed in an expandable diagnostics table. Normalized component and evidence
+models do not replace these raw records. Invalid content remains inspectable
+when parsing fails; an unavailable source is labeled separately from a failed
+adapter. These diagnostics are local session data and are not exported as a
+support bundle without a future redaction and explicit-approval workflow.
+
 ## Adapter test requirements
 
 Every adapter should have fixture repositories covering:

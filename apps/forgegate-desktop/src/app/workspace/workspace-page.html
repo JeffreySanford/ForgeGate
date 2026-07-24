@@ -155,6 +155,49 @@
       </dd>
     </dl>
   </details>
+  <section aria-labelledby="adapter-diagnostics-heading">
+    <h2 id="adapter-diagnostics-heading">Adapter diagnostics</h2>
+    <p>
+      Raw adapter output and exact failures are retained in memory for this
+      workspace session. Expand an artifact to inspect it; normalized results
+      elsewhere on this page do not replace the source output.
+    </p>
+    <table>
+      <caption>
+        Adapter source artifacts and failures
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Adapter</th>
+          <th scope="col">Source</th>
+          <th scope="col">Status</th>
+          <th scope="col">Diagnostic</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (diagnostic of workspace.adapterDiagnostics(); track diagnostic.id)
+        {
+        <tr>
+          <th scope="row">{{ diagnostic.adapter }}</th>
+          <td><code>{{ diagnostic.source }}</code></td>
+          <td>{{ diagnostic.status }}</td>
+          <td>
+            <details>
+              <summary>Inspect {{ diagnostic.source }}</summary>
+              @if (diagnostic.error) {
+              <p><strong>Failure:</strong> {{ diagnostic.error }}</p>
+              } @if (diagnostic.rawOutput) {
+              <pre>{{ diagnostic.rawOutput }}</pre>
+              } @else {
+              <p>No raw output was produced.</p>
+              }
+            </details>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </section>
   @if (workspace.testExecutionError(); as evidenceError) {
   <p role="alert">Test evidence could not be loaded: {{ evidenceError }}</p>
   } } @if (workspace.customElementsManifest()) { @if

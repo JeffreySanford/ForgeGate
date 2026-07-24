@@ -172,6 +172,44 @@ describe('WorkspacePage', () => {
     expect(table?.textContent).toContain('packages/ui/src/button.scss:4');
   });
 
+  it('exposes raw adapter output and failures behind diagnostics disclosures', async () => {
+    workspaceService.workspaceScan.set(emptyScan);
+    workspaceService.adapterDiagnostics.set([
+      {
+        id: 'storybook-index',
+        adapter: 'Storybook adapter',
+        source: 'storybook-static/index.json',
+        status: 'loaded',
+        rawOutput: '{"v":5,"entries":{}}',
+        error: null,
+      },
+      {
+        id: 'test-evidence:broken',
+        adapter: 'test evidence adapter',
+        source: '.forgegate/evidence/broken.json',
+        status: 'failed',
+        rawOutput: '{"status":"green"}',
+        error: 'Unsupported test status "green"',
+      },
+    ]);
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const diagnostics = (fixture.nativeElement as HTMLElement).querySelector(
+      '[aria-labelledby="adapter-diagnostics-heading"]',
+    );
+    expect(diagnostics?.textContent).toContain('Storybook adapter');
+    expect(diagnostics?.textContent).toContain('storybook-static/index.json');
+    expect(diagnostics?.textContent).toContain('{"v":5,"entries":{}}');
+    expect(diagnostics?.textContent).toContain('test evidence adapter');
+    expect(diagnostics?.textContent).toContain(
+      'Unsupported test status "green"',
+    );
+    expect(diagnostics?.textContent).toContain('{"status":"green"}');
+  });
+
   it('has no automated accessibility violations with a populated component inventory', async () => {
     workspaceService.workspaceScan.set(emptyScan);
     workspaceService.customElementsManifest.set({
