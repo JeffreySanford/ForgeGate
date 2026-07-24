@@ -354,6 +354,86 @@ describe('ComponentDetailPage', () => {
     );
   });
 
+  it('shows configured test evidence, provenance, and conservative freshness', async () => {
+    const evidenceCommit = 'a'.repeat(40);
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set({
+      ...scan,
+      testRunners: ['node:test'],
+      testEvidenceFiles: ['.forgegate/evidence/acme-button-unit.json'],
+    });
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '0.1.0',
+        testRequirements: [
+          { gate: 'unit', scope: 'component', required: true },
+        ],
+      }),
+    ]);
+    workspaceService.gitStatus.set({
+      branch: 'main',
+      commit: evidenceCommit,
+      dirty: false,
+    });
+    workspaceService.testExecutions.set([
+      {
+        id: 'acme-button-unit',
+        componentVersionId: 'acme.design-system.acme-button@0.1.0',
+        gate: 'unit',
+        tool: 'node:test',
+        toolVersion: '22.21.1',
+        adapterVersion: '0.1.0',
+        status: 'passed',
+        startedAt: '2026-07-24T16:00:00.000Z',
+        durationMs: 42,
+        commitOrFingerprint: evidenceCommit,
+        rawArtifactRef: '.forgegate/evidence/raw/acme-button-unit.tap',
+      },
+    ]);
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const evidencePanel = compiled.querySelector(
+      '[aria-labelledby="evidence-title"]',
+    );
+    expect(evidencePanel?.textContent).toContain('unit');
+    expect(evidencePanel?.textContent).toContain('passed');
+    expect(evidencePanel?.textContent).toContain('node:test 22.21.1');
+    expect(evidencePanel?.textContent).toContain('Current');
+    expect(evidencePanel?.textContent).toContain(
+      '.forgegate/evidence/raw/acme-button-unit.tap',
+    );
+    expect(compiled.textContent).toContain(
+      'Connected automated evidence is passing',
+    );
+
+    workspaceService.gitStatus.set({
+      branch: 'main',
+      commit: 'b'.repeat(40),
+      dirty: false,
+    });
+    fixture.detectChanges();
+
+    expect(evidencePanel?.textContent).toContain(
+      'Stale — recorded at aaaaaaaa',
+    );
+    expect(compiled.textContent).toContain(
+      'connected automated evidence is stale',
+    );
+    expect(compiled.textContent).toContain('Automated evidence is stale');
+  });
+
   it('has no automated accessibility violations for a matched component', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

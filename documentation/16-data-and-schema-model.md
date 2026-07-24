@@ -75,6 +75,14 @@ Defines a required gate and scope.
 
 Records one tool execution and its raw artifacts.
 
+The initial repository-owned interchange uses
+`.forgegate/evidence/*.json`, validated against
+`testExecutionSchema`. A record identifies the component version as
+`<component-id>@<semantic-version>`, preserves tool and adapter versions,
+normalized status, start time, duration, commit or source fingerprint, and an
+optional repository-relative raw artifact reference. Invalid sibling records
+are reported but do not discard valid evidence.
+
 ### AssuranceResult
 
 Normalized result used by policy evaluation.

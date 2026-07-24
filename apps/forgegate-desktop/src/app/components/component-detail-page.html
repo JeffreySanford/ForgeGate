@@ -95,16 +95,58 @@
 
   <section class="component-detail__panel" aria-labelledby="readiness-title">
     <h2 id="readiness-title">Readiness</h2>
-    <p class="component-detail__readiness-status">
-      Unknown — no evidence connected. ForgeGate has no findings/evidence
-      pipeline wired into the desktop app yet.
-    </p>
+    <p class="component-detail__readiness-status">{{ readinessStatus() }}</p>
     @if (blockingReasons().length) {
     <ul class="component-detail__blocking-reasons">
       @for (reason of blockingReasons(); track reason) {
       <li>{{ reason }}</li>
       }
     </ul>
+    }
+  </section>
+
+  <section class="component-detail__panel" aria-labelledby="evidence-title">
+    <h2 id="evidence-title">Tests and evidence</h2>
+    @if (workspace.testExecutionError(); as evidenceError) {
+    <p role="alert">
+      Some test evidence could not be loaded: {{ evidenceError }}
+    </p>
+    } @if (testExecutions().length === 0) {
+    <p class="component-detail__unavailable">
+      No automated result evidence is connected for this component version.
+    </p>
+    } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Gate</th>
+          <th scope="col">Status</th>
+          <th scope="col">Tool</th>
+          <th scope="col">Started</th>
+          <th scope="col">Duration</th>
+          <th scope="col">Freshness</th>
+          <th scope="col">Raw artifact</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (execution of testExecutions(); track execution.id) {
+        <tr>
+          <th scope="row">{{ execution.gate }}</th>
+          <td>{{ execution.status }}</td>
+          <td>{{ execution.tool }} {{ execution.toolVersion }}</td>
+          <td>{{ execution.startedAt }}</td>
+          <td>
+            {{ execution.durationMs === undefined ? 'Unavailable' :
+            execution.durationMs + ' ms' }}
+          </td>
+          <td>{{ executionFreshness(execution) }}</td>
+          <td>
+            <code>{{ execution.rawArtifactRef ?? 'Unavailable' }}</code>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
     }
   </section>
 

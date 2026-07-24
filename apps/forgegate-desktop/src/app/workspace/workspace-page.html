@@ -133,6 +133,11 @@
         {{ scan.testRunners.length ? scan.testRunners.join(', ') : 'None found'
         }}
       </dd>
+      <dt>Test evidence records</dt>
+      <dd>
+        {{ scan.testEvidenceFiles?.length ? scan.testEvidenceFiles.join(', ') :
+        'None found' }}
+      </dd>
       <dt>Visual regression providers</dt>
       <dd>
         {{ scan.visualRegressionProviders.length ?
@@ -150,7 +155,9 @@
       </dd>
     </dl>
   </details>
-  } @if (workspace.customElementsManifest()) { @if
+  @if (workspace.testExecutionError(); as evidenceError) {
+  <p role="alert">Test evidence could not be loaded: {{ evidenceError }}</p>
+  } } @if (workspace.customElementsManifest()) { @if
   (componentMapResult().manifests.length) {
   <h2>Component inventory</h2>
   <table>

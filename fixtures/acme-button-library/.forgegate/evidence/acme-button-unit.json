@@ -1,0 +1,13 @@
+{
+  "id": "acme-button-unit-2026-07-24",
+  "componentVersionId": "acme.button-library.acme-button@0.1.0",
+  "gate": "unit",
+  "tool": "node:test",
+  "toolVersion": "22.21.1",
+  "adapterVersion": "0.1.0",
+  "status": "passed",
+  "startedAt": "2026-07-24T16:00:00.000Z",
+  "durationMs": 620.0096,
+  "commitOrFingerprint": "95e7160229bcb43c7b096ac8aabee9f14acbb0dc",
+  "rawArtifactRef": ".forgegate/evidence/raw/acme-button-unit.tap"
+}

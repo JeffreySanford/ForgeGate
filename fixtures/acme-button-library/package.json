@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "customElements": "custom-elements.json",
+  "scripts": {
+    "test": "node --test"
+  },
   "devDependencies": {
     "@storybook/web-components-vite": "^10.5.3",
     "lit": "^3.3.3",

@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import type { TestExecution } from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
@@ -45,6 +46,8 @@ export class AssuranceJourney {
       this.workspace.workspacePath(),
       this.workspace.workspaceScan(),
       this.inventory.result().manifests,
+      this.workspace.testExecutions(),
+      this.workspace.gitStatus()?.commit ?? null,
     ),
   );
 
@@ -65,6 +68,8 @@ export function buildAssuranceJourney(
   workspacePath: string | null,
   scan: WorkspaceScan | null,
   manifests: readonly ComponentManifest[],
+  executions: readonly TestExecution[] = [],
+  currentCommit: string | null = null,
 ): readonly AssuranceStage[] {
   if (!workspacePath) {
     return stageDefinitions().map((stage) => ({
@@ -85,6 +90,12 @@ export function buildAssuranceJourney(
   ).length;
   const testsDeclared = manifests.filter(
     (manifest) => manifest.testRequirements.length > 0,
+  ).length;
+  const testsConnected = manifests.filter((manifest) =>
+    requiredTestsHaveExecutions(manifest, executions),
+  ).length;
+  const testsCurrentAndPassing = manifests.filter((manifest) =>
+    requiredTestsAreCurrentAndPassing(manifest, executions, currentCommit),
   ).length;
   const reviewsDeclared = manifests.filter(
     (manifest) => manifest.manualReviewProcedureIds.length > 0,
@@ -134,11 +145,25 @@ export function buildAssuranceJourney(
     {
       id: 'test',
       title: 'Test',
-      status: testsDeclared > 0 ? 'partial' : 'blocked',
+      status:
+        testsCurrentAndPassing > 0 &&
+        testsCurrentAndPassing === manifests.length
+          ? 'complete'
+          : testsConnected > 0 || testsDeclared > 0
+            ? 'partial'
+            : 'blocked',
       detail:
-        testsDeclared > 0
-          ? `${countDetail(testsDeclared, total, 'component has test requirements')} Results are not connected yet.`
-          : 'No component test requirements or test results are connected.',
+        testsCurrentAndPassing > 0
+          ? countDetail(
+              testsCurrentAndPassing,
+              total,
+              'component has current passing evidence for every required test',
+            )
+          : testsConnected > 0
+            ? `${countDetail(testsConnected, total, 'component has result evidence for every required test')} Evidence is stale, failing, blocked, or incomplete.`
+            : testsDeclared > 0
+              ? `${countDetail(testsDeclared, total, 'component has test requirements')} Results are not connected yet.`
+              : 'No component test requirements or test results are connected.',
       actionLabel: 'Open test requirements',
       actionLink: componentLink,
     },
@@ -221,4 +246,49 @@ function documentationAdapterIsConnected(
   if (adapter === 'starlight') return scan.starlightProjects.length > 0;
   if (adapter === 'storybook') return scan.storybookProjects.length > 0;
   return scan.hasZeroheight;
+}
+
+function requiredTestsHaveExecutions(
+  manifest: ComponentManifest,
+  executions: readonly TestExecution[],
+): boolean {
+  if (!manifest.testRequirements.length) return false;
+  const matching = executions.filter(
+    (execution) =>
+      execution.componentVersionId === componentVersionId(manifest),
+  );
+  return manifest.testRequirements
+    .filter((requirement) => requirement.required)
+    .every((requirement) =>
+      matching.some((execution) => execution.gate === requirement.gate),
+    );
+}
+
+function requiredTestsAreCurrentAndPassing(
+  manifest: ComponentManifest,
+  executions: readonly TestExecution[],
+  currentCommit: string | null,
+): boolean {
+  if (!currentCommit || !manifest.testRequirements.length) return false;
+  const matching = executions.filter(
+    (execution) =>
+      execution.componentVersionId === componentVersionId(manifest),
+  );
+  return manifest.testRequirements
+    .filter((requirement) => requirement.required)
+    .every((requirement) =>
+      matching.some(
+        (execution) =>
+          execution.gate === requirement.gate &&
+          execution.status === 'passed' &&
+          execution.commitOrFingerprint.toLowerCase() ===
+            currentCommit.toLowerCase(),
+      ),
+    );
+}
+
+function componentVersionId(manifest: ComponentManifest): string {
+  return manifest.componentVersion
+    ? `${manifest.id}@${manifest.componentVersion}`
+    : manifest.id;
 }

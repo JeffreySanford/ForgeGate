@@ -7,6 +7,7 @@ import type {
   ComponentManifest,
   ManifestDocumentationTarget,
 } from '@forgegate/core-manifest';
+import type { TestExecution } from '@forgegate/core-evidence';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '../storybook/storybook-index';
@@ -83,12 +84,52 @@ export class ComponentDetailPage {
     () => this.workspace.gitStatus()?.commit.slice(0, 8) ?? null,
   );
 
+  protected readonly testExecutions = computed<readonly TestExecution[]>(() => {
+    const manifest = this.manifest();
+    if (!manifest) return [];
+    const versionId = componentVersionId(manifest);
+    return this.workspace
+      .testExecutions()
+      .filter((execution) => execution.componentVersionId === versionId);
+  });
+
   protected readonly evidenceFreshness = computed<string>(() => {
     const commit = this.shortCommit();
     if (!commit) {
       return 'Not evaluated — current Git revision is unavailable';
     }
-    return `Not evaluated — no evidence records are connected to commit ${commit}`;
+    const executions = this.testExecutions();
+    if (!executions.length) {
+      return `Not evaluated — no evidence records are connected to commit ${commit}`;
+    }
+    const currentCount = executions.filter((execution) =>
+      this.executionIsCurrent(execution),
+    ).length;
+    return currentCount === executions.length
+      ? `Current — ${currentCount} automated execution record(s) match commit ${commit}`
+      : `Stale — ${executions.length - currentCount} of ${executions.length} automated execution record(s) do not match commit ${commit}`;
+  });
+
+  protected readonly readinessStatus = computed<string>(() => {
+    const executions = this.testExecutions();
+    if (!executions.length) {
+      return 'Unknown — no automated result evidence is connected. Release policy has not been evaluated.';
+    }
+    if (
+      executions.some(
+        (execution) =>
+          execution.status === 'failed' || execution.status === 'blocked',
+      )
+    ) {
+      return 'Evidence indicates blocked — an automated result failed or was blocked. Release policy has not been evaluated.';
+    }
+    if (executions.some((execution) => !this.executionIsCurrent(execution))) {
+      return 'Unknown — connected automated evidence is stale. Release policy has not been evaluated.';
+    }
+    if (executions.every((execution) => execution.status === 'passed')) {
+      return 'Connected automated evidence is passing. Release policy has not been evaluated.';
+    }
+    return 'Unknown — connected automated evidence is incomplete. Release policy has not been evaluated.';
   });
 
   protected documentationDriftState(
@@ -208,8 +249,22 @@ export class ComponentDetailPage {
       reasons.push('No Storybook connection (not yet built — P0.6)');
     if (manifest.tokenMappings.length === 0)
       reasons.push('No token mappings connected');
+    const executions = this.testExecutions();
     if (manifest.testRequirements.length === 0)
-      reasons.push('No automated evidence connected');
+      reasons.push('No automated test requirements declared');
+    else if (executions.length === 0)
+      reasons.push('No automated test results connected');
+    else if (
+      executions.some(
+        (execution) =>
+          execution.status === 'failed' || execution.status === 'blocked',
+      )
+    )
+      reasons.push('Automated evidence contains a failed or blocked result');
+    else if (
+      executions.some((execution) => !this.executionIsCurrent(execution))
+    )
+      reasons.push('Automated evidence is stale');
     if (manifest.manualReviewProcedureIds.length === 0)
       reasons.push('No manual review recorded');
     if (manifest.documentationTargets.length === 0)
@@ -223,8 +278,32 @@ export class ComponentDetailPage {
     return reasons;
   });
 
+  protected executionFreshness(execution: TestExecution): string {
+    if (!/^[0-9a-f]{40}$/i.test(execution.commitOrFingerprint)) {
+      return 'Not evaluated — evidence uses a source fingerprint rather than a Git commit';
+    }
+    return this.executionIsCurrent(execution)
+      ? 'Current'
+      : `Stale — recorded at ${execution.commitOrFingerprint.slice(0, 8)}`;
+  }
+
+  private executionIsCurrent(execution: TestExecution): boolean {
+    const commit = this.workspace.gitStatus()?.commit;
+    return (
+      !!commit &&
+      /^[0-9a-f]{40}$/i.test(execution.commitOrFingerprint) &&
+      execution.commitOrFingerprint.toLowerCase() === commit.toLowerCase()
+    );
+  }
+
   protected componentName(id: string): string {
     const parts = id.split('.');
     return parts[parts.length - 1] ?? id;
   }
+}
+
+function componentVersionId(manifest: ComponentManifest): string {
+  return manifest.componentVersion
+    ? `${manifest.id}@${manifest.componentVersion}`
+    : manifest.id;
 }

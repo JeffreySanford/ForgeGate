@@ -39,6 +39,14 @@ const scanFixtureWithComponentManifest = {
   componentManifests: ['.forgegate/components/up.design-system.up-button.yaml'],
 };
 
+const scanFixtureWithEvidence = {
+  ...scanFixture,
+  testEvidenceFiles: [
+    '.forgegate/evidence/acme-button-unit.json',
+    '.forgegate/evidence/broken.json',
+  ],
+};
+
 const gitStatusFixture = {
   branch: 'master',
   commit: 'a'.repeat(40),
@@ -176,6 +184,37 @@ describe('WorkspaceService', () => {
     expect(service.workspaceScan()).toEqual(scanFixture);
     expect(service.repositoryConfig()).toBeNull();
     expect(service.repositoryConfigError()).toContain('not valid YAML');
+  });
+
+  it('loads valid test evidence and isolates an invalid sibling record', async () => {
+    const execution = {
+      id: 'acme-button-unit',
+      componentVersionId: 'up.design-system.up-button@0.1.0',
+      gate: 'unit',
+      tool: 'vitest',
+      toolVersion: '4.1.10',
+      adapterVersion: '0.1.0',
+      status: 'passed',
+      startedAt: '2026-07-24T16:00:00.000Z',
+      durationMs: 50,
+      commitOrFingerprint: 'a'.repeat(40),
+      rawArtifactRef: '.forgegate/evidence/raw/unit.tap',
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithEvidence)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(JSON.stringify(execution))
+      .mockResolvedValueOnce('{"status":"green"}');
+
+    await service.selectWorkspace();
+
+    expect(service.testExecutions()).toEqual([execution]);
+    expect(service.testExecutionError()).toContain(
+      '.forgegate/evidence/broken.json',
+    );
+    expect(service.workspaceScan()).toEqual(scanFixtureWithEvidence);
   });
 
   it('does not attempt to read a Custom Elements Manifest when none was found', async () => {
