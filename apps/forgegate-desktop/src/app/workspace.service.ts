@@ -80,8 +80,6 @@ export function createCemGenerationPlan(
     ...CEM_EXCLUDED_GLOBS.flatMap((glob) => ['--exclude', glob]),
     '--outdir',
     target.outputDirectory,
-    '--packagejson',
-    'false',
   ];
   return {
     target,
