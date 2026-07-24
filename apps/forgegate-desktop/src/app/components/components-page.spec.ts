@@ -17,6 +17,7 @@ const scan: WorkspaceScan = {
   visualRegressionProviders: [],
   ciProviders: [],
   customElementsManifests: ['custom-elements.json'],
+  componentPackages: [],
 };
 
 const twoComponentManifest: CustomElementsManifest = {
@@ -25,12 +26,26 @@ const twoComponentManifest: CustomElementsManifest = {
     {
       kind: 'javascript-module',
       path: 'src/acme-button.ts',
-      declarations: [{ kind: 'class', name: 'AcmeButton', customElement: true, tagName: 'acme-button' }],
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeButton',
+          customElement: true,
+          tagName: 'acme-button',
+        },
+      ],
     },
     {
       kind: 'javascript-module',
       path: 'src/acme-card.ts',
-      declarations: [{ kind: 'class', name: 'AcmeCard', customElement: true, tagName: 'acme-card' }],
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeCard',
+          customElement: true,
+          tagName: 'acme-card',
+        },
+      ],
     },
   ],
 };
@@ -51,9 +66,11 @@ describe('ComponentsPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.components-page__empty')?.textContent).toContain(
-      'No workspace open yet',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.components-page__empty',
+      )?.textContent,
+    ).toContain('No workspace open yet');
   });
 
   it('shows an explicit empty state when no manifest is connected', async () => {
@@ -63,23 +80,30 @@ describe('ComponentsPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.components-page__empty')?.textContent).toContain(
-      'No Custom Elements Manifest is connected',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.components-page__empty',
+      )?.textContent,
+    ).toContain('No Custom Elements Manifest is connected');
   });
 
   it('shows an explicit empty state when the manifest declares no components', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);
-    workspaceService.customElementsManifest.set({ schemaVersion: '1.0.0', modules: [] });
+    workspaceService.customElementsManifest.set({
+      schemaVersion: '1.0.0',
+      modules: [],
+    });
 
     const fixture = TestBed.createComponent(ComponentsPage);
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.components-page__empty')?.textContent).toContain(
-      'declares no custom elements',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.components-page__empty',
+      )?.textContent,
+    ).toContain('declares no custom elements');
   });
 
   it('renders a table row per real component, with honest unknown fields', async () => {
@@ -92,13 +116,19 @@ describe('ComponentsPage', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const rows = Array.from(compiled.querySelectorAll('.components-page__inventory-table tbody tr'));
+    const rows = Array.from(
+      compiled.querySelectorAll('.components-page__inventory-table tbody tr'),
+    );
     expect(rows).toHaveLength(2);
 
-    const firstRowCells = Array.from(rows[0].querySelectorAll('td')).map((cell) => cell.textContent?.trim());
+    const firstRowCells = Array.from(rows[0].querySelectorAll('td')).map(
+      (cell) => cell.textContent?.trim(),
+    );
     expect(firstRowCells).toEqual([
       'web-components',
-      'acme.design-system',
+      '@acme/design-system',
+      'owned',
+      'src/acme-button.ts',
       'proposal',
       'Unknown — no evidence connected',
       'Not evaluated',
@@ -106,7 +136,53 @@ describe('ComponentsPage', () => {
       'Not connected',
       'Unknown',
     ]);
-    expect(rows[0].querySelector('a')?.getAttribute('href')).toBe('/components/acme.design-system.acme-button');
+    expect(rows[0].querySelector('a')?.getAttribute('href')).toBe(
+      '/components/acme.design-system.acme-button',
+    );
+  });
+
+  it('deduplicates repeated declarations and exposes their provenance in diagnostics', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set({
+      schemaVersion: '1.0.0',
+      modules: [
+        ...twoComponentManifest.modules,
+        {
+          kind: 'javascript-module',
+          path: 'dist/acme-button.js',
+          declarations: [
+            {
+              kind: 'class',
+              name: 'AcmeButton',
+              customElement: true,
+              tagName: 'acme-button',
+            },
+          ],
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(ComponentsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(
+      fixture.nativeElement.querySelectorAll(
+        '.components-page__inventory-table tbody tr',
+      ),
+    ).toHaveLength(2);
+    expect(
+      fixture.nativeElement.querySelector('.components-page__summary')
+        ?.textContent,
+    ).toContain('3 declarations discovered');
+    expect(
+      fixture.nativeElement.querySelector('.components-page__summary')
+        ?.textContent,
+    ).toContain('1 duplicate groups');
+    expect(fixture.nativeElement.textContent).toContain(
+      '2 declarations across 2 files',
+    );
   });
 
   it('filters by search text across id and component name', async () => {
@@ -124,7 +200,9 @@ describe('ComponentsPage', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const rows = Array.from(compiled.querySelectorAll('.components-page__inventory-table tbody tr'));
+    const rows = Array.from(
+      compiled.querySelectorAll('.components-page__inventory-table tbody tr'),
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('acme-card');
   });
@@ -143,9 +221,11 @@ describe('ComponentsPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.components-page__empty')?.textContent).toContain(
-      'No components match',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.components-page__empty',
+      )?.textContent,
+    ).toContain('No components match');
   });
 
   it('switches to card view and links each card to its detail route', async () => {
@@ -165,7 +245,9 @@ describe('ComponentsPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const cards = compiled.querySelectorAll('.component-card');
     expect(cards).toHaveLength(2);
-    expect(cards[0].querySelector('a')?.getAttribute('href')).toBe('/components/acme.design-system.acme-button');
+    expect(cards[0].querySelector('a')?.getAttribute('href')).toBe(
+      '/components/acme.design-system.acme-button',
+    );
   });
 
   it('shows mapping failures without hiding the components that did map successfully', async () => {
@@ -178,7 +260,14 @@ describe('ComponentsPage', () => {
         {
           kind: 'javascript-module',
           path: 'src/broken.ts',
-          declarations: [{ kind: 'class', name: 'Broken', customElement: true, tagName: 'acme.broken' }],
+          declarations: [
+            {
+              kind: 'class',
+              name: 'Broken',
+              customElement: true,
+              tagName: 'acme.broken',
+            },
+          ],
         },
       ],
     });
@@ -188,8 +277,12 @@ describe('ComponentsPage', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelectorAll('.components-page__inventory-table tbody tr')).toHaveLength(2);
-    expect(compiled.querySelector('.components-page__failures')?.textContent).toContain('Broken');
+    expect(
+      compiled.querySelectorAll('.components-page__inventory-table tbody tr'),
+    ).toHaveLength(2);
+    expect(
+      compiled.querySelector('.components-page__failures')?.textContent,
+    ).toContain('Broken');
   });
 
   it('has no automated accessibility violations with a populated table', async () => {
