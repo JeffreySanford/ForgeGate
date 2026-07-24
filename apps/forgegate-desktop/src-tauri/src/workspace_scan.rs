@@ -18,6 +18,16 @@ use std::path::{Path, PathBuf};
 /// This still never walks into node_modules or recurses more than one
 /// level. Deeper, adapter-driven discovery (frameworks, versions) is later
 /// Phase 5/12 work.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentPackageCandidate {
+    pub name: String,
+    pub path: String,
+    pub source_glob: String,
+    pub output_directory: String,
+    pub manifest_path: String,
+}
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScan {
@@ -32,6 +42,7 @@ pub struct WorkspaceScan {
     visual_regression_providers: Vec<String>,
     ci_providers: Vec<String>,
     custom_elements_manifests: Vec<String>,
+    component_packages: Vec<ComponentPackageCandidate>,
 }
 
 /// Fails loudly if the workspace root itself cannot be read (permissions,
@@ -62,6 +73,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         visual_regression_providers: detect_visual_regression_providers(package_json.as_ref()),
         ci_providers: detect_ci_providers(root, &entries),
         custom_elements_manifests: detect_custom_elements_manifests(root, &project_dirs),
+        component_packages: detect_component_packages(root, &project_dirs),
     })
 }
 
@@ -114,6 +126,38 @@ fn read_package_json(root: &Path, entries: &[String]) -> Option<Value> {
 fn read_package_json_at(dir: &Path) -> Option<Value> {
     let contents = fs::read_to_string(dir.join("package.json")).ok()?;
     serde_json::from_str(&contents).ok()
+}
+
+fn detect_component_packages(root: &Path, project_dirs: &[PathBuf]) -> Vec<ComponentPackageCandidate> {
+    project_dirs
+        .iter()
+        .filter(|dir| dir.join("src").is_dir())
+        .filter_map(|dir| {
+            let package_json = read_package_json_at(dir)?;
+            let name = package_json.get("name")?.as_str()?.to_string();
+            let package_path = relative_display(root, dir);
+            let path = if package_path.is_empty() { ".".to_string() } else { package_path };
+            let declared_manifest = package_json
+                .get("customElements")
+                .and_then(Value::as_str)
+                .unwrap_or("custom-elements.json")
+                .replace('\\', "/");
+            let manifest = Path::new(&declared_manifest);
+            let output_directory = manifest
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .map(|parent| parent.display().to_string().replace('\\', "/"))
+                .unwrap_or_else(|| ".".to_string());
+
+            Some(ComponentPackageCandidate {
+                name,
+                path,
+                source_glob: "src/**/*.{js,ts,jsx,tsx}".to_string(),
+                output_directory,
+                manifest_path: declared_manifest,
+            })
+        })
+        .collect()
 }
 
 fn dependency_keys(package_json: Option<&Value>) -> Vec<String> {
@@ -595,6 +639,33 @@ mod tests {
     /// Manifest detection, which shares the same `candidate_project_dirs`
     /// but never had its own nested-case test — the code path was
     /// exercised only at the workspace root before this test existed.
+    #[test]
+    fn discovers_component_package_candidates_without_treating_every_workspace_project_as_one_package() {
+        let dir = std::env::temp_dir().join(format!("forgegate-component-packages-{}", std::process::id()));
+        let package = dir.join("packages").join("button");
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::write(
+            package.join("package.json"),
+            r#"{"name":"@up/button","customElements":"dist/custom-elements.json"}"#,
+        )
+        .unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+
+        assert_eq!(
+            scan.component_packages,
+            vec![ComponentPackageCandidate {
+                name: "@up/button".to_string(),
+                path: "packages/button".to_string(),
+                source_glob: "src/**/*.{js,ts,jsx,tsx}".to_string(),
+                output_directory: "dist".to_string(),
+                manifest_path: "dist/custom-elements.json".to_string(),
+            }]
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn detects_a_custom_elements_manifest_nested_under_packages() {
         let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-nested-{}", std::process::id()));

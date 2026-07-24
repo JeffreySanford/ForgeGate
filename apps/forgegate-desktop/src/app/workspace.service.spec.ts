@@ -20,6 +20,15 @@ const scanFixture = {
   visualRegressionProviders: [],
   ciProviders: ['github-actions'],
   customElementsManifests: [],
+  componentPackages: [
+    {
+      name: '@up/design-system',
+      path: 'packages/design-system',
+      sourceGlob: 'src/**/*.{js,ts,jsx,tsx}',
+      outputDirectory: 'dist',
+      manifestPath: 'dist/custom-elements.json',
+    },
+  ],
 };
 
 const scanFixtureWithCem = {
@@ -91,7 +100,9 @@ describe('WorkspaceService', () => {
 
     await service.selectWorkspace();
 
-    expect(service.repositoryConfig()?.safeWriteLocations).toEqual(['src/content/docs/generated/**']);
+    expect(service.repositoryConfig()?.safeWriteLocations).toEqual([
+      'src/content/docs/generated/**',
+    ]);
     expect(service.repositoryConfigError()).toBeNull();
   });
 
@@ -131,7 +142,14 @@ describe('WorkspaceService', () => {
         {
           kind: 'javascript-module',
           path: 'src/up-button.ts',
-          declarations: [{ kind: 'class', name: 'UpButton', customElement: true, tagName: 'up-button' }],
+          declarations: [
+            {
+              kind: 'class',
+              name: 'UpButton',
+              customElement: true,
+              tagName: 'up-button',
+            },
+          ],
         },
       ],
     });
@@ -159,13 +177,43 @@ describe('WorkspaceService', () => {
       .mockResolvedValueOnce(gitStatusFixture)
       .mockResolvedValueOnce(scanFixtureWithCem)
       .mockResolvedValueOnce(null)
-      .mockRejectedValueOnce('dist/custom-elements.json does not exist in this workspace');
+      .mockRejectedValueOnce(
+        'dist/custom-elements.json does not exist in this workspace',
+      );
 
     await service.selectWorkspace();
 
     expect(service.workspaceScan()).toEqual(scanFixtureWithCem);
     expect(service.customElementsManifest()).toBeNull();
-    expect(service.customElementsManifestError()).toBe('dist/custom-elements.json does not exist in this workspace');
+    expect(service.customElementsManifestError()).toBe(
+      'dist/custom-elements.json does not exist in this workspace',
+    );
+  });
+
+  it('does not generate until a component package is explicitly selected when several exist', async () => {
+    const ambiguousScan = {
+      ...scanFixture,
+      componentPackages: [
+        ...scanFixture.componentPackages,
+        {
+          ...scanFixture.componentPackages[0],
+          name: '@up/card',
+          path: 'packages/card',
+        },
+      ],
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(ambiguousScan)
+      .mockResolvedValueOnce(null);
+    await service.selectWorkspace();
+    invokeMock.mockReset();
+
+    await service.generateCustomElementsManifest();
+
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(service.cemGenerationPlan()).toBeNull();
   });
 
   it('does nothing if asked to generate a manifest before a workspace is selected', async () => {
@@ -184,21 +232,46 @@ describe('WorkspaceService', () => {
 
     const cemJson = JSON.stringify({ schemaVersion: '1.0.0', modules: [] });
     invokeMock
-      .mockResolvedValueOnce({ exitCode: 0, stdout: 'wrote custom-elements.json', stderr: '', timedOut: false, durationMs: 900 })
-      .mockResolvedValueOnce(scanFixtureWithCem)
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: 'wrote custom-elements.json',
+        stderr: '',
+        timedOut: false,
+        durationMs: 900,
+      })
       .mockResolvedValueOnce(cemJson);
 
     await service.generateCustomElementsManifest();
 
     expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
       workspacePath: 'D:/repos/ForgeGate',
-      relativeCwd: '.',
+      relativeCwd: 'packages/design-system',
       command: 'npx',
-      args: ['@custom-elements-manifest/analyzer', 'analyze', '--litelement', '--outdir', '.'],
+      args: [
+        '@custom-elements-manifest/analyzer',
+        'analyze',
+        '--litelement',
+        '--globs',
+        'src/**/*.{js,ts,jsx,tsx}',
+        '--exclude',
+        'node_modules/**',
+        '--exclude',
+        'dist/**',
+        '--exclude',
+        'coverage/**',
+        '--exclude',
+        '.nx/**',
+        '--exclude',
+        'storybook-static/**',
+        '--outdir',
+        'dist',
+      ],
       timeoutSeconds: 120,
     });
     expect(service.cemGenerationResult()?.exitCode).toBe(0);
-    expect(service.workspaceScan()).toEqual(scanFixtureWithCem);
+    expect(service.workspaceScan()?.customElementsManifests).toContain(
+      'packages/design-system/dist/custom-elements.json',
+    );
     expect(service.customElementsManifest()).not.toBeNull();
     expect(service.cemGenerationRunning()).toBe(false);
   });
@@ -237,11 +310,15 @@ describe('WorkspaceService', () => {
     await service.selectWorkspace();
     invokeMock.mockReset();
 
-    invokeMock.mockRejectedValueOnce('Failed to start "npx": program not found');
+    invokeMock.mockRejectedValueOnce(
+      'Failed to start "npx": program not found',
+    );
 
     await service.generateCustomElementsManifest();
 
-    expect(service.cemGenerationError()).toBe('Failed to start "npx": program not found');
+    expect(service.cemGenerationError()).toBe(
+      'Failed to start "npx": program not found',
+    );
     expect(service.cemGenerationRunning()).toBe(false);
   });
 

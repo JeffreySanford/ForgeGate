@@ -15,6 +15,7 @@ const emptyScan: WorkspaceScan = {
   visualRegressionProviders: [],
   ciProviders: [],
   customElementsManifests: ['custom-elements.json'],
+  componentPackages: [],
 };
 
 describe('WorkspacePage', () => {
@@ -33,7 +34,9 @@ describe('WorkspacePage', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.workspace-page__empty')?.textContent).toContain('No workspace open yet');
+    expect(
+      compiled.querySelector('.workspace-page__empty')?.textContent,
+    ).toContain('No workspace open yet');
   });
 
   it('renders a component inventory row for each discovered custom element', async () => {
@@ -45,7 +48,12 @@ describe('WorkspacePage', () => {
           kind: 'javascript-module',
           path: 'src/up-button.ts',
           declarations: [
-            { kind: 'class', name: 'UpButton', customElement: true, tagName: 'up-button' },
+            {
+              kind: 'class',
+              name: 'UpButton',
+              customElement: true,
+              tagName: 'up-button',
+            },
           ],
         },
       ],
@@ -63,7 +71,10 @@ describe('WorkspacePage', () => {
 
   it('shows a fallback message when the manifest has no custom elements in it', async () => {
     workspaceService.workspaceScan.set(emptyScan);
-    workspaceService.customElementsManifest.set({ schemaVersion: '1.0.0', modules: [] });
+    workspaceService.customElementsManifest.set({
+      schemaVersion: '1.0.0',
+      modules: [],
+    });
 
     const fixture = TestBed.createComponent(WorkspacePage);
     fixture.detectChanges();
@@ -71,7 +82,9 @@ describe('WorkspacePage', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('Manifest present but no custom elements found in it');
+    expect(compiled.textContent).toContain(
+      'Manifest present but no custom elements found in it',
+    );
   });
 
   it('has no automated accessibility violations with a populated component inventory', async () => {
@@ -82,7 +95,14 @@ describe('WorkspacePage', () => {
         {
           kind: 'javascript-module',
           path: 'src/up-button.ts',
-          declarations: [{ kind: 'class', name: 'UpButton', customElement: true, tagName: 'up-button' }],
+          declarations: [
+            {
+              kind: 'class',
+              name: 'UpButton',
+              customElement: true,
+              tagName: 'up-button',
+            },
+          ],
         },
       ],
     });

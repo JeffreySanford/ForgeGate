@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { GENERATE_CEM_ARGS, GENERATE_CEM_COMMAND } from './app/workspace.service';
+import { createCemGenerationPlan } from './app/workspace.service';
 
 const execFileAsync = promisify(execFile);
 
@@ -28,51 +28,62 @@ async function findRepoRoot(startDir: string): Promise<string> {
       dir = parent;
     }
   }
-  throw new Error(`Could not find fixtures/acme-button-library above ${startDir}`);
+  throw new Error(
+    `Could not find fixtures/acme-button-library above ${startDir}`,
+  );
 }
 
 /**
  * Every other test that touches GENERATE_CEM_ARGS mocks `invoke` and just
- * asserts the array matches itself — that mirror caught nothing when the
+ * asserts the array matches itself ? that mirror caught nothing when the
  * package name was misspelled (`@custom-elements-manifest/analyze` instead
  * of the real `.../analyzer`) and the required `analyze` subcommand was
  * missing entirely: a real user hit an `npm error 404` from the actual
  * command this app runs on their behalf. This test runs the real command
- * against a real, disposable copy of the fixture repository — no mocks —
+ * against a real, disposable copy of the fixture repository ? no mocks ?
  * so a future typo in `GENERATE_CEM_COMMAND`/`GENERATE_CEM_ARGS` fails CI
  * instead of only failing for a user who clicks "Generate Custom Elements
  * Manifest".
  *
  * Deliberately network-dependent and slow (first-run npx package
- * resolution) — an acceptable, narrow exception for the one command
+ * resolution) ? an acceptable, narrow exception for the one command
  * ForgeGate actually shells out to run on a user's real workspace.
  */
 describe('GENERATE_CEM_COMMAND / GENERATE_CEM_ARGS (real command, no mocks)', () => {
-  it(
-    'actually generates a Custom Elements Manifest describing acme-button when run for real',
-    async () => {
-      const repoRoot = await findRepoRoot(process.cwd());
-      const fixtureSource = join(repoRoot, 'fixtures/acme-button-library');
+  it('actually generates a Custom Elements Manifest describing acme-button when run for real', async () => {
+    const repoRoot = await findRepoRoot(process.cwd());
+    const fixtureSource = join(repoRoot, 'fixtures/acme-button-library');
 
-      const tempDir = await mkdtemp(join(tmpdir(), 'forgegate-cem-command-test-'));
-      try {
-        await cp(fixtureSource, tempDir, { recursive: true });
+    const tempDir = await mkdtemp(
+      join(tmpdir(), 'forgegate-cem-command-test-'),
+    );
+    try {
+      await cp(fixtureSource, tempDir, { recursive: true });
 
-        await execFileAsync(GENERATE_CEM_COMMAND, [...GENERATE_CEM_ARGS], {
-          cwd: tempDir,
-          shell: true,
-          timeout: 150_000,
-        });
+      const plan = createCemGenerationPlan({
+        name: '@forgegate/acme-button-library',
+        path: '.',
+        sourceGlob: 'src/**/*.{js,ts,jsx,tsx}',
+        outputDirectory: '.',
+        manifestPath: 'custom-elements.json',
+      });
 
-        const manifest = JSON.parse(await readFile(join(tempDir, 'custom-elements.json'), 'utf-8'));
-        const tagNames = manifest.modules.flatMap((module: { declarations?: { tagName?: string }[] }) =>
+      await execFileAsync(plan.command, plan.args, {
+        cwd: tempDir,
+        shell: true,
+        timeout: 150_000,
+      });
+
+      const manifest = JSON.parse(
+        await readFile(join(tempDir, 'custom-elements.json'), 'utf-8'),
+      );
+      const tagNames = manifest.modules.flatMap(
+        (module: { declarations?: { tagName?: string }[] }) =>
           (module.declarations ?? []).map((declaration) => declaration.tagName),
-        );
-        expect(tagNames).toContain('acme-button');
-      } finally {
-        await rm(tempDir, { recursive: true, force: true });
-      }
-    },
-    180_000,
-  );
+      );
+      expect(tagNames).toContain('acme-button');
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  }, 180_000);
 });
