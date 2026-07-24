@@ -53,6 +53,56 @@
     }
   </section>
 
+  <section aria-labelledby="native-signals-heading">
+    <h2 id="native-signals-heading">Native and CSS component signals</h2>
+    <p>
+      Reusable patterns found in source. Confirmed signals match a detected
+      library; candidates need framework-adapter validation before they become
+      component inventory.
+    </p>
+    @if (workspace.nativeComponentSignals().length) {
+    <table>
+      <caption>
+        Native, enhanced-native, and CSS component evidence
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Selector</th>
+          <th scope="col">Pattern</th>
+          <th scope="col">Provider</th>
+          <th scope="col">Confidence</th>
+          <th scope="col">Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (signal of workspace.nativeComponentSignals(); track
+        signal.sourceFile + ':' + signal.line + ':' + signal.selector) {
+        <tr>
+          <th scope="row"><code>{{ signal.selector }}</code></th>
+          <td>{{ signal.kind }}</td>
+          <td>{{ signal.provider }}</td>
+          <td>{{ signal.confidence }}</td>
+          <td>
+            <code>{{ signal.sourceFile }}:{{ signal.line }}</code><br />
+            {{ signal.evidence }}
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+    } @else {
+    <p class="workspace-page__empty">
+      No reusable native or CSS component signals were found.
+    </p>
+    } @if (scan.uiSourceFilesTruncated) {
+    <p role="status">
+      Source discovery reached its 500-file safety limit. Results are partial.
+    </p>
+    } @if (workspace.nativeComponentSignalsError(); as signalError) {
+    <p role="alert">{{ signalError }}</p>
+    }
+  </section>
+
   <details class="workspace-page__raw-scan">
     <summary>Raw workspace scan diagnostics</summary>
     <dl>

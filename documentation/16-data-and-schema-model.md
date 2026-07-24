@@ -28,6 +28,13 @@ version, project path, detected package, evidence source, and confidence.
 Technology availability is workspace context; it is not itself proof that a
 particular component is used.
 
+Native component discovery signals are intentionally separate from
+`Component`. Each records its selector, underlying native element when known,
+provider, pattern kind, source file and line, confidence, and human-readable
+evidence. A confirmed signal proves a known library pattern is used; a
+candidate still requires adapter validation before it becomes component
+inventory.
+
 ### Project
 
 Represents an application, library, documentation site, Storybook, test project, or infrastructure project within a workspace.

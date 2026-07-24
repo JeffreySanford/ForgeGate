@@ -9,6 +9,10 @@ import {
   type CustomElementsManifest,
 } from '@forgegate/adapter-web-components';
 import {
+  discoverNativeComponentSignals,
+  type NativeComponentSignal,
+} from '@forgegate/adapter-native-patterns';
+import {
   parseComponentManifest,
   type ComponentManifest,
 } from '@forgegate/core-manifest';
@@ -62,6 +66,8 @@ export interface WorkspaceScan {
   componentPackages: ComponentPackageCandidate[];
   componentManifests?: string[];
   uiTechnologies: UiTechnologyDetection[];
+  uiSourceFiles?: string[];
+  uiSourceFilesTruncated?: boolean;
 }
 
 export interface CommandResult {
@@ -138,6 +144,10 @@ export class WorkspaceService {
   readonly componentManifestError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
+  readonly nativeComponentSignals = signal<readonly NativeComponentSignal[]>(
+    [],
+  );
+  readonly nativeComponentSignalsError = signal<string | null>(null);
   readonly selectedComponentPackagePath = signal<string | null>(null);
   readonly cemGenerationRunning = signal(false);
   readonly cemGenerationResult = signal<CommandResult | null>(null);
@@ -150,6 +160,7 @@ export class WorkspaceService {
     this.customElementsManifestError.set(null);
     this.componentManifestError.set(null);
     this.storybookIndexError.set(null);
+    this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
     const path = await invoke<string | null>('select_workspace');
@@ -174,6 +185,7 @@ export class WorkspaceService {
       await this.loadCustomElementsManifest(path, scan);
       await this.loadComponentManifests(path, scan);
       await this.loadStorybookIndex(path, scan);
+      await this.loadNativeComponentSignals(path, scan);
     } catch (error) {
       this.gitStatus.set(null);
       this.workspaceScan.set(null);
@@ -181,6 +193,7 @@ export class WorkspaceService {
       this.customElementsManifest.set(null);
       this.componentManifestOverrides.set([]);
       this.storybookIndex.set(null);
+      this.nativeComponentSignals.set([]);
       this.error.set(String(error));
     }
   }
@@ -350,5 +363,33 @@ export class WorkspaceService {
     } catch (error) {
       this.storybookIndexError.set(String(error));
     }
+  }
+
+  private async loadNativeComponentSignals(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.nativeComponentSignals.set([]);
+    const settled = await Promise.allSettled(
+      (scan.uiSourceFiles ?? []).map(async (relativePath) => ({
+        path: relativePath,
+        content: await invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        }),
+      })),
+    );
+    const files = settled.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
+    const failedCount = settled.length - files.length;
+    if (failedCount) {
+      this.nativeComponentSignalsError.set(
+        `${failedCount} UI source file(s) could not be read.`,
+      );
+    }
+    this.nativeComponentSignals.set(
+      discoverNativeComponentSignals(files, scan.uiTechnologies),
+    );
   }
 }

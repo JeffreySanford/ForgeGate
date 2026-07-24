@@ -83,6 +83,15 @@ ownership, source, and confidence. An owned wrapper around a third-party
 component should retain both layers instead of being flattened into either
 “owned” or “dependency.”
 
+The initial native-pattern adapter scans supported files beneath project
+`src/` directories and emits source-and-line evidence for PrimeNG and Angular
+Material attribute enhancements, Bootstrap `btn` usage, Storybook-backed
+native elements, and repository-owned button-like CSS definitions. To keep
+workspace opening bounded, source discovery stops at 500 files and reports
+that results are partial. Library matches are confirmed only when dependency
+detection supports them; Storybook and repository-owned patterns remain
+candidates until a framework adapter extracts a stable contract.
+
 ## Angular adapter
 
 ### Discovery

@@ -58,6 +58,8 @@ pub struct WorkspaceScan {
     component_packages: Vec<ComponentPackageCandidate>,
     component_manifests: Vec<String>,
     ui_technologies: Vec<UiTechnologyDetection>,
+    ui_source_files: Vec<String>,
+    ui_source_files_truncated: bool,
 }
 
 /// Fails loudly if the workspace root itself cannot be read (permissions,
@@ -72,6 +74,8 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
     let package_json = read_package_json(root, &entries);
     let project_dirs = candidate_project_dirs(root, &entries);
 
+    let (ui_source_files, ui_source_files_truncated) =
+        detect_ui_source_files(root, &project_dirs);
     Ok(WorkspaceScan {
         package_name: package_json
             .as_ref()
@@ -91,7 +95,78 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         component_packages: detect_component_packages(root, &project_dirs),
         component_manifests: detect_component_manifests(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
+        ui_source_files,
+        ui_source_files_truncated,
     })
+}
+
+const UI_SOURCE_FILE_LIMIT: usize = 500;
+
+fn detect_ui_source_files(root: &Path, project_dirs: &[PathBuf]) -> (Vec<String>, bool) {
+    let mut found = Vec::new();
+    let mut truncated = false;
+    for project_dir in project_dirs {
+        collect_ui_source_files(
+            root,
+            &project_dir.join("src"),
+            0,
+            &mut found,
+            &mut truncated,
+        );
+        if truncated {
+            break;
+        }
+    }
+    found.sort();
+    found.dedup();
+    (found, truncated)
+}
+
+fn collect_ui_source_files(
+    root: &Path,
+    directory: &Path,
+    depth: usize,
+    found: &mut Vec<String>,
+    truncated: &mut bool,
+) {
+    if depth > 8 || *truncated {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    let mut paths = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .collect::<Vec<_>>();
+    paths.sort();
+
+    for path in paths {
+        if found.len() >= UI_SOURCE_FILE_LIMIT {
+            *truncated = true;
+            return;
+        }
+        let Ok(file_type) = path
+            .symlink_metadata()
+            .map(|metadata| metadata.file_type())
+        else {
+            continue;
+        };
+        if file_type.is_symlink() {
+            continue;
+        }
+        if file_type.is_dir() {
+            collect_ui_source_files(root, &path, depth + 1, found, truncated);
+            continue;
+        }
+        let supported = matches!(
+            path.extension().and_then(|extension| extension.to_str()),
+            Some("html" | "htm" | "ts" | "tsx" | "js" | "jsx" | "css" | "scss" | "sass" | "less")
+        );
+        if supported {
+            found.push(relative_display(root, &path));
+        }
+    }
 }
 
 fn detect_ui_technologies(root: &Path, project_dirs: &[PathBuf]) -> Vec<UiTechnologyDetection> {
@@ -577,6 +652,34 @@ mod tests {
         assert!(scan.custom_elements_manifests.is_empty());
         assert!(scan.component_manifests.is_empty());
         assert!(scan.ui_technologies.is_empty());
+        assert!(scan.ui_source_files.is_empty());
+        assert!(!scan.ui_source_files_truncated);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn discovers_supported_ui_sources_without_reading_docs() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-scan-ui-sources-{}",
+            std::process::id()
+        ));
+        let source = dir.join("src").join("components");
+        fs::create_dir_all(&source).expect("should create source directory");
+        fs::write(source.join("button.html"), "<button pButton>Save</button>").unwrap();
+        fs::write(source.join("button.scss"), ".ds-button {}").unwrap();
+        fs::write(source.join("notes.md"), "# Not executable UI source").unwrap();
+
+        let scan = scan_workspace(&dir).expect("scan should succeed");
+
+        assert_eq!(
+            scan.ui_source_files,
+            vec![
+                "src/components/button.html".to_string(),
+                "src/components/button.scss".to_string(),
+            ]
+        );
+        assert!(!scan.ui_source_files_truncated);
 
         fs::remove_dir_all(&dir).ok();
     }
