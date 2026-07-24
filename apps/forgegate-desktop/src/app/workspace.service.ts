@@ -142,7 +142,7 @@ export class WorkspaceService {
       this.workspaceScan.set(scan);
       this.selectedComponentPackagePath.set(
         scan.componentPackages.length === 1
-          ? scan.componentPackages[0].path
+          ? (scan.componentPackages[0]?.path ?? null)
           : null,
       );
       this.applyConfigText(configText);
