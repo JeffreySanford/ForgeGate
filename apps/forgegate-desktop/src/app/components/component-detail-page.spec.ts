@@ -255,7 +255,7 @@ describe('ComponentDetailPage', () => {
     workspaceService.workspaceScan.set({
       ...scan,
       tokenFiles: ['tokens/acme.tokens.json'],
-      starlightProjects: ['.'],
+      starlightProjects: [''],
       componentManifests: [
         '.forgegate/components/acme.design-system.acme-button.yaml',
       ],

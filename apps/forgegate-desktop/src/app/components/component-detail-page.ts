@@ -97,7 +97,9 @@ export class ComponentDetailPage {
         .workspaceScan()
         ?.starlightProjects.some(
           (project) =>
-            project === '.' || normalizedPath.startsWith(`${project}/`),
+            project === '' ||
+            project === '.' ||
+            normalizedPath.startsWith(`${project}/`),
         ) ?? false
     );
   }

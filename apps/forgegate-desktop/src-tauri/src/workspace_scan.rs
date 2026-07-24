@@ -450,7 +450,7 @@ mod tests {
         assert_eq!(scan.custom_elements_manifests, vec!["custom-elements.json".to_string()]);
         assert_eq!(scan.token_files, vec!["tokens/acme.tokens.json".to_string()]);
         assert_eq!(scan.storybook_projects, vec![".storybook".to_string()]);
-        assert_eq!(scan.starlight_projects, vec![".".to_string()]);
+        assert_eq!(scan.starlight_projects, vec!["".to_string()]);
         assert_eq!(
             scan.component_manifests,
             vec![".forgegate/components/acme.button-library.acme-button.yaml".to_string()]
