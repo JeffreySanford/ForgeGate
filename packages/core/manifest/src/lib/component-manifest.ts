@@ -1,4 +1,7 @@
-import type { DocumentationAdapter, LifecycleStatus } from '@forgegate/core-domain';
+import type {
+  DocumentationAdapter,
+  LifecycleStatus,
+} from '@forgegate/core-domain';
 import type { ContractMember } from './contract';
 import type { TestGate, TestScope } from './test-requirement';
 import type { TokenCategory } from './token-reference';
@@ -42,6 +45,8 @@ export interface ManifestTestRequirement {
 export interface ManifestDocumentationTarget {
   readonly adapter: DocumentationAdapter;
   readonly pathOrPageId?: string;
+  /** Component version represented by the currently published page. */
+  readonly publishedVersion?: string;
 }
 
 /**
@@ -63,6 +68,8 @@ export interface ComponentManifest {
   readonly schemaVersion: string;
   /** organization.library.component, per core-domain's buildComponentId. */
   readonly id: string;
+  /** Current repository component version used for freshness comparisons. */
+  readonly componentVersion?: string;
   readonly framework: string;
   readonly adapter: string;
   readonly packagePath: string;
@@ -88,6 +95,7 @@ export interface ComponentManifest {
 }
 
 const COMPONENT_ID_PATTERN = /^[^.\s]+\.[^.\s]+\.[^.\s]+$/;
+const SEMVER_PATTERN = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
 
 export function createComponentManifest(input: {
   id: string;
@@ -95,6 +103,7 @@ export function createComponentManifest(input: {
   adapter: string;
   packagePath: string;
   schemaVersion?: string;
+  componentVersion?: string;
   sourceFiles?: readonly string[];
   lifecycle?: LifecycleStatus;
   owner?: string;
@@ -116,15 +125,33 @@ export function createComponentManifest(input: {
   deprecationNotice?: string;
 }): ComponentManifest {
   if (!COMPONENT_ID_PATTERN.test(input.id)) {
-    throw new Error(`Component manifest id "${input.id}" must be "organization.library.component"`);
+    throw new Error(
+      `Component manifest id "${input.id}" must be "organization.library.component"`,
+    );
   }
   if (!input.packagePath.trim()) {
     throw new Error('Component manifest requires a non-empty packagePath');
   }
+  if (input.componentVersion && !SEMVER_PATTERN.test(input.componentVersion)) {
+    throw new Error(
+      `Component manifest version "${input.componentVersion}" is not valid semver`,
+    );
+  }
+  for (const target of input.documentationTargets ?? []) {
+    if (
+      target.publishedVersion &&
+      !SEMVER_PATTERN.test(target.publishedVersion)
+    ) {
+      throw new Error(
+        `Documentation published version "${target.publishedVersion}" is not valid semver`,
+      );
+    }
+  }
 
   return {
-    schemaVersion: input.schemaVersion ?? '0.1.0',
+    schemaVersion: input.schemaVersion ?? '0.2.0',
     id: input.id,
+    componentVersion: input.componentVersion,
     framework: input.framework,
     adapter: input.adapter,
     packagePath: input.packagePath,

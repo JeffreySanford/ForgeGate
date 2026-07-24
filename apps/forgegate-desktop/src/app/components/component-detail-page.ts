@@ -3,7 +3,10 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { map } from 'rxjs';
-import type { ComponentManifest } from '@forgegate/core-manifest';
+import type {
+  ComponentManifest,
+  ManifestDocumentationTarget,
+} from '@forgegate/core-manifest';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '../storybook/storybook-index';
@@ -76,14 +79,24 @@ export class ComponentDetailPage {
     () => this.workspace.workspaceScan()?.tokenFiles[0] ?? null,
   );
 
-  protected documentationConnection(
-    adapter: string,
-    pathOrPageId?: string,
+  protected documentationDriftState(
+    target: ManifestDocumentationTarget,
   ): string {
-    if (this.isDocumentationAdapterDetected(adapter, pathOrPageId)) {
-      return 'Target configured; drift not evaluated';
+    if (
+      !this.isDocumentationAdapterDetected(target.adapter, target.pathOrPageId)
+    ) {
+      return 'Not evaluated — adapter not detected';
     }
-    return 'Target configured; adapter not detected';
+    const currentVersion = this.manifest()?.componentVersion;
+    if (!currentVersion) {
+      return 'Not evaluated — current component version is unavailable';
+    }
+    if (!target.publishedVersion) {
+      return 'Not evaluated — published component version is unavailable';
+    }
+    return target.publishedVersion === currentVersion
+      ? 'Current'
+      : `Drifted — published ${target.publishedVersion}, current ${currentVersion}`;
   }
 
   protected isDocumentationAdapterDetected(
@@ -189,6 +202,12 @@ export class ComponentDetailPage {
       reasons.push('No manual review recorded');
     if (manifest.documentationTargets.length === 0)
       reasons.push('No documentation target connected');
+    else if (
+      manifest.documentationTargets.some(
+        (target) => this.documentationDriftState(target) !== 'Current',
+      )
+    )
+      reasons.push('Documentation is drifted or freshness is not evaluated');
     return reasons;
   });
 

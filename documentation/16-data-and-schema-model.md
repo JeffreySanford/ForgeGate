@@ -148,6 +148,12 @@ Schema versions should use semantic versioning principles:
 
 Every file should include its schema version.
 
+Component manifest schema `0.2.0` adds backward-compatible optional
+`componentVersion` and `documentationTargets[].publishedVersion` fields. When
+both are present, documentation adapters can report whether the published page
+is current or drifted. If either is absent, drift remains explicitly not
+evaluated rather than being inferred.
+
 ## Unknown and unsupported values
 
 The model must distinguish:

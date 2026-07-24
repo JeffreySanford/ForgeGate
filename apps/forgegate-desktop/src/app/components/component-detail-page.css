@@ -71,10 +71,6 @@
   color: var(--fg-color-text-muted);
 }
 
-.component-detail__status-explanation {
-  color: var(--fg-color-text-muted);
-}
-
 .component-detail__story-picker {
   display: flex;
   flex-wrap: wrap;

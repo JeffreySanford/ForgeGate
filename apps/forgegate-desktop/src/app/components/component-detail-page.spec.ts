@@ -267,6 +267,7 @@ describe('ComponentDetailPage', () => {
         framework: 'web-components',
         adapter: 'framework.web-components',
         packagePath: '.',
+        componentVersion: '0.1.0',
         lifecycle: 'candidate',
         states: [
           { name: 'default', required: true },
@@ -279,6 +280,7 @@ describe('ComponentDetailPage', () => {
           {
             adapter: 'starlight',
             pathOrPageId: 'src/content/docs/components/button.md',
+            publishedVersion: '0.1.0',
           },
         ],
       }),
@@ -304,16 +306,40 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain(
       'src/content/docs/components/button.md',
     );
-    expect(compiled.textContent).toContain(
-      'Target configured; drift not evaluated',
-    );
-    expect(compiled.textContent).toContain(
-      'no published component version metadata is available for comparison',
+    expect(compiled.textContent).toContain('0.1.0');
+    expect(compiled.textContent).toContain('Current');
+    expect(compiled.textContent).not.toContain(
+      'Documentation is drifted or freshness is not evaluated',
     );
     expect(compiled.textContent).not.toContain('No required states declared');
     expect(compiled.textContent).not.toContain('No token mappings connected');
     expect(compiled.textContent).not.toContain(
       'No documentation target connected',
+    );
+
+    const currentOverride = workspaceService.componentManifestOverrides()[0];
+    if (!currentOverride) {
+      throw new Error('Expected the repository component manifest override');
+    }
+    workspaceService.componentManifestOverrides.set([
+      {
+        ...currentOverride,
+        documentationTargets: [
+          {
+            adapter: 'starlight',
+            pathOrPageId: 'src/content/docs/components/button.md',
+            publishedVersion: '0.0.9',
+          },
+        ],
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain(
+      'Drifted — published 0.0.9, current 0.1.0',
+    );
+    expect(compiled.textContent).toContain(
+      'Documentation is drifted or freshness is not evaluated',
     );
   });
 

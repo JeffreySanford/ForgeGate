@@ -148,6 +148,7 @@ function applyRepositoryOverride(
 ): ComponentManifest {
   return {
     ...discovered,
+    componentVersion: override.componentVersion,
     lifecycle: override.lifecycle,
     owner: override.owner,
     reviewers: override.reviewers,
