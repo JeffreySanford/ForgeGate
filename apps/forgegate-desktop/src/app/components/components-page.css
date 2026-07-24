@@ -92,6 +92,31 @@
   outline-offset: 2px;
 }
 
+.components-page__result-summary {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+}
+
+.components-page__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--fg-space-3);
+}
+
+.components-page__pagination button {
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border: 1px solid var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+}
+
+.components-page__pagination button:disabled {
+  color: var(--fg-color-text-muted);
+  cursor: not-allowed;
+}
+
 .components-page th,
 .components-page td {
   text-align: left;

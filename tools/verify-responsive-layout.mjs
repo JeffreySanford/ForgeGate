@@ -333,9 +333,17 @@ try {
       const baselinePath = resolve(baselineRoot, screenshot);
       let visualComparison;
       if (updateBaselines) {
-        writeFileSync(baselinePath, actualPng);
+        const existingResult = existsSync(baselinePath)
+          ? comparePng(actualPng, readFileSync(baselinePath), {
+              threshold: 0.15,
+              maxDiffPixelRatio: maximumDiffRatio,
+            })
+          : { errorMessage: 'Baseline does not exist yet.' };
+        if (existingResult) {
+          writeFileSync(baselinePath, actualPng);
+        }
         visualComparison = {
-          status: 'updated',
+          status: existingResult ? 'updated' : 'unchanged',
           maximumDiffRatio,
         };
       } else {

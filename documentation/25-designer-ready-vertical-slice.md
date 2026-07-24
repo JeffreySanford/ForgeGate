@@ -294,6 +294,14 @@ The inventory should feel like a design-system catalog with assurance status, no
 
 Use a compact table on wide screens with an optional card view. The table remains the primary dense view because design systems may contain many components.
 
+The implemented catalog renders at most 50 filtered components per page in
+either presentation. A live result summary reports the visible range and total,
+the table caption identifies the current page, and semantic Previous/Next
+controls remain reachable after the table or card list. Changing catalog scope,
+search, lifecycle, missing-evidence filtering, or a lifecycle chart selection
+returns to page one so a narrowed result cannot strand the user on an empty
+later page.
+
 Recommended columns:
 
 - Component

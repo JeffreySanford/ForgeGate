@@ -51,6 +51,27 @@ const twoComponentManifest: CustomElementsManifest = {
   ],
 };
 
+function largeManifest(count: number): CustomElementsManifest {
+  return {
+    schemaVersion: '1.0.0',
+    modules: Array.from({ length: count }, (_, index) => {
+      const suffix = index.toString().padStart(3, '0');
+      return {
+        kind: 'javascript-module' as const,
+        path: `src/acme-component-${suffix}.ts`,
+        declarations: [
+          {
+            kind: 'class' as const,
+            name: `AcmeComponent${suffix}`,
+            customElement: true,
+            tagName: `acme-component-${suffix}`,
+          },
+        ],
+      };
+    }),
+  };
+}
+
 describe('ComponentsPage', () => {
   let workspaceService: WorkspaceService;
 
@@ -249,6 +270,58 @@ describe('ComponentsPage', () => {
     expect(cards[0].querySelector('a')?.getAttribute('href')).toBe(
       '/components/acme.design-system.acme-button',
     );
+  });
+
+  it('paginates a large library and resets to the first page when filtering', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(largeManifest(225));
+
+    const fixture = TestBed.createComponent(ComponentsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelectorAll('.components-page__inventory-table tbody tr'),
+    ).toHaveLength(50);
+    expect(
+      compiled.querySelector('.components-page__result-summary')?.textContent,
+    ).toContain('Showing 1–50 of 225');
+    expect(
+      compiled.querySelector('.components-page__pagination')?.textContent,
+    ).toContain('Page 1 of 5');
+
+    const next = Array.from(
+      compiled.querySelectorAll<HTMLButtonElement>(
+        '.components-page__pagination button',
+      ),
+    ).find((button) => button.textContent?.includes('Next'));
+    next?.click();
+    next?.click();
+    fixture.detectChanges();
+
+    const firstPageThreeRow = compiled.querySelector(
+      '.components-page__inventory-table tbody tr',
+    );
+    expect(firstPageThreeRow?.textContent).toContain('acme-component-100');
+    expect(
+      compiled.querySelector('.components-page__pagination')?.textContent,
+    ).toContain('Page 3 of 5');
+
+    const search = compiled.querySelector<HTMLInputElement>(
+      'input[type="search"]',
+    );
+    if (!search) throw new Error('Expected the inventory search control');
+    search.value = 'component-224';
+    search.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(
+      compiled.querySelectorAll('.components-page__inventory-table tbody tr'),
+    ).toHaveLength(1);
+    expect(compiled.textContent).toContain('Showing 1–1 of 1');
+    expect(compiled.querySelector('.components-page__pagination')).toBeNull();
   });
 
   it('shows mapping failures without hiding the components that did map successfully', async () => {
