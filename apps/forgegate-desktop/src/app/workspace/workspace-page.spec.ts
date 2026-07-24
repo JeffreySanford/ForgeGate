@@ -1,12 +1,12 @@
-import { TestBed } from "@angular/core/testing";
-import { WorkspacePage } from "./workspace-page";
-import { expectNoAccessibilityViolations } from "../../test-a11y";
-import { WorkspaceService, type WorkspaceScan } from "../workspace.service";
+import { TestBed } from '@angular/core/testing';
+import { WorkspacePage } from './workspace-page';
+import { expectNoAccessibilityViolations } from '../../test-a11y';
+import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
 
 const emptyScan: WorkspaceScan = {
-  packageName: "@up/design-system",
-  packageManager: "pnpm",
-  workspaceManager: "nx",
+  packageName: '@up/design-system',
+  packageManager: 'pnpm',
+  workspaceManager: 'nx',
   storybookProjects: [],
   starlightProjects: [],
   hasZeroheight: false,
@@ -14,11 +14,11 @@ const emptyScan: WorkspaceScan = {
   testRunners: [],
   visualRegressionProviders: [],
   ciProviders: [],
-  customElementsManifests: ["custom-elements.json"],
+  customElementsManifests: ['custom-elements.json'],
   componentPackages: [],
 };
 
-describe("WorkspacePage", () => {
+describe('WorkspacePage', () => {
   let workspaceService: WorkspaceService;
 
   beforeEach(async () => {
@@ -28,31 +28,31 @@ describe("WorkspacePage", () => {
     workspaceService = TestBed.inject(WorkspaceService);
   });
 
-  it("shows an empty state when no workspace is open", async () => {
+  it('shows an empty state when no workspace is open', async () => {
     const fixture = TestBed.createComponent(WorkspacePage);
     fixture.detectChanges();
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(
-      compiled.querySelector(".workspace-page__empty")?.textContent,
-    ).toContain("No workspace open yet");
+      compiled.querySelector('.workspace-page__empty')?.textContent,
+    ).toContain('No workspace open yet');
   });
 
-  it("renders a component inventory row for each discovered custom element", async () => {
+  it('renders a component inventory row for each discovered custom element', async () => {
     workspaceService.workspaceScan.set(emptyScan);
     workspaceService.customElementsManifest.set({
-      schemaVersion: "1.0.0",
+      schemaVersion: '1.0.0',
       modules: [
         {
-          kind: "javascript-module",
-          path: "src/up-button.ts",
+          kind: 'javascript-module',
+          path: 'src/up-button.ts',
           declarations: [
             {
-              kind: "class",
-              name: "UpButton",
+              kind: 'class',
+              name: 'UpButton',
               customElement: true,
-              tagName: "up-button",
+              tagName: 'up-button',
             },
           ],
         },
@@ -65,14 +65,14 @@ describe("WorkspacePage", () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain("up.design-system.up-button");
-    expect(compiled.textContent).toContain("src/up-button.ts");
+    expect(compiled.textContent).toContain('up.design-system.up-button');
+    expect(compiled.textContent).toContain('src/up-button.ts');
   });
 
-  it("shows a fallback message when the manifest has no custom elements in it", async () => {
+  it('shows a fallback message when the manifest has no custom elements in it', async () => {
     workspaceService.workspaceScan.set(emptyScan);
     workspaceService.customElementsManifest.set({
-      schemaVersion: "1.0.0",
+      schemaVersion: '1.0.0',
       modules: [],
     });
 
@@ -83,24 +83,24 @@ describe("WorkspacePage", () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain(
-      "Manifest present but no custom elements found in it",
+      'Manifest present but no custom elements found in it',
     );
   });
 
-  it("has no automated accessibility violations with a populated component inventory", async () => {
+  it('has no automated accessibility violations with a populated component inventory', async () => {
     workspaceService.workspaceScan.set(emptyScan);
     workspaceService.customElementsManifest.set({
-      schemaVersion: "1.0.0",
+      schemaVersion: '1.0.0',
       modules: [
         {
-          kind: "javascript-module",
-          path: "src/up-button.ts",
+          kind: 'javascript-module',
+          path: 'src/up-button.ts',
           declarations: [
             {
-              kind: "class",
-              name: "UpButton",
+              kind: 'class',
+              name: 'UpButton',
               customElement: true,
-              tagName: "up-button",
+              tagName: 'up-button',
             },
           ],
         },
