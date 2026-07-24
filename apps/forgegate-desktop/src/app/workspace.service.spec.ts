@@ -339,8 +339,3 @@ describe("WorkspaceService", () => {
     expect(service.error()).toBe("Workspace path does not exist");
   });
 });
-npm notice
-npm notice New major version of npm available! 10.9.4 -> 12.0.1
-npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.1
-npm notice To update run: npm install -g npm@12.0.1
-npm notice
