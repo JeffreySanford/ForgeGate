@@ -1,6 +1,8 @@
 <div class="workspace-page">
   @if (!workspace.workspacePath()) {
-    <p class="workspace-page__empty">No workspace open yet. Use "Open workspace…" above to select a repository.</p>
+    <p class="workspace-page__empty">
+      No workspace open yet. Use "Open workspace?" above to select a repository.
+    </p>
   }
 
   <app-system-map />
@@ -10,25 +12,61 @@
       <summary>Raw workspace scan diagnostics</summary>
       <dl>
         <dt>Package manager</dt>
-        <dd>{{ scan.packageManager ?? 'Not detected' }}</dd>
+        <dd>{{ scan.packageManager ?? "Not detected" }}</dd>
         <dt>Workspace manager</dt>
-        <dd>{{ scan.workspaceManager ?? 'Not detected' }}</dd>
+        <dd>{{ scan.workspaceManager ?? "Not detected" }}</dd>
         <dt>Storybook</dt>
-        <dd>{{ scan.storybookProjects.length ? scan.storybookProjects.join(', ') : 'Not detected' }}</dd>
+        <dd>
+          {{
+            scan.storybookProjects.length
+              ? scan.storybookProjects.join(", ")
+              : "Not detected"
+          }}
+        </dd>
         <dt>Astro Starlight</dt>
-        <dd>{{ scan.starlightProjects.length ? scan.starlightProjects.join(', ') : 'Not detected' }}</dd>
+        <dd>
+          {{
+            scan.starlightProjects.length
+              ? scan.starlightProjects.join(", ")
+              : "Not detected"
+          }}
+        </dd>
         <dt>Zeroheight</dt>
-        <dd>{{ scan.hasZeroheight ? 'Detected' : 'Not detected' }}</dd>
+        <dd>{{ scan.hasZeroheight ? "Detected" : "Not detected" }}</dd>
         <dt>Design tokens</dt>
-        <dd>{{ scan.tokenFiles.length ? scan.tokenFiles.join(', ') : 'None found' }}</dd>
+        <dd>
+          {{
+            scan.tokenFiles.length ? scan.tokenFiles.join(", ") : "None found"
+          }}
+        </dd>
         <dt>Test runners</dt>
-        <dd>{{ scan.testRunners.length ? scan.testRunners.join(', ') : 'None found' }}</dd>
+        <dd>
+          {{
+            scan.testRunners.length ? scan.testRunners.join(", ") : "None found"
+          }}
+        </dd>
         <dt>Visual regression providers</dt>
-        <dd>{{ scan.visualRegressionProviders.length ? scan.visualRegressionProviders.join(', ') : 'None found' }}</dd>
+        <dd>
+          {{
+            scan.visualRegressionProviders.length
+              ? scan.visualRegressionProviders.join(", ")
+              : "None found"
+          }}
+        </dd>
         <dt>CI providers</dt>
-        <dd>{{ scan.ciProviders.length ? scan.ciProviders.join(', ') : 'None found' }}</dd>
+        <dd>
+          {{
+            scan.ciProviders.length ? scan.ciProviders.join(", ") : "None found"
+          }}
+        </dd>
         <dt>Custom Elements Manifest</dt>
-        <dd>{{ scan.customElementsManifests.length ? scan.customElementsManifests.join(', ') : 'None found' }}</dd>
+        <dd>
+          {{
+            scan.customElementsManifests.length
+              ? scan.customElementsManifests.join(", ")
+              : "None found"
+          }}
+        </dd>
       </dl>
     </details>
   }
@@ -54,7 +92,7 @@
             <tr>
               <td>{{ manifest.id }}</td>
               <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
-              <td>{{ manifest.sourceFiles.join(', ') }}</td>
+              <td>{{ manifest.sourceFiles.join(", ") }}</td>
               <td>{{ manifest.contract.inputs.length }}</td>
               <td>{{ manifest.contract.outputs.length }}</td>
               <td>{{ manifest.contract.content.length }}</td>
@@ -70,23 +108,33 @@
 
     @if (componentMapResult().failures.length) {
       <p role="alert">
-        {{ componentMapResult().failures.length }} declaration(s) could not be mapped:
-        @for (failure of componentMapResult().failures; track failure.declarationName) {
-          <br />{{ failure.declarationName }} ({{ failure.modulePath }}): {{ failure.message }}
+        {{ componentMapResult().failures.length }} declaration(s) could not be
+        mapped:
+        @for (
+          failure of componentMapResult().failures;
+          track failure.declarationName
+        ) {
+          <br />{{ failure.declarationName }} ({{ failure.modulePath }}):
+          {{ failure.message }}
         }
       </p>
     }
   }
 
   @if (workspace.customElementsManifestError(); as cemError) {
-    <p role="alert">Custom Elements Manifest could not be read: {{ cemError }}</p>
+    <p role="alert">
+      Custom Elements Manifest could not be read: {{ cemError }}
+    </p>
   }
 
   @if (workspace.workspaceScan(); as scanForCem) {
     @if (!scanForCem.customElementsManifests.length) {
       <section aria-labelledby="cem-generation-heading">
         <h2 id="cem-generation-heading">Generate a Custom Elements Manifest</h2>
-        <p>Select the component package ForgeGate may analyze. Nothing runs until you review the resolved plan and approve it.</p>
+        <p>
+          Select the component package ForgeGate may analyze. Nothing runs until
+          you review the resolved plan and approve it.
+        </p>
 
         @if (scanForCem.componentPackages.length) {
           <label for="cem-package">Target package</label>
@@ -96,13 +144,18 @@
             (change)="selectComponentPackage(packageSelect.value)"
             [disabled]="workspace.cemGenerationRunning()"
           >
-            <option value="">Select a package…</option>
-            @for (candidate of scanForCem.componentPackages; track candidate.path) {
+            <option value="">Select a package?</option>
+            @for (
+              candidate of scanForCem.componentPackages;
+              track candidate.path
+            ) {
               <option
                 [value]="candidate.path"
-                [selected]="workspace.selectedComponentPackagePath() === candidate.path"
+                [selected]="
+                  workspace.selectedComponentPackagePath() === candidate.path
+                "
               >
-                {{ candidate.name }} — {{ candidate.path }}
+                {{ candidate.name }} ? {{ candidate.path }}
               </option>
             }
           </select>
@@ -110,37 +163,63 @@
           @if (workspace.cemGenerationPlan(); as plan) {
             <dl aria-label="Generation plan">
               <dt>Working directory</dt>
-              <dd><code>{{ plan.target.path }}</code></dd>
+              <dd>
+                <code>{{ plan.target.path }}</code>
+              </dd>
               <dt>Source pattern</dt>
-              <dd><code>{{ plan.target.sourceGlob }}</code></dd>
+              <dd>
+                <code>{{ plan.target.sourceGlob }}</code>
+              </dd>
               <dt>Excluded</dt>
-              <dd><code>{{ plan.excludedGlobs.join(', ') }}</code></dd>
+              <dd>
+                <code>{{ plan.excludedGlobs.join(", ") }}</code>
+              </dd>
               <dt>Expected output</dt>
-              <dd><code>{{ plan.target.path }}/{{ plan.target.manifestPath }}</code></dd>
+              <dd>
+                <code
+                  >{{ plan.target.path }}/{{ plan.target.manifestPath }}</code
+                >
+              </dd>
               <dt>Package manifest mutation</dt>
               <dd>Disabled</dd>
               <dt>Command</dt>
-              <dd><code>{{ plan.commandText }}</code></dd>
+              <dd>
+                <code>{{ plan.commandText }}</code>
+              </dd>
             </dl>
             <button
               type="button"
               [disabled]="workspace.cemGenerationRunning()"
               (click)="generateCustomElementsManifest()"
             >
-              {{ workspace.cemGenerationRunning() ? 'Running…' : 'Approve and generate manifest' }}
+              {{
+                workspace.cemGenerationRunning()
+                  ? "Running?"
+                  : "Approve and generate manifest"
+              }}
             </button>
           }
         } @else {
-          <p role="status">No package with both a package.json and source directory was found. ForgeGate will not run the analyzer at the workspace root.</p>
+          <p role="status">
+            No package with both a package.json and source directory was found.
+            ForgeGate will not run the analyzer at the workspace root.
+          </p>
         }
 
         @if (workspace.cemGenerationResult(); as cemRunResult) {
           <dl>
             <dt>Exit code</dt>
-            <dd>{{ cemRunResult.exitCode ?? (cemRunResult.timedOut ? 'timed out' : 'unknown') }}</dd>
+            <dd>
+              {{
+                cemRunResult.exitCode ??
+                  (cemRunResult.timedOut ? "timed out" : "unknown")
+              }}
+            </dd>
             @if (cemRunResult.stderr) {
               <dt>Error output</dt>
-              <dd><pre>{{ cemRunResult.stderr }}</pre></dd>
+              <dd>
+                <pre>{{ cemRunResult.stderr }}</pre>
+              </dd>
             }
           </dl>
         }
@@ -156,12 +235,15 @@
     <dl>
       <dt>Repository configuration</dt>
       <dd>
-        .forgegate/config.yaml ({{ config.projectMappings.length }} project mapping(s),
-        {{ config.safeWriteLocations.length }} safe write location(s))
+        .forgegate/config.yaml ({{ config.projectMappings.length }} project
+        mapping(s), {{ config.safeWriteLocations.length }} safe write
+        location(s))
       </dd>
     </dl>
   } @else if (!workspace.repositoryConfigError() && workspace.workspacePath()) {
-    <p>Repository configuration: not configured yet (no .forgegate/config.yaml).</p>
+    <p>
+      Repository configuration: not configured yet (no .forgegate/config.yaml).
+    </p>
   }
 
   @if (workspace.repositoryConfigError(); as configError) {
