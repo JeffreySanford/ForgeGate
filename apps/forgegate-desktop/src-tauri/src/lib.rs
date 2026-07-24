@@ -154,7 +154,7 @@ fn read_text_file(workspace_path: String, relative_path: String) -> Result<Strin
 /// full result is only available once the process finishes or is killed
 /// for exceeding `timeout_seconds`.
 #[tauri::command]
-fn run_workspace_command(
+async fn run_workspace_command(
     workspace_path: String,
     relative_cwd: String,
     command: String,
@@ -166,7 +166,11 @@ fn run_workspace_command(
     if !cwd.is_dir() {
         return Err(format!("{relative_cwd} is not a directory"));
     }
-    command_execution::run_command(&cwd, &command, &args, Duration::from_secs(timeout_seconds))
+    tauri::async_runtime::spawn_blocking(move || {
+        command_execution::run_command(&cwd, &command, &args, Duration::from_secs(timeout_seconds))
+    })
+    .await
+    .map_err(|error| format!("Command worker failed: {error}"))?
 }
 
 #[cfg(test)]
@@ -266,8 +270,8 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    #[test]
-    fn runs_an_approved_command_in_the_workspace() {
+    #[tokio::test]
+    async fn runs_an_approved_command_in_the_workspace() {
         let result = run_workspace_command(
             std::env::temp_dir().display().to_string(),
             ".".to_string(),
@@ -275,12 +279,13 @@ mod tests {
             vec!["--version".to_string()],
             10,
         )
+        .await
         .expect("running git --version in the temp dir should succeed");
         assert_eq!(result.exit_code, Some(0));
     }
 
-    #[test]
-    fn rejects_a_working_directory_that_escapes_the_workspace() {
+    #[tokio::test]
+    async fn rejects_a_working_directory_that_escapes_the_workspace() {
         let dir = std::env::temp_dir().join(format!("forgegate-run-cmd-escape-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("should create temp dir");
 
@@ -291,6 +296,7 @@ mod tests {
             vec!["--version".to_string()],
             10,
         )
+        .await
         .expect_err("a working directory outside the workspace must be rejected");
         assert!(error.contains("resolves outside"));
 
