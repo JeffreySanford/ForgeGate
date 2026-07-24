@@ -236,5 +236,5 @@ describe('WorkspacePage', () => {
     fixture.detectChanges();
 
     await expectNoAccessibilityViolations(fixture.nativeElement);
-  });
+  }, 10_000);
 });

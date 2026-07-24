@@ -286,6 +286,16 @@ forced-colors cases must map status tokens to Windows system colors. This makes
 the screenshots evidence of an active preference rather than merely filenames
 that claim one.
 
+The same gate performs a keyboard-only journey in Windows Edge after seeding
+the fixture. It activates Workspace and Components through the primary
+navigation, checks that every route change moves focus to the main landmark,
+reaches the workspace action in document order, tabs through the inventory to
+the real Button record, and follows the record's recommended action to its
+focusable section heading. Focus loss, a changed tab order that makes a primary
+destination unreachable, or a broken fragment target fails the gate. The exact
+focus sequence is retained in
+`dist/responsive-evidence/keyboard-journey.json`.
+
 ## Component inventory route
 
 The inventory should feel like a design-system catalog with assurance status, not a database dump.
