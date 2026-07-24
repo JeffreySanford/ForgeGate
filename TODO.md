@@ -340,16 +340,15 @@ See [`TODO-DETAILED.md`](TODO-DETAILED.md) for the full task-level plan.
 
 Work these in order unless a newly discovered safety or correctness defect blocks them:
 
-1. [ ] Create ForgeGate semantic UI tokens and global visual foundation.
-2. [ ] Introduce the persistent shell, workspace context bar, and primary routes.
-3. [ ] Move existing real scan output into the workspace command-center structure.
-4. [ ] Build the real-data workspace system map with semantic alternative.
-5. [ ] Move the component inventory to `/components` and implement designer-ready identity/status presentation.
-6. [ ] Add `/components/:componentId` and compose the Button header, preview area, coverage strip, and readiness rail.
-7. [ ] Complete one Storybook index and Button story connection.
-8. [ ] Populate one real state mapping and one real token mapping.
-9. [ ] Add accessibility, responsive, dark-theme, forced-colors, reduced-motion, and visual-regression coverage.
-10. [ ] Begin P1 assurance journey and evidence visualizations only as their real data streams become available.
+1. [x] Add package-aware CEM target discovery, explicit generation-plan approval, scoped globs, safe output, off-thread execution, and timeout tree cleanup.
+2. [ ] Add cancellation and live command-output streaming with explicit operation IDs.
+3. [ ] Classify inventory records as owned, workspace, dependency, tooling, generated, or unknown.
+4. [ ] Deduplicate repeated declarations and split the Component Catalog from Discovery Diagnostics.
+5. [ ] Complete one Storybook Button story and live-preview connection.
+6. [ ] Populate real required-state and DTCG token mappings.
+7. [ ] Connect test evidence, documentation drift, and commit freshness.
+8. [ ] Add accessibility, responsive, forced-colors, reduced-motion, and visual-regression coverage.
+9. [ ] Begin P1 assurance journey only after its underlying evidence streams exist.
 
 ---
 
