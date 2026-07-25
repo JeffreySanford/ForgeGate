@@ -269,6 +269,23 @@ main landmark wider than the viewport, or a missing visible first keyboard
 focus. It covers light, dark, forced-colors, and reduced-motion contexts and
 writes screenshots plus a JSON report to `dist/responsive-evidence/`.
 
+The same command is also the visual regression gate. It compares all twelve
+renders with reviewed Windows/Edge baselines in
+`apps/forgegate-desktop/visual-baselines/windows-edge/`, masks only the remote
+Storybook iframe whose runtime is outside ForgeGate's deterministic fixture,
+and fails when changed pixels exceed 0.5 percent. Actual and diff images remain
+in `dist/responsive-evidence/` for review. Baselines are never replaced by the
+normal check: a reviewer must run
+`nx run forgegate-desktop:visual-baselines-update`, inspect the resulting PNGs,
+and intentionally include them in the change. Windows CI runs the comparison
+on every pull request.
+
+The rendered preference cases also assert their browser media-query state.
+Reduced-motion cases must resolve both ForgeGate duration tokens to `0ms`;
+forced-colors cases must map status tokens to Windows system colors. This makes
+the screenshots evidence of an active preference rather than merely filenames
+that claim one.
+
 ## Component inventory route
 
 The inventory should feel like a design-system catalog with assurance status, not a database dump.

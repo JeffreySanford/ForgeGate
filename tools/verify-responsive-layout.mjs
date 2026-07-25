@@ -1,8 +1,19 @@
 import { chromium } from '@playwright/test';
 import express from 'express';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+
+const require = createRequire(import.meta.url);
+const playwrightTestEntry = require.resolve('@playwright/test');
+const playwrightCoreEntry = require.resolve('playwright-core', {
+  paths: [playwrightTestEntry],
+});
+const { getComparator } = require(
+  resolve(dirname(playwrightCoreEntry), 'lib/coreBundle.js'),
+).utils;
+const comparePng = getComparator('image/png');
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const browserRoot = resolve(
@@ -10,7 +21,13 @@ const browserRoot = resolve(
   'dist/apps/forgegate-desktop/browser',
 );
 const evidenceRoot = resolve(repositoryRoot, 'dist/responsive-evidence');
+const baselineRoot = resolve(
+  repositoryRoot,
+  'apps/forgegate-desktop/visual-baselines/windows-edge',
+);
 const fixtureRoot = resolve(repositoryRoot, 'fixtures/acme-button-library');
+const updateBaselines = process.argv.includes('--update-baselines');
+const maximumDiffRatio = 0.005;
 
 if (!existsSync(resolve(browserRoot, 'index.html'))) {
   throw new Error(
@@ -22,6 +39,11 @@ const edgePath =
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const executablePath = existsSync(edgePath) ? edgePath : undefined;
+if (process.platform !== 'win32' || !executablePath) {
+  throw new Error(
+    'The ForgeGate visual gate requires Windows and the installed Microsoft Edge executable.',
+  );
+}
 const fixture = {
   cem: JSON.parse(
     readFileSync(resolve(fixtureRoot, 'custom-elements.json'), 'utf8'),
@@ -61,6 +83,9 @@ if (!address || typeof address === 'string') {
 }
 
 mkdirSync(evidenceRoot, { recursive: true });
+if (updateBaselines) {
+  mkdirSync(baselineRoot, { recursive: true });
+}
 const browser = await chromium.launch({
   executablePath,
   headless: true,
@@ -251,12 +276,85 @@ try {
         );
       }
 
+      const preferences = await page.evaluate(() => ({
+        darkScheme: matchMedia('(prefers-color-scheme: dark)').matches,
+        forcedColors: matchMedia('(forced-colors: active)').matches,
+        reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        canvasToken: getComputedStyle(document.documentElement)
+          .getPropertyValue('--fg-color-canvas')
+          .trim(),
+        unknownStatusToken: getComputedStyle(document.documentElement)
+          .getPropertyValue('--fg-color-status-unknown')
+          .trim(),
+        motionSmall: getComputedStyle(document.documentElement)
+          .getPropertyValue('--fg-motion-duration-sm')
+          .trim(),
+        motionMedium: getComputedStyle(document.documentElement)
+          .getPropertyValue('--fg-motion-duration-md')
+          .trim(),
+      }));
+      if (
+        preferences.darkScheme !== (viewport.colorScheme === 'dark') ||
+        preferences.forcedColors !== (viewport.forcedColors === 'active') ||
+        preferences.reducedMotion !== (viewport.reducedMotion === 'reduce')
+      ) {
+        throw new Error(
+          `${route.name} did not receive the requested browser preferences at ${viewport.name}: ${JSON.stringify(preferences)}`,
+        );
+      }
+      if (
+        viewport.reducedMotion === 'reduce' &&
+        (preferences.motionSmall !== '0ms' ||
+          preferences.motionMedium !== '0ms')
+      ) {
+        throw new Error(
+          `${route.name} did not zero ForgeGate motion tokens at ${viewport.name}`,
+        );
+      }
+      if (
+        viewport.forcedColors === 'active' &&
+        preferences.unknownStatusToken.toLowerCase() !== 'canvastext'
+      ) {
+        throw new Error(
+          `${route.name} did not map status tokens to system colors at ${viewport.name}`,
+        );
+      }
+
       const screenshot = `${viewport.name}-${route.name}.png`;
-      await page.screenshot({
-        path: resolve(evidenceRoot, screenshot),
+      const actualPath = resolve(evidenceRoot, screenshot);
+      const actualPng = await page.screenshot({
+        path: actualPath,
         fullPage: true,
+        animations: 'disabled',
+        caret: 'hide',
+        mask: [page.locator('.component-detail__preview-frame')],
+        maskColor: '#c5cfdf',
       });
-      report.push({ viewport, route, geometry, focus, screenshot });
+      const baselinePath = resolve(baselineRoot, screenshot);
+      let visualComparison;
+      if (updateBaselines) {
+        writeFileSync(baselinePath, actualPng);
+        visualComparison = {
+          status: 'updated',
+          maximumDiffRatio,
+        };
+      } else {
+        visualComparison = compareScreenshot({
+          actualPng,
+          actualPath,
+          baselinePath,
+          screenshot,
+        });
+      }
+      report.push({
+        viewport,
+        route,
+        geometry,
+        focus,
+        preferences,
+        screenshot,
+        visualComparison,
+      });
     }
     await context.close();
   }
@@ -272,5 +370,38 @@ writeFileSync(
   `${JSON.stringify(report, null, 2)}\n`,
 );
 console.log(
-  `Responsive layout verified across ${report.length} rendered route/viewport combinations.`,
+  `${updateBaselines ? 'Updated visual baselines and verified' : 'Responsive and visual regression checks passed for'} ${report.length} rendered route/viewport combinations.`,
 );
+
+function compareScreenshot({
+  actualPng,
+  actualPath,
+  baselinePath,
+  screenshot,
+}) {
+  if (!existsSync(baselinePath)) {
+    throw new Error(
+      `Missing visual baseline ${baselinePath}. Run "pnpm exec nx run forgegate-desktop:visual-baselines-update" and review the generated images.`,
+    );
+  }
+  const result = comparePng(actualPng, readFileSync(baselinePath), {
+    threshold: 0.15,
+    maxDiffPixelRatio: maximumDiffRatio,
+  });
+  if (result) {
+    const diffPath = resolve(
+      evidenceRoot,
+      screenshot.replace('.png', '.diff.png'),
+    );
+    if (result.diff) {
+      writeFileSync(diffPath, result.diff);
+    }
+    throw new Error(
+      `${screenshot} differs from its reviewed baseline (allowed ${(maximumDiffRatio * 100).toFixed(3)}%): ${result.errorMessage} Actual: ${actualPath}.${result.diff ? ` Diff: ${diffPath}` : ''}`,
+    );
+  }
+  return {
+    status: 'matched',
+    maximumDiffRatio,
+  };
+}

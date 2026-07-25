@@ -68,6 +68,13 @@
           r="5"
         />
         <text
+          class="node-status-label"
+          [attr.x]="layout(n.id).dotX + 10"
+          [attr.y]="layout(n.id).dotY + 3"
+        >
+          {{ statusLabel(n.status) }}
+        </text>
+        <text
           class="node-title"
           [attr.x]="layout(n.id).titleX"
           [attr.y]="layout(n.id).titleY"
@@ -79,7 +86,14 @@
           [attr.x]="layout(n.id).metaX"
           [attr.y]="layout(n.id).metaY"
         >
-          {{ n.meta }}
+          @for (line of metaLines(n.meta); track $index) {
+          <tspan
+            [attr.x]="layout(n.id).metaX"
+            [attr.dy]="$index === 0 ? 0 : 11"
+          >
+            {{ line }}
+          </tspan>
+          }
         </text>
       </g>
       }

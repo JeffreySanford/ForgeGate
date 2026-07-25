@@ -108,6 +108,13 @@
   pointer-events: none;
 }
 
+.node-status-label {
+  fill: var(--fg-color-text);
+  font-size: 9px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .node-status-dot.status-connected {
   fill: var(--fg-color-status-passed);
 }

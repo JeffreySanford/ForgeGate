@@ -38,14 +38,102 @@ interface NodeLayout {
  * (already reviewed for layout/spacing) rather than redesigned from scratch.
  */
 const NODE_LAYOUT: Record<string, NodeLayout> = {
-  repository: { x: 28, y: 156, w: 130, h: 76, dotX: 46, dotY: 175, titleX: 48, titleY: 194, metaX: 48, metaY: 213 },
-  'component-library': { x: 250, y: 151, w: 145, h: 86, dotX: 270, dotY: 172, titleX: 270, titleY: 194, metaX: 270, metaY: 214 },
-  storybook: { x: 442, y: 48, w: 138, h: 74, dotX: 462, dotY: 68, titleX: 462, titleY: 88, metaX: 462, metaY: 106 },
-  tokens: { x: 440, y: 270, w: 142, h: 74, dotX: 460, dotY: 290, titleX: 460, titleY: 310, metaX: 460, metaY: 328 },
-  components: { x: 488, y: 151, w: 122, h: 86, dotX: 508, dotY: 172, titleX: 508, titleY: 194, metaX: 508, metaY: 214 },
-  'automated-evidence': { x: 670, y: 74, w: 132, h: 74, dotX: 690, dotY: 94, titleX: 690, titleY: 114, metaX: 690, metaY: 132 },
-  documentation: { x: 670, y: 238, w: 132, h: 74, dotX: 690, dotY: 258, titleX: 690, titleY: 278, metaX: 690, metaY: 296 },
-  release: { x: 688, y: 157, w: 114, h: 74, dotX: 708, dotY: 177, titleX: 708, titleY: 197, metaX: 708, metaY: 215 },
+  repository: {
+    x: 28,
+    y: 156,
+    w: 130,
+    h: 76,
+    dotX: 46,
+    dotY: 175,
+    titleX: 48,
+    titleY: 194,
+    metaX: 48,
+    metaY: 213,
+  },
+  'component-library': {
+    x: 250,
+    y: 151,
+    w: 145,
+    h: 86,
+    dotX: 270,
+    dotY: 172,
+    titleX: 270,
+    titleY: 194,
+    metaX: 270,
+    metaY: 214,
+  },
+  storybook: {
+    x: 442,
+    y: 48,
+    w: 138,
+    h: 74,
+    dotX: 462,
+    dotY: 68,
+    titleX: 462,
+    titleY: 88,
+    metaX: 462,
+    metaY: 106,
+  },
+  tokens: {
+    x: 440,
+    y: 270,
+    w: 142,
+    h: 74,
+    dotX: 460,
+    dotY: 290,
+    titleX: 460,
+    titleY: 310,
+    metaX: 460,
+    metaY: 328,
+  },
+  components: {
+    x: 488,
+    y: 151,
+    w: 122,
+    h: 86,
+    dotX: 508,
+    dotY: 172,
+    titleX: 508,
+    titleY: 194,
+    metaX: 508,
+    metaY: 214,
+  },
+  'automated-evidence': {
+    x: 650,
+    y: 74,
+    w: 152,
+    h: 74,
+    dotX: 670,
+    dotY: 94,
+    titleX: 670,
+    titleY: 114,
+    metaX: 670,
+    metaY: 132,
+  },
+  documentation: {
+    x: 650,
+    y: 238,
+    w: 152,
+    h: 74,
+    dotX: 670,
+    dotY: 258,
+    titleX: 670,
+    titleY: 278,
+    metaX: 670,
+    metaY: 296,
+  },
+  release: {
+    x: 660,
+    y: 157,
+    w: 142,
+    h: 74,
+    dotX: 680,
+    dotY: 177,
+    titleX: 680,
+    titleY: 197,
+    metaX: 680,
+    metaY: 215,
+  },
 };
 
 const STATUS_CLASS: Record<SystemMapNodeStatus, string> = {
@@ -90,32 +178,82 @@ export class SystemMap {
     const { manifests, failures } = this.componentInventory.result();
 
     const repository = gitStatus
-      ? node('repository', 'Repository', 'connected', `${gitStatus.branch} · ${gitStatus.dirty ? 'modified' : 'clean'}`)
-      : node('repository', 'Repository', 'missing', workspaceOpen ? 'Not a Git repository' : 'No workspace open');
+      ? node(
+          'repository',
+          'Repository',
+          'connected',
+          `${gitStatus.branch} · ${gitStatus.dirty ? 'modified' : 'clean'}`,
+        )
+      : node(
+          'repository',
+          'Repository',
+          'missing',
+          workspaceOpen ? 'Not a Git repository' : 'No workspace open',
+        );
 
     const componentLibrary = scan?.packageName
-      ? node('component-library', 'Component library', 'connected', scan.packageName)
-      : node('component-library', 'Component library', 'missing', scan ? 'No package name detected' : 'Not scanned yet');
+      ? node(
+          'component-library',
+          'Component library',
+          'connected',
+          scan.packageName,
+        )
+      : node(
+          'component-library',
+          'Component library',
+          'missing',
+          scan ? 'No package name detected' : 'Not scanned yet',
+        );
 
     const storybook = scan
       ? scan.storybookProjects.length
-        ? node('storybook', 'Storybook', 'connected', `${scan.storybookProjects.length} project(s)`)
+        ? node(
+            'storybook',
+            'Storybook',
+            'connected',
+            `${scan.storybookProjects.length} project(s)`,
+          )
         : node('storybook', 'Storybook', 'missing', 'Not detected')
       : node('storybook', 'Storybook', 'missing', 'Not scanned yet');
 
     const tokens = scan
       ? scan.tokenFiles.length
-        ? node('tokens', 'Design tokens', 'connected', `${scan.tokenFiles.length} source(s)`)
+        ? node(
+            'tokens',
+            'Design tokens',
+            'connected',
+            `${scan.tokenFiles.length} source(s)`,
+          )
         : node('tokens', 'Design tokens', 'missing', 'Not detected')
       : node('tokens', 'Design tokens', 'missing', 'Not scanned yet');
 
     const components = !manifestPresent
-      ? node('components', 'Components', 'missing', 'No Custom Elements Manifest')
+      ? node(
+          'components',
+          'Components',
+          'missing',
+          'No Custom Elements Manifest',
+        )
       : manifests.length === 0 && failures.length === 0
-        ? node('components', 'Components', 'partial', 'Manifest present, no components declared')
+        ? node(
+            'components',
+            'Components',
+            'partial',
+            'Manifest present, no components declared',
+          )
         : failures.length > 0
-          ? node('components', 'Components', 'partial', `${manifests.length} mapped · ${failures.length} failed`)
-          : node('components', 'Components', 'connected', `${manifests.length} component(s)`);
+          ? node(
+              'components',
+              'Components',
+              'partial',
+              `${manifests.length} mapped · ${failures.length} failed`,
+            )
+          : node(
+              'components',
+              'Components',
+              'connected',
+              `${manifests.length} component(s)`,
+            );
 
     const automatedEvidence =
       scan && (scan.testRunners.length || scan.ciProviders.length)
@@ -123,23 +261,44 @@ export class SystemMap {
             'automated-evidence',
             'Automated evidence',
             'partial',
-            `${scan.testRunners.length} test runner(s) detected, no run results connected yet`,
+            `${scan.testRunners.length} runner(s) · no results`,
           )
-        : node('automated-evidence', 'Automated evidence', 'missing', 'Not detected');
+        : node(
+            'automated-evidence',
+            'Automated evidence',
+            'missing',
+            'Not detected',
+          );
 
     const documentation =
       scan && (scan.starlightProjects.length || scan.hasZeroheight)
         ? node('documentation', 'Documentation', 'connected', 'Detected')
         : node('documentation', 'Documentation', 'missing', 'Not detected');
 
-    const release = node('release', 'Release', 'missing', 'Not connected — release policy not implemented yet');
+    const release = node(
+      'release',
+      'Release',
+      'missing',
+      'Release policy not implemented',
+    );
 
-    return [repository, componentLibrary, storybook, tokens, components, automatedEvidence, documentation, release];
+    return [
+      repository,
+      componentLibrary,
+      storybook,
+      tokens,
+      components,
+      automatedEvidence,
+      documentation,
+      release,
+    ];
   });
 
   protected readonly summary = computed(() => {
     const byId = new Map(this.nodes().map((n) => [n.id, n]));
-    const connectedCount = this.nodes().filter((n) => n.status === 'connected').length;
+    const connectedCount = this.nodes().filter(
+      (n) => n.status === 'connected',
+    ).length;
     const componentLibrary = byId.get('component-library');
     if (!this.workspace.workspacePath()) {
       return 'No workspace is open yet.';
@@ -163,6 +322,20 @@ export class SystemMap {
     return layout;
   }
 
+  protected metaLines(meta: string): readonly string[] {
+    const words = meta.split(/\s+/);
+    const lines: string[] = [];
+    for (const word of words) {
+      const current = lines[lines.length - 1];
+      if (!current || current.length + word.length + 1 > 19) {
+        lines.push(word);
+      } else {
+        lines[lines.length - 1] = `${current} ${word}`;
+      }
+    }
+    return lines.slice(0, 2);
+  }
+
   /** Edge status follows the status of the node the relationship leads into. */
   protected edgeClass(targetId: string): string {
     const target = this.nodes().find((n) => n.id === targetId);
@@ -170,6 +343,17 @@ export class SystemMap {
   }
 }
 
-function node(id: string, title: string, status: SystemMapNodeStatus, meta: string): SystemMapNode {
-  return { id, title, meta, status, ariaLabel: `${title}, ${STATUS_LABEL[status]}, ${meta}` };
+function node(
+  id: string,
+  title: string,
+  status: SystemMapNodeStatus,
+  meta: string,
+): SystemMapNode {
+  return {
+    id,
+    title,
+    meta,
+    status,
+    ariaLabel: `${title}, ${STATUS_LABEL[status]}, ${meta}`,
+  };
 }

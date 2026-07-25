@@ -5,13 +5,26 @@ import { createComponentManifest } from '@forgegate/core-manifest';
 import { ReadinessDistribution } from './readiness-distribution';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
 
-function manifest(id: string, lifecycle: ComponentManifest['lifecycle']): ComponentManifest {
-  return createComponentManifest({ id, framework: 'web-components', adapter: 'framework.web-components', packagePath: '.', lifecycle });
+function manifest(
+  id: string,
+  lifecycle: ComponentManifest['lifecycle'],
+): ComponentManifest {
+  return createComponentManifest({
+    id,
+    framework: 'web-components',
+    adapter: 'framework.web-components',
+    packagePath: '.',
+    lifecycle,
+  });
 }
 
 @Component({
   imports: [ReadinessDistribution],
-  template: `<app-readiness-distribution [manifests]="manifests" [selectedLifecycle]="selected" (lifecycleSelect)="onSelect($event)" />`,
+  template: `<app-readiness-distribution
+    [manifests]="manifests"
+    [selectedLifecycle]="selected"
+    (lifecycleSelect)="onSelect($event)"
+  />`,
 })
 class HostComponent {
   manifests: readonly ComponentManifest[] = [];
@@ -25,7 +38,9 @@ class HostComponent {
 
 describe('ReadinessDistribution', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent],
+    }).compileComponents();
   });
 
   it('shows an explicit empty state with no components', async () => {
@@ -33,9 +48,11 @@ describe('ReadinessDistribution', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.readiness-distribution__empty')?.textContent).toContain(
-      'No components to distribute',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.readiness-distribution__empty',
+      )?.textContent,
+    ).toContain('No components to distribute');
   });
 
   it('groups real components by lifecycle with real counts and percentages', async () => {
@@ -50,9 +67,11 @@ describe('ReadinessDistribution', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const labels = Array.from(compiled.querySelectorAll('.readiness-distribution__bar-button .readiness-distribution__bar-label')).map(
-      (el) => el.textContent,
-    );
+    const labels = Array.from(
+      compiled.querySelectorAll(
+        '.readiness-distribution__bar-button .readiness-distribution__bar-label',
+      ),
+    ).map((el) => el.textContent);
     expect(labels).toEqual(['proposal (2)', 'candidate (2)']);
   });
 
@@ -63,8 +82,33 @@ describe('ReadinessDistribution', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const readinessGroup = compiled.querySelectorAll('.readiness-distribution__group')[1];
+    const readinessGroup = compiled.querySelectorAll(
+      '.readiness-distribution__group',
+    )[1];
     expect(readinessGroup.textContent).toContain('unknown (1)');
+  });
+
+  it('gives the graphical lifecycle and readiness bars an equivalent semantic table', async () => {
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifests = [
+      manifest('acme.lib.a', 'proposal'),
+      manifest('acme.lib.b', 'candidate'),
+    ];
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const graphicalLabels = Array.from(
+      compiled.querySelectorAll('.readiness-distribution__bar-label'),
+    ).map((label) => label.textContent?.trim());
+    const tableStates = Array.from(
+      compiled.querySelectorAll('.readiness-distribution__table tbody tr'),
+    ).map((row) => {
+      const cells = row.querySelectorAll('td');
+      return `${cells[0]?.textContent?.trim()} (${cells[1]?.textContent?.trim()})`;
+    });
+
+    expect(tableStates).toEqual(graphicalLabels);
   });
 
   it('emits the clicked lifecycle, and toggles it off when clicked again', async () => {
@@ -74,7 +118,9 @@ describe('ReadinessDistribution', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const button = compiled.querySelector<HTMLButtonElement>('.readiness-distribution__bar-button');
+    const button = compiled.querySelector<HTMLButtonElement>(
+      '.readiness-distribution__bar-button',
+    );
     button?.click();
     expect(fixture.componentInstance.lastSelected).toBe('proposal');
 
@@ -86,7 +132,10 @@ describe('ReadinessDistribution', () => {
 
   it('has no automated accessibility violations', async () => {
     const fixture = TestBed.createComponent(HostComponent);
-    fixture.componentInstance.manifests = [manifest('acme.lib.a', 'proposal'), manifest('acme.lib.b', 'candidate')];
+    fixture.componentInstance.manifests = [
+      manifest('acme.lib.a', 'proposal'),
+      manifest('acme.lib.b', 'candidate'),
+    ];
     fixture.detectChanges();
     await fixture.whenStable();
 
