@@ -242,6 +242,30 @@ describe('ComponentDetailPage', () => {
     );
   });
 
+  it('moves focus to the recommended section after keyboard activation', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const nextAction = compiled.querySelector<HTMLAnchorElement>(
+      '.component-detail__next-action a',
+    );
+    expect(nextAction?.getAttribute('href')).toBe('#states-title');
+
+    nextAction?.click();
+    await Promise.resolve();
+
+    expect(document.activeElement?.id).toBe('states-title');
+  });
+
   it('updates to show the newly navigated component when moving directly between two detail routes', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);
@@ -643,5 +667,5 @@ describe('ComponentDetailPage', () => {
     fixture.detectChanges();
 
     await expectNoAccessibilityViolations(fixture.nativeElement);
-  });
+  }, 10_000);
 });

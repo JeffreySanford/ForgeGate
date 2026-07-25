@@ -134,6 +134,7 @@ const routes = [
   },
 ];
 const report = [];
+let keyboardJourney;
 
 async function seedWorkspace(page) {
   await page.waitForFunction(
@@ -178,6 +179,128 @@ async function seedWorkspace(page) {
     workspace.testExecutions.set([fixtureData.testExecution]);
   }, fixture);
   await page.waitForTimeout(0);
+}
+
+async function focusedElement(page) {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    return {
+      tag: active?.tagName ?? null,
+      id: active?.id ?? null,
+      text: active?.textContent?.trim().replace(/\s+/g, ' ') ?? null,
+      href: active?.getAttribute('href') ?? null,
+      inNextAction: Boolean(active?.closest('.component-detail__next-action')),
+    };
+  });
+}
+
+async function waitForMainFocus(page, routeName) {
+  await page.waitForFunction(
+    () => document.activeElement?.id === 'main-content',
+  );
+  const focus = await focusedElement(page);
+  if (focus.id !== 'main-content') {
+    throw new Error(
+      `${routeName} did not move keyboard focus to the main landmark`,
+    );
+  }
+  return focus;
+}
+
+async function tabUntil(page, predicate, description, maximumTabs = 30) {
+  const sequence = [];
+  for (let tab = 1; tab <= maximumTabs; tab += 1) {
+    await page.keyboard.press('Tab');
+    const focus = await focusedElement(page);
+    sequence.push(focus);
+    if (predicate(focus)) {
+      return { tabs: tab, focus, sequence };
+    }
+  }
+  throw new Error(
+    `Keyboard journey did not reach ${description} within ${maximumTabs} Tab presses: ${JSON.stringify(sequence)}`,
+  );
+}
+
+async function verifyKeyboardJourney(browserInstance) {
+  const context = await browserInstance.newContext({
+    viewport: { width: 1440, height: 900 },
+    colorScheme: 'light',
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${baseUrl}/components`);
+    await seedWorkspace(page);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('link', { name: 'Workspace', exact: true }).focus();
+    const workspaceNavigationStart = await focusedElement(page);
+    await page.keyboard.press('Enter');
+    await page.waitForURL('**/workspace');
+    const workspaceMainFocus = await waitForMainFocus(page, 'workspace');
+
+    await page.keyboard.press('Shift+Tab');
+    const workspaceContextFocus = await focusedElement(page);
+    if (
+      workspaceContextFocus.tag !== 'BUTTON' ||
+      !workspaceContextFocus.text?.includes('Open workspace')
+    ) {
+      throw new Error(
+        `Workspace context action was not adjacent to the main landmark in keyboard order: ${JSON.stringify(workspaceContextFocus)}`,
+      );
+    }
+
+    await page.getByRole('link', { name: 'Components', exact: true }).focus();
+    const inventoryNavigationStart = await focusedElement(page);
+    await page.keyboard.press('Enter');
+    await page.waitForURL('**/components');
+    const inventoryMainFocus = await waitForMainFocus(page, 'inventory');
+
+    const inventoryComponent = await tabUntil(
+      page,
+      (focus) =>
+        focus.tag === 'A' &&
+        focus.href === '/components/acme.button-library.acme-button',
+      'the first component record link',
+    );
+    await page.keyboard.press('Enter');
+    await page.waitForURL('**/components/acme.button-library.acme-button');
+    const componentMainFocus = await waitForMainFocus(page, 'component detail');
+
+    const nextAction = await tabUntil(
+      page,
+      (focus) => focus.tag === 'A' && focus.inNextAction,
+      'the component recommended next action',
+      10,
+    );
+    const targetId = nextAction.focus.href?.replace(/^#/, '');
+    if (!targetId) {
+      throw new Error(
+        'Component recommended next action has no fragment target',
+      );
+    }
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(
+      (expectedId) => document.activeElement?.id === expectedId,
+      targetId,
+    );
+    const recommendationTargetFocus = await focusedElement(page);
+
+    return {
+      viewport: { width: 1440, height: 900 },
+      workspaceNavigationStart,
+      workspaceMainFocus,
+      workspaceContextFocus,
+      inventoryNavigationStart,
+      inventoryMainFocus,
+      inventoryComponent,
+      componentMainFocus,
+      nextAction,
+      recommendationTargetFocus,
+    };
+  } finally {
+    await context.close();
+  }
 }
 
 try {
@@ -333,9 +456,17 @@ try {
       const baselinePath = resolve(baselineRoot, screenshot);
       let visualComparison;
       if (updateBaselines) {
-        writeFileSync(baselinePath, actualPng);
+        const existingResult = existsSync(baselinePath)
+          ? comparePng(actualPng, readFileSync(baselinePath), {
+              threshold: 0.15,
+              maxDiffPixelRatio: maximumDiffRatio,
+            })
+          : { errorMessage: 'Baseline does not exist yet.' };
+        if (existingResult) {
+          writeFileSync(baselinePath, actualPng);
+        }
         visualComparison = {
-          status: 'updated',
+          status: existingResult ? 'updated' : 'unchanged',
           maximumDiffRatio,
         };
       } else {
@@ -358,6 +489,7 @@ try {
     }
     await context.close();
   }
+  keyboardJourney = await verifyKeyboardJourney(browser);
 } finally {
   await browser.close();
   await new Promise((resolveClose, rejectClose) =>
@@ -369,8 +501,12 @@ writeFileSync(
   resolve(evidenceRoot, 'report.json'),
   `${JSON.stringify(report, null, 2)}\n`,
 );
+writeFileSync(
+  resolve(evidenceRoot, 'keyboard-journey.json'),
+  `${JSON.stringify(keyboardJourney, null, 2)}\n`,
+);
 console.log(
-  `${updateBaselines ? 'Updated visual baselines and verified' : 'Responsive and visual regression checks passed for'} ${report.length} rendered route/viewport combinations.`,
+  `${updateBaselines ? 'Updated visual baselines and verified' : 'Responsive, keyboard, and visual regression checks passed for'} ${report.length} rendered route/viewport combinations plus the primary-route keyboard journey.`,
 );
 
 function compareScreenshot({

@@ -29,14 +29,14 @@
       <button
         type="button"
         [attr.aria-pressed]="inventoryMode() === 'catalog'"
-        (click)="inventoryMode.set('catalog')"
+        (click)="setInventoryMode('catalog')"
       >
         Component catalog
       </button>
       <button
         type="button"
         [attr.aria-pressed]="inventoryMode() === 'diagnostics'"
-        (click)="inventoryMode.set('diagnostics')"
+        (click)="setInventoryMode('diagnostics')"
       >
         Discovery diagnostics
       </button>
@@ -56,7 +56,7 @@
         type="search"
         placeholder="Name or tag…"
         [value]="searchText()"
-        (input)="searchText.set($any($event.target).value)"
+        (input)="setSearchText($any($event.target).value)"
       />
     </label>
 
@@ -64,7 +64,7 @@
       <span>Lifecycle</span>
       <select
         [value]="lifecycleFilter()"
-        (change)="lifecycleFilter.set($any($event.target).value)"
+        (change)="setLifecycleFilter($any($event.target).value)"
       >
         <option value="all">All</option>
         @for (option of lifecycleOptions(); track option) {
@@ -77,7 +77,7 @@
       <input
         type="checkbox"
         [checked]="missingEvidenceOnly()"
-        (change)="missingEvidenceOnly.set($any($event.target).checked)"
+        (change)="setMissingEvidenceOnly($any($event.target).checked)"
       />
       <span>Missing evidence only</span>
     </label>
@@ -104,7 +104,13 @@
   <p class="components-page__empty">
     No components match the current search and filters.
   </p>
-  } @else if (viewMode() === 'table') {
+  } @else {
+  <div class="components-page__result-summary" aria-live="polite">
+    Showing {{ visibleStart() }}–{{ visibleEnd() }} of {{ filtered().length }}
+    matching components.
+  </div>
+
+  @if (viewMode() === 'table') {
   <div
     class="components-page__table-scroll"
     tabindex="0"
@@ -113,7 +119,7 @@
   >
     <table class="components-page__inventory-table">
       <caption class="sr-only">
-        Component inventory
+        Component inventory, page {{ currentPage() }} of {{ pageCount() }}
       </caption>
       <thead>
         <tr>
@@ -131,8 +137,8 @@
         </tr>
       </thead>
       <tbody>
-        @for (discovery of filtered(); track discovery.manifest.id) { @let
-        manifest = discovery.manifest;
+        @for (discovery of visibleDiscoveries(); track discovery.manifest.id) {
+        @let manifest = discovery.manifest;
         <tr>
           <th scope="row">
             <a [routerLink]="['/components', manifest.id]"
@@ -165,8 +171,8 @@
   </div>
   } @else {
   <ul class="components-page__cards">
-    @for (discovery of filtered(); track discovery.manifest.id) { @let manifest
-    = discovery.manifest;
+    @for (discovery of visibleDiscoveries(); track discovery.manifest.id) { @let
+    manifest = discovery.manifest;
     <li class="component-card">
       <a
         class="component-card__link"
@@ -190,7 +196,25 @@
     </li>
     }
   </ul>
-  } } @if (failures().length) {
+  } @if (pageCount() > 1) {
+  <nav class="components-page__pagination" aria-label="Component pages">
+    <button
+      type="button"
+      [disabled]="currentPage() === 1"
+      (click)="setPage(currentPage() - 1)"
+    >
+      Previous
+    </button>
+    <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
+    <button
+      type="button"
+      [disabled]="currentPage() === pageCount()"
+      (click)="setPage(currentPage() + 1)"
+    >
+      Next
+    </button>
+  </nav>
+  } } } @if (failures().length) {
   <p role="alert" class="components-page__failures">
     {{ failures().length }} declaration(s) could not be mapped: @for (failure of
     failures(); track failure.declarationName) {

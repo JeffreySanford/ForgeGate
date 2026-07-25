@@ -102,7 +102,7 @@ Primary references:
 ### P0.2 exit criteria
 
 - [X} The flat single-screen diagnostic console is no longer the primary application structure. Replaced by the shell + three real routes (`/workspace`, `/components`, `/components/:componentId`), verified visually in a live dev server (empty state, then a real route change with focus move, no console errors).
-- [ ] A keyboard user can move through navigation, workspace context, inventory, and component detail without focus loss. Route-change focus management works; inventory and component-detail screens themselves don't exist yet to evaluate the rest of the flow.
+- [X} A keyboard user can move through navigation, workspace context, inventory, and component detail without focus loss. The Windows/Edge quality gate uses only keyboard activation and traversal after its starting focus: it follows primary navigation into the workspace, verifies the workspace action is adjacent to the main landmark in tab order, enters the inventory, tabs to the real Button record, enters its detail route, and follows the recommended next action to its focusable destination. Every route transition must restore focus to `#main-content`; the complete focus sequence is written to `dist/responsive-evidence/keyboard-journey.json`.
 - [X} Engineers can still reach raw diagnostics and exact source information. All prior diagnostic detail (scan results, manifest mapping failures, CEM generation output, repository-config errors) is preserved verbatim on `/workspace`, just relocated out of the old single screen.
 
 ## P0.3 — Workspace command center
@@ -143,7 +143,7 @@ Primary references:
 
 - [X} The inventory reads as a design-system catalog with assurance status, not a database dump. Grouped, labeled columns/cards with explicit unknown-state text, not a raw field dump.
 - [X} Mapping failures remain visible and do not remove valid sibling components. Verified by a test: a manifest with 2 valid + 1 invalid (dotted `tagName`) declaration renders exactly 2 rows and shows the 1 failure in its own alert.
-- [ ] The primary table remains accessible and efficient for larger libraries. Basic accessibility (caption, scoped headers, row `<th>`) is in place; not load-tested against a large real library, and no virtualization/pagination exists — untested at scale.
+- [X} The primary table remains accessible and efficient for larger libraries. Both table and card presentations paginate the filtered result set at 50 components, expose a live “showing X–Y of Z” summary, label page count in the table caption, and use a semantic Previous/Page/Next navigation. A 225-component regression test proves bounded rendering, page traversal, and reset-to-page-one behavior when filtering.
 
 ## P0.5 — Button component assurance record
 
@@ -184,8 +184,8 @@ These are functional dependencies that must advance with the P0 interface. The U
 
 ## P0.7 — P0 quality and accessibility gate
 
-- [X} Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states. The desktop suite now runs 130 tests, including component next-action priorities, scan-replacement route preservation, and graphical/semantic parity, built incrementally alongside each P0.1–P0.5 slice rather than added after the fact.
-- [X} Add keyboard navigation tests. Route-change focus management is tested (`App`'s "moves focus to the main content landmark after a route change"); full tab-order/keyboard-only-operation coverage across every control is not exhaustively tested.
+- [X} Add Angular component tests for shell, routes, workspace cards, inventory, component header, coverage, and readiness states. The desktop suite now runs 132 tests, including component next-action priorities, focus transfer from recommended actions, scan-replacement route preservation, graphical/semantic parity, and a 225-component pagination case, built incrementally alongside each P0.1–P0.5 slice rather than added after the fact.
+- [X} Add keyboard navigation tests. The Angular suite verifies route-change focus management, while `forgegate-desktop:responsive-check` runs a keyboard-only Windows/Edge journey across primary navigation, workspace context, inventory, component detail, and the recommended-action fragment target. The journey rejects focus loss or a missing/unreachable target and records every traversed element in `dist/responsive-evidence/keyboard-journey.json`.
 - [X} Add automated accessibility checks for primary routes. `apps/forgegate-desktop/src/test-a11y.ts` wraps `axe-core`, run against real rendered DOM in jsdom (color-contrast/target-size disabled — jsdom has no real layout, so those checks would be meaningless there, not because they're skipped as a category). Added to the shell, `/workspace`, the system map, `/components` (table and card view), and `/components/:componentId` — 7 new checks. This caught and fixed a real bug: the system map's SVG nodes had `role="img"` on the container with nested `role="button"` children that had no click handler at all — invalid ARIA nesting _and_ fake, non-functional interactivity. Fixed by removing the unwired interactivity (an SVG `<title>` per node now carries the same descriptive text non-interactively).
 - [ ] Add manual screen-reader review for the shell, workspace, inventory, and Button record. Not done — needs an actual screen reader, not just axe.
 - [X} Add forced-colors review. The real primary routes are rendered by Edge with `forced-colors: active` at 400%-equivalent width, the gate asserts both the active browser media query and system-color status-token mapping, and reviewed screenshots are committed as regression baselines.

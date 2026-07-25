@@ -286,6 +286,16 @@ forced-colors cases must map status tokens to Windows system colors. This makes
 the screenshots evidence of an active preference rather than merely filenames
 that claim one.
 
+The same gate performs a keyboard-only journey in Windows Edge after seeding
+the fixture. It activates Workspace and Components through the primary
+navigation, checks that every route change moves focus to the main landmark,
+reaches the workspace action in document order, tabs through the inventory to
+the real Button record, and follows the record's recommended action to its
+focusable section heading. Focus loss, a changed tab order that makes a primary
+destination unreachable, or a broken fragment target fails the gate. The exact
+focus sequence is retained in
+`dist/responsive-evidence/keyboard-journey.json`.
+
 ## Component inventory route
 
 The inventory should feel like a design-system catalog with assurance status, not a database dump.
@@ -293,6 +303,14 @@ The inventory should feel like a design-system catalog with assurance status, no
 ### Default presentation
 
 Use a compact table on wide screens with an optional card view. The table remains the primary dense view because design systems may contain many components.
+
+The implemented catalog renders at most 50 filtered components per page in
+either presentation. A live result summary reports the visible range and total,
+the table caption identifies the current page, and semantic Previous/Next
+controls remain reachable after the table or card list. Changing catalog scope,
+search, lifecycle, missing-evidence filtering, or a lifecycle chart selection
+returns to page one so a narrowed result cannot strand the user on an empty
+later page.
 
 Recommended columns:
 

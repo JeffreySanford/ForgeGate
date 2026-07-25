@@ -12,6 +12,7 @@ import { ReadinessDistribution } from './readiness-distribution';
 type LifecycleFilter = 'all' | ComponentManifest['lifecycle'];
 type ViewMode = 'table' | 'cards';
 type InventoryMode = 'catalog' | 'diagnostics';
+const INVENTORY_PAGE_SIZE = 50;
 
 /**
  * Designer-ready component inventory (P0.4, documentation/25-designer-ready-vertical-slice.md).
@@ -41,6 +42,8 @@ export class ComponentsPage {
   protected readonly missingEvidenceOnly = signal(false);
   protected readonly viewMode = signal<ViewMode>('table');
   protected readonly inventoryMode = signal<InventoryMode>('catalog');
+  protected readonly page = signal(1);
+  protected readonly pageSize = INVENTORY_PAGE_SIZE;
 
   protected readonly manifests = computed(
     () => this.inventory.result().manifests,
@@ -91,6 +94,25 @@ export class ComponentsPage {
     });
   });
 
+  protected readonly pageCount = computed(() =>
+    Math.max(1, Math.ceil(this.filtered().length / this.pageSize)),
+  );
+  protected readonly currentPage = computed(() =>
+    Math.min(this.page(), this.pageCount()),
+  );
+  protected readonly visibleDiscoveries = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.filtered().slice(start, start + this.pageSize);
+  });
+  protected readonly visibleStart = computed(() =>
+    this.filtered().length === 0
+      ? 0
+      : (this.currentPage() - 1) * this.pageSize + 1,
+  );
+  protected readonly visibleEnd = computed(() =>
+    Math.min(this.currentPage() * this.pageSize, this.filtered().length),
+  );
+
   protected count(classification: ComponentProvenance): number {
     return this.discoveries().filter(
       (item) => item.classification === classification,
@@ -131,6 +153,30 @@ export class ComponentsPage {
     this.viewMode.set(mode);
   }
 
+  protected setInventoryMode(mode: InventoryMode): void {
+    this.inventoryMode.set(mode);
+    this.page.set(1);
+  }
+
+  protected setSearchText(value: string): void {
+    this.searchText.set(value);
+    this.page.set(1);
+  }
+
+  protected setLifecycleFilter(value: LifecycleFilter): void {
+    this.lifecycleFilter.set(value);
+    this.page.set(1);
+  }
+
+  protected setMissingEvidenceOnly(value: boolean): void {
+    this.missingEvidenceOnly.set(value);
+    this.page.set(1);
+  }
+
+  protected setPage(page: number): void {
+    this.page.set(Math.max(1, Math.min(page, this.pageCount())));
+  }
+
   protected readonly selectedLifecycle = computed<
     ComponentManifest['lifecycle'] | null
   >(() => {
@@ -141,7 +187,7 @@ export class ComponentsPage {
   protected onLifecycleSelect(
     lifecycle: ComponentManifest['lifecycle'] | null,
   ): void {
-    this.lifecycleFilter.set(lifecycle ?? 'all');
+    this.setLifecycleFilter(lifecycle ?? 'all');
   }
 }
 
