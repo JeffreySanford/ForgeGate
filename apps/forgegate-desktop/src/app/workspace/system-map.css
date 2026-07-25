@@ -1,7 +1,17 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .system-map-panel {
   display: flex;
   flex-direction: column;
   gap: var(--fg-space-3);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .system-map-panel h2 {
@@ -17,6 +27,9 @@
 
 .system-map-wrap {
   position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--fg-color-border);
   border-radius: var(--fg-radius-md);
   background: var(--fg-color-surface-subtle);
@@ -160,6 +173,13 @@
   color: var(--fg-color-text);
 }
 
+.system-map-panel__narrow-note {
+  display: none;
+  margin: 0;
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+}
+
 .system-map-panel__table summary {
   cursor: pointer;
   color: var(--fg-color-text-muted);
@@ -178,4 +198,20 @@
   padding: var(--fg-space-2);
   border-bottom: 1px solid var(--fg-color-border);
   font-size: var(--fg-type-size-sm);
+}
+
+@media (max-width: 48rem) {
+  .system-map-panel__table {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 30rem) {
+  .system-map-wrap {
+    display: none;
+  }
+
+  .system-map-panel__narrow-note {
+    display: block;
+  }
 }

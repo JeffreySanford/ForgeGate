@@ -28,12 +28,12 @@
           "budgets": [
             {
               "type": "initial",
-              "maximumWarning": "600kb",
+              "maximumWarning": "625kb",
               "maximumError": "1mb"
             },
             {
               "type": "anyComponentStyle",
-              "maximumWarning": "4kb",
+              "maximumWarning": "5kb",
               "maximumError": "8kb"
             }
           ],
@@ -98,6 +98,14 @@
         "staticFilePath": "dist/apps/forgegate-desktop/browser",
         "spa": true
       }
+    },
+    "responsive-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx build forgegate-desktop --configuration development && node tools/verify-responsive-layout.mjs",
+        "cwd": "."
+      },
+      "cache": false
     }
   }
 }

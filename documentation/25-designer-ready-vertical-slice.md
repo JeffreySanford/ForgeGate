@@ -249,6 +249,26 @@ visible after discovery; a failure preserves the number of completed checks
 and labels the remainder as not checked. Starting a second concurrent scan is
 disabled so results from different selections cannot race.
 
+### Responsive and zoom verification
+
+The desktop shell uses explicit medium (64rem), narrow (48rem), and compact
+(30rem) layout changes rather than assuming a browser-sized window. Navigation
+becomes horizontal and then stacked, workspace context wraps without hiding
+repository state, page padding contracts, component identity and provenance
+grids become single-column, and dense tables scroll inside named,
+keyboard-focusable regions instead of widening the page. At the compact
+breakpoint the system-map graphic yields to a prompt for its equivalent
+semantic list.
+
+`nx run forgegate-desktop:responsive-check` builds the Angular application in
+development mode, loads the checked-in Button fixture into the real routes,
+and renders workspace, inventory, and component detail at 1440, 960, 640, and
+320 CSS pixels. The final two widths model reflow at 200% and 400% zoom on a
+1280px desktop window. The check fails on page-level horizontal overflow, a
+main landmark wider than the viewport, or a missing visible first keyboard
+focus. It covers light, dark, forced-colors, and reduced-motion contexts and
+writes screenshots plus a JSON report to `dist/responsive-evidence/`.
+
 ## Component inventory route
 
 The inventory should feel like a design-system catalog with assurance status, not a database dump.

@@ -2,8 +2,18 @@
   display: flex;
   flex-direction: column;
   gap: var(--fg-space-4);
+  width: 100%;
   max-width: 1040px;
+  margin-inline: auto;
   padding: var(--fg-space-5);
+}
+
+.workspace-page > app-workspace-scan-progress,
+.workspace-page > app-system-map,
+.workspace-page > app-assurance-journey {
+  display: block;
+  width: 100%;
+  min-width: 0;
 }
 
 .workspace-page__raw-scan summary {
@@ -64,6 +74,16 @@
   border-collapse: collapse;
 }
 
+.workspace-page__table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.workspace-page__table-scroll:focus-visible {
+  outline: 3px solid var(--fg-color-focus);
+  outline-offset: 2px;
+}
+
 .workspace-page th,
 .workspace-page td {
   text-align: left;
@@ -72,7 +92,7 @@
 }
 
 .workspace-page pre {
-  max-width: min(64rem, 70vw);
+  max-width: 100%;
   overflow: auto;
   padding: var(--fg-space-3);
   border: 1px solid var(--fg-color-border);
@@ -88,6 +108,8 @@
   border: 1px solid var(--fg-color-border);
   border-radius: var(--fg-radius-md);
   padding: var(--fg-space-4);
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .workspace-page [role='alert'] {
@@ -96,4 +118,20 @@
   border: 1px solid var(--fg-color-status-failed);
   border-radius: var(--fg-radius-sm);
   padding: var(--fg-space-3);
+}
+
+@media (max-width: 64rem) {
+  .workspace-page {
+    padding: var(--fg-space-4);
+  }
+}
+
+@media (max-width: 48rem) {
+  .workspace-page {
+    padding: var(--fg-space-3);
+  }
+
+  .workspace-page section {
+    padding: var(--fg-space-3);
+  }
 }

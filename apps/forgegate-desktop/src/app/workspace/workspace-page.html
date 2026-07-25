@@ -203,34 +203,41 @@
   } } @if (workspace.customElementsManifest()) { @if
   (componentMapResult().manifests.length) {
   <h2>Component inventory</h2>
-  <table>
-    <thead>
-      <tr>
-        <th scope="col">Component</th>
-        <th scope="col">Framework</th>
-        <th scope="col">Source</th>
-        <th scope="col">Inputs</th>
-        <th scope="col">Outputs</th>
-        <th scope="col">Slots</th>
-        <th scope="col">Methods</th>
-        <th scope="col">Style parts</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (manifest of componentMapResult().manifests; track manifest.id) {
-      <tr>
-        <td>{{ manifest.id }}</td>
-        <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
-        <td>{{ manifest.sourceFiles.join(', ') }}</td>
-        <td>{{ manifest.contract.inputs.length }}</td>
-        <td>{{ manifest.contract.outputs.length }}</td>
-        <td>{{ manifest.contract.content.length }}</td>
-        <td>{{ manifest.contract.publicMethods.length }}</td>
-        <td>{{ manifest.contract.styleParts.length }}</td>
-      </tr>
-      }
-    </tbody>
-  </table>
+  <div
+    class="workspace-page__table-scroll"
+    tabindex="0"
+    role="region"
+    aria-label="Scrollable workspace component inventory"
+  >
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Component</th>
+          <th scope="col">Framework</th>
+          <th scope="col">Source</th>
+          <th scope="col">Inputs</th>
+          <th scope="col">Outputs</th>
+          <th scope="col">Slots</th>
+          <th scope="col">Methods</th>
+          <th scope="col">Style parts</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (manifest of componentMapResult().manifests; track manifest.id) {
+        <tr>
+          <td>{{ manifest.id }}</td>
+          <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
+          <td>{{ manifest.sourceFiles.join(', ') }}</td>
+          <td>{{ manifest.contract.inputs.length }}</td>
+          <td>{{ manifest.contract.outputs.length }}</td>
+          <td>{{ manifest.contract.content.length }}</td>
+          <td>{{ manifest.contract.publicMethods.length }}</td>
+          <td>{{ manifest.contract.styleParts.length }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
   } @else if (!componentMapResult().failures.length) {
   <p>Manifest present but no custom elements found in it.</p>
   } @if (componentMapResult().failures.length) {

@@ -1,6 +1,8 @@
 <section class="system-map-panel" aria-labelledby="system-map-title">
   <h2 id="system-map-title">Workspace system map</h2>
-  <p class="system-map-panel__intro">Real detected relationships across the component delivery workflow.</p>
+  <p class="system-map-panel__intro">
+    Real detected relationships across the component delivery workflow.
+  </p>
 
   <div class="system-map-wrap">
     <svg
@@ -10,48 +12,102 @@
       aria-labelledby="system-map-title"
       aria-describedby="system-map-summary"
     >
-      <path class="map-edge" [class]="edgeClass('component-library')" d="M118 194 C180 194, 190 194, 252 194" />
-      <path class="map-edge" [class]="edgeClass('components')" d="M360 194 C420 194, 432 194, 490 194" />
-      <path class="map-edge" [class]="edgeClass('storybook')" d="M305 157 C305 110, 370 85, 444 85" />
-      <path class="map-edge" [class]="edgeClass('tokens')" d="M305 230 C305 284, 370 308, 442 308" />
-      <path class="map-edge" [class]="edgeClass('automated-evidence')" d="M566 163 C604 124, 642 112, 685 112" />
-      <path class="map-edge" [class]="edgeClass('documentation')" d="M566 217 C608 258, 646 271, 688 271" />
-      <path class="map-edge" [class]="edgeClass('release')" d="M564 194 C620 194, 638 194, 690 194" />
+      <path
+        class="map-edge"
+        [class]="edgeClass('component-library')"
+        d="M118 194 C180 194, 190 194, 252 194"
+      />
+      <path
+        class="map-edge"
+        [class]="edgeClass('components')"
+        d="M360 194 C420 194, 432 194, 490 194"
+      />
+      <path
+        class="map-edge"
+        [class]="edgeClass('storybook')"
+        d="M305 157 C305 110, 370 85, 444 85"
+      />
+      <path
+        class="map-edge"
+        [class]="edgeClass('tokens')"
+        d="M305 230 C305 284, 370 308, 442 308"
+      />
+      <path
+        class="map-edge"
+        [class]="edgeClass('automated-evidence')"
+        d="M566 163 C604 124, 642 112, 685 112"
+      />
+      <path
+        class="map-edge"
+        [class]="edgeClass('documentation')"
+        d="M566 217 C608 258, 646 271, 688 271"
+      />
+      <path
+        class="map-edge"
+        [class]="edgeClass('release')"
+        d="M564 194 C620 194, 638 194, 690 194"
+      />
 
       @for (n of nodes(); track n.id) {
-        <g class="map-node">
-          <title>{{ n.ariaLabel }}</title>
-          <rect
-            class="node-shell"
-            [class]="statusClass(n.status)"
-            [attr.x]="layout(n.id).x"
-            [attr.y]="layout(n.id).y"
-            [attr.width]="layout(n.id).w"
-            [attr.height]="layout(n.id).h"
-            rx="16"
-          />
-          <circle
-            class="node-status-dot"
-            [class]="statusClass(n.status)"
-            [attr.cx]="layout(n.id).dotX"
-            [attr.cy]="layout(n.id).dotY"
-            r="5"
-          />
-          <text class="node-title" [attr.x]="layout(n.id).titleX" [attr.y]="layout(n.id).titleY">{{ n.title }}</text>
-          <text class="node-meta" [attr.x]="layout(n.id).metaX" [attr.y]="layout(n.id).metaY">{{ n.meta }}</text>
-        </g>
+      <g class="map-node">
+        <title>{{ n.ariaLabel }}</title>
+        <rect
+          class="node-shell"
+          [class]="statusClass(n.status)"
+          [attr.x]="layout(n.id).x"
+          [attr.y]="layout(n.id).y"
+          [attr.width]="layout(n.id).w"
+          [attr.height]="layout(n.id).h"
+          rx="16"
+        />
+        <circle
+          class="node-status-dot"
+          [class]="statusClass(n.status)"
+          [attr.cx]="layout(n.id).dotX"
+          [attr.cy]="layout(n.id).dotY"
+          r="5"
+        />
+        <text
+          class="node-title"
+          [attr.x]="layout(n.id).titleX"
+          [attr.y]="layout(n.id).titleY"
+        >
+          {{ n.title }}
+        </text>
+        <text
+          class="node-meta"
+          [attr.x]="layout(n.id).metaX"
+          [attr.y]="layout(n.id).metaY"
+        >
+          {{ n.meta }}
+        </text>
+      </g>
       }
     </svg>
 
     <div class="map-legend" aria-hidden="true">
-      <span class="legend-item status-connected"><span class="legend-dot"></span>Connected</span>
-      <span class="legend-item status-partial"><span class="legend-dot"></span>Partial</span>
-      <span class="legend-item status-stale"><span class="legend-dot"></span>Stale</span>
-      <span class="legend-item status-missing"><span class="legend-dot"></span>Not connected</span>
+      <span class="legend-item status-connected"
+        ><span class="legend-dot"></span>Connected</span
+      >
+      <span class="legend-item status-partial"
+        ><span class="legend-dot"></span>Partial</span
+      >
+      <span class="legend-item status-stale"
+        ><span class="legend-dot"></span>Stale</span
+      >
+      <span class="legend-item status-missing"
+        ><span class="legend-dot"></span>Not connected</span
+      >
     </div>
   </div>
+  <p class="system-map-panel__narrow-note">
+    The graphical map is hidden at this width. Expand the semantic list for the
+    same relationships, statuses, and details.
+  </p>
 
-  <p id="system-map-summary" class="system-map-panel__summary">{{ summary() }}</p>
+  <p id="system-map-summary" class="system-map-panel__summary">
+    {{ summary() }}
+  </p>
 
   <details class="system-map-panel__table">
     <summary>Semantic list (same information as the map, no graphics)</summary>
@@ -65,11 +121,11 @@
       </thead>
       <tbody>
         @for (n of nodes(); track n.id) {
-          <tr>
-            <th scope="row">{{ n.title }}</th>
-            <td>{{ statusLabel(n.status) }}</td>
-            <td>{{ n.meta }}</td>
-          </tr>
+        <tr>
+          <th scope="row">{{ n.title }}</th>
+          <td>{{ statusLabel(n.status) }}</td>
+          <td>{{ n.meta }}</td>
+        </tr>
         }
       </tbody>
     </table>
