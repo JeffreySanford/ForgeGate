@@ -52,6 +52,25 @@
   overflow-wrap: anywhere;
 }
 
+.component-detail__next-action {
+  padding: var(--fg-space-4);
+  border: 2px solid var(--fg-color-accent);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-accent-soft);
+}
+
+.component-detail__next-action h2,
+.component-detail__next-action p {
+  margin: 0 0 var(--fg-space-2);
+}
+
+.component-detail__eyebrow {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .component-detail__panel {
   background: var(--fg-color-surface);
   border: 1px solid var(--fg-color-border);
