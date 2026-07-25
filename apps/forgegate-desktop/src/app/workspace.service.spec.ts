@@ -215,6 +215,30 @@ describe('WorkspaceService', () => {
       '.forgegate/evidence/broken.json',
     );
     expect(service.workspaceScan()).toEqual(scanFixtureWithEvidence);
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'test-evidence:.forgegate/evidence/acme-button-unit.json',
+        ),
+    ).toMatchObject({
+      status: 'loaded',
+      rawOutput: JSON.stringify(execution),
+      error: null,
+    });
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id === 'test-evidence:.forgegate/evidence/broken.json',
+        ),
+    ).toMatchObject({
+      status: 'failed',
+      rawOutput: '{"status":"green"}',
+    });
   });
 
   it('does not attempt to read a Custom Elements Manifest when none was found', async () => {
@@ -265,6 +289,17 @@ describe('WorkspaceService', () => {
     });
     expect(service.customElementsManifest()?.modules).toHaveLength(1);
     expect(service.customElementsManifestError()).toBeNull();
+    expect(
+      service
+        .adapterDiagnostics()
+        .find((diagnostic) => diagnostic.id === 'custom-elements-manifest'),
+    ).toMatchObject({
+      adapter: 'Web Components adapter',
+      source: 'dist/custom-elements.json',
+      status: 'loaded',
+      rawOutput: cemJson,
+      error: null,
+    });
   });
 
   it('reports a Custom Elements Manifest read/parse failure without clearing the workspace scan', async () => {

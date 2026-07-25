@@ -71,6 +71,18 @@
   border-bottom: 1px solid var(--fg-color-border);
 }
 
+.workspace-page pre {
+  max-width: min(64rem, 70vw);
+  overflow: auto;
+  padding: var(--fg-space-3);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  font-size: var(--fg-type-size-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .workspace-page section {
   background: var(--fg-color-surface-subtle);
   border: 1px solid var(--fg-color-border);
