@@ -41,3 +41,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: npx nx format:check --base="remotes/origin/master"
       - run: npx nx run-many -t lint test build typecheck cargo-test
+
+  # Separate job on windows-latest, not folded into `main`: the committed
+  # Playwright baselines (apps/forgegate-desktop/e2e/**/*-win32.png) were
+  # captured on Windows, and cross-OS font rendering differences make a
+  # Windows-captured screenshot compare unreliably against a Linux
+  # renderer. Matching the runner OS to the baseline OS is simpler and
+  # more honest than fighting rendering diffs across platforms.
+  e2e-visual:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: npx playwright install chromium --with-deps
+      - run: npx nx run forgegate-desktop:e2e
