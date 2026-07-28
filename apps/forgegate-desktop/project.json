@@ -90,6 +90,9 @@
       ],
       "outputs": []
     },
+    "e2e": {
+      "dependsOn": []
+    },
     "serve-static": {
       "continuous": true,
       "executor": "@nx/web:file-server",

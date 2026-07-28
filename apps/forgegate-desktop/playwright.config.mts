@@ -16,16 +16,16 @@ const baseURL = process.env['BASE_URL'] || 'http://localhost:4200';
  * `playwright.config.mts` via its extension list
  * (.ts/.js/.mts/.mjs/.cts/.cjs).
  *
- * `webServer` is required here even though the Nx-inferred `e2e` target
- * already declares `dependsOn: forgegate-desktop:serve` (a `continuous`
- * task) — that dependency starts the dev server but does not block until
- * it's actually accepting connections, which raced and failed
- * (`ERR_CONNECTION_REFUSED`) when relied on alone. `webServer` provides
- * the missing readiness poll against `url`. With `reuseExistingServer`,
- * if Nx's own dependency has already bound the port by the time this
- * checks, `command` is never actually invoked — the "recursive task
- * invocation" warning some runs print is Nx noticing the *attempt*, not a
- * failure; it does not stop the port from already being reachable.
+ * `webServer` is the *only* thing that starts the dev server —
+ * project.json explicitly overrides the Nx-inferred `e2e` target with
+ * `dependsOn: []`. The plugin's default inference pairs `dependsOn:
+ * forgegate-desktop:serve` with this same `webServer.command`, which is a
+ * real, reproducible recursive Nx task invocation (confirmed both
+ * locally and, fatally, on CI: the outer dependency's server took longer
+ * to boot than the inner spawn's recursion guard tolerated, and Nx
+ * exited the inner spawn with code 1 before the outer one was ready).
+ * Clearing `dependsOn` and keeping exactly one starter removes the
+ * recursion entirely rather than racing it.
  */
 export default defineConfig({
   ...nxE2EPreset(import.meta.dirname, { testDir: './e2e' }),
