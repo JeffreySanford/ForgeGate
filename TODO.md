@@ -337,19 +337,24 @@ Primary references:
 
 # Parallel nonvisual critical work
 
-The detailed phased plan remains authoritative for the complete technical backlog. These areas continue in parallel where they unblock P0/P1 or protect the product:
+The detailed phased plan remains authoritative for the complete technical backlog. These areas continue in parallel where they unblock P0/P1 or protect the product. This list was a flat, unchecked bullet list until this update — each item below was audited against the actual codebase (not assumed) before marking status:
 
-- Desktop capability restrictions and content-security policy.
-- SQLite persistence and migrations.
-- Framework-neutral schema completion.
-- Storybook adapter.
-- Command streaming, cancellation, artifact preservation, and secret redaction.
-- Test adapters and evidence normalization.
-- Compliance profiles and guided manual review.
-- Policy and release decisions.
-- Starlight generation and documentation drift.
-- Safe repository generation.
-- Evidence export.
+- [ ] Desktop capability restrictions and content-security policy. CSP is explicitly disabled (`"csp": null` in `apps/forgegate-desktop/src-tauri/tauri.conf.json`); `capabilities/default.json` only grants the unmodified Tauri scaffold defaults (`core:default`, `dialog:allow-open`), not a deliberately scoped set. Not started.
+- [ ] SQLite persistence and migrations. No `rusqlite`/`sqlx`/`sqlite` dependency anywhere in `src-tauri`, no migrations directory. Not started.
+- [X} Framework-neutral schema (real, but completeness vs. spec unverified). `packages/core/domain`, `core/manifest`, `core/evidence`, `core/policy`, and `core/config` all define real, Zod-validated, independently tested entities (`Workspace`, `Repository`, `ComponentVersion`, findings/approvals/exceptions, release decisions, repository config) — not stub types. Not yet diffed field-by-field against `documentation/16-data-and-schema-model.md`, so "complete" itself is unverified; treat this as "substantial, not confirmed exhaustive."
+- [ ] Storybook adapter. Only a story-index *parser* exists (`apps/forgegate-desktop/src/app/storybook/storybook-index.ts`, `parseStorybookIndex`/`findStoriesForSourceFiles`) — no dedicated adapter package, nothing runs or queries Storybook itself.
+- [X} Command execution: timeout enforcement, exit-code capture, and process-tree kill. Real and tested (`apps/forgegate-desktop/src-tauri/src/command_execution.rs`, `terminate_process_tree`, Windows `taskkill /T /F`).
+- [ ] Live command output streaming to the UI. Not implemented — `command_execution.rs`'s own doc comment confirms output only returns after the process ends or is killed, never streamed live.
+- [ ] Mid-run user cancellation of a running command. Not implemented.
+- [ ] Secret redaction in command output or preserved artifacts. Not implemented — no redaction logic found anywhere in the repo.
+- [ ] Test-runner-specific evidence adapters (Jest/Vitest/Playwright-native result parsing). Only one generic normalized-JSON parser exists (`parseTestExecution` in `packages/core/evidence/src/lib/test-execution-json.ts`); nothing parses a tool's own native output format directly.
+- [ ] Compliance profiles. No evidence found anywhere in `core/policy` or `core/config`. Not started.
+- [ ] Guided manual review of a target component (distinct from the "review ForgeGate itself" gap tracked under P0.7/MVP-done). No manual-review tracking UI or procedure code found. Not started.
+- [X} Release-decision evaluation (real, but a single guard rule, not a full policy engine). `packages/core/policy/src/lib/release-decision.ts`'s `createReleaseDecision` computes `authorized-candidate`/`blocked` from blocking-finding count and requires an approver for authorization — real, tested logic. No multi-rule policy engine or policy-versioning enforcement exists beyond this one rule.
+- [X} Documentation drift detection. Delivered and tracked under [P1.6](#p16--documentation-drift-map) above — listed here only for cross-reference, not duplicated work.
+- [ ] Starlight page generation (writing/scaffolding a real documentation page). Not implemented — drift detection only checks whether a page was *detected*, it never writes one.
+- [ ] Safe repository generation (writes into a target repo with temporary output, diff, approval, and rollback). No evidence found — every file-write found in the repo is a test fixture, not real target-repository mutation.
+- [ ] Evidence export (a portable evidence package a user can actually save/share). No evidence found — `createEvidencePackage` builds an in-memory type only; no serialization or export-to-file exists.
 
 See [`TODO-DETAILED.md`](TODO-DETAILED.md) for the full task-level plan.
 
