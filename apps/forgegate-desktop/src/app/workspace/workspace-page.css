@@ -62,6 +62,9 @@
 .workspace-page table {
   width: 100%;
   border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .workspace-page th,

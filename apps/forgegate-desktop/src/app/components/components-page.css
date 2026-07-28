@@ -77,6 +77,9 @@
   background: var(--fg-color-surface);
   border: 1px solid var(--fg-color-border);
   border-radius: var(--fg-radius-md);
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .components-page th,

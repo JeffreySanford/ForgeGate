@@ -21,6 +21,20 @@
 
 .app-nav {
   flex: 0 0 200px;
+  /* Without this, the row-flex default (align-items: stretch) forces the
+   * nav's box to match the height of whatever the main content grows to
+   * — which can be several viewport-heights tall on the workspace page.
+   * The nav's own text stays near the top of that box, so once the page
+   * is scrolled it visually disappears even though the (very tall) nav
+   * background is still technically on screen. align-self: flex-start
+   * keeps the nav at its natural (short) height instead; position:
+   * sticky then keeps that short nav pinned to the viewport as the
+   * user scrolls the long content next to it. */
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
   padding: var(--fg-space-4);
   background: var(--fg-color-surface);
   border-right: 1px solid var(--fg-color-border);

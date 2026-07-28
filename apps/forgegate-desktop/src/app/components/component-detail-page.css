@@ -192,6 +192,9 @@
 .component-detail table {
   width: 100%;
   border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 @media (max-width: 760px) {
