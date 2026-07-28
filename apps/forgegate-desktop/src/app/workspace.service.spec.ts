@@ -454,6 +454,7 @@ describe('WorkspaceService', () => {
       stderr: '',
       timedOut: false,
       cancelled: true,
+      artifactPath: null,
       durationMs: 300,
     });
     await generatePromise;
@@ -475,6 +476,7 @@ describe('WorkspaceService', () => {
       stderr: '',
       timedOut: false,
       cancelled: true,
+      artifactPath: null,
       durationMs: 300,
     });
 
@@ -507,6 +509,7 @@ describe('WorkspaceService', () => {
       stderr: '',
       timedOut: false,
       cancelled: false,
+      artifactPath: null,
       durationMs: 10,
     });
     invokeMock.mockResolvedValueOnce(
@@ -543,6 +546,7 @@ describe('WorkspaceService', () => {
         stderr: '',
         timedOut: false,
         cancelled: false,
+        artifactPath: '/tmp/forgegate-artifacts/42.json',
         durationMs: 900,
       })
       .mockResolvedValueOnce(cemJson);
@@ -575,6 +579,7 @@ describe('WorkspaceService', () => {
       timeoutSeconds: 120,
     });
     expect(service.cemGenerationResult()?.exitCode).toBe(0);
+    expect(service.cemGenerationResult()?.artifactPath).toBe('/tmp/forgegate-artifacts/42.json');
     expect(service.workspaceScan()?.customElementsManifests).toContain(
       'packages/design-system/dist/custom-elements.json',
     );
@@ -597,6 +602,7 @@ describe('WorkspaceService', () => {
       stderr: 'command not found: npx',
       timedOut: false,
       cancelled: false,
+      artifactPath: null,
       durationMs: 50,
     });
 

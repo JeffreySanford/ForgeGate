@@ -349,13 +349,19 @@
     <dl>
       <dt>Exit code</dt>
       <dd>
-        {{ cemRunResult.exitCode ?? (cemRunResult.timedOut ? 'timed out' :
-        'unknown') }}
+        {{ cemRunResult.exitCode ?? (cemRunResult.cancelled ? 'cancelled' :
+        cemRunResult.timedOut ? 'timed out' : 'unknown') }}
       </dd>
       @if (cemRunResult.stderr) {
       <dt>Error output</dt>
       <dd>
         <pre>{{ cemRunResult.stderr }}</pre>
+      </dd>
+      }
+      @if (cemRunResult.artifactPath) {
+      <dt>Saved artifact</dt>
+      <dd>
+        <code>{{ cemRunResult.artifactPath }}</code>
       </dd>
       }
     </dl>

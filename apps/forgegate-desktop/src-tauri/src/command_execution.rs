@@ -47,6 +47,14 @@ pub struct CommandResult {
     /// apart in evidence, not collapsed into one "did not finish" flag.
     pub cancelled: bool,
     pub duration_ms: u128,
+    /// Workspace-relative path to a persisted copy of this result under
+    /// `.forgegate/artifacts/`, set by `write_command_artifact` in
+    /// `lib.rs` after this struct is built (this module has no concept of
+    /// a workspace root, only the command's own `cwd`). `None` either
+    /// means the write failed (best-effort, does not fail the command) or
+    /// this result came from a call site that doesn't persist artifacts
+    /// (e.g. a unit test constructing `CommandResult` directly).
+    pub artifact_path: Option<String>,
 }
 
 /// On Windows, many real-world tools (`npx`, `npm`, `yarn`, `pnpm`, and
@@ -198,6 +206,7 @@ pub fn run_command(
         timed_out,
         cancelled,
         duration_ms: start.elapsed().as_millis(),
+        artifact_path: None,
     })
 }
 
@@ -251,7 +260,7 @@ const KNOWN_TOKEN_PREFIXES: [&str; 7] = ["ghp_", "gho_", "ghu_", "ghs_", "ghr_",
 /// private-key blocks in full. It cannot catch every possible secret format
 /// — this is a real, useful reduction in accidental leakage, not a
 /// guarantee.
-fn redact_secrets(text: &str) -> String {
+pub fn redact_secrets(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     let mut in_private_key_block = false;
 

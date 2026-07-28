@@ -237,6 +237,8 @@ async fn run_workspace_command_inner(
     let cancel = Arc::new(AtomicBool::new(false));
     *running.0.lock().unwrap() = Some((id, cancel.clone()));
 
+    let command_for_artifact = command.clone();
+    let args_for_artifact = args.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         command_execution::run_command(
             &cwd,
@@ -256,7 +258,53 @@ async fn run_workspace_command_inner(
     }
     drop(guard);
 
-    result
+    result.map(|mut command_result| {
+        command_result.artifact_path =
+            write_command_artifact(id, &command_for_artifact, &args_for_artifact, &command_result);
+        command_result
+    })
+}
+
+/// Persists a redacted copy of a finished command's result to a
+/// ForgeGate-owned artifact file, so it survives beyond the in-memory
+/// `CommandResult` the frontend holds for this one session — a real first
+/// step toward evidence export (tracked as its own, separate P1 backlog
+/// item). Deliberately does **not** write inside the target workspace: the
+/// CEM-generation approval preview the user actually clicked only shows
+/// and consents to the analyzer command itself (its working directory,
+/// glob, exclusions, output path) — silently also writing a second file
+/// into their repository would be an undisclosed side effect the approval
+/// never covered. Uses the OS temp directory instead, a known, honestly
+/// documented limitation (not yet a durable per-workspace location —
+/// tracked as real follow-up work, not silently accepted). Best-effort: a
+/// write failure does not fail the command itself — the actual command
+/// result matters more to the user than whether it could also be filed
+/// away, so this returns `None` on any error rather than propagating one.
+///
+/// `command`/`args` are redacted the same way `stdout`/`stderr` already
+/// are: a literal secret can just as easily arrive as a CLI argument
+/// (`--token=...`) as in a program's own output, and the artifact would
+/// otherwise leak it even though the captured output next to it is clean.
+fn write_command_artifact(id: u64, command: &str, args: &[String], result: &CommandResult) -> Option<String> {
+    let artifacts_dir = std::env::temp_dir().join("forgegate-artifacts");
+    fs::create_dir_all(&artifacts_dir).ok()?;
+
+    let redacted_args: Vec<String> = args.iter().map(|arg| command_execution::redact_secrets(arg)).collect();
+    let artifact = serde_json::json!({
+        "id": id,
+        "command": command_execution::redact_secrets(command),
+        "args": redacted_args,
+        "exitCode": result.exit_code,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "timedOut": result.timed_out,
+        "cancelled": result.cancelled,
+        "durationMs": result.duration_ms,
+    });
+
+    let path = artifacts_dir.join(format!("{id}.json"));
+    fs::write(&path, serde_json::to_vec_pretty(&artifact).ok()?).ok()?;
+    Some(path.display().to_string())
 }
 
 #[tauri::command]
@@ -423,6 +471,70 @@ mod tests {
         ))
         .expect("running git --version in the temp dir should succeed");
         assert_eq!(result.exit_code, Some(0));
+    }
+
+    #[test]
+    fn persists_a_real_artifact_file_for_a_finished_command() {
+        let id = 9_001;
+        let result = tauri::async_runtime::block_on(run_workspace_command_inner(
+            std::env::temp_dir().display().to_string(),
+            ".".to_string(),
+            "git".to_string(),
+            vec!["--version".to_string()],
+            10,
+            &RunningCommand::default(),
+            id,
+            no_op_line_sink(),
+        ))
+        .expect("running git --version in the temp dir should succeed");
+
+        let artifact_path = result
+            .artifact_path
+            .as_ref()
+            .expect("a successful run should persist an artifact");
+        let contents = std::fs::read_to_string(artifact_path).expect("artifact file should exist and be readable");
+        let artifact: serde_json::Value =
+            serde_json::from_str(&contents).expect("artifact should be valid JSON");
+
+        assert_eq!(artifact["id"], id);
+        assert_eq!(artifact["command"], "git");
+        assert_eq!(artifact["exitCode"], 0);
+        assert!(artifact["stdout"].as_str().unwrap().to_lowercase().contains("git version"));
+
+        std::fs::remove_file(artifact_path).ok();
+    }
+
+    #[test]
+    fn a_secret_in_command_output_is_redacted_in_the_persisted_artifact_too() {
+        let id = 9_002;
+        let (command, args) = echo_command_for_artifact_test("MY_SECRET_TOKEN=abc123def456");
+
+        let result = tauri::async_runtime::block_on(run_workspace_command_inner(
+            std::env::temp_dir().display().to_string(),
+            ".".to_string(),
+            command.to_string(),
+            args,
+            10,
+            &RunningCommand::default(),
+            id,
+            no_op_line_sink(),
+        ))
+        .expect("echoing a line should succeed");
+
+        let artifact_path = result.artifact_path.expect("a successful run should persist an artifact");
+        let contents = std::fs::read_to_string(&artifact_path).expect("artifact file should exist and be readable");
+
+        assert!(contents.contains("MY_SECRET_TOKEN=***REDACTED***"));
+        assert!(!contents.contains("abc123def456"));
+
+        std::fs::remove_file(&artifact_path).ok();
+    }
+
+    /// `echo` is a `cmd.exe` builtin on Windows, but `build_command` in
+    /// `command_execution.rs` already wraps every command with `cmd /C`
+    /// there, so passing `"echo"` straight through works on both platforms.
+    fn echo_command_for_artifact_test(text: &str) -> (&'static str, Vec<String>) {
+        ("echo", vec![text.to_string()])
     }
 
     #[test]

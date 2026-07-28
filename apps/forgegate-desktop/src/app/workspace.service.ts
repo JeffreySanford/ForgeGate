@@ -108,6 +108,12 @@ export interface CommandResult {
   /** True only when the user cancelled the run — distinct from timedOut. */
   cancelled: boolean;
   durationMs: number;
+  /**
+   * Path to a persisted copy of this result outside the workspace (the OS
+   * temp directory today — a known limitation, not yet a durable location).
+   * Null if the write failed or this result predates artifact preservation.
+   */
+  artifactPath: string | null;
 }
 
 /** Payload of the `workspace-command-output` event — one per output line. */
