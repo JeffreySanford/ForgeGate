@@ -38,7 +38,7 @@
     </dl>
   </header>
 
-  <section class="component-detail__panel" aria-labelledby="preview-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="preview-title">
     <h2 id="preview-title">Preview</h2>
     <p>
       <strong>Preview type:</strong>
@@ -102,7 +102,7 @@
     </details>
   </section>
 
-  <section class="component-detail__panel" aria-labelledby="coverage-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="coverage-title">
     <h2 id="coverage-title">Coverage</h2>
     <ul class="component-detail__coverage-strip">
       @for (item of coverage(); track item.label) {
@@ -114,7 +114,7 @@
     </ul>
   </section>
 
-  <section class="component-detail__panel" aria-labelledby="readiness-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="readiness-title">
     <h2 id="readiness-title">Readiness</h2>
     <p class="component-detail__readiness-status">{{ readinessStatus() }}</p>
     @if (blockingReasons().length) {
@@ -136,7 +136,7 @@
     }
   </section>
 
-  <section class="component-detail__panel" aria-labelledby="evidence-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="evidence-title">
     <h2 id="evidence-title">Tests and evidence</h2>
     @if (workspace.testExecutionError(); as evidenceError) {
     <p role="alert">
@@ -181,7 +181,7 @@
     }
   </section>
 
-  <section class="component-detail__panel" aria-labelledby="states-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="states-title">
     <h2 id="states-title">States and stories</h2>
     @if (authoredManifestPath(); as path) {
     <p>Configuration source: {{ path }}</p>
@@ -211,7 +211,7 @@
     }
   </section>
 
-  <section class="component-detail__panel" aria-labelledby="anatomy-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="anatomy-title">
     <h2 id="anatomy-title">Anatomy</h2>
     @if (anatomy().length === 0) {
     <p class="component-detail__unavailable">
@@ -251,7 +251,7 @@
     }
   </section>
 
-  <section class="component-detail__panel" aria-labelledby="contract-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="contract-title">
     <h2 id="contract-title">Contract</h2>
 
     @for (group of [ { id: 'contract-inputs', title: 'Inputs', members:
@@ -285,7 +285,7 @@
     } }
   </section>
 
-  <section class="component-detail__panel" aria-labelledby="tokens-title">
+  <section class="component-detail__panel fg-panel" aria-labelledby="tokens-title">
     <h2 id="tokens-title">Token mapping</h2>
     @if (tokenSourcePath(); as path) {
     <p>Token source (DTCG): {{ path }}</p>
@@ -318,7 +318,7 @@
   </section>
 
   <section
-    class="component-detail__panel"
+    class="component-detail__panel fg-panel"
     aria-labelledby="documentation-title"
   >
     <h2 id="documentation-title">Documentation</h2>
