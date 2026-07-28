@@ -1,4 +1,5 @@
-import { createEvidencePackage, type TestExecution } from '@forgegate/core-evidence';
+import type { Severity } from '@forgegate/core-domain';
+import { createEvidencePackage, createFinding, type Finding, type TestExecution } from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { computeDocumentationDriftState } from './documentation-drift';
 
@@ -7,24 +8,61 @@ import { computeDocumentationDriftState } from './documentation-drift';
  * "Evidence package structure": a `manifest.json`-indexed directory
  * alongside a real `checksums.sha256`. Only the sections ForgeGate
  * actually has real data for today are written — `test-summary.json`
- * (real `TestExecution` records for this component version) and
+ * (real `TestExecution` records for this component version),
  * `documentation-status.json` (real per-target drift, reusing P1.6's
- * `computeDocumentationDriftState`). Everything the documented shape also
- * lists (`policy-snapshot.json`, `release-decision.json`, `automated/`,
- * `manual/`, `findings/`, `exceptions/`, `attachments/`, `report.html`) is
- * honestly absent — `manifest.json`'s `excludes` field says why for each,
- * rather than silently omitting them or fabricating empty placeholders.
+ * `computeDocumentationDriftState`), `findings/` (real blocking
+ * reasons `ComponentDetailPage` already computes, structured as real
+ * `Finding` records — see `findingsFromBlockingReasons`), and
+ * `report.html` (the documented human-readable report, rendering the
+ * sections backed by real data and naming the rest as not connected —
+ * see `renderEvidenceReport`). Everything the documented shape also lists
+ * (`policy-snapshot.json`, `release-decision.json`, `automated/`,
+ * `manual/`, `exceptions/`, `attachments/`) is honestly absent —
+ * `manifest.json`'s `excludes` field says why for each, rather than
+ * silently omitting them or fabricating empty placeholders.
  */
 const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'policy-snapshot.json': 'No policy evaluation has run for this component yet.',
   'release-decision.json': 'No release decision has been made for this component yet.',
   'automated/': "ForgeGate does not yet orchestrate a target repository's own test/axe/Playwright runs.",
   'manual/': 'No guided manual review flow exists yet.',
-  'findings/': 'No findings have been recorded for this component yet.',
   'exceptions/': 'No exceptions have been recorded for this component yet.',
   'attachments/': 'No attachments have been captured yet.',
-  'report.html': 'Human-readable report generation is not implemented yet.',
 };
+
+/**
+ * Converts each real blocking reason `ComponentDetailPage` already
+ * computes into a structured `Finding` — the same real readiness gaps,
+ * structured rather than left as plain text, so `findings/` isn't
+ * fabricated from nothing. `severity` is a real, disclosed editorial
+ * classification (there is no policy engine producing one yet): a reason
+ * describing a confirmed automated-evidence failure is `'serious'`, one
+ * describing staleness is `'moderate'`, and every "no X connected/declared"
+ * incompleteness gap is `'minor'` — real, but not itself a confirmed defect.
+ */
+export function findingsFromBlockingReasons(
+  componentId: string,
+  blockingReasons: readonly string[],
+): readonly Finding[] {
+  return blockingReasons.map((description, index) =>
+    createFinding({
+      id: `${componentId}-blocking-${index}`,
+      componentId,
+      description,
+      severity: classifyBlockingReasonSeverity(description),
+    }),
+  );
+}
+
+function classifyBlockingReasonSeverity(description: string): Severity {
+  if (description.includes('failed or blocked')) {
+    return 'serious';
+  }
+  if (description.includes('stale')) {
+    return 'moderate';
+  }
+  return 'minor';
+}
 
 export interface EvidenceExportResult {
   /** Directory name this package should be written into, not a full path. */
@@ -37,13 +75,27 @@ export function componentVersionId(manifest: ComponentManifest): string {
   return manifest.componentVersion ? `${manifest.id}@${manifest.componentVersion}` : manifest.id;
 }
 
-export async function buildEvidenceExport(
-  id: string,
-  exportedAt: string,
-  manifest: ComponentManifest,
-  testExecutions: readonly TestExecution[],
-  starlightProjects: readonly string[],
-): Promise<EvidenceExportResult> {
+export interface EvidenceExportInput {
+  readonly id: string;
+  readonly exportedAt: string;
+  readonly manifest: ComponentManifest;
+  readonly testExecutions: readonly TestExecution[];
+  readonly starlightProjects: readonly string[];
+  readonly blockingReasons?: readonly string[];
+  /**
+   * The workspace's real current Git commit. Recorded in `manifest.json`
+   * so a package can be tied back to the exact source state it describes —
+   * an evidence bundle with no commit reference cannot be verified against
+   * anything later. Null when no Git status is available (e.g. the folder
+   * is not a repository), reported honestly rather than omitted.
+   */
+  readonly repositoryCommit?: string | null;
+}
+
+export async function buildEvidenceExport(input: EvidenceExportInput): Promise<EvidenceExportResult> {
+  const { id, exportedAt, manifest, testExecutions, starlightProjects } = input;
+  const blockingReasons = input.blockingReasons ?? [];
+  const repositoryCommit = input.repositoryCommit ?? null;
   const versionId = componentVersionId(manifest);
 
   const documentationStatus = manifest.documentationTargets.map((target) => ({
@@ -52,10 +104,24 @@ export async function buildEvidenceExport(
     ...computeDocumentationDriftState(target, manifest.componentVersion, starlightProjects),
   }));
 
+  const findings = findingsFromBlockingReasons(manifest.id, blockingReasons);
+
   const contentFiles: Record<string, string> = {
     'test-summary.json': JSON.stringify(testExecutions, null, 2),
     'documentation-status.json': JSON.stringify(documentationStatus, null, 2),
   };
+  for (const finding of findings) {
+    contentFiles[`findings/${finding.id}.json`] = JSON.stringify(finding, null, 2);
+  }
+  contentFiles['report.html'] = renderEvidenceReport({
+    versionId,
+    manifest,
+    exportedAt,
+    repositoryCommit,
+    testExecutions,
+    documentationStatus,
+    findings,
+  });
 
   const checksums: Record<string, string> = {};
   for (const [name, content] of Object.entries(contentFiles)) {
@@ -73,6 +139,7 @@ export async function buildEvidenceExport(
   const manifestJson = {
     ...evidencePackage,
     componentId: manifest.id,
+    repositoryCommit,
     excludes: EXCLUDED_SECTIONS,
   };
 
@@ -92,6 +159,152 @@ export async function buildEvidenceExport(
 
 function sanitizeForFilename(value: string): string {
   return value.replace(/[^a-zA-Z0-9.-]+/g, '-');
+}
+
+interface DocumentationStatusRow {
+  readonly adapter: string;
+  readonly pathOrPageId: string | null;
+  readonly status: string;
+  readonly detail: string;
+}
+
+/**
+ * Escapes text for HTML *text and attribute* contexts. Every dynamic value
+ * in `renderEvidenceReport` goes through this: component ids, file paths,
+ * tool names, and finding descriptions all originate from a scanned
+ * repository, so they are untrusted input as far as this generated
+ * document is concerned — an unescaped `<` in a component's own source
+ * path would otherwise corrupt the report or inject markup into it.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * The documented "Evidence report" from
+ * `documentation/09-manual-review-and-evidence.md` — a human-readable
+ * summary a reviewer can open without any tooling. Renders the sections
+ * ForgeGate has real data for (component and version, repository commit,
+ * methods/environments as recorded on each real `TestExecution`,
+ * automated results, findings, documentation status) and names every
+ * other documented section as explicitly not connected rather than
+ * omitting it silently or implying it passed. Self-contained: inline CSS
+ * only, no external references, so it stays readable from a copied
+ * directory or an air-gapped review machine.
+ */
+function renderEvidenceReport(input: {
+  versionId: string;
+  manifest: ComponentManifest;
+  exportedAt: string;
+  repositoryCommit: string | null;
+  testExecutions: readonly TestExecution[];
+  documentationStatus: readonly DocumentationStatusRow[];
+  findings: readonly Finding[];
+}): string {
+  const { versionId, manifest, exportedAt, repositoryCommit, testExecutions, documentationStatus, findings } =
+    input;
+
+  const notConnected = (reason: string) => `<p class="not-connected">${escapeHtml(reason)}</p>`;
+
+  const automatedResults = testExecutions.length
+    ? `<table>
+      <caption>Automated results</caption>
+      <thead><tr><th scope="col">Gate</th><th scope="col">Status</th><th scope="col">Tool</th><th scope="col">Started</th><th scope="col">Commit or fingerprint</th></tr></thead>
+      <tbody>${testExecutions
+        .map(
+          (execution) =>
+            `<tr><th scope="row">${escapeHtml(execution.gate)}</th><td>${escapeHtml(execution.status)}</td><td>${escapeHtml(`${execution.tool} ${execution.toolVersion}`)}</td><td>${escapeHtml(execution.startedAt)}</td><td><code>${escapeHtml(execution.commitOrFingerprint)}</code></td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>`
+    : notConnected('No automated result evidence is connected for this component version.');
+
+  const findingsSection = findings.length
+    ? `<table>
+      <caption>Findings</caption>
+      <thead><tr><th scope="col">Severity</th><th scope="col">Status</th><th scope="col">Description</th></tr></thead>
+      <tbody>${findings
+        .map(
+          (finding) =>
+            `<tr><th scope="row">${escapeHtml(finding.severity)}</th><td>${escapeHtml(finding.status)}</td><td>${escapeHtml(finding.description)}</td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>`
+    : `<p>No blocking findings were recorded for this component version.</p>`;
+
+  const documentationSection = documentationStatus.length
+    ? `<table>
+      <caption>Documentation status</caption>
+      <thead><tr><th scope="col">Adapter</th><th scope="col">Page</th><th scope="col">Status</th><th scope="col">Detail</th></tr></thead>
+      <tbody>${documentationStatus
+        .map(
+          (row) =>
+            `<tr><th scope="row">${escapeHtml(row.adapter)}</th><td>${escapeHtml(row.pathOrPageId ?? 'Unknown location')}</td><td>${escapeHtml(row.status)}</td><td>${escapeHtml(row.detail)}</td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>`
+    : notConnected('No documentation target is connected for this component.');
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ForgeGate evidence report — ${escapeHtml(versionId)}</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.5; margin: 0 auto; max-width: 60rem; padding: 2rem 1rem; color: #172033; background: #fff; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; margin-top: 2rem; }
+  table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 1rem; }
+  caption { text-align: left; font-weight: 600; padding-bottom: 0.35rem; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #d8e0ec; font-size: 0.9rem; vertical-align: top; }
+  dt { font-weight: 600; margin-top: 0.5rem; } dd { margin: 0 0 0.25rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .not-connected { color: #5e6c84; font-style: italic; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #eaf0f8; background: #10151f; }
+    th, td { border-bottom-color: #2a3444; }
+    .not-connected { color: #a2aec2; }
+  }
+</style>
+</head>
+<body>
+<h1>ForgeGate evidence report</h1>
+<p>Generated by ForgeGate. Every section below reflects real captured data; sections without a connected data source say so explicitly rather than implying a pass.</p>
+
+<h2>Component</h2>
+<dl>
+  <dt>Component version</dt><dd><code>${escapeHtml(versionId)}</code></dd>
+  <dt>Component id</dt><dd><code>${escapeHtml(manifest.id)}</code></dd>
+  <dt>Framework and adapter</dt><dd>${escapeHtml(`${manifest.framework} (${manifest.adapter})`)}</dd>
+  <dt>Lifecycle</dt><dd>${escapeHtml(manifest.lifecycle)}</dd>
+  <dt>Repository commit</dt><dd>${repositoryCommit ? `<code>${escapeHtml(repositoryCommit)}</code>` : '<span class="not-connected">Unavailable — no Git status for this workspace.</span>'}</dd>
+  <dt>Exported at</dt><dd>${escapeHtml(exportedAt)}</dd>
+</dl>
+
+<h2>Automated results</h2>
+${automatedResults}
+
+<h2>Findings</h2>
+${findingsSection}
+
+<h2>Documentation status</h2>
+${documentationSection}
+
+<h2>Not connected</h2>
+<p>These sections of the documented evidence-package structure have no real data source in ForgeGate yet, and are deliberately absent rather than reported as empty or passing:</p>
+<dl>
+${Object.entries(EXCLUDED_SECTIONS)
+  .map(([section, reason]) => `  <dt><code>${escapeHtml(section)}</code></dt><dd>${escapeHtml(reason)}</dd>`)
+  .join('\n')}
+</dl>
+</body>
+</html>
+`;
 }
 
 async function sha256Hex(text: string): Promise<string> {

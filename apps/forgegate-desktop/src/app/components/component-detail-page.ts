@@ -398,7 +398,11 @@ export class ComponentDetailPage {
     if (!manifest) {
       return;
     }
-    void this.workspace.exportEvidencePackage(manifest, this.testExecutions());
+    void this.workspace.exportEvidencePackage(
+      manifest,
+      this.testExecutions(),
+      this.blockingReasons(),
+    );
   }
 }
 

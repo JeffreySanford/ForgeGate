@@ -187,6 +187,18 @@ Required action:
 
 ## Evidence package structure
 
+> **Implementation status.** ForgeGate now exports a real package against this
+> structure (`apps/forgegate-desktop/src/app/evidence-export.ts`, reachable from
+> the "Export evidence package" button on a component's detail page). Implemented
+> today: `manifest.json` (including the real repository commit and a
+> `checksums` map), `test-summary.json`, `documentation-status.json`,
+> `findings/`, `report.html`, and `checksums.sha256`. Not yet implemented, and
+> named explicitly in `manifest.json`'s `excludes` map and in the report's
+> "Not connected" section rather than silently omitted: `policy-snapshot.json`,
+> `release-decision.json`, `automated/`, `manual/`, `exceptions/`, and
+> `attachments/`. See TODO.md's "Evidence export remaining sections" for what
+> each one is blocked on.
+
 Suggested export:
 
 ```text
@@ -211,6 +223,15 @@ forgegate-evidence/
 ```
 
 ## Evidence report
+
+> **Implementation status.** `renderEvidenceReport` emits this as a
+> self-contained `report.html`. Covered today from real data: component and
+> version, repository commit, methods used and test environments (as recorded on
+> each real `TestExecution`), automated results, findings, and documentation
+> status. Not yet covered, and listed by name in the report's own "Not connected"
+> section so their absence cannot be mistaken for a pass: scope, applicable
+> policy and compliance profiles, manual results, exceptions, consumer
+> validation, release decision, and approvers.
 
 A human-readable report should explain:
 

@@ -612,6 +612,9 @@ describe('ComponentDetailPage', () => {
     expect(exportSpy.mock.calls[0]?.[0].id).toBe('acme.design-system.acme-button');
     expect(exportSpy.mock.calls[0]?.[1]).toHaveLength(1);
     expect(exportSpy.mock.calls[0]?.[1][0]?.id).toBe('acme-button-unit');
+    expect(exportSpy.mock.calls[0]?.[2]).toEqual(
+      expect.arrayContaining([expect.any(String)]),
+    );
   });
 
   it('shows the real saved directory path after a successful export', async () => {

@@ -8,7 +8,7 @@ import type {
   ComponentManifest,
   ManifestStoryMapping,
 } from '@forgegate/core-manifest';
-import { findStoriesForSourceFiles } from './storybook/storybook-index';
+import { createStoryIndexLookup } from './storybook/storybook-index';
 import { WorkspaceService } from './workspace.service';
 
 const EMPTY_MAP_RESULT: MapCemResult = { manifests: [], failures: [] };
@@ -63,17 +63,22 @@ export class ComponentInventoryService {
     });
 
     const storybookIndex = this.workspace.storybookIndex();
+    // Built once per recompute, not once per component — see
+    // createStoryIndexLookup's doc comment. With hundreds of components and
+    // hundreds of Storybook index entries, rebuilding this map per
+    // component was the one real O(components * storyEntries) cost in this
+    // computed signal.
+    const lookupStories = storybookIndex
+      ? createStoryIndexLookup(storybookIndex)
+      : null;
     const overrides = new Map(
       this.workspace
         .componentManifestOverrides()
         .map((item) => [item.id, item]),
     );
     const enriched = mapped.manifests.map((componentManifest) => {
-      const discoveredStories = storybookIndex
-        ? findStoriesForSourceFiles(
-            storybookIndex,
-            componentManifest.sourceFiles,
-          )
+      const discoveredStories = lookupStories
+        ? lookupStories(componentManifest.sourceFiles)
         : [];
       const override = overrides.get(componentManifest.id);
       return override

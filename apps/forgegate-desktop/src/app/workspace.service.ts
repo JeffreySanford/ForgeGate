@@ -484,16 +484,18 @@ export class WorkspaceService {
   }
 
   /**
-   * Exports one component's real evidence — its own test executions and
-   * per-target documentation drift, per `buildEvidenceExport` — as a real
-   * directory the user picks via a native folder dialog. A no-op if an
-   * export is already running. Cancelling the folder dialog (returning
-   * null) is a quiet no-op too, not an error: the user simply changed
-   * their mind, same as declining `select_workspace`'s dialog.
+   * Exports one component's real evidence — its own test executions,
+   * per-target documentation drift, and blocking-reason findings, per
+   * `buildEvidenceExport` — as a real directory the user picks via a
+   * native folder dialog. A no-op if an export is already running.
+   * Cancelling the folder dialog (returning null) is a quiet no-op too,
+   * not an error: the user simply changed their mind, same as declining
+   * `select_workspace`'s dialog.
    */
   async exportEvidencePackage(
     manifest: ComponentManifest,
     testExecutions: readonly TestExecution[],
+    blockingReasons: readonly string[] = [],
   ): Promise<void> {
     if (this.evidenceExportRunning()) {
       return;
@@ -508,13 +510,15 @@ export class WorkspaceService {
       if (!parentDirectory) {
         return;
       }
-      const { directoryName, files } = await buildEvidenceExport(
-        crypto.randomUUID(),
-        new Date().toISOString(),
+      const { directoryName, files } = await buildEvidenceExport({
+        id: crypto.randomUUID(),
+        exportedAt: new Date().toISOString(),
         manifest,
         testExecutions,
-        this.workspaceScan()?.starlightProjects ?? [],
-      );
+        starlightProjects: this.workspaceScan()?.starlightProjects ?? [],
+        blockingReasons,
+        repositoryCommit: this.gitStatus()?.commit ?? null,
+      });
       const directoryPath = await this.invoke<string>('write_evidence_package', {
         parentDirectory,
         directoryName,

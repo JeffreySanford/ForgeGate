@@ -83,14 +83,30 @@ async fn pick_export_directory(app: tauri::AppHandle) -> Option<String> {
         .map(|p| p.display().to_string())
 }
 
+/// A real filename `write_evidence_package` will write: forward-slash
+/// separated, at most one subdirectory deep (matching the documented
+/// evidence-package shape's `findings/`, `automated/`, `manual/`,
+/// `exceptions/`, `attachments/` subdirectories), no `..` segment, no
+/// leading slash, no backslash (every real caller in this codebase
+/// produces forward-slash paths only, so a backslash can only mean an
+/// unexpected caller).
+fn is_safe_relative_artifact_path(name: &str) -> bool {
+    if name.is_empty() || name.starts_with('/') || name.contains('\\') || name.contains("..") {
+        return false;
+    }
+    !name.ends_with('/') && name.split('/').count() <= 2
+}
+
 /// Writes a real evidence-export package: creates `directory_name` inside
 /// `parent_directory`, then writes every entry in `files` as a real file
-/// in it. Returns the resulting directory's real absolute path so the UI
-/// can tell the user exactly where it landed. Rejects a `parent_directory`
-/// that isn't a real, existing directory, and rejects any filename that
-/// isn't a single path segment (no `/`, `\`, or `..`) — this only ever
-/// writes the flat file set `buildEvidenceExport` produces today, never an
-/// arbitrary nested path a caller could use to escape `directory_name`.
+/// in it (creating at most one level of subdirectory per file, e.g.
+/// `findings/acme-lib-button-blocking-0.json`). Returns the resulting
+/// directory's real absolute path so the UI can tell the user exactly
+/// where it landed. Rejects a `parent_directory` that isn't a real,
+/// existing directory, and rejects any filename `is_safe_relative_artifact_path`
+/// flags — this only ever writes the file set `buildEvidenceExport`
+/// produces today, never an arbitrary nested path a caller could use to
+/// escape `directory_name`.
 #[tauri::command]
 fn write_evidence_package(
     parent_directory: String,
@@ -107,10 +123,14 @@ fn write_evidence_package(
         .map_err(|error| format!("Failed to create {}: {error}", export_dir.display()))?;
 
     for (name, content) in &files {
-        if name.contains('/') || name.contains('\\') || name.contains("..") {
+        if !is_safe_relative_artifact_path(name) {
             return Err(format!("Refusing to write unexpected artifact filename \"{name}\""));
         }
         let path = export_dir.join(name);
+        if let Some(parent_dir) = path.parent() {
+            fs::create_dir_all(parent_dir)
+                .map_err(|error| format!("Failed to create {}: {error}", parent_dir.display()))?;
+        }
         fs::write(&path, content).map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
     }
 
@@ -791,6 +811,60 @@ mod tests {
         assert!(error.contains("Refusing to write"));
 
         std::fs::remove_dir_all(&parent).ok();
+    }
+
+    #[test]
+    fn writes_a_file_one_subdirectory_deep_creating_that_subdirectory() {
+        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-subdir-test-{}", std::process::id()));
+        std::fs::create_dir_all(&parent).expect("should create temp parent dir");
+
+        let mut files = std::collections::HashMap::new();
+        files.insert("findings/acme-lib-button-blocking-0.json".to_string(), "{}".to_string());
+
+        let export_dir_path = write_evidence_package(
+            parent.display().to_string(),
+            "acme.lib.button-evidence-1".to_string(),
+            files,
+        )
+        .expect("writing a file one subdirectory deep should succeed");
+
+        let finding_path = std::path::PathBuf::from(&export_dir_path)
+            .join("findings")
+            .join("acme-lib-button-blocking-0.json");
+        assert_eq!(std::fs::read_to_string(&finding_path).unwrap(), "{}");
+
+        std::fs::remove_dir_all(&parent).ok();
+    }
+
+    #[test]
+    fn rejects_a_filename_more_than_one_subdirectory_deep() {
+        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-deep-test-{}", std::process::id()));
+        std::fs::create_dir_all(&parent).expect("should create temp parent dir");
+
+        let mut files = std::collections::HashMap::new();
+        files.insert("a/b/c.json".to_string(), "{}".to_string());
+
+        let error = write_evidence_package(
+            parent.display().to_string(),
+            "acme.lib.button-evidence-1".to_string(),
+            files,
+        )
+        .expect_err("a filename more than one subdirectory deep must be rejected");
+        assert!(error.contains("Refusing to write"));
+
+        std::fs::remove_dir_all(&parent).ok();
+    }
+
+    #[test]
+    fn is_safe_relative_artifact_path_accepts_and_rejects_the_expected_shapes() {
+        assert!(is_safe_relative_artifact_path("manifest.json"));
+        assert!(is_safe_relative_artifact_path("findings/x.json"));
+        assert!(!is_safe_relative_artifact_path("a/b/c.json"));
+        assert!(!is_safe_relative_artifact_path("../escape.json"));
+        assert!(!is_safe_relative_artifact_path("/absolute.json"));
+        assert!(!is_safe_relative_artifact_path("windows\\backslash.json"));
+        assert!(!is_safe_relative_artifact_path(""));
+        assert!(!is_safe_relative_artifact_path("trailing-slash/"));
     }
 }
 

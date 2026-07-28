@@ -115,21 +115,60 @@ function comparableSourcePath(path: string): string {
 }
 
 /**
+ * Groups every real story entry by its normalized import path once, so
+ * looking a component's source files up against it is a Map read rather
+ * than a fresh scan of every index entry. Building this per call site
+ * (`createStoryIndexLookup`) rather than per component is what keeps
+ * `ComponentInventoryService.result` — which does this once per component
+ * in the whole inventory — O(index entries + total source files) instead
+ * of O(components * index entries).
+ */
+function buildStoryEntriesByComparableImportPath(
+  index: StorybookIndex,
+): ReadonlyMap<string, readonly ManifestStoryMapping[]> {
+  const byImportPath = new Map<string, ManifestStoryMapping[]>();
+  for (const entry of Object.values(index.entries)) {
+    if (entry.type !== 'story') {
+      continue;
+    }
+    const key = comparableSourcePath(entry.importPath);
+    const mapping: ManifestStoryMapping = { storybookStoryId: entry.id };
+    const existing = byImportPath.get(key);
+    if (existing) {
+      existing.push(mapping);
+    } else {
+      byImportPath.set(key, [mapping]);
+    }
+  }
+  return byImportPath;
+}
+
+/**
+ * Returns a reusable lookup function against `index`, built once. Prefer
+ * this over calling `findStoriesForSourceFiles` inside a loop over many
+ * components — see `buildStoryEntriesByComparableImportPath`'s doc comment.
+ */
+export function createStoryIndexLookup(
+  index: StorybookIndex,
+): (sourceFiles: readonly string[]) => readonly ManifestStoryMapping[] {
+  const byImportPath = buildStoryEntriesByComparableImportPath(index);
+  return (sourceFiles) =>
+    sourceFiles.flatMap(
+      (sourceFile) => byImportPath.get(comparableSourcePath(sourceFile)) ?? [],
+    );
+}
+
+/**
  * Associates Storybook story entries with component source files by their
  * normalized source path. Documentation entries and unrelated stories are
- * deliberately excluded from the component manifest mapping.
+ * deliberately excluded from the component manifest mapping. A convenience
+ * wrapper for a single, one-off lookup — for many components against the
+ * same index, use `createStoryIndexLookup` once instead so the index isn't
+ * rebuilt on every call.
  */
 export function findStoriesForSourceFiles(
   index: StorybookIndex,
   sourceFiles: readonly string[],
 ): readonly ManifestStoryMapping[] {
-  const comparableSources = new Set(sourceFiles.map(comparableSourcePath));
-
-  return Object.values(index.entries)
-    .filter(
-      (entry) =>
-        entry.type === 'story' &&
-        comparableSources.has(comparableSourcePath(entry.importPath)),
-    )
-    .map((entry) => ({ storybookStoryId: entry.id }));
+  return createStoryIndexLookup(index)(sourceFiles);
 }

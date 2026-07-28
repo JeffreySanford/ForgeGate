@@ -700,12 +700,41 @@ describe('WorkspaceService', () => {
         'checksums.sha256',
         'documentation-status.json',
         'manifest.json',
+        'report.html',
         'test-summary.json',
       ]);
       expect(service.evidenceExportResult()).toEqual({
         directoryPath: '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
       });
       expect(service.evidenceExportRunning()).toBe(false);
+    });
+
+    it("records the workspace's real current commit in the exported manifest", async () => {
+      service.gitStatus.set(gitStatusFixture);
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce('/home/user/exports/acme.lib.button-1.0.0-evidence-uuid');
+
+      await service.exportEvidencePackage(manifest, []);
+
+      const [, secondCallArgs] = invokeMock.mock.calls[1] as [string, { files: Record<string, string> }];
+      const manifestContent = secondCallArgs.files['manifest.json'];
+      expect(manifestContent).toBeDefined();
+      expect(JSON.parse(manifestContent ?? '{}').repositoryCommit).toBe(gitStatusFixture.commit);
+    });
+
+    it('writes a real findings/<id>.json file for each real blocking reason passed in', async () => {
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce('/home/user/exports/acme.lib.button-1.0.0-evidence-uuid');
+
+      await service.exportEvidencePackage(manifest, [], ['No token mappings connected']);
+
+      const [, secondCallArgs] = invokeMock.mock.calls[1] as [string, { files: Record<string, string> }];
+      expect(Object.keys(secondCallArgs.files)).toContain('findings/acme.lib.button-blocking-0.json');
+      const findingContent = secondCallArgs.files['findings/acme.lib.button-blocking-0.json'];
+      expect(findingContent).toBeDefined();
+      expect(JSON.parse(findingContent ?? '{}').description).toBe('No token mappings connected');
     });
 
     it('reports a write failure without leaving the running flag stuck', async () => {

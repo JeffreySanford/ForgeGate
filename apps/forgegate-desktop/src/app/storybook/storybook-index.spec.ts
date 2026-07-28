@@ -1,4 +1,5 @@
 import {
+  createStoryIndexLookup,
   findStoriesForSourceFiles,
   parseStorybookIndex,
 } from './storybook-index';
@@ -89,5 +90,57 @@ describe('findStoriesForSourceFiles', () => {
     expect(findStoriesForSourceFiles(index, ['src\\acme-button.js'])).toEqual([
       { storybookStoryId: storyEntry.id },
     ]);
+  });
+});
+
+describe('createStoryIndexLookup', () => {
+  it('builds one reusable lookup that gives every component its own correct, isolated matches', () => {
+    const index = parseStorybookIndex(
+      JSON.stringify({
+        v: 5,
+        entries: {
+          [storyEntry.id]: storyEntry,
+          'components-other--primary': {
+            ...storyEntry,
+            id: 'components-other--primary',
+            title: 'Components/Other',
+            importPath: './src/other.stories.js',
+          },
+        },
+      }),
+    );
+
+    const lookup = createStoryIndexLookup(index);
+
+    expect(lookup(['src/acme-button.js'])).toEqual([
+      { storybookStoryId: storyEntry.id },
+    ]);
+    expect(lookup(['src/other.js'])).toEqual([
+      { storybookStoryId: 'components-other--primary' },
+    ]);
+    expect(lookup(['src/no-such-component.js'])).toEqual([]);
+  });
+
+  it('agrees exactly with findStoriesForSourceFiles for the same index and source files', () => {
+    const index = parseStorybookIndex(
+      JSON.stringify({
+        v: 5,
+        entries: {
+          [storyEntry.id]: storyEntry,
+          'components-acmebutton--docs': {
+            ...storyEntry,
+            type: 'docs',
+            id: 'components-acmebutton--docs',
+            name: 'Docs',
+          },
+        },
+      }),
+    );
+
+    const lookup = createStoryIndexLookup(index);
+
+    expect(lookup(['src/acme-button.js'])).toEqual(
+      findStoriesForSourceFiles(index, ['src/acme-button.js']),
+    );
   });
 });

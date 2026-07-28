@@ -21,10 +21,24 @@ export function computeChangeImpact(
   changedFiles: readonly string[],
   discoveries: readonly Pick<ComponentDiscovery, 'manifest' | 'sourceFiles'>[],
 ): readonly ChangeImpactEntry[] {
+  // Built once, O(total sourceFiles across every discovery) — an inverted
+  // index so each changed file is a single Map lookup below, rather than
+  // re-scanning every discovery's sourceFiles for every changed file
+  // (O(changedFiles * discoveries * sourceFiles), the previous shape).
+  const componentIdsByFilePath = new Map<string, string[]>();
+  for (const discovery of discoveries) {
+    for (const filePath of discovery.sourceFiles) {
+      const componentIds = componentIdsByFilePath.get(filePath);
+      if (componentIds) {
+        componentIds.push(discovery.manifest.id);
+      } else {
+        componentIdsByFilePath.set(filePath, [discovery.manifest.id]);
+      }
+    }
+  }
+
   return changedFiles.map((filePath) => ({
     filePath,
-    affectedComponentIds: discoveries
-      .filter((discovery) => discovery.sourceFiles.includes(filePath))
-      .map((discovery) => discovery.manifest.id),
+    affectedComponentIds: componentIdsByFilePath.get(filePath) ?? [],
   }));
 }

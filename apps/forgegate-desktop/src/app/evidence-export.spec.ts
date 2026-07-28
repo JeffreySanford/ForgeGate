@@ -1,6 +1,11 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
 import type { TestExecution } from '@forgegate/core-evidence';
-import { buildEvidenceExport, componentVersionId, type EvidenceExportResult } from './evidence-export';
+import {
+  buildEvidenceExport,
+  componentVersionId,
+  findingsFromBlockingReasons,
+  type EvidenceExportResult,
+} from './evidence-export';
 
 function requireFile(result: EvidenceExportResult, name: string): string {
   const content = result.files[name];
@@ -48,6 +53,53 @@ describe('componentVersionId', () => {
   });
 });
 
+describe('findingsFromBlockingReasons', () => {
+  it('returns an empty list for no blocking reasons', () => {
+    expect(findingsFromBlockingReasons('acme.lib.button', [])).toEqual([]);
+  });
+
+  it('creates one real, open Finding per blocking reason with a stable, unique id', () => {
+    const findings = findingsFromBlockingReasons('acme.lib.button', [
+      'No required states declared',
+      'No token mappings connected',
+    ]);
+
+    expect(findings).toEqual([
+      {
+        id: 'acme.lib.button-blocking-0',
+        componentId: 'acme.lib.button',
+        description: 'No required states declared',
+        severity: 'minor',
+        status: 'open',
+      },
+      {
+        id: 'acme.lib.button-blocking-1',
+        componentId: 'acme.lib.button',
+        description: 'No token mappings connected',
+        severity: 'minor',
+        status: 'open',
+      },
+    ]);
+  });
+
+  it('classifies a confirmed automated-evidence failure as serious', () => {
+    const [finding] = findingsFromBlockingReasons('acme.lib.button', [
+      'Automated evidence contains a failed or blocked result',
+    ]);
+    expect(finding?.severity).toBe('serious');
+  });
+
+  it('classifies stale automated evidence as moderate', () => {
+    const [finding] = findingsFromBlockingReasons('acme.lib.button', ['Automated evidence is stale']);
+    expect(finding?.severity).toBe('moderate');
+  });
+
+  it('classifies every other incompleteness gap as minor', () => {
+    const [finding] = findingsFromBlockingReasons('acme.lib.button', ['No manual review recorded']);
+    expect(finding?.severity).toBe('minor');
+  });
+});
+
 describe('buildEvidenceExport', () => {
   it('includes only the sections ForgeGate has real data for, and explains every excluded one', async () => {
     const manifest = createComponentManifest({
@@ -58,12 +110,13 @@ describe('buildEvidenceExport', () => {
       componentVersion: '1.0.0',
     });
 
-    const result = await buildEvidenceExport('export-1', '2026-01-01T00:00:00.000Z', manifest, [], []);
+    const result = await buildEvidenceExport({ id: 'export-1', exportedAt: '2026-01-01T00:00:00.000Z', manifest, testExecutions: [], starlightProjects: [] });
 
     expect(Object.keys(result.files).sort()).toEqual([
       'checksums.sha256',
       'documentation-status.json',
       'manifest.json',
+      'report.html',
       'test-summary.json',
     ]);
 
@@ -76,11 +129,96 @@ describe('buildEvidenceExport', () => {
       'release-decision.json',
       'automated/',
       'manual/',
-      'findings/',
       'exceptions/',
       'attachments/',
-      'report.html',
     ]);
+  });
+
+  it('records the real repository commit, and reports its absence honestly', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+    });
+
+    const withCommit = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+      repositoryCommit: 'a'.repeat(40),
+    });
+    expect(JSON.parse(requireFile(withCommit, 'manifest.json')).repositoryCommit).toBe('a'.repeat(40));
+    expect(requireFile(withCommit, 'report.html')).toContain('a'.repeat(40));
+
+    const withoutCommit = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+    });
+    expect(JSON.parse(requireFile(withoutCommit, 'manifest.json')).repositoryCommit).toBeNull();
+    expect(requireFile(withoutCommit, 'report.html')).toContain('no Git status for this workspace');
+  });
+
+  it('renders a real report.html covering connected sections and naming the unconnected ones', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      documentationTargets: [
+        { adapter: 'starlight', pathOrPageId: 'docs/button', publishedVersion: '1.0.0' },
+      ],
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [execution({ gate: 'a11y', tool: 'axe-core', status: 'passed' })],
+      starlightProjects: ['docs'],
+      blockingReasons: ['No manual review recorded'],
+    });
+
+    const report = requireFile(result, 'report.html');
+    expect(report).toContain('<!doctype html>');
+    expect(report).toContain('acme.lib.button@1.0.0');
+    expect(report).toContain('a11y');
+    expect(report).toContain('axe-core');
+    expect(report).toContain('No manual review recorded');
+    expect(report).toContain('docs/button');
+    // Every documented-but-unconnected section is named in the report,
+    // not silently dropped.
+    expect(report).toContain('policy-snapshot.json');
+    expect(report).toContain('release-decision.json');
+    expect(report).toContain('exceptions/');
+  });
+
+  it('escapes untrusted repository-derived text rather than injecting it into the report as markup', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+      blockingReasons: ['<script>alert("xss")</script>'],
+    });
+
+    const report = requireFile(result, 'report.html');
+    expect(report).not.toContain('<script>alert');
+    expect(report).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
   });
 
   it('names the export directory after the real component version id', async () => {
@@ -92,7 +230,7 @@ describe('buildEvidenceExport', () => {
       componentVersion: '1.0.0',
     });
 
-    const result = await buildEvidenceExport('42', '2026-01-01T00:00:00.000Z', manifest, [], []);
+    const result = await buildEvidenceExport({ id: '42', exportedAt: '2026-01-01T00:00:00.000Z', manifest, testExecutions: [], starlightProjects: [] });
 
     expect(result.directoryName).toBe('acme.lib.button-1.0.0-evidence-42');
   });
@@ -107,7 +245,7 @@ describe('buildEvidenceExport', () => {
     });
     const executions = [execution({ id: 'run-1', gate: 'unit', status: 'passed' })];
 
-    const result = await buildEvidenceExport('export-1', '2026-01-01T00:00:00.000Z', manifest, executions, []);
+    const result = await buildEvidenceExport({ id: 'export-1', exportedAt: '2026-01-01T00:00:00.000Z', manifest, testExecutions: executions, starlightProjects: [] });
 
     const testSummary = JSON.parse(requireFile(result, 'test-summary.json'));
     expect(testSummary).toEqual(executions);
@@ -125,13 +263,13 @@ describe('buildEvidenceExport', () => {
       ],
     });
 
-    const result = await buildEvidenceExport(
-      'export-1',
-      '2026-01-01T00:00:00.000Z',
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
       manifest,
-      [],
-      ['docs'],
-    );
+      testExecutions: [],
+      starlightProjects: ['docs'],
+    });
 
     const documentationStatus = JSON.parse(requireFile(result, 'documentation-status.json'));
     expect(documentationStatus).toEqual([
@@ -144,6 +282,48 @@ describe('buildEvidenceExport', () => {
     ]);
   });
 
+  it('writes one real findings/<id>.json file per blocking reason, and none when there are no blocking reasons', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+    });
+
+    const withoutFindings = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+    });
+    expect(Object.keys(withoutFindings.files).some((name) => name.startsWith('findings/'))).toBe(false);
+
+    const withFindings = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+      blockingReasons: ['No token mappings connected', 'Automated evidence contains a failed or blocked result'],
+    });
+    const findingFiles = Object.keys(withFindings.files).filter((name) => name.startsWith('findings/')).sort();
+    expect(findingFiles).toEqual([
+      'findings/acme.lib.button-blocking-0.json',
+      'findings/acme.lib.button-blocking-1.json',
+    ]);
+
+    const firstFinding = JSON.parse(requireFile(withFindings, 'findings/acme.lib.button-blocking-0.json'));
+    expect(firstFinding).toMatchObject({
+      componentId: 'acme.lib.button',
+      description: 'No token mappings connected',
+      severity: 'minor',
+      status: 'open',
+    });
+    const secondFinding = JSON.parse(requireFile(withFindings, 'findings/acme.lib.button-blocking-1.json'));
+    expect(secondFinding.severity).toBe('serious');
+  });
+
   it('produces real, verifiable SHA-256 checksums for every included content file', async () => {
     const manifest = createComponentManifest({
       id: 'acme.lib.button',
@@ -152,11 +332,15 @@ describe('buildEvidenceExport', () => {
       packagePath: '.',
     });
 
-    const result = await buildEvidenceExport('export-1', '2026-01-01T00:00:00.000Z', manifest, [], []);
+    const result = await buildEvidenceExport({ id: 'export-1', exportedAt: '2026-01-01T00:00:00.000Z', manifest, testExecutions: [], starlightProjects: [] });
 
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     const checksumLines = requireFile(result, 'checksums.sha256').trim().split('\n');
-    expect(checksumLines).toHaveLength(2);
+    // One line per content file — every file in the package except
+    // manifest.json (which carries the checksums) and the checksums file
+    // itself, which cannot contain its own hash.
+    expect(checksumLines).toHaveLength(Object.keys(result.files).length - 2);
+    expect(checksumLines).toHaveLength(Object.keys(manifestJson.checksums).length);
 
     for (const [name, expectedHash] of Object.entries(manifestJson.checksums)) {
       const bytes = new TextEncoder().encode(requireFile(result, name));
