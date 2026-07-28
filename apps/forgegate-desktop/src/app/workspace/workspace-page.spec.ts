@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { WorkspacePage } from './workspace-page';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
@@ -25,6 +26,7 @@ describe('WorkspacePage', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [WorkspacePage],
+      providers: [provideRouter([])],
     }).compileComponents();
     workspaceService = TestBed.inject(WorkspaceService);
   });
@@ -68,6 +70,40 @@ describe('WorkspacePage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('up.design-system.up-button');
     expect(compiled.textContent).toContain('src/up-button.ts');
+  });
+
+  it('holds the raw component inventory behind a disclosure, with a link to the real designer-ready inventory outside the summary toggle', async () => {
+    workspaceService.workspaceScan.set(emptyScan);
+    workspaceService.customElementsManifest.set({
+      schemaVersion: '1.0.0',
+      modules: [
+        {
+          kind: 'javascript-module',
+          path: 'src/up-button.ts',
+          declarations: [
+            { kind: 'class', name: 'UpButton', customElement: true, tagName: 'up-button' },
+          ],
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const details = Array.from(compiled.querySelectorAll('details.workspace-page__raw-scan')).find((el) =>
+      el.querySelector('summary')?.textContent?.includes('Raw component inventory'),
+    );
+    expect(details).toBeDefined();
+    expect(details?.querySelector('summary')?.textContent).toContain('Raw component inventory (1 mapped)');
+    // The link must NOT be inside <summary> — summary is itself an
+    // interactive disclosure toggle, and nesting another interactive
+    // control inside it is an invalid, axe-flagged ARIA pattern.
+    expect(details?.querySelector('summary a')).toBeNull();
+    const link = details?.querySelector('a[href="/components"]');
+    expect(link?.textContent).toContain('Components');
   });
 
   it('shows a fallback message when the manifest has no custom elements in it', async () => {

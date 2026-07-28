@@ -200,9 +200,17 @@
   </section>
   @if (workspace.testExecutionError(); as evidenceError) {
   <p role="alert">Test evidence could not be loaded: {{ evidenceError }}</p>
-  } } @if (workspace.customElementsManifest()) { @if
-  (componentMapResult().manifests.length) {
-  <h2>Component inventory</h2>
+  } } @if (workspace.customElementsManifest()) {
+  <details class="workspace-page__raw-scan">
+    <summary>
+      Raw component inventory ({{ componentMapResult().manifests.length }}
+      mapped)
+    </summary>
+    <p>
+      See <a routerLink="/components">Components</a> for the designer-ready
+      view of this same data.
+    </p>
+    @if (componentMapResult().manifests.length) {
   <table>
     <thead>
       <tr>
@@ -241,7 +249,9 @@
     <br />{{ failure.declarationName }} ({{ failure.modulePath }}): {{
     failure.message }} }
   </p>
-  } } @if (workspace.customElementsManifestError(); as cemError) {
+  }
+  </details>
+  } @if (workspace.customElementsManifestError(); as cemError) {
   <p role="alert">Custom Elements Manifest could not be read: {{ cemError }}</p>
   } @if (workspace.workspaceScan(); as scanForCem) { @if
   (!scanForCem.customElementsManifests.length) {

@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import { AssuranceJourney } from './assurance-journey';
@@ -6,7 +7,7 @@ import { SystemMap } from './system-map';
 import { WorkspaceScanProgressView } from './workspace-scan-progress';
 
 @Component({
-  imports: [AssuranceJourney, SystemMap, WorkspaceScanProgressView],
+  imports: [AssuranceJourney, SystemMap, WorkspaceScanProgressView, RouterLink],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',
