@@ -30,7 +30,26 @@ describe('App shell', () => {
     const links = Array.from(compiled.querySelectorAll('.app-nav a')).map((a) =>
       a.getAttribute('href'),
     );
-    expect(links).toEqual(['/workspace', '/components']);
+    expect(links).toEqual([
+      '/workspace',
+      '/components',
+      '/tests',
+      '/reviews',
+      '/documentation',
+      '/releases',
+    ]);
+  });
+
+  it('labels the not-yet-connected nav entries as coming soon, not silently empty', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const badges = Array.from(compiled.querySelectorAll('.app-nav__badge')).map(
+      (el) => el.textContent?.trim(),
+    );
+    expect(badges).toEqual(['Coming soon', 'Coming soon', 'Coming soon', 'Coming soon']);
   });
 
   it('shows an explicit empty state in the context bar when no workspace is open', async () => {

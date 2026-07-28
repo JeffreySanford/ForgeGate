@@ -74,6 +74,22 @@
   font-weight: 600;
 }
 
+.app-nav__coming-soon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fg-space-2);
+}
+
+.app-nav__badge {
+  font-size: 0.7rem;
+  padding: 2px var(--fg-space-2);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface-subtle);
+  color: var(--fg-color-text-muted);
+  white-space: nowrap;
+}
+
 .app-shell__body {
   flex: 1;
   min-width: 0;
