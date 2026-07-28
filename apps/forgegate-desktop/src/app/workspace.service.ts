@@ -23,6 +23,7 @@ import {
   parseStorybookIndex,
   type StorybookIndex,
 } from './storybook/storybook-index';
+import { buildEvidenceExport } from './evidence-export';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
 
@@ -223,6 +224,9 @@ export class WorkspaceService {
    */
   readonly cemGenerationLiveOutput = signal('');
   readonly adapterDiagnostics = signal<readonly AdapterDiagnostic[]>([]);
+  readonly evidenceExportRunning = signal(false);
+  readonly evidenceExportResult = signal<{ readonly directoryPath: string } | null>(null);
+  readonly evidenceExportError = signal<string | null>(null);
   readonly error = signal<string | null>(null);
 
   async selectWorkspace(): Promise<void> {
@@ -477,6 +481,51 @@ export class WorkspaceService {
       return;
     }
     await this.invoke<boolean>('cancel_workspace_command');
+  }
+
+  /**
+   * Exports one component's real evidence — its own test executions and
+   * per-target documentation drift, per `buildEvidenceExport` — as a real
+   * directory the user picks via a native folder dialog. A no-op if an
+   * export is already running. Cancelling the folder dialog (returning
+   * null) is a quiet no-op too, not an error: the user simply changed
+   * their mind, same as declining `select_workspace`'s dialog.
+   */
+  async exportEvidencePackage(
+    manifest: ComponentManifest,
+    testExecutions: readonly TestExecution[],
+  ): Promise<void> {
+    if (this.evidenceExportRunning()) {
+      return;
+    }
+    this.evidenceExportRunning.set(true);
+    this.evidenceExportError.set(null);
+    this.evidenceExportResult.set(null);
+    try {
+      const parentDirectory = await this.invoke<string | null>(
+        'pick_export_directory',
+      );
+      if (!parentDirectory) {
+        return;
+      }
+      const { directoryName, files } = await buildEvidenceExport(
+        crypto.randomUUID(),
+        new Date().toISOString(),
+        manifest,
+        testExecutions,
+        this.workspaceScan()?.starlightProjects ?? [],
+      );
+      const directoryPath = await this.invoke<string>('write_evidence_package', {
+        parentDirectory,
+        directoryName,
+        files,
+      });
+      this.evidenceExportResult.set({ directoryPath });
+    } catch (error) {
+      this.evidenceExportError.set(String(error));
+    } finally {
+      this.evidenceExportRunning.set(false);
+    }
   }
 
   /**

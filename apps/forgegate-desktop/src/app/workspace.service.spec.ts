@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createComponentManifest } from '@forgegate/core-manifest';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
 import { WorkspaceService } from './workspace.service';
@@ -648,5 +649,77 @@ describe('WorkspaceService', () => {
     expect(service.workspaceScan()).toBeNull();
     expect(service.repositoryConfig()).toBeNull();
     expect(service.error()).toBe('Workspace path does not exist');
+  });
+
+  describe('exportEvidencePackage', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+
+    it('does nothing if an export is already running', async () => {
+      service.evidenceExportRunning.set(true);
+
+      await service.exportEvidencePackage(manifest, []);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('is a quiet no-op when the user cancels the folder dialog', async () => {
+      invokeMock.mockResolvedValueOnce(null);
+
+      await service.exportEvidencePackage(manifest, []);
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(invokeMock).toHaveBeenCalledWith('pick_export_directory');
+      expect(service.evidenceExportResult()).toBeNull();
+      expect(service.evidenceExportError()).toBeNull();
+      expect(service.evidenceExportRunning()).toBe(false);
+    });
+
+    it('writes a real evidence package once a destination is chosen', async () => {
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce('/home/user/exports/acme.lib.button-1.0.0-evidence-uuid');
+
+      await service.exportEvidencePackage(manifest, []);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'pick_export_directory');
+      const [secondCallName, secondCallArgs] = invokeMock.mock.calls[1] as [string, {
+        parentDirectory: string;
+        directoryName: string;
+        files: Record<string, string>;
+      }];
+      expect(secondCallName).toBe('write_evidence_package');
+      expect(secondCallArgs.parentDirectory).toBe('/home/user/exports');
+      expect(secondCallArgs.directoryName).toContain('acme.lib.button-1.0.0-evidence-');
+      expect(Object.keys(secondCallArgs.files).sort()).toEqual([
+        'checksums.sha256',
+        'documentation-status.json',
+        'manifest.json',
+        'test-summary.json',
+      ]);
+      expect(service.evidenceExportResult()).toEqual({
+        directoryPath: '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+      });
+      expect(service.evidenceExportRunning()).toBe(false);
+    });
+
+    it('reports a write failure without leaving the running flag stuck', async () => {
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockRejectedValueOnce('Failed to write manifest.json: permission denied');
+
+      await service.exportEvidencePackage(manifest, []);
+
+      expect(service.evidenceExportError()).toBe(
+        'Failed to write manifest.json: permission denied',
+      );
+      expect(service.evidenceExportResult()).toBeNull();
+      expect(service.evidenceExportRunning()).toBe(false);
+    });
   });
 });

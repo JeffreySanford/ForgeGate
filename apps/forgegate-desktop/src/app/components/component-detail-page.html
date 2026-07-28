@@ -138,7 +138,22 @@
 
   <section class="component-detail__panel fg-panel" aria-labelledby="evidence-title">
     <h2 id="evidence-title">Tests and evidence</h2>
-    @if (workspace.testExecutionError(); as evidenceError) {
+    <button
+      type="button"
+      [disabled]="workspace.evidenceExportRunning()"
+      (click)="exportEvidencePackage()"
+    >
+      {{ workspace.evidenceExportRunning() ? 'Exporting?' : 'Export evidence
+      package' }}
+    </button>
+    @if (workspace.evidenceExportResult(); as exportResult) {
+    <p role="status">
+      Evidence package saved to
+      <code>{{ exportResult.directoryPath }}</code>
+    </p>
+    } @if (workspace.evidenceExportError(); as exportError) {
+    <p role="alert">Evidence export failed: {{ exportError }}</p>
+    } @if (workspace.testExecutionError(); as evidenceError) {
     <p role="alert">
       Some test evidence could not be loaded: {{ evidenceError }}
     </p>

@@ -67,6 +67,56 @@ async fn select_workspace(app: tauri::AppHandle) -> Option<String> {
         .map(|p| p.display().to_string())
 }
 
+/// Opens the native folder picker for choosing where to save an evidence
+/// export. Deliberately separate from `select_workspace`: this never
+/// touches workspace state, it only asks the user for a destination.
+#[tauri::command]
+async fn pick_export_directory(app: tauri::AppHandle) -> Option<String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog().file().pick_folder(move |folder| {
+        let _ = tx.send(folder);
+    });
+    rx.recv()
+        .ok()
+        .flatten()
+        .and_then(|f| f.into_path().ok())
+        .map(|p| p.display().to_string())
+}
+
+/// Writes a real evidence-export package: creates `directory_name` inside
+/// `parent_directory`, then writes every entry in `files` as a real file
+/// in it. Returns the resulting directory's real absolute path so the UI
+/// can tell the user exactly where it landed. Rejects a `parent_directory`
+/// that isn't a real, existing directory, and rejects any filename that
+/// isn't a single path segment (no `/`, `\`, or `..`) — this only ever
+/// writes the flat file set `buildEvidenceExport` produces today, never an
+/// arbitrary nested path a caller could use to escape `directory_name`.
+#[tauri::command]
+fn write_evidence_package(
+    parent_directory: String,
+    directory_name: String,
+    files: std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let parent = PathBuf::from(&parent_directory);
+    if !parent.is_dir() {
+        return Err(format!("{parent_directory} is not a directory"));
+    }
+
+    let export_dir = parent.join(&directory_name);
+    fs::create_dir_all(&export_dir)
+        .map_err(|error| format!("Failed to create {}: {error}", export_dir.display()))?;
+
+    for (name, content) in &files {
+        if name.contains('/') || name.contains('\\') || name.contains("..") {
+            return Err(format!("Refusing to write unexpected artifact filename \"{name}\""));
+        }
+        let path = export_dir.join(name);
+        fs::write(&path, content).map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+    }
+
+    Ok(export_dir.display().to_string())
+}
+
 /// Rejects relative paths and paths that do not resolve to a real directory,
 /// so downstream commands never shell out against an unvalidated string.
 fn resolve_workspace_path(path: &str) -> Result<PathBuf, String> {
@@ -682,6 +732,66 @@ mod tests {
     fn returns_an_empty_list_for_a_clean_working_tree() {
         assert!(parse_changed_files("").is_empty());
     }
+
+    #[test]
+    fn writes_a_real_evidence_package_directory_with_every_file() {
+        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-test-{}", std::process::id()));
+        std::fs::create_dir_all(&parent).expect("should create temp parent dir");
+
+        let mut files = std::collections::HashMap::new();
+        files.insert("manifest.json".to_string(), "{\"id\":\"export-1\"}".to_string());
+        files.insert("test-summary.json".to_string(), "[]".to_string());
+        files.insert("checksums.sha256".to_string(), "abc  manifest.json\n".to_string());
+
+        let export_dir_path = write_evidence_package(
+            parent.display().to_string(),
+            "acme.lib.button-evidence-1".to_string(),
+            files,
+        )
+        .expect("writing a real evidence package should succeed");
+
+        let export_dir = std::path::PathBuf::from(&export_dir_path);
+        assert!(export_dir.is_dir());
+        assert_eq!(
+            std::fs::read_to_string(export_dir.join("manifest.json")).unwrap(),
+            "{\"id\":\"export-1\"}",
+        );
+        assert_eq!(std::fs::read_to_string(export_dir.join("test-summary.json")).unwrap(), "[]");
+        assert!(export_dir.join("checksums.sha256").is_file());
+
+        std::fs::remove_dir_all(&parent).ok();
+    }
+
+    #[test]
+    fn rejects_a_parent_directory_that_does_not_exist() {
+        let missing = std::env::temp_dir().join("forgegate-evidence-export-nonexistent");
+        let error = write_evidence_package(
+            missing.display().to_string(),
+            "acme.lib.button-evidence-1".to_string(),
+            std::collections::HashMap::new(),
+        )
+        .expect_err("a nonexistent parent directory must be rejected");
+        assert!(error.contains("is not a directory"));
+    }
+
+    #[test]
+    fn rejects_a_filename_that_attempts_to_escape_the_export_directory() {
+        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-escape-test-{}", std::process::id()));
+        std::fs::create_dir_all(&parent).expect("should create temp parent dir");
+
+        let mut files = std::collections::HashMap::new();
+        files.insert("../escape.json".to_string(), "malicious".to_string());
+
+        let error = write_evidence_package(
+            parent.display().to_string(),
+            "acme.lib.button-evidence-1".to_string(),
+            files,
+        )
+        .expect_err("a path-escaping filename must be rejected");
+        assert!(error.contains("Refusing to write"));
+
+        std::fs::remove_dir_all(&parent).ok();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -706,7 +816,9 @@ pub fn run() {
             read_repository_config_file,
             read_text_file,
             run_workspace_command,
-            cancel_workspace_command
+            cancel_workspace_command,
+            pick_export_directory,
+            write_evidence_package
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

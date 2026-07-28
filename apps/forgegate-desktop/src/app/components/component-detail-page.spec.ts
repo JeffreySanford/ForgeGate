@@ -565,4 +565,73 @@ describe('ComponentDetailPage', () => {
 
     await expectNoAccessibilityViolations(fixture.nativeElement);
   });
+
+  it('clicking "Export evidence package" calls the real service method with this component and its evidence', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '0.1.0',
+      }),
+    ]);
+    workspaceService.testExecutions.set([
+      {
+        id: 'acme-button-unit',
+        componentVersionId: 'acme.design-system.acme-button@0.1.0',
+        gate: 'unit',
+        tool: 'node:test',
+        toolVersion: '22.21.1',
+        adapterVersion: '0.1.0',
+        status: 'passed',
+        startedAt: '2026-07-24T16:00:00.000Z',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+    ]);
+    const exportSpy = vi.spyOn(workspaceService, 'exportEvidencePackage').mockResolvedValue();
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const exportButton = Array.from(compiled.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Export evidence package'),
+    );
+    expect(exportButton).toBeDefined();
+    exportButton?.click();
+
+    expect(exportSpy).toHaveBeenCalledTimes(1);
+    expect(exportSpy.mock.calls[0]?.[0].id).toBe('acme.design-system.acme-button');
+    expect(exportSpy.mock.calls[0]?.[1]).toHaveLength(1);
+    expect(exportSpy.mock.calls[0]?.[1][0]?.id).toBe('acme-button-unit');
+  });
+
+  it('shows the real saved directory path after a successful export', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.evidenceExportResult.set({
+      directoryPath: '/home/user/exports/acme-button-evidence-1',
+    });
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('/home/user/exports/acme-button-evidence-1');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
 });

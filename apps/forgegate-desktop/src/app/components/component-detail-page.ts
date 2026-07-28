@@ -392,6 +392,14 @@ export class ComponentDetailPage {
     const parts = id.split('.');
     return parts[parts.length - 1] ?? id;
   }
+
+  protected exportEvidencePackage(): void {
+    const manifest = this.manifest();
+    if (!manifest) {
+      return;
+    }
+    void this.workspace.exportEvidencePackage(manifest, this.testExecutions());
+  }
 }
 
 function componentVersionId(manifest: ComponentManifest): string {
