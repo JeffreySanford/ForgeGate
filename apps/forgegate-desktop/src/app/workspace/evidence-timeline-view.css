@@ -1,0 +1,51 @@
+.evidence-timeline-view h2 {
+  font-size: var(--fg-type-size-lg);
+  margin: 0 0 var(--fg-space-3);
+}
+
+.evidence-timeline-view__caveat {
+  font-size: var(--fg-type-size-sm);
+  color: var(--fg-color-text-subtle);
+  margin: 0 0 var(--fg-space-3);
+}
+
+.evidence-timeline-view__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fg-space-2);
+}
+
+.evidence-timeline-view__list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--fg-space-3);
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border-left: 3px solid var(--fg-color-border);
+  font-size: var(--fg-type-size-sm);
+}
+
+.evidence-timeline-view__list li.status-passed {
+  border-left-color: var(--fg-color-status-passed);
+}
+
+.evidence-timeline-view__list li.status-failed {
+  border-left-color: var(--fg-color-status-failed);
+}
+
+.evidence-timeline-view__list li.status-warning,
+.evidence-timeline-view__list li.status-blocked {
+  border-left-color: var(--fg-color-status-warning);
+}
+
+.evidence-timeline-view__list time {
+  color: var(--fg-color-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.evidence-timeline-view__commit {
+  color: var(--fg-color-text-subtle);
+}

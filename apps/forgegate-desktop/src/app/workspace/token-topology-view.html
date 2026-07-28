@@ -1,0 +1,42 @@
+<section class="token-topology-view fg-panel" aria-labelledby="token-topology-title">
+  <h2 id="token-topology-title">Token topology</h2>
+
+  @if (!workspace.workspacePath()) {
+    <p class="fg-empty-state">Open a workspace to see which components consume which tokens.</p>
+  } @else if (entries().length === 0) {
+    <p class="fg-empty-state">No component has a repository-authored token mapping yet. Nothing to show.</p>
+  } @else {
+    <p class="token-topology-view__caveat">
+      Shows which components consume which repository-authored token, only. Primitive/semantic token
+      layering, alias chains, unresolved references, theme/mode coverage, and hard-coded value detection
+      are not implemented yet.
+    </p>
+    <table>
+      <caption class="sr-only">Tokens and the components that consume them</caption>
+      <thead>
+        <tr>
+          <th scope="col">Token</th>
+          <th scope="col">Category</th>
+          <th scope="col">Required</th>
+          <th scope="col">Consumed by</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of entries(); track entry.tokenPath) {
+          <tr>
+            <th scope="row"><code>{{ entry.tokenPath }}</code></th>
+            <td>{{ entry.category }}</td>
+            <td>{{ entry.required ? 'Yes' : 'No' }}</td>
+            <td>
+              <ul class="token-topology-view__components">
+                @for (componentId of entry.componentIds; track componentId) {
+                  <li><a [routerLink]="['/components', componentId]">{{ componentName(componentId) }}</a></li>
+                }
+              </ul>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>

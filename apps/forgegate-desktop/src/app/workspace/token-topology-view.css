@@ -1,0 +1,35 @@
+.token-topology-view h2 {
+  font-size: var(--fg-type-size-lg);
+  margin: 0 0 var(--fg-space-3);
+}
+
+.token-topology-view__caveat {
+  font-size: var(--fg-type-size-sm);
+  color: var(--fg-color-text-subtle);
+  margin: 0 0 var(--fg-space-3);
+}
+
+.token-topology-view table {
+  width: 100%;
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.token-topology-view th,
+.token-topology-view td {
+  text-align: left;
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border-bottom: 1px solid var(--fg-color-border);
+  font-size: var(--fg-type-size-sm);
+}
+
+.token-topology-view__components {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fg-space-2);
+}

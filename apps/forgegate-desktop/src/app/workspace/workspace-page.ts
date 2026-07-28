@@ -6,7 +6,9 @@ import { AdapterConstellationView } from './adapter-constellation-view';
 import { AssuranceJourney } from './assurance-journey';
 import { ChangeImpactTable } from './change-impact-table';
 import { DocumentationDriftMap } from './documentation-drift-map';
+import { EvidenceTimelineView } from './evidence-timeline-view';
 import { SystemMap } from './system-map';
+import { TokenTopologyView } from './token-topology-view';
 import { WorkspaceScanProgressView } from './workspace-scan-progress';
 
 @Component({
@@ -18,6 +20,8 @@ import { WorkspaceScanProgressView } from './workspace-scan-progress';
     DocumentationDriftMap,
     ChangeImpactTable,
     AdapterConstellationView,
+    EvidenceTimelineView,
+    TokenTopologyView,
   ],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',

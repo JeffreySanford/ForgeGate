@@ -231,10 +231,10 @@ Primary reference:
 
 ## P1.3 — Evidence freshness timeline
 
-- [ ] Visualize evidence creation, source changes, invalidation, reruns, reviews, and decisions over time.
-- [ ] Explain the exact causal event that made evidence stale.
-- [ ] Link timeline events to commits, files, runs, reviews, and raw evidence.
-- [ ] Provide a chronological semantic list.
+- [X} Narrow real slice: visualize evidence **creation** over time. `EvidenceTimelineView` (`app/workspace/evidence-timeline-view.ts`) renders on `/workspace`, ordering real `WorkspaceService.testExecutions()` records (already parsed from `.forgegate/evidence/*.json`, each with a real `startedAt`) newest-first via a shared, tested pure module (`app/evidence-timeline.ts`, `computeEvidenceTimeline`, 3 tests). Source changes, invalidation, reruns as a distinct event, reviews, and decisions are **not** shown — no real data source for those event kinds exists yet.
+- [ ] Explain the exact causal event that made evidence stale. Not implemented — requires the invalidation event kind above, which doesn't exist yet.
+- [X} Link timeline events to commits and raw evidence. Each entry shows its real `commitOrFingerprint` (shortened) and `gate`/`tool`/`toolVersion`. Not yet linked to files, runs, or reviews — no adapter connects evidence to those today.
+- [X} Provide a chronological semantic list. Real `<ol>`, newest-first — the primary view is itself the chronological structure.
 
 ## P1.4 — Change-impact visualization
 
@@ -246,10 +246,10 @@ Primary reference:
 
 ## P1.5 — Token topology
 
-- [ ] Visualize primitive, semantic, and component-token relationships.
-- [ ] Show alias chains, unresolved references, theme/mode coverage, and hard-coded implementation values.
-- [ ] Link tokens to anatomy parts and states.
-- [ ] Provide an accessible token relationship table.
+- [X} Narrow real slice: visualize **component-token consumption** relationships. `TokenTopologyView` (`app/workspace/token-topology-view.ts`) renders on `/workspace`, aggregating real `tokenMappings` from repository-authored `.forgegate/components/*.yaml` overrides (same mechanism P1.6 aggregated for documentation targets) across the inventory via a shared, tested pure module (`app/token-topology.ts`, `computeTokenTopology`, 4 tests), showing which components consume which token. Primitive/semantic token layering is not shown — that needs real DTCG parsing, and ForgeGate only *detects* token files by name/content today, it does not parse them.
+- [ ] Show alias chains, unresolved references, theme/mode coverage, and hard-coded implementation values. Not implemented — all require the real DTCG parser above, which doesn't exist yet.
+- [ ] Link tokens to anatomy parts and states. Not implemented — `ManifestTokenMapping` has no per-state or per-anatomy-part field to link from today.
+- [X} Provide an accessible token relationship table. Real semantic `<table>`, one row per token, linking each consuming component to its detail page.
 
 ## P1.6 — Documentation drift map
 
