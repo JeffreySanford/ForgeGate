@@ -326,6 +326,20 @@
       Cancel
     </button>
     }
+    @if (workspace.cemGenerationLiveOutput()) {
+    <!--
+      Deliberately not role="status"/aria-live: this updates once per
+      output line, sometimes rapidly, and role="status" implies polite
+      live-announcement — announcing every line as it streams would be
+      noise, not a concise status update. Screen-reader users can still
+      reach and read it through normal navigation; the result banner
+      shown after generation finishes carries the actual outcome.
+    -->
+    <details open>
+      <summary>Live output</summary>
+      <pre class="workspace-page__cem-live-output">{{ workspace.cemGenerationLiveOutput() }}</pre>
+    </details>
+    }
     } } @else {
     <p role="status">
       No package with both a package.json and source directory was found.

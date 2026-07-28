@@ -24,6 +24,7 @@ import {
   type StorybookIndex,
 } from './storybook/storybook-index';
 import { TAURI_INVOKE } from './tauri-invoke';
+import { TAURI_LISTEN } from './tauri-listen';
 
 export interface GitStatus {
   branch: string;
@@ -109,6 +110,13 @@ export interface CommandResult {
   durationMs: number;
 }
 
+/** Payload of the `workspace-command-output` event — one per output line. */
+export interface CommandOutputLine {
+  runId: number;
+  stream: 'stdout' | 'stderr';
+  line: string;
+}
+
 export interface AdapterDiagnostic {
   readonly id: string;
   readonly adapter: string;
@@ -173,6 +181,7 @@ const WORKSPACE_SCAN_STEP_COUNT = 5;
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
   private readonly invoke = inject(TAURI_INVOKE);
+  private readonly listen = inject(TAURI_LISTEN);
   readonly workspacePath = signal<string | null>(null);
   readonly gitStatus = signal<GitStatus | null>(null);
   readonly workspaceScan = signal<WorkspaceScan | null>(null);
@@ -197,6 +206,16 @@ export class WorkspaceService {
   readonly cemGenerationRunning = signal(false);
   readonly cemGenerationResult = signal<CommandResult | null>(null);
   readonly cemGenerationError = signal<string | null>(null);
+  /**
+   * Live stdout/stderr lines as CEM generation runs, appended in arrival
+   * order. Redacted per-line the same way the final result is, with one
+   * disclosed exception: a PEM private key would appear here line-by-line
+   * before the final `cemGenerationResult`'s block-aware redaction could
+   * catch it — see `command_execution::LineSink`'s doc comment on the Rust
+   * side. Reset at the start of each run; not cleared on completion, so
+   * the last run's output stays visible until the next one starts.
+   */
+  readonly cemGenerationLiveOutput = signal('');
   readonly adapterDiagnostics = signal<readonly AdapterDiagnostic[]>([]);
   readonly error = signal<string | null>(null);
 
@@ -362,6 +381,15 @@ export class WorkspaceService {
     this.cemGenerationRunning.set(true);
     this.cemGenerationError.set(null);
     this.cemGenerationResult.set(null);
+    this.cemGenerationLiveOutput.set('');
+    const unlisten = await this.listen<CommandOutputLine>(
+      'workspace-command-output',
+      (event) => {
+        this.cemGenerationLiveOutput.update(
+          (current) => current + event.payload.line + '\n',
+        );
+      },
+    );
     try {
       const result = await this.invoke<CommandResult>('run_workspace_command', {
         workspacePath: path,
@@ -425,6 +453,7 @@ export class WorkspaceService {
         error: String(error),
       });
     } finally {
+      unlisten();
       this.cemGenerationRunning.set(false);
     }
   }

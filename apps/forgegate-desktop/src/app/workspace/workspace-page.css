@@ -86,6 +86,10 @@
   overflow-wrap: anywhere;
 }
 
+.workspace-page__cem-live-output {
+  max-height: 16rem;
+}
+
 .workspace-page section {
   background: var(--fg-color-surface-subtle);
   border: 1px solid var(--fg-color-border);

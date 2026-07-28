@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TAURI_INVOKE } from './tauri-invoke';
+import { TAURI_LISTEN } from './tauri-listen';
 import { WorkspaceService } from './workspace.service';
 
 const invokeMock = vi.fn();
@@ -54,13 +55,20 @@ const gitStatusFixture = {
   changedFiles: [],
 };
 
+const listenMock = vi.fn();
+
 describe('WorkspaceService', () => {
   let service: WorkspaceService;
 
   beforeEach(() => {
     invokeMock.mockReset();
+    listenMock.mockReset();
+    listenMock.mockResolvedValue(vi.fn());
     TestBed.configureTestingModule({
-      providers: [{ provide: TAURI_INVOKE, useValue: invokeMock }],
+      providers: [
+        { provide: TAURI_INVOKE, useValue: invokeMock },
+        { provide: TAURI_LISTEN, useValue: listenMock },
+      ],
     });
     service = TestBed.inject(WorkspaceService);
   });
@@ -429,6 +437,12 @@ describe('WorkspaceService', () => {
 
     const generatePromise = service.generateCustomElementsManifest();
     expect(service.cemGenerationRunning()).toBe(true);
+    // Let the pending `await this.listen(...)` inside generateCustomElementsManifest
+    // resolve so its continuation actually reaches (and calls) `invoke('run_workspace_command')`
+    // before cancel is requested — otherwise cancel's own invoke call would race ahead
+    // and consume the queued run_workspace_command mock value instead.
+    await Promise.resolve();
+    await Promise.resolve();
 
     invokeMock.mockResolvedValueOnce(true);
     await service.cancelGeneratingCustomElementsManifest();
@@ -469,6 +483,47 @@ describe('WorkspaceService', () => {
     expect(service.cemGenerationResult()?.cancelled).toBe(true);
     expect(service.cemGenerationResult()?.timedOut).toBe(false);
     expect(service.cemGenerationRunning()).toBe(false);
+  });
+
+  it('appends real streamed output lines as they arrive, and unlistens once generation finishes', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+    await service.selectWorkspace();
+    invokeMock.mockReset();
+
+    const unlistenSpy = vi.fn();
+    let emitLine!: (line: string) => void;
+    listenMock.mockImplementationOnce(async (_event, handler) => {
+      emitLine = (line: string) =>
+        handler({ payload: { runId: 1, stream: 'stdout', line } });
+      return unlistenSpy;
+    });
+    invokeMock.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+      timedOut: false,
+      cancelled: false,
+      durationMs: 10,
+    });
+    invokeMock.mockResolvedValueOnce(
+      JSON.stringify({ schemaVersion: '1.0.0', modules: [] }),
+    );
+
+    const generatePromise = service.generateCustomElementsManifest();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(emitLine).toBeDefined();
+    emitLine('wrote custom-elements.json');
+    expect(service.cemGenerationLiveOutput()).toBe('wrote custom-elements.json\n');
+
+    await generatePromise;
+
+    expect(unlistenSpy).toHaveBeenCalled();
   });
 
   it('runs the analyzer and refreshes the scan and manifest on a successful exit', async () => {

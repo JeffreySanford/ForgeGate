@@ -5,6 +5,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tauri::Emitter;
 use tauri_plugin_dialog::DialogExt;
 
 mod command_execution;
@@ -189,15 +190,29 @@ struct RunningCommand(Mutex<Option<(u64, Arc<AtomicBool>)>>);
 
 static NEXT_COMMAND_ID: AtomicU64 = AtomicU64::new(1);
 
+/// Payload for the `workspace-command-output` event emitted once per line
+/// of live stdout/stderr — see `command_execution::LineSink`'s doc comment
+/// for what "live" does and doesn't redact. `run_id` lets a listener that
+/// starts late or overlaps a superseded run recognize which lines are
+/// actually its own; today's one real caller (CEM generation) only ever
+/// has one run active at a time and doesn't filter by it, which is an
+/// honest simplification, not a fabricated guarantee that multiple
+/// concurrent runs are supported.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommandOutputLine {
+    run_id: u64,
+    stream: &'static str,
+    line: String,
+}
+
 /// Runs one specific, caller-supplied command and argument list — never a
 /// shell string, so there is no shell-injection surface — inside a
-/// workspace-relative working directory, with a hard timeout. The UI is
-/// responsible for showing the resolved command to the user and requiring
-/// an explicit approval click before ever invoking this, per the "Command
-/// execution flow" in documentation/02-system-architecture.md. This does
-/// not stream output live yet; the full result is only available once the
-/// process finishes, is killed for exceeding `timeout_seconds`, or is
-/// cancelled via `cancel_workspace_command`.
+/// workspace-relative working directory, with a hard timeout, streaming
+/// each output line to `on_line` as it arrives. The UI is responsible for
+/// showing the resolved command to the user and requiring an explicit
+/// approval click before ever invoking this, per the "Command execution
+/// flow" in documentation/02-system-architecture.md.
 ///
 /// Split from the `#[tauri::command]` wrapper below so tests can call this
 /// directly with a plain `&RunningCommand` — a `tauri::State` cannot be
@@ -210,6 +225,8 @@ async fn run_workspace_command_inner(
     args: Vec<String>,
     timeout_seconds: u64,
     running: &RunningCommand,
+    id: u64,
+    on_line: Arc<command_execution::LineSink>,
 ) -> Result<CommandResult, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
     let cwd = resolve_relative_path_within_workspace(&workspace, &relative_cwd)?;
@@ -217,12 +234,18 @@ async fn run_workspace_command_inner(
         return Err(format!("{relative_cwd} is not a directory"));
     }
 
-    let id = NEXT_COMMAND_ID.fetch_add(1, Ordering::SeqCst);
     let cancel = Arc::new(AtomicBool::new(false));
     *running.0.lock().unwrap() = Some((id, cancel.clone()));
 
     let result = tauri::async_runtime::spawn_blocking(move || {
-        command_execution::run_command(&cwd, &command, &args, Duration::from_secs(timeout_seconds), &cancel)
+        command_execution::run_command(
+            &cwd,
+            &command,
+            &args,
+            Duration::from_secs(timeout_seconds),
+            &cancel,
+            on_line,
+        )
     })
     .await
     .map_err(|error| format!("Command worker failed: {error}"))?;
@@ -244,8 +267,30 @@ async fn run_workspace_command(
     args: Vec<String>,
     timeout_seconds: u64,
     running: tauri::State<'_, RunningCommand>,
+    app: tauri::AppHandle,
 ) -> Result<CommandResult, String> {
-    run_workspace_command_inner(workspace_path, relative_cwd, command, args, timeout_seconds, &running).await
+    let id = NEXT_COMMAND_ID.fetch_add(1, Ordering::SeqCst);
+    let on_line: Arc<command_execution::LineSink> = Arc::new(move |is_stderr, line| {
+        let _ = app.emit(
+            "workspace-command-output",
+            CommandOutputLine {
+                run_id: id,
+                stream: if is_stderr { "stderr" } else { "stdout" },
+                line: line.to_string(),
+            },
+        );
+    });
+    run_workspace_command_inner(
+        workspace_path,
+        relative_cwd,
+        command,
+        args,
+        timeout_seconds,
+        &running,
+        id,
+        on_line,
+    )
+    .await
 }
 
 /// Requests cancellation of whatever command `run_workspace_command` is
@@ -266,6 +311,10 @@ fn cancel_workspace_command(running: tauri::State<'_, RunningCommand>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn no_op_line_sink() -> Arc<command_execution::LineSink> {
+        Arc::new(|_, _| {})
+    }
 
     #[test]
     fn rejects_relative_paths() {
@@ -369,6 +418,8 @@ mod tests {
             vec!["--version".to_string()],
             10,
             &RunningCommand::default(),
+            1,
+            no_op_line_sink(),
         ))
         .expect("running git --version in the temp dir should succeed");
         assert_eq!(result.exit_code, Some(0));
@@ -386,6 +437,8 @@ mod tests {
             vec!["--version".to_string()],
             10,
             &RunningCommand::default(),
+            2,
+            no_op_line_sink(),
         ))
         .expect_err("a working directory outside the workspace must be rejected");
         assert!(error.contains("resolves outside"));
@@ -439,6 +492,8 @@ mod tests {
             args,
             30,
             &running,
+            3,
+            no_op_line_sink(),
         ))
         .expect("starting the slow command should succeed even though it will be cancelled");
 
@@ -448,6 +503,32 @@ mod tests {
             result.duration_ms < 5000,
             "should stop promptly once cancelled, not wait out its own 30s timeout"
         );
+    }
+
+    #[test]
+    fn streams_output_lines_through_run_workspace_command_inner_as_the_real_command_runs() {
+        let lines: Arc<Mutex<Vec<(u64, String)>>> = Arc::new(Mutex::new(Vec::new()));
+        let collector = lines.clone();
+        let on_line: Arc<command_execution::LineSink> = Arc::new(move |_is_stderr, line| {
+            collector.lock().unwrap().push((4, line.to_string()));
+        });
+
+        let result = tauri::async_runtime::block_on(run_workspace_command_inner(
+            std::env::temp_dir().display().to_string(),
+            ".".to_string(),
+            "git".to_string(),
+            vec!["--version".to_string()],
+            10,
+            &RunningCommand::default(),
+            4,
+            on_line,
+        ))
+        .expect("running git --version in the temp dir should succeed");
+
+        assert_eq!(result.exit_code, Some(0));
+        let captured = lines.lock().unwrap();
+        assert!(!captured.is_empty(), "expected at least one streamed line from a real git --version run");
+        assert!(captured.iter().any(|(run_id, line)| *run_id == 4 && line.to_lowercase().contains("git version")));
     }
 
     #[test]

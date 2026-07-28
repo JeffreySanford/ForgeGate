@@ -1,9 +1,9 @@
 use serde::Serialize;
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
 /// How long to wait for the stdout/stderr reader threads to finish after
@@ -105,12 +105,24 @@ fn terminate_process_tree(child: &mut std::process::Child) {
     let _ = child.wait();
 }
 
+/// Called once per line as it's read from the child's stdout (`is_stderr:
+/// false`) or stderr (`is_stderr: true`), already redacted the same way
+/// (`redact_line`) — with one disclosed gap: PEM private-key block
+/// redaction needs to see the whole block at once, so it only applies to
+/// the final buffered `CommandResult.stdout`/`.stderr`, not this live
+/// per-line feed. A key streamed live would appear line-by-line before a
+/// block-aware reader could redact it; real callers must treat this feed
+/// as untrusted for that one case rather than assume parity with the
+/// final result.
+pub type LineSink = dyn Fn(bool, &str) + Send + Sync;
+
 pub fn run_command(
     cwd: &Path,
     command: &str,
     args: &[String],
     timeout: Duration,
     cancel: &AtomicBool,
+    on_line: Arc<LineSink>,
 ) -> Result<CommandResult, String> {
     let start = Instant::now();
 
@@ -126,16 +138,22 @@ pub fn run_command(
     // deadlock us by filling a pipe buffer while we're busy waiting on it.
     // Results come back over a channel, not a plain JoinHandle, so the
     // main thread can give up after READER_DRAIN_GRACE_PERIOD instead of
-    // blocking forever on .join() — see that constant's doc comment.
+    // blocking forever on .join() — see that constant's doc comment. This
+    // also rules out `std::thread::scope`: its implicit join at the end of
+    // the scope would reintroduce exactly the orphan-process hang the
+    // grace period exists to avoid, so `on_line` is `Arc`'d ('static +
+    // Send + Sync) rather than borrowed.
     let stdout_pipe = child.stdout.take();
     let stderr_pipe = child.stderr.take();
     let (stdout_tx, stdout_rx) = mpsc::channel();
     let (stderr_tx, stderr_rx) = mpsc::channel();
+    let stdout_sink = on_line.clone();
     std::thread::spawn(move || {
-        let _ = stdout_tx.send(read_all(stdout_pipe));
+        let _ = stdout_tx.send(read_streamed(stdout_pipe, |line| stdout_sink(false, line)));
     });
+    let stderr_sink = on_line.clone();
     std::thread::spawn(move || {
-        let _ = stderr_tx.send(read_all(stderr_pipe));
+        let _ = stderr_tx.send(read_streamed(stderr_pipe, |line| stderr_sink(true, line)));
     });
 
     let timed_out;
@@ -183,13 +201,31 @@ pub fn run_command(
     })
 }
 
-fn read_all<R: Read>(pipe: Option<R>) -> String {
-    let Some(mut pipe) = pipe else {
+/// Reads `pipe` line by line, calling `on_line` with each line's
+/// per-line-redacted text (no trailing newline) as soon as it arrives, and
+/// returns the full, *unredacted* accumulated text — the caller still runs
+/// `redact_secrets` on that once, at the end, for `CommandResult`, since
+/// that pass needs the whole text to catch multi-line PEM blocks that a
+/// per-line reader can't.
+fn read_streamed<R: Read>(pipe: Option<R>, mut on_line: impl FnMut(&str)) -> String {
+    let Some(pipe) = pipe else {
         return String::new();
     };
-    let mut buffer = String::new();
-    let _ = pipe.read_to_string(&mut buffer);
-    buffer
+    let mut reader = BufReader::new(pipe);
+    let mut full = String::new();
+    let mut line = String::new();
+    loop {
+        line.clear();
+        match reader.read_line(&mut line) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {
+                let trimmed = line.trim_end_matches(['\r', '\n']);
+                on_line(&redact_line(trimmed));
+                full.push_str(&line);
+            }
+        }
+    }
+    full
 }
 
 /// Case-insensitive substrings of a bare `KEY` in a `KEY=VALUE` word that
@@ -358,6 +394,10 @@ mod tests {
         AtomicBool::new(false)
     }
 
+    fn no_op_line_sink() -> Arc<LineSink> {
+        Arc::new(|_, _| {})
+    }
+
     #[test]
     fn captures_stdout_and_a_successful_exit_code() {
         let cwd = std::env::temp_dir();
@@ -367,6 +407,7 @@ mod tests {
             &["--version".to_string()],
             Duration::from_secs(10),
             &not_cancelled(),
+            no_op_line_sink(),
         )
         .expect("git --version should start successfully");
 
@@ -385,6 +426,7 @@ mod tests {
             &["not-a-real-git-subcommand".to_string()],
             Duration::from_secs(10),
             &not_cancelled(),
+            no_op_line_sink(),
         )
         .expect("the command starting successfully is not itself an error, even if git rejects the subcommand");
 
@@ -408,6 +450,7 @@ mod tests {
             &[],
             Duration::from_secs(5),
             &not_cancelled(),
+            no_op_line_sink(),
         )
         .expect_err("a nonexistent command must fail to even start");
         assert!(error.contains("Failed to start"));
@@ -423,6 +466,7 @@ mod tests {
             &[],
             Duration::from_secs(5),
             &not_cancelled(),
+            no_op_line_sink(),
         )
         .expect("cmd.exe itself always exists, so spawning must succeed even for an unknown inner command");
         assert_ne!(result.exit_code, Some(0));
@@ -453,6 +497,7 @@ mod tests {
             &[],
             Duration::from_secs(10),
             &not_cancelled(),
+            no_op_line_sink(),
         )
         .expect("running a .cmd batch file should succeed, matching how npx.cmd/npm.cmd work on Windows");
 
@@ -467,8 +512,15 @@ mod tests {
         let cwd = std::env::temp_dir();
         let (command, args) = slow_command();
 
-        let result = run_command(&cwd, command, &args, Duration::from_millis(300), &not_cancelled())
-            .expect("starting the slow command should succeed even though it will be killed");
+        let result = run_command(
+            &cwd,
+            command,
+            &args,
+            Duration::from_millis(300),
+            &not_cancelled(),
+            no_op_line_sink(),
+        )
+        .expect("starting the slow command should succeed even though it will be killed");
 
         assert!(result.timed_out);
         assert!(!result.cancelled);
@@ -487,8 +539,15 @@ mod tests {
             cancel_setter.store(true, Ordering::SeqCst);
         });
 
-        let result = run_command(&cwd, command, &args, Duration::from_secs(5), &cancel)
-            .expect("starting the slow command should succeed even though it will be cancelled");
+        let result = run_command(
+            &cwd,
+            command,
+            &args,
+            Duration::from_secs(5),
+            &cancel,
+            no_op_line_sink(),
+        )
+        .expect("starting the slow command should succeed even though it will be cancelled");
 
         assert!(result.cancelled);
         assert!(!result.timed_out);
@@ -564,11 +623,44 @@ mod tests {
         let cwd = std::env::temp_dir();
         let (command, args) = echo_command("MY_SECRET_TOKEN=abc123def456");
 
-        let result = run_command(&cwd, command, &args, Duration::from_secs(10), &not_cancelled())
-            .expect("echoing a line should succeed");
+        let result = run_command(
+            &cwd,
+            command,
+            &args,
+            Duration::from_secs(10),
+            &not_cancelled(),
+            no_op_line_sink(),
+        )
+        .expect("echoing a line should succeed");
 
         assert!(result.stdout.contains("MY_SECRET_TOKEN=***REDACTED***"));
         assert!(!result.stdout.contains("abc123def456"));
+    }
+
+    #[test]
+    fn streams_each_stdout_line_live_and_redacted_as_the_real_command_produces_it() {
+        let cwd = std::env::temp_dir();
+        let (command, args) = echo_command("STREAM_SECRET=abc123def456");
+
+        let lines: Arc<std::sync::Mutex<Vec<(bool, String)>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let collector = lines.clone();
+        let on_line: Arc<LineSink> = Arc::new(move |is_stderr, line| {
+            collector.lock().unwrap().push((is_stderr, line.to_string()));
+        });
+
+        let result = run_command(&cwd, command, &args, Duration::from_secs(10), &not_cancelled(), on_line)
+            .expect("echoing a line should succeed");
+
+        assert!(result.stdout.contains("STREAM_SECRET=***REDACTED***"));
+        let captured = lines.lock().unwrap();
+        assert!(
+            captured.iter().any(|(is_stderr, line)| !is_stderr && line == "STREAM_SECRET=***REDACTED***"),
+            "expected a live stdout line already redacted, got {captured:?}",
+        );
+        assert!(
+            captured.iter().all(|(_, line)| !line.contains("abc123def456")),
+            "no live line should ever carry the raw secret",
+        );
     }
 
     /// `echo` is a `cmd.exe` builtin, not a standalone executable — but

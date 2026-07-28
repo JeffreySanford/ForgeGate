@@ -312,4 +312,40 @@ describe('WorkspacePage', () => {
 
     expect(cancelSpy).toHaveBeenCalled();
   });
+
+  it('shows the real live output only once there is some, inside an accessible disclosure', async () => {
+    workspaceService.workspaceScan.set({
+      ...emptyScan,
+      customElementsManifests: [],
+      componentPackages: [
+        {
+          name: 'design-system',
+          path: 'packages/design-system',
+          sourceGlob: 'src/**/*.ts',
+          outputDirectory: 'dist',
+          manifestPath: 'custom-elements.json',
+        },
+      ],
+    });
+    workspaceService.selectedComponentPackagePath.set('packages/design-system');
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).not.toContain('Live output');
+
+    workspaceService.cemGenerationLiveOutput.set('wrote custom-elements.json\n');
+    fixture.detectChanges();
+
+    const details = Array.from(compiled.querySelectorAll('details')).find((el) =>
+      el.querySelector('summary')?.textContent?.includes('Live output'),
+    );
+    expect(details).toBeDefined();
+    expect(details?.querySelector('pre')?.textContent).toContain('wrote custom-elements.json');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
 });
