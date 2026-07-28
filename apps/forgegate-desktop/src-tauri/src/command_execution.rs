@@ -24,7 +24,9 @@ const READER_DRAIN_GRACE_PERIOD: Duration = Duration::from_millis(500);
 /// documentation/02-system-architecture.md. What this does: runs a
 /// specific, pre-approved `command` + `args` (never a shell string — no
 /// shell is invoked, so there is no shell-injection surface) in a given
-/// working directory, with a hard timeout enforced from this side.
+/// working directory, with a hard timeout enforced from this side, and
+/// redacts likely secrets from the captured `stdout`/`stderr` before
+/// returning (see `redact_secrets`).
 ///
 /// What this deliberately does not do yet, tracked in TODO.md rather than
 /// silently skipped: stream output to the UI live (output is only
@@ -152,8 +154,8 @@ pub fn run_command(cwd: &Path, command: &str, args: &[String], timeout: Duration
 
     Ok(CommandResult {
         exit_code,
-        stdout,
-        stderr,
+        stdout: redact_secrets(&stdout),
+        stderr: redact_secrets(&stderr),
         timed_out,
         duration_ms: start.elapsed().as_millis(),
     })
@@ -166,6 +168,147 @@ fn read_all<R: Read>(pipe: Option<R>) -> String {
     let mut buffer = String::new();
     let _ = pipe.read_to_string(&mut buffer);
     buffer
+}
+
+/// Case-insensitive substrings of a bare `KEY` in a `KEY=VALUE` word that
+/// mark the value as a secret worth redacting, e.g. from a tool that dumps
+/// its environment (`env`, `printenv`, a verbose CI runner) into stdout.
+const SECRET_KEY_MARKERS: [&str; 7] = [
+    "SECRET", "TOKEN", "PASSWORD", "PASSWD", "APIKEY", "PRIVATE_KEY", "ACCESS_KEY",
+];
+
+/// Known credential-format prefixes redacted wherever they appear inside a
+/// word, regardless of surrounding `KEY=` context — covers a token pasted
+/// bare into a command's own output (e.g. a verbose `curl` or `npm`
+/// invocation echoing an `Authorization` header or registry token).
+const KNOWN_TOKEN_PREFIXES: [&str; 7] = ["ghp_", "gho_", "ghu_", "ghs_", "ghr_", "npm_", "AKIA"];
+
+/// Best-effort defense-in-depth secret scrubbing applied to every command's
+/// captured stdout/stderr before it reaches the frontend (and, from there,
+/// anything that persists it as evidence). This is deliberately narrow and
+/// documented rather than a general secret-scanning engine: it redacts (1)
+/// `KEY=VALUE` words whose key name suggests a secret, (2) known credential
+/// prefixes (GitHub, npm, AWS access keys) appearing anywhere in a word,
+/// (3) the token following a `Bearer`/`Basic` auth scheme word, and (4) PEM
+/// private-key blocks in full. It cannot catch every possible secret format
+/// — this is a real, useful reduction in accidental leakage, not a
+/// guarantee.
+fn redact_secrets(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut in_private_key_block = false;
+
+    for line in text.split_inclusive('\n') {
+        let (content, line_ending) = split_line_ending(line);
+
+        if !in_private_key_block && is_private_key_marker(content, "BEGIN") {
+            in_private_key_block = true;
+            result.push_str(content);
+            result.push_str(" [REDACTED]");
+            result.push_str(line_ending);
+            continue;
+        }
+        if in_private_key_block {
+            if is_private_key_marker(content, "END") {
+                in_private_key_block = false;
+                result.push_str(content);
+                result.push_str(line_ending);
+            }
+            // Otherwise this line is inside the key body: omit it entirely.
+            continue;
+        }
+
+        result.push_str(&redact_line(content));
+        result.push_str(line_ending);
+    }
+
+    result
+}
+
+fn split_line_ending(line: &str) -> (&str, &str) {
+    if let Some(content) = line.strip_suffix("\r\n") {
+        (content, "\r\n")
+    } else if let Some(content) = line.strip_suffix('\n') {
+        (content, "\n")
+    } else {
+        (line, "")
+    }
+}
+
+fn is_private_key_marker(line: &str, marker: &str) -> bool {
+    line.contains(&format!("-----{marker}")) && line.contains("PRIVATE KEY-----")
+}
+
+fn redact_line(line: &str) -> String {
+    let mut result = String::with_capacity(line.len());
+    let mut previous_word_is_auth_scheme = false;
+
+    for chunk in split_preserving_whitespace(line) {
+        if chunk.chars().next().is_some_and(char::is_whitespace) {
+            result.push_str(chunk);
+            continue;
+        }
+        if previous_word_is_auth_scheme {
+            result.push_str("***REDACTED***");
+            previous_word_is_auth_scheme = false;
+            continue;
+        }
+        let lower = chunk.to_ascii_lowercase();
+        if lower == "bearer" || lower == "basic" {
+            result.push_str(chunk);
+            previous_word_is_auth_scheme = true;
+            continue;
+        }
+        result.push_str(&redact_word(chunk));
+    }
+
+    result
+}
+
+fn redact_word(word: &str) -> String {
+    if let Some(eq_index) = word.find('=') {
+        let key = &word[..eq_index];
+        let is_bare_identifier =
+            !key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if is_bare_identifier {
+            let key_upper = key.to_ascii_uppercase();
+            if SECRET_KEY_MARKERS.iter().any(|marker| key_upper.contains(marker)) {
+                return format!("{key}=***REDACTED***");
+            }
+        }
+    }
+
+    if KNOWN_TOKEN_PREFIXES.iter().any(|prefix| word.contains(prefix)) {
+        return "***REDACTED***".to_string();
+    }
+
+    word.to_string()
+}
+
+/// Splits `line` into alternating whitespace and non-whitespace runs,
+/// preserving every character (unlike `split_whitespace`, which discards
+/// the separators) so redaction never has to reconstruct spacing.
+fn split_preserving_whitespace(line: &str) -> Vec<&str> {
+    let mut chunks = Vec::new();
+    let mut start = 0;
+    let mut current_is_whitespace: Option<bool> = None;
+
+    for (idx, ch) in line.char_indices() {
+        let is_whitespace = ch.is_whitespace();
+        match current_is_whitespace {
+            None => current_is_whitespace = Some(is_whitespace),
+            Some(previous) if previous != is_whitespace => {
+                chunks.push(&line[start..idx]);
+                start = idx;
+                current_is_whitespace = Some(is_whitespace);
+            }
+            _ => {}
+        }
+    }
+    if start < line.len() {
+        chunks.push(&line[start..]);
+    }
+
+    chunks
 }
 
 #[cfg(test)]
@@ -288,5 +431,85 @@ mod tests {
         assert!(result.timed_out);
         assert_eq!(result.exit_code, None);
         assert!(result.duration_ms < 5000, "should be killed well before its own 5s sleep finishes");
+    }
+
+    #[test]
+    fn redacts_a_key_value_word_whose_key_name_suggests_a_secret() {
+        assert_eq!(
+            redact_secrets("GITHUB_TOKEN=abc123def456\n"),
+            "GITHUB_TOKEN=***REDACTED***\n"
+        );
+        assert_eq!(
+            redact_secrets("DB_PASSWORD=hunter2"),
+            "DB_PASSWORD=***REDACTED***"
+        );
+    }
+
+    #[test]
+    fn leaves_unrelated_key_value_words_untouched() {
+        assert_eq!(redact_secrets("NODE_ENV=production"), "NODE_ENV=production");
+    }
+
+    #[test]
+    fn redacts_known_credential_prefixes_anywhere_in_a_word() {
+        assert_eq!(
+            redact_secrets("cloning with token ghp_abcdefghijklmnopqrstuvwxyz0123456789 now"),
+            "cloning with token ***REDACTED*** now"
+        );
+        assert_eq!(
+            redact_secrets("AWS_ACCESS_KEY_ID=AKIAABCDEFGHIJKLMNOP"),
+            "AWS_ACCESS_KEY_ID=***REDACTED***"
+        );
+    }
+
+    #[test]
+    fn redacts_the_token_following_a_bearer_or_basic_auth_scheme() {
+        assert_eq!(
+            redact_secrets("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.secret.payload"),
+            "Authorization: Bearer ***REDACTED***"
+        );
+        assert_eq!(
+            redact_secrets("Authorization: Basic dXNlcjpwYXNz"),
+            "Authorization: Basic ***REDACTED***"
+        );
+    }
+
+    #[test]
+    fn redacts_a_pem_private_key_block_in_full_while_keeping_surrounding_output() {
+        let input = "generating key\n-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA\nmore-key-bytes\n-----END RSA PRIVATE KEY-----\ndone\n";
+        let output = redact_secrets(input);
+
+        assert!(output.contains("generating key"));
+        assert!(output.contains("-----BEGIN RSA PRIVATE KEY----- [REDACTED]"));
+        assert!(!output.contains("MIIEpAIBAAKCAQEA"));
+        assert!(!output.contains("more-key-bytes"));
+        assert!(output.contains("-----END RSA PRIVATE KEY-----"));
+        assert!(output.contains("done"));
+    }
+
+    #[test]
+    fn leaves_ordinary_command_output_completely_unchanged() {
+        let input = "Cloning into 'repo'...\nremote: Enumerating objects: 42, done.\n";
+        assert_eq!(redact_secrets(input), input);
+    }
+
+    #[test]
+    fn real_command_output_containing_a_secret_arrives_redacted_through_run_command() {
+        let cwd = std::env::temp_dir();
+        let (command, args) = echo_command("MY_SECRET_TOKEN=abc123def456");
+
+        let result = run_command(&cwd, command, &args, Duration::from_secs(10))
+            .expect("echoing a line should succeed");
+
+        assert!(result.stdout.contains("MY_SECRET_TOKEN=***REDACTED***"));
+        assert!(!result.stdout.contains("abc123def456"));
+    }
+
+    /// `echo` is a `cmd.exe` builtin, not a standalone executable — but
+    /// `build_command` already wraps every command with `cmd /C` on
+    /// Windows (see its doc comment), so passing `"echo"` straight through
+    /// is correct here, matching how the non-Windows branch works.
+    fn echo_command(text: &str) -> (&'static str, Vec<String>) {
+        ("echo", vec![text.to_string()])
     }
 }
