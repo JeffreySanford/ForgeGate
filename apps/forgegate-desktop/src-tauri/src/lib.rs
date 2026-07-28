@@ -176,7 +176,18 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
         if !output.status.success() {
             return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
         }
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        // `trim_end`, never `trim`: `status --porcelain` encodes the staged
+        // state in column 0, so an unstaged modification legitimately starts
+        // with a space (` M path`). Trimming the *leading* whitespace off the
+        // whole output shifts that first line left by one byte, and
+        // `parse_changed_files`' fixed `line.get(3..)` offset then slices one
+        // byte into the path itself — turning `docker/x.yml` into `ocker/x.yml`.
+        // Found by validating against a real external repository whose first
+        // changed file happened to be unstaged; every prior fixture began with
+        // a staged (`A `) or untracked (`??`) status, which has no leading
+        // space and so never exposed it. Trailing trim is all `rev-parse`
+        // needs anyway.
+        Ok(String::from_utf8_lossy(&output.stdout).trim_end().to_string())
     };
 
     let branch = run_git(&["rev-parse", "--abbrev-ref", "HEAD"])?;
@@ -751,6 +762,51 @@ mod tests {
     #[test]
     fn returns_an_empty_list_for_a_clean_working_tree() {
         assert!(parse_changed_files("").is_empty());
+    }
+
+    /// Regression test for a real bug found by validating against an external
+    /// repository: `run_git` used to `trim()` the whole `status --porcelain`
+    /// output, which strips the leading space that marks an *unstaged*
+    /// modification (` M path`). That shifted the first line left one byte, so
+    /// `parse_changed_files`' fixed `line.get(3..)` offset sliced into the path
+    /// and reported `ocker/dev-compose.yml` for `docker/dev-compose.yml`.
+    ///
+    /// Deliberately drives a real `git` process against a real repository
+    /// rather than calling `parse_changed_files` with a handcrafted string —
+    /// the parser was always correct in isolation, so only an end-to-end test
+    /// through `read_git_status` can catch this class of bug.
+    #[test]
+    fn reports_the_full_path_of_an_unstaged_modification() {
+        let dir = std::env::temp_dir().join(format!("forgegate-unstaged-test-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        let nested = dir.join("docker");
+        std::fs::create_dir_all(&nested).expect("should create temp repo dir");
+
+        let git = |args: &[&str]| {
+            Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(args)
+                .output()
+                .expect("git should run")
+        };
+
+        git(&["init"]);
+        git(&["config", "user.email", "test@example.com"]);
+        git(&["config", "user.name", "ForgeGate Test"]);
+        std::fs::write(nested.join("dev-compose.yml"), "version: '3'\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-m", "initial"]);
+
+        // Modify without staging — this is exactly the ` M path` case.
+        std::fs::write(nested.join("dev-compose.yml"), "version: '3'\nchanged: true\n").unwrap();
+
+        let status = read_git_status(dir.display().to_string()).expect("git status should succeed");
+
+        assert!(status.dirty);
+        assert_eq!(status.changed_files, vec!["docker/dev-compose.yml"]);
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
