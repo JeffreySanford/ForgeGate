@@ -198,12 +198,12 @@ These are functional dependencies that must advance with the P0 interface. The U
 
 P0 is complete only when:
 
-- [ ] ForgeGate presents a coherent application shell rather than a single diagnostic page.
-- [ ] The workspace command center uses real repository scan data.
-- [ ] The inventory presents real discovered components.
-- [ ] One Button has a usable component assurance record.
+- [X} ForgeGate presents a coherent application shell rather than a single diagnostic page. Verified: persistent nav, workspace context bar, and real routes (P0.2), confirmed against the current build.
+- [X} The workspace command center uses real repository scan data. Verified: `SystemMap` + real scan progress, no fixture data in the shipped path (P0.3).
+- [X} The inventory presents real discovered components. Verified: `ComponentsPage` backed by `ComponentInventoryService`, tested and confirmed live (P0.4).
+- [X} One Button has a usable component assurance record. Verified against the real `acme-button-library` fixture: header/identity, a live sandboxed Storybook preview, coverage strip, readiness rail with real reasons, states, anatomy, full contract, and commit/evidence freshness (P0.5). Not yet perfect — see P0.5's own exit criteria for the one still-open item (a focused per-component next-action link) — but genuinely usable, not a placeholder.
 - [X} Storybook, state coverage, one token mapping, one test result, and one documentation state are connected or explicitly shown as unavailable with a concrete reason. The deterministic Button fixture now exercises every connection, and preview availability reports an exact reason instead of a generic placeholder.
-- [ ] All primary screens pass the ForgeGate accessibility and quality gate.
+- [ ] All primary screens pass the ForgeGate accessibility and quality gate. The only remaining blocker to a complete P0 — see P0.7: manual screen-reader/forced-colors/reduced-motion/zoom review and visual regression baselines are not done.
 
 ---
 
