@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
+import { AdapterConstellationView } from './adapter-constellation-view';
 import { AssuranceJourney } from './assurance-journey';
 import { ChangeImpactTable } from './change-impact-table';
 import { DocumentationDriftMap } from './documentation-drift-map';
@@ -16,6 +17,7 @@ import { WorkspaceScanProgressView } from './workspace-scan-progress';
     RouterLink,
     DocumentationDriftMap,
     ChangeImpactTable,
+    AdapterConstellationView,
   ],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',

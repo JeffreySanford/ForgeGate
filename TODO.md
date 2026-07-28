@@ -262,10 +262,11 @@ Validated against two real external monorepos (`public-sector-federation`, `phas
 
 ## P1.7 — Adapter constellation
 
-- [ ] Show detected adapters and their declared capabilities.
-- [ ] Distinguish supported, partial, unavailable, unconfigured, and failed capabilities.
-- [ ] Link each capability to diagnostics and setup guidance.
-- [ ] Avoid decorative vendor-logo walls.
+- [X} Show detected adapters and their declared capabilities. `AdapterConstellationView` (`app/workspace/adapter-constellation-view.ts`) renders on `/workspace`, grouping real entries from `WorkspaceService.adapterDiagnostics()` (already populated by every adapter call the workspace makes) into one row per adapter via a shared, independently-tested pure module (`app/adapter-constellation.ts`, `computeAdapterConstellation`, 4 tests) — not a fixed, hand-authored list of "supported adapters" that could drift from what actually ran.
+- [X} Distinguish supported, partial, unavailable, and failed capabilities. Each row shows the worst real status across every source that adapter touched (`loaded`→Supported, `partial`, `failed`, `unavailable`). "Unconfigured" is not shown as a distinct status — `AdapterDiagnostic.status` has no such value today, so this does not fabricate one.
+- [X} Link each capability to diagnostics. Each row's source/error counts link to the existing raw "Adapter diagnostics" disclosure (P0.3/earlier work) lower on the same page, which already carries the exact raw output and failure text — not duplicated into a second representation.
+- [ ] Link to setup guidance. Not implemented — ForgeGate has no adapter setup/configuration flow yet to link to.
+- [X} Avoid decorative vendor-logo walls. A real semantic `<table>`, no icons or logo imagery.
 
 ## P1.8 — Motion system
 

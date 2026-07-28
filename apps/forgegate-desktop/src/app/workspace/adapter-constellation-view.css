@@ -1,0 +1,41 @@
+.adapter-constellation-view h2 {
+  font-size: var(--fg-type-size-lg);
+  margin: 0 0 var(--fg-space-3);
+}
+
+.adapter-constellation-view table {
+  width: 100%;
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.adapter-constellation-view th,
+.adapter-constellation-view td {
+  text-align: left;
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border-bottom: 1px solid var(--fg-color-border);
+  font-size: var(--fg-type-size-sm);
+}
+
+.adapter-constellation-view tr.status-failed td,
+.adapter-constellation-view tr.status-failed th {
+  color: var(--fg-color-status-failed);
+}
+
+.adapter-constellation-view tr.status-partial td,
+.adapter-constellation-view tr.status-partial th {
+  color: var(--fg-color-status-warning);
+}
+
+.adapter-constellation-view tr.status-unavailable td,
+.adapter-constellation-view tr.status-unavailable th {
+  color: var(--fg-color-text-subtle);
+}
+
+.adapter-constellation-view__caveat {
+  font-size: var(--fg-type-size-sm);
+  color: var(--fg-color-text-subtle);
+  margin: var(--fg-space-3) 0 0;
+}
