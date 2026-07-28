@@ -2,6 +2,8 @@ use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri_plugin_dialog::DialogExt;
 
@@ -175,15 +177,65 @@ fn read_text_file(workspace_path: String, relative_path: String) -> Result<Strin
     fs::read_to_string(&resolved).map_err(|error| format!("Failed to read {relative_path}: {error}"))
 }
 
+/// Tracks the currently running `run_workspace_command` invocation, if
+/// any, so `cancel_workspace_command` can signal it. Keyed by a monotonic
+/// id rather than just the flag alone so a slow-to-clean-up run can never
+/// clobber a newer run's entry (see the id check in `run_workspace_command`).
+/// Signalling a flag the running loop itself polls — rather than killing a
+/// remembered process ID directly — avoids a real (if rare) correctness
+/// bug: a PID can be reused by the OS after the original process exits.
+#[derive(Default)]
+struct RunningCommand(Mutex<Option<(u64, Arc<AtomicBool>)>>);
+
+static NEXT_COMMAND_ID: AtomicU64 = AtomicU64::new(1);
+
 /// Runs one specific, caller-supplied command and argument list — never a
 /// shell string, so there is no shell-injection surface — inside a
 /// workspace-relative working directory, with a hard timeout. The UI is
 /// responsible for showing the resolved command to the user and requiring
 /// an explicit approval click before ever invoking this, per the "Command
-/// execution flow" in documentation/02-system-architecture.md. This first
-/// slice does not stream output live or support mid-run cancellation; the
-/// full result is only available once the process finishes or is killed
-/// for exceeding `timeout_seconds`.
+/// execution flow" in documentation/02-system-architecture.md. This does
+/// not stream output live yet; the full result is only available once the
+/// process finishes, is killed for exceeding `timeout_seconds`, or is
+/// cancelled via `cancel_workspace_command`.
+///
+/// Split from the `#[tauri::command]` wrapper below so tests can call this
+/// directly with a plain `&RunningCommand` — a `tauri::State` cannot be
+/// constructed outside of a running app, so the thin wrapper is the only
+/// piece that actually needs Tauri's IPC machinery.
+async fn run_workspace_command_inner(
+    workspace_path: String,
+    relative_cwd: String,
+    command: String,
+    args: Vec<String>,
+    timeout_seconds: u64,
+    running: &RunningCommand,
+) -> Result<CommandResult, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    let cwd = resolve_relative_path_within_workspace(&workspace, &relative_cwd)?;
+    if !cwd.is_dir() {
+        return Err(format!("{relative_cwd} is not a directory"));
+    }
+
+    let id = NEXT_COMMAND_ID.fetch_add(1, Ordering::SeqCst);
+    let cancel = Arc::new(AtomicBool::new(false));
+    *running.0.lock().unwrap() = Some((id, cancel.clone()));
+
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        command_execution::run_command(&cwd, &command, &args, Duration::from_secs(timeout_seconds), &cancel)
+    })
+    .await
+    .map_err(|error| format!("Command worker failed: {error}"))?;
+
+    let mut guard = running.0.lock().unwrap();
+    if guard.as_ref().map(|(current_id, _)| *current_id) == Some(id) {
+        *guard = None;
+    }
+    drop(guard);
+
+    result
+}
+
 #[tauri::command]
 async fn run_workspace_command(
     workspace_path: String,
@@ -191,17 +243,24 @@ async fn run_workspace_command(
     command: String,
     args: Vec<String>,
     timeout_seconds: u64,
+    running: tauri::State<'_, RunningCommand>,
 ) -> Result<CommandResult, String> {
-    let workspace = resolve_workspace_path(&workspace_path)?;
-    let cwd = resolve_relative_path_within_workspace(&workspace, &relative_cwd)?;
-    if !cwd.is_dir() {
-        return Err(format!("{relative_cwd} is not a directory"));
+    run_workspace_command_inner(workspace_path, relative_cwd, command, args, timeout_seconds, &running).await
+}
+
+/// Requests cancellation of whatever command `run_workspace_command` is
+/// currently running. Returns whether a running command was actually found
+/// and signalled, so the UI can tell "cancel took effect" apart from
+/// "nothing was running to cancel" (e.g. it had already finished).
+#[tauri::command]
+fn cancel_workspace_command(running: tauri::State<'_, RunningCommand>) -> bool {
+    match running.0.lock().unwrap().as_ref() {
+        Some((_, cancel)) => {
+            cancel.store(true, Ordering::SeqCst);
+            true
+        }
+        None => false,
     }
-    tauri::async_runtime::spawn_blocking(move || {
-        command_execution::run_command(&cwd, &command, &args, Duration::from_secs(timeout_seconds))
-    })
-    .await
-    .map_err(|error| format!("Command worker failed: {error}"))?
 }
 
 #[cfg(test)]
@@ -303,12 +362,13 @@ mod tests {
 
     #[test]
     fn runs_an_approved_command_in_the_workspace() {
-        let result = tauri::async_runtime::block_on(run_workspace_command(
+        let result = tauri::async_runtime::block_on(run_workspace_command_inner(
             std::env::temp_dir().display().to_string(),
             ".".to_string(),
             "git".to_string(),
             vec!["--version".to_string()],
             10,
+            &RunningCommand::default(),
         ))
         .expect("running git --version in the temp dir should succeed");
         assert_eq!(result.exit_code, Some(0));
@@ -319,17 +379,75 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("forgegate-run-cmd-escape-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("should create temp dir");
 
-        let error = tauri::async_runtime::block_on(run_workspace_command(
+        let error = tauri::async_runtime::block_on(run_workspace_command_inner(
             dir.display().to_string(),
             "..".to_string(),
             "git".to_string(),
             vec!["--version".to_string()],
             10,
+            &RunningCommand::default(),
         ))
         .expect_err("a working directory outside the workspace must be rejected");
         assert!(error.contains("resolves outside"));
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(windows)]
+    fn slow_command() -> (&'static str, Vec<String>) {
+        (
+            "powershell",
+            vec![
+                "-NoProfile".to_string(),
+                "-Command".to_string(),
+                "Start-Sleep -Seconds 5".to_string(),
+            ],
+        )
+    }
+
+    #[cfg(not(windows))]
+    fn slow_command() -> (&'static str, Vec<String>) {
+        ("sleep", vec!["5".to_string()])
+    }
+
+    /// End-to-end test of the actual cancellation mechanism `run_workspace_command`
+    /// and `cancel_workspace_command` share: starts a slow command through
+    /// `run_workspace_command_inner`, then — on a separate thread, mimicking a
+    /// second concurrent IPC call — reaches into the same `RunningCommand`
+    /// registry `cancel_workspace_command` would use and signals it. Confirms
+    /// the run reports `cancelled: true` and returns promptly rather than
+    /// waiting out its own 30s timeout.
+    #[test]
+    fn cancelling_a_running_command_through_the_shared_registry_stops_it_promptly() {
+        let cwd = std::env::temp_dir();
+        let (command, args) = slow_command();
+        let running = Arc::new(RunningCommand::default());
+        let running_for_canceller = running.clone();
+
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            // Same lookup-and-signal logic as cancel_workspace_command's body.
+            if let Some((_, cancel)) = running_for_canceller.0.lock().unwrap().as_ref() {
+                cancel.store(true, Ordering::SeqCst);
+            }
+        });
+
+        let result = tauri::async_runtime::block_on(run_workspace_command_inner(
+            cwd.display().to_string(),
+            ".".to_string(),
+            command.to_string(),
+            args,
+            30,
+            &running,
+        ))
+        .expect("starting the slow command should succeed even though it will be cancelled");
+
+        assert!(result.cancelled);
+        assert_eq!(result.exit_code, None);
+        assert!(
+            result.duration_ms < 5000,
+            "should stop promptly once cancelled, not wait out its own 30s timeout"
+        );
     }
 
     #[test]
@@ -377,6 +495,7 @@ mod tests {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(RunningCommand::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -393,7 +512,8 @@ pub fn run() {
             read_workspace_scan,
             read_repository_config_file,
             read_text_file,
-            run_workspace_command
+            run_workspace_command,
+            cancel_workspace_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

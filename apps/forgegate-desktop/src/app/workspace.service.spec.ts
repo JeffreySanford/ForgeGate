@@ -407,6 +407,70 @@ describe('WorkspaceService', () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
+  it('does nothing if asked to cancel when no generation is running', async () => {
+    await service.cancelGeneratingCustomElementsManifest();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it('invokes cancel_workspace_command while generation is running', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+    await service.selectWorkspace();
+    invokeMock.mockReset();
+
+    let resolveRun!: (value: unknown) => void;
+    const runPromise = new Promise((resolve) => {
+      resolveRun = resolve;
+    });
+    invokeMock.mockReturnValueOnce(runPromise);
+
+    const generatePromise = service.generateCustomElementsManifest();
+    expect(service.cemGenerationRunning()).toBe(true);
+
+    invokeMock.mockResolvedValueOnce(true);
+    await service.cancelGeneratingCustomElementsManifest();
+    expect(invokeMock).toHaveBeenCalledWith('cancel_workspace_command');
+
+    resolveRun({
+      exitCode: null,
+      stdout: '',
+      stderr: '',
+      timedOut: false,
+      cancelled: true,
+      durationMs: 300,
+    });
+    await generatePromise;
+    expect(service.cemGenerationResult()?.cancelled).toBe(true);
+  });
+
+  it('reports a cancelled result distinctly from a timeout when the user cancels generation', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null);
+    await service.selectWorkspace();
+    invokeMock.mockReset();
+
+    invokeMock.mockResolvedValueOnce({
+      exitCode: null,
+      stdout: '',
+      stderr: '',
+      timedOut: false,
+      cancelled: true,
+      durationMs: 300,
+    });
+
+    await service.generateCustomElementsManifest();
+
+    expect(service.cemGenerationResult()?.cancelled).toBe(true);
+    expect(service.cemGenerationResult()?.timedOut).toBe(false);
+    expect(service.cemGenerationRunning()).toBe(false);
+  });
+
   it('runs the analyzer and refreshes the scan and manifest on a successful exit', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
@@ -423,6 +487,7 @@ describe('WorkspaceService', () => {
         stdout: 'wrote custom-elements.json',
         stderr: '',
         timedOut: false,
+        cancelled: false,
         durationMs: 900,
       })
       .mockResolvedValueOnce(cemJson);
@@ -476,6 +541,7 @@ describe('WorkspaceService', () => {
       stdout: '',
       stderr: 'command not found: npx',
       timedOut: false,
+      cancelled: false,
       durationMs: 50,
     });
 

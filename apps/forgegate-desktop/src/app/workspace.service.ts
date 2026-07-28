@@ -104,6 +104,8 @@ export interface CommandResult {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  /** True only when the user cancelled the run — distinct from timedOut. */
+  cancelled: boolean;
   durationMs: number;
 }
 
@@ -375,7 +377,11 @@ export class WorkspaceService {
         source: `${plan.target.path}: ${plan.commandText}`,
         status: result.exitCode === 0 ? 'loaded' : 'failed',
         rawOutput: JSON.stringify(result, null, 2),
-        error: result.exitCode === 0 ? null : result.stderr || 'Command failed',
+        error: result.exitCode === 0
+          ? null
+          : result.cancelled
+            ? 'Cancelled by user'
+            : result.stderr || 'Command failed',
       });
       if (result.exitCode === 0) {
         const relativePath = [
@@ -421,6 +427,21 @@ export class WorkspaceService {
     } finally {
       this.cemGenerationRunning.set(false);
     }
+  }
+
+  /**
+   * Requests cancellation of the currently running CEM generation command.
+   * A no-op if nothing is running. The Rust side signals a cancellation
+   * flag `run_workspace_command`'s own wait loop polls — this call itself
+   * returns immediately; `generateCustomElementsManifest`'s in-flight
+   * `invoke` resolves shortly after with `cemGenerationResult().cancelled`
+   * set, same as it would for a timeout.
+   */
+  async cancelGeneratingCustomElementsManifest(): Promise<void> {
+    if (!this.cemGenerationRunning()) {
+      return;
+    }
+    await this.invoke<boolean>('cancel_workspace_command');
   }
 
   /**

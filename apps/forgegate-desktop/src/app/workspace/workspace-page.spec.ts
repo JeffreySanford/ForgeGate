@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { vi } from 'vitest';
 import { WorkspacePage } from './workspace-page';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
@@ -272,5 +273,43 @@ describe('WorkspacePage', () => {
     fixture.detectChanges();
 
     await expectNoAccessibilityViolations(fixture.nativeElement);
+  });
+
+  it('shows a Cancel button only while CEM generation is running, wired to the real cancel method', async () => {
+    workspaceService.workspaceScan.set({
+      ...emptyScan,
+      customElementsManifests: [],
+      componentPackages: [
+        {
+          name: 'design-system',
+          path: 'packages/design-system',
+          sourceGlob: 'src/**/*.ts',
+          outputDirectory: 'dist',
+          manifestPath: 'custom-elements.json',
+        },
+      ],
+    });
+    workspaceService.selectedComponentPackagePath.set('packages/design-system');
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const findCancelButton = () =>
+      Array.from(compiled.querySelectorAll('button')).find((button) => button.textContent?.trim() === 'Cancel');
+
+    expect(findCancelButton()).toBeUndefined();
+
+    const cancelSpy = vi.spyOn(workspaceService, 'cancelGeneratingCustomElementsManifest').mockResolvedValue();
+    workspaceService.cemGenerationRunning.set(true);
+    fixture.detectChanges();
+
+    const cancelButton = findCancelButton();
+    expect(cancelButton).toBeDefined();
+    cancelButton?.click();
+
+    expect(cancelSpy).toHaveBeenCalled();
   });
 });

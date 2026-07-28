@@ -321,6 +321,11 @@
       {{ workspace.cemGenerationRunning() ? 'Running?' : 'Approve and generate
       manifest' }}
     </button>
+    @if (workspace.cemGenerationRunning()) {
+    <button type="button" (click)="cancelGeneratingCustomElementsManifest()">
+      Cancel
+    </button>
+    }
     } } @else {
     <p role="status">
       No package with both a package.json and source directory was found.

@@ -39,4 +39,8 @@ export class WorkspacePage {
   generateCustomElementsManifest(): void {
     void this.workspace.generateCustomElementsManifest();
   }
+
+  cancelGeneratingCustomElementsManifest(): void {
+    void this.workspace.cancelGeneratingCustomElementsManifest();
+  }
 }
