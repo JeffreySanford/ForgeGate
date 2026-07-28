@@ -29,6 +29,12 @@ export interface GitStatus {
   branch: string;
   commit: string;
   dirty: boolean;
+  /**
+   * Real, workspace-root-relative paths from `git status --porcelain`
+   * (staged and unstaged changes, plus untracked files) — what's different
+   * from HEAD right now, not a diff against a specific commit range.
+   */
+  changedFiles: string[];
 }
 
 export interface ComponentPackageCandidate {

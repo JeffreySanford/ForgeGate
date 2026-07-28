@@ -51,6 +51,7 @@ const gitStatusFixture = {
   branch: 'master',
   commit: 'a'.repeat(40),
   dirty: false,
+  changedFiles: [],
 };
 
 describe('WorkspaceService', () => {

@@ -12,10 +12,40 @@ mod workspace_scan;
 use workspace_scan::{scan_workspace, WorkspaceScan};
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct GitStatus {
     branch: String,
     commit: String,
     dirty: bool,
+    /// Real, workspace-root-relative paths from `git status --porcelain`
+    /// (staged and unstaged changes, plus untracked files) — the input
+    /// P1.4's change-impact view needs to cross-reference against each
+    /// component's own `sourceFiles`. Deliberately not `git diff` against
+    /// a specific commit range (that answers a different, larger question
+    /// — "what changed since X" — this answers "what's different from
+    /// HEAD right now", matching what `dirty` already reports as a
+    /// boolean).
+    changed_files: Vec<String>,
+}
+
+/// Parses `git status --porcelain` output into a real, ordered list of
+/// changed paths. Each line is `XY PATH` (two status characters, a space,
+/// then the path), except renames/copies (`R  old -> new`), where only
+/// the new path is kept — the new path is what a component's own
+/// `sourceFiles` would actually match today. Malformed lines (should not
+/// happen from real git output, but a truncated line short enough to
+/// have no path is possible in principle) are skipped rather than
+/// panicking.
+fn parse_changed_files(porcelain_status: &str) -> Vec<String> {
+    porcelain_status
+        .lines()
+        .filter_map(|line| {
+            let path_part = line.get(3..)?;
+            let path = path_part.rsplit(" -> ").next().unwrap_or(path_part);
+            let trimmed = path.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        })
+        .collect()
 }
 
 /// Opens the native folder picker and returns the selected absolute path, if any.
@@ -84,6 +114,7 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
         branch,
         commit,
         dirty: !status.is_empty(),
+        changed_files: parse_changed_files(&status),
     })
 }
 
@@ -317,6 +348,28 @@ mod tests {
 
         assert!(!status.branch.is_empty());
         assert_eq!(status.commit.len(), 40);
+    }
+
+    #[test]
+    fn parses_modified_added_untracked_and_renamed_porcelain_lines() {
+        let porcelain = " M apps/forgegate-desktop/src-tauri/src/lib.rs\nA  apps/new-file.ts\n?? apps/untracked.ts\nR  apps/old-name.ts -> apps/new-name.ts\n";
+
+        let changed_files = parse_changed_files(porcelain);
+
+        assert_eq!(
+            changed_files,
+            vec![
+                "apps/forgegate-desktop/src-tauri/src/lib.rs",
+                "apps/new-file.ts",
+                "apps/untracked.ts",
+                "apps/new-name.ts",
+            ]
+        );
+    }
+
+    #[test]
+    fn returns_an_empty_list_for_a_clean_working_tree() {
+        assert!(parse_changed_files("").is_empty());
     }
 }
 

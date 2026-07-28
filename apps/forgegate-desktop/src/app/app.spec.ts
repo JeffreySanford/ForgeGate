@@ -5,7 +5,7 @@ import { appRoutes } from './app.routes';
 import { expectNoAccessibilityViolations } from '../test-a11y';
 import { WorkspaceService, type GitStatus } from './workspace.service';
 
-const gitStatus: GitStatus = { branch: 'main', commit: 'abc1234', dirty: true };
+const gitStatus: GitStatus = { branch: 'main', commit: 'abc1234', dirty: true, changedFiles: [] };
 
 describe('App shell', () => {
   let workspaceService: WorkspaceService;

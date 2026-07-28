@@ -161,6 +161,7 @@ describe('ComponentDetailPage', () => {
       branch: 'feature/button',
       commit: '1234567890abcdef1234567890abcdef12345678',
       dirty: false,
+      changedFiles: [],
     });
 
     const fixture = TestBed.createComponent(HostComponent);
@@ -493,6 +494,7 @@ describe('ComponentDetailPage', () => {
       branch: 'main',
       commit: evidenceCommit,
       dirty: false,
+      changedFiles: [],
     });
     workspaceService.testExecutions.set([
       {
@@ -536,6 +538,7 @@ describe('ComponentDetailPage', () => {
       branch: 'main',
       commit: 'b'.repeat(40),
       dirty: false,
+      changedFiles: [],
     });
     fixture.detectChanges();
 

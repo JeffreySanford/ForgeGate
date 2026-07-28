@@ -3,12 +3,20 @@ import { RouterLink } from '@angular/router';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import { AssuranceJourney } from './assurance-journey';
+import { ChangeImpactTable } from './change-impact-table';
 import { DocumentationDriftMap } from './documentation-drift-map';
 import { SystemMap } from './system-map';
 import { WorkspaceScanProgressView } from './workspace-scan-progress';
 
 @Component({
-  imports: [AssuranceJourney, SystemMap, WorkspaceScanProgressView, RouterLink, DocumentationDriftMap],
+  imports: [
+    AssuranceJourney,
+    SystemMap,
+    WorkspaceScanProgressView,
+    RouterLink,
+    DocumentationDriftMap,
+    ChangeImpactTable,
+  ],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',

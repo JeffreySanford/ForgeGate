@@ -238,10 +238,11 @@ Primary reference:
 
 ## P1.4 — Change-impact visualization
 
-- [ ] Map changed files to affected components, stories, tests, reviews, documentation, and release decisions.
-- [ ] Begin conservatively and show uncertainty.
-- [ ] Never imply dependency precision the adapter does not possess.
-- [ ] Provide an affected-items table.
+- [X} Narrow real slice: map changed files to affected **components** only. `ChangeImpactTable` (`app/workspace/change-impact-table.ts`) renders on `/workspace`, matching `WorkspaceService.gitStatus().changedFiles` (real `git status --porcelain` output, parsed by the new Rust `parse_changed_files`) against each discovered component's own `sourceFiles` via a shared, independently-tested pure module (`app/change-impact.ts`, `computeChangeImpact`, 4 tests). Stories, tests, reviews, documentation, and release decisions are **not** mapped — that's real scope still open, not fabricated.
+- [X} Begin conservatively and show uncertainty. A changed file with no matching component is shown as "No component matched" rather than silently dropped; the table carries an explicit caveat that only components are cross-referenced today.
+- [X} Never imply dependency precision the adapter does not possess. Matching is exact-path only (no heuristic "probably related" inference); a file touching shared logic with no CEM-declared component is honestly unmatched.
+- [X} Provide an affected-items table. Real semantic `<table>`, one row per changed file, linking each matched component to its detail page.
+- [ ] Stories/tests/reviews/documentation/release-decision cross-referencing. Not implemented — no real adapter data ties a changed source file to a specific story, test run, review, or release yet.
 
 ## P1.5 — Token topology
 

@@ -26,6 +26,7 @@ const gitStatus: GitStatus = {
   branch: 'main',
   commit: 'abc1234',
   dirty: false,
+  changedFiles: [],
 };
 
 function rowsAsTuples(compiled: HTMLElement): Array<[string, string, string]> {

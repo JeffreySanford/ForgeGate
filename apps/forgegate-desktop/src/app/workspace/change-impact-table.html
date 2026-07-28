@@ -1,0 +1,41 @@
+<section class="change-impact-table fg-panel" aria-labelledby="change-impact-title">
+  <h2 id="change-impact-title">Change impact</h2>
+
+  @if (!workspace.workspacePath()) {
+    <p class="fg-empty-state">Open a workspace to see which components a change touches.</p>
+  } @else if (entries().length === 0) {
+    <p class="fg-empty-state">Working tree is clean. Nothing to map yet.</p>
+  } @else {
+    <p class="change-impact-table__caveat">
+      Matches changed files against each component's own source files only. Stories, tests, reviews,
+      documentation, and release decisions are not cross-referenced yet.
+    </p>
+    <table>
+      <caption class="sr-only">Changed files and the components they affect</caption>
+      <thead>
+        <tr>
+          <th scope="col">Changed file</th>
+          <th scope="col">Affected components</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of entries(); track entry.filePath) {
+          <tr [class.change-impact-table__row--unmatched]="entry.affectedComponentIds.length === 0">
+            <th scope="row">{{ entry.filePath }}</th>
+            <td>
+              @if (entry.affectedComponentIds.length === 0) {
+                <span class="change-impact-table__unmatched">No component matched</span>
+              } @else {
+                <ul class="change-impact-table__components">
+                  @for (componentId of entry.affectedComponentIds; track componentId) {
+                    <li><a [routerLink]="['/components', componentId]">{{ componentName(componentId) }}</a></li>
+                  }
+                </ul>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>
