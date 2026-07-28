@@ -67,24 +67,24 @@ Primary references:
 
 ## P0.1 — ForgeGate visual system
 
-- [X} Define internal ForgeGate semantic UI tokens for color, typography, spacing, radius, elevation, borders, focus, and motion. `apps/forgegate-desktop/src/styles/tokens.css` — `--fg-color-*`, `--fg-space-*`, `--fg-radius-*`, `--fg-shadow-*`, `--fg-type-*`, `--fg-motion-*`, matching the `fg.*` naming in `documentation/25-designer-ready-vertical-slice.md`. Status color tokens included; explicit non-color status treatment (icons/labels) is separate, still open below.
+- [X} Define internal ForgeGate semantic UI tokens for color, typography, spacing, radius, elevation, borders, focus, and motion. `apps/forgegate-desktop/src/styles/tokens.css` — `--fg-color-*`, `--fg-space-*`, `--fg-radius-*`, `--fg-shadow-*`, `--fg-type-*`, `--fg-motion-*`, matching the `fg.*` naming in `documentation/25-designer-ready-vertical-slice.md`.
 - [X} Define light and dark themes using the same semantic token contract. `prefers-color-scheme` default plus explicit `[data-theme="light"|"dark"]` override; every `:root` color token has a dark-theme counterpart, enforced by a contract test (not just visual review).
-- [ ] Define explicit visual treatment for current, stale, warning, failed, blocked, unknown, unsupported, and not-connected states. Status _colors_ exist; icon/label pairing per document 25's "status is never color alone" rule is not implemented — no screen has status UI yet.
-- [ ] Define reusable surface, card, panel, status, navigation, control, table, disclosure, and empty-state primitives. Only the current flat diagnostic screen has been restyled onto tokens; no reusable Angular primitive components exist yet.
-- [ ] Establish typography hierarchy suitable for both designers and engineers. Only `sm/md/lg/xl` sizes defined; no applied hierarchy beyond h1/h2 on the one existing screen.
-- [ ] Establish responsive desktop-window breakpoints rather than assuming a browser-sized viewport.
-- [ ] Ensure status is never communicated by color alone.
+- [X} Define explicit visual treatment for current, stale, warning, failed, blocked, unknown, unsupported, and not-connected states. Every status indicator that ships (system map nodes/legend/table, readiness distribution, component readiness rail) pairs its color with a real text label (`statusLabel()`/`readinessStatus()` etc.) — verified by grepping every status-bearing template; none render color with no accompanying text.
+- [ ] Define reusable surface, card, panel, status, navigation, control, table, disclosure, and empty-state primitives. Each screen (shell, workspace, inventory, component record) has its own local CSS for these patterns; nothing has been extracted into shared reusable Angular primitive components yet, so the same visual pattern is hand-repeated per screen.
+- [ ] Establish typography hierarchy suitable for both designers and engineers. Only `sm/md/lg/xl` sizes defined; applied ad hoc per screen (h1/h2/h3), not from a documented hierarchy.
+- [ ] Establish responsive desktop-window breakpoints rather than assuming a browser-sized viewport. The new Playwright suite screenshots 375px/320px widths and confirms the shell doesn't break, but no deliberate breakpoint system exists — narrow widths just happen to reflow acceptably via flexbox/grid, not via designed breakpoints.
+- [X} Ensure status is never communicated by color alone. Same verification as the "explicit visual treatment" item above — every shipped status indicator has real text alongside its color.
 - [X} Add visible keyboard focus that is distinct from selected state. Global `:focus-visible` rule in `styles.css` using `--fg-color-focus`, separate from the (not-yet-implemented) selected-state token.
-- [X} Add forced-colors behavior. `@media (forced-colors: active)` maps focus/border/status tokens onto system colors (`Highlight`, `CanvasText`), verified by a contract test. Not yet manually reviewed in an actual forced-colors OS mode.
-- [X} Add reduced-motion behavior. `@media (prefers-reduced-motion: reduce)` zeroes `--fg-motion-duration-*`, verified by a contract test.
-- [ ] Add 200% and 400% zoom validation.
-- [ ] Add visual regression coverage for the ForgeGate shell and primary states.
+- [X} Add forced-colors behavior. `@media (forced-colors: active)` maps focus/border/status tokens onto system colors (`Highlight`, `CanvasText`), verified by both a contract test and a real Playwright/Chromium `forced-colors: active` screenshot baseline (P0.7) confirming focus/border/status text stay visible in a live render, not just in the CSS source.
+- [X} Add reduced-motion behavior. `@media (prefers-reduced-motion: reduce)` zeroes `--fg-motion-duration-*`, verified by a contract test and a live-rendered Playwright assertion under real `prefers-reduced-motion: reduce` emulation (P0.7).
+- [X} Add 200% and 400% zoom validation. Playwright baselines at 375px and 320px viewport widths (P0.7) — 320px approximates the reflow effect of ~400% zoom on a 1280px design. Not literal OS-level display magnification (Playwright has no API for that), but a real, useful reflow check.
+- [X} Add visual regression coverage for the ForgeGate shell and primary states. `apps/forgegate-desktop/e2e/shell-visual-regression.spec.ts`, 8 checked-in baselines, wired into CI (P0.7).
 
 ### P0.1 exit criteria
 
-- [ ] Shared visual tokens are used by the shell, workspace, inventory, and component record. Only the existing single diagnostic screen consumes tokens so far — the shell/workspace/inventory/component-record screens themselves don't exist yet (P0.2–P0.5).
-- [ ] Light, dark, forced-colors, reduced-motion, and narrow-window states are testable. Token-level contract tests exist (43 tests, `src/styles/tokens.spec.ts`); no rendered-screen visual regression coverage yet.
-- [X} No production screen depends on prototype-only fixture styling. The one real screen (`app.html`/`app.css`) now reads token custom properties instead of being unstyled; verified visually in-browser (light theme, live dev server) with no console errors.
+- [X} Shared visual tokens are used by the shell, workspace, inventory, and component record. Verified: every screen's `.css` file reads `--fg-*` custom properties exclusively for color/space/radius/type — confirmed by grep across `app.css`, `workspace-page.css`, `system-map.css`, `components-page.css`, `component-detail-page.css`.
+- [X} Light, dark, forced-colors, reduced-motion, and narrow-window states are testable. Token-level contract tests (43 tests) plus real rendered-screen Playwright coverage for all five conditions (P0.7).
+- [X} No production screen depends on prototype-only fixture styling. Every shipped screen reads token custom properties; the only fixture-styled HTML left is the reference prototype under `documentation/prototypes/`, which is documentation, not a production route.
 
 ## P0.2 — Application shell and routes
 
