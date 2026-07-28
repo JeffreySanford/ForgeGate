@@ -270,12 +270,15 @@ Validated against two real external monorepos (`public-sector-federation`, `phas
 
 ## P1.8 — Motion system
 
-- [ ] Implement shared motion tokens and choreography.
-- [ ] Use motion for discovery, causality, selection, focus, transition, and freshness changes.
-- [ ] Avoid endless background animation.
-- [ ] Avoid motion that implies evidence was produced when only the UI changed.
-- [ ] Respect operating-system and ForgeGate reduced-motion preferences.
-- [ ] Test pause, interruption, rapid rescans, and route changes.
+- [X} Shared motion tokens exist (`--fg-motion-duration-sm`, `--fg-motion-duration-md`, `--fg-motion-ease` in `styles/tokens.css`, from earlier P0.7 work) and are applied app-wide by default via `styles.css`. "Choreography" — deliberate, per-moment use rather than one blanket rule — is only real for two of the six named categories so far (see below); the rest are open, not fabricated.
+- [X} **Selection**: `ReadinessDistribution`'s lifecycle-bar selection (`.readiness-distribution__bar-button`) now declares an explicit `background-color`/`border-color` transition using the shared tokens, rather than relying only on the app-wide default.
+- [X} **Freshness**: the same component's `.readiness-distribution__bar-fill` width — a real per-lifecycle count — animates on change, honest because it reflects a real count change, not a decorative flourish implying evidence that wasn't produced.
+- [ ] **Discovery, causality, focus, transition** (route/content transitions). Not implemented — deliberately narrow first slice; these need their own real, testable moments rather than a blanket retrofit.
+- [X} Avoid endless background animation. No looping/background animation exists anywhere in the app today.
+- [X} Avoid motion that implies evidence was produced when only the UI changed. Honored as a design constraint on the two real slices above (selection state and a real count change) — not yet exercised against a case that would tempt violating it.
+- [X} Respect operating-system and ForgeGate reduced-motion preferences. Unchanged from P0.7 — `--fg-motion-duration-*` still zero under `prefers-reduced-motion: reduce`, verified by the existing Playwright shell test; the two new explicit transitions consume the same tokens, so they inherit the same guarantee without new test coverage needed.
+- [X} Test rapid/interruption selection changes. New test: three rapid, alternating lifecycle-bar clicks with no `detectChanges()` between them land on the last click's value, not a stale intermediate one.
+- [ ] Test rapid rescans and route changes specifically. Not implemented — no real route-transition or rescan-triggered motion exists yet to test.
 
 ### P1 definition of done
 

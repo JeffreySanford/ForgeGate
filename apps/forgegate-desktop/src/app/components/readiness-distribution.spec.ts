@@ -84,6 +84,33 @@ describe('ReadinessDistribution', () => {
     expect(fixture.componentInstance.lastSelected).toBeNull();
   });
 
+  it('lands on the last of several rapid, alternating selections rather than an intermediate one (P1.8 interruption safety)', async () => {
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifests = [
+      manifest('acme.lib.a', 'proposal'),
+      manifest('acme.lib.b', 'candidate'),
+      manifest('acme.lib.c', 'approved'),
+    ];
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        '.readiness-distribution__bar-button',
+      ),
+    );
+    expect(buttons).toHaveLength(3);
+
+    // Simulate a user firing several selections in quick succession
+    // (e.g. before a CSS transition from the first click has finished)
+    // without waiting for change detection between clicks.
+    buttons[0]?.click();
+    buttons[1]?.click();
+    buttons[2]?.click();
+
+    expect(fixture.componentInstance.lastSelected).toBe('approved');
+  });
+
   it('has no automated accessibility violations', async () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.componentInstance.manifests = [manifest('acme.lib.a', 'proposal'), manifest('acme.lib.b', 'candidate')];

@@ -39,6 +39,14 @@
   border-radius: var(--fg-radius-sm);
   padding: var(--fg-space-1);
   cursor: pointer;
+  /* Deliberate "selection" choreography (P1.8): explicit rather than
+   * relying only on the app-wide `* { transition-duration }` default, so
+   * this specific selection feedback stays intentional and documented.
+   * Reduced motion is still respected — these tokens zero under
+   * `prefers-reduced-motion: reduce` (styles/tokens.css). */
+  transition:
+    background-color var(--fg-motion-duration-sm) var(--fg-motion-ease),
+    border-color var(--fg-motion-duration-sm) var(--fg-motion-ease);
 }
 
 .readiness-distribution__bar-button:hover {
@@ -70,6 +78,11 @@
   height: 100%;
   background: var(--fg-color-action);
   border-radius: var(--fg-radius-sm);
+  /* "Freshness" choreography (P1.8): width reflects a real per-lifecycle
+   * count, so animating it when that count genuinely changes is honest
+   * motion, not a decorative flourish implying evidence that wasn't
+   * produced. */
+  transition: width var(--fg-motion-duration-md) var(--fg-motion-ease);
 }
 
 .readiness-distribution__bar-fill--unknown {
