@@ -149,6 +149,7 @@ export const componentManifestSchema = {
     },
     consumerApplicationIds: { type: 'array', items: { type: 'string' } },
     policyId: { type: 'string' },
+    policyVersion: { type: 'string' },
     deprecatedInFavorOf: { type: 'string' },
     deprecationNotice: { type: 'string' },
   },

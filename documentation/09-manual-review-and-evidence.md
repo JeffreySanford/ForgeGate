@@ -192,12 +192,23 @@ Required action:
 > the "Export evidence package" button on a component's detail page). Implemented
 > today: `manifest.json` (including the real repository commit and a
 > `checksums` map), `test-summary.json`, `documentation-status.json`,
-> `findings/`, `report.html`, and `checksums.sha256`. Not yet implemented, and
-> named explicitly in `manifest.json`'s `excludes` map and in the report's
-> "Not connected" section rather than silently omitted: `policy-snapshot.json`,
-> `release-decision.json`, `automated/`, `manual/`, `exceptions/`, and
+> `findings/`, `release-decision.json`, `report.html`, and `checksums.sha256`.
+> Not yet implemented, and named explicitly in `manifest.json`'s `excludes` map
+> and in the report's "Not connected" section rather than silently omitted:
+> `policy-snapshot.json`, `automated/`, `manual/`, `exceptions/`, and
 > `attachments/`. See TODO.md's "Evidence export remaining sections" for what
 > each one is blocked on.
+>
+> **`release-decision.json` and approvals.** A `blocked` outcome requires no
+> approver, so it is produced from real data today whenever the repository has
+> authored both a `policyId` and a `policyVersion` on the component manifest. An
+> `authorized-candidate` outcome requires a named approver; ForgeGate has no
+> human approval flow yet, so in normal use a clean component simply gets no
+> release decision — with the reason recorded — rather than a fabricated
+> approval. A `'test-harness'` approver exists solely so that path can be
+> exercised end to end; anything produced that way is flagged `notRealApproval`
+> in both `release-decision.json` and `manifest.json`, and banner-marked in
+> `report.html`, so it can never be mistaken for a real approval.
 
 Suggested export:
 

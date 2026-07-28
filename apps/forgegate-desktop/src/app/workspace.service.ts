@@ -24,6 +24,7 @@ import {
   type StorybookIndex,
 } from './storybook/storybook-index';
 import { buildEvidenceExport } from './evidence-export';
+import type { EvidenceApprover } from './release-decision-export';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
 
@@ -496,6 +497,15 @@ export class WorkspaceService {
     manifest: ComponentManifest,
     testExecutions: readonly TestExecution[],
     blockingReasons: readonly string[] = [],
+    /**
+     * Left undefined by every production call site today — ForgeGate has no
+     * human approval flow, so a clean component honestly gets no release
+     * decision rather than a fabricated approval. Exposed as a parameter so
+     * an e2e test (or a human deliberately exercising the approval path
+     * against their own repository) can supply a `'test-harness'` approver;
+     * everything produced that way is marked as not a real approval.
+     */
+    approver?: EvidenceApprover | null,
   ): Promise<void> {
     if (this.evidenceExportRunning()) {
       return;
@@ -517,6 +527,7 @@ export class WorkspaceService {
         testExecutions,
         starlightProjects: this.workspaceScan()?.starlightProjects ?? [],
         blockingReasons,
+        approver,
         repositoryCommit: this.gitStatus()?.commit ?? null,
       });
       const directoryPath = await this.invoke<string>('write_evidence_package', {

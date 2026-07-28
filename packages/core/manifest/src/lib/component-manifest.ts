@@ -90,6 +90,13 @@ export interface ComponentManifest {
   readonly documentationTargets: readonly ManifestDocumentationTarget[];
   readonly consumerApplicationIds: readonly string[];
   readonly policyId?: string;
+  /**
+   * Version of `policyId` this component is governed by. A `ReleaseDecision`
+   * must cite both — "evaluated against policy X" is not verifiable later
+   * unless it also says *which version* of X — so ForgeGate only produces a
+   * release decision when a repository has authored both.
+   */
+  readonly policyVersion?: string;
   readonly deprecatedInFavorOf?: string;
   readonly deprecationNotice?: string;
 }
@@ -121,6 +128,7 @@ export function createComponentManifest(input: {
   documentationTargets?: readonly ManifestDocumentationTarget[];
   consumerApplicationIds?: readonly string[];
   policyId?: string;
+  policyVersion?: string;
   deprecatedInFavorOf?: string;
   deprecationNotice?: string;
 }): ComponentManifest {
@@ -178,6 +186,7 @@ export function createComponentManifest(input: {
     documentationTargets: input.documentationTargets ?? [],
     consumerApplicationIds: input.consumerApplicationIds ?? [],
     policyId: input.policyId,
+    policyVersion: input.policyVersion,
     deprecatedInFavorOf: input.deprecatedInFavorOf,
     deprecationNotice: input.deprecationNotice,
   };

@@ -124,14 +124,16 @@ describe('buildEvidenceExport', () => {
     expect(manifestJson.componentId).toBe('acme.lib.button');
     expect(manifestJson.componentVersionId).toBe('acme.lib.button@1.0.0');
     expect(manifestJson.includesCredentials).toBe(false);
-    expect(Object.keys(manifestJson.excludes)).toEqual([
+    expect(Object.keys(manifestJson.excludes).sort()).toEqual([
+      'attachments/',
+      'automated/',
+      'exceptions/',
+      'manual/',
       'policy-snapshot.json',
       'release-decision.json',
-      'automated/',
-      'manual/',
-      'exceptions/',
-      'attachments/',
     ]);
+    // No policy authored on this fixture, so the exclusion explains itself.
+    expect(manifestJson.excludes['release-decision.json']).toContain('No policy is authored');
   });
 
   it('records the real repository commit, and reports its absence honestly', async () => {
@@ -197,6 +199,105 @@ describe('buildEvidenceExport', () => {
     expect(report).toContain('policy-snapshot.json');
     expect(report).toContain('release-decision.json');
     expect(report).toContain('exceptions/');
+  });
+
+  it('exports a fully real blocked release decision, with no approver involved', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+      blockingReasons: ['No token mappings connected'],
+      repositoryCommit: 'a'.repeat(40),
+    });
+
+    const decision = JSON.parse(requireFile(result, 'release-decision.json'));
+    expect(decision.outcome).toBe('blocked');
+    expect(decision.approver).toBeUndefined();
+    expect(decision.notRealApproval).toBeUndefined();
+    expect(decision.policyVersion).toBe('2.1.0');
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.notRealApproval).toBeUndefined();
+    expect(Object.keys(manifestJson.excludes)).not.toContain('release-decision.json');
+    expect(requireFile(result, 'report.html')).not.toContain('NOT A REAL APPROVAL');
+  });
+
+  it('marks a test-harness approval unmistakably in the decision, the manifest, and the report', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+      blockingReasons: [],
+      repositoryCommit: 'a'.repeat(40),
+      approver: { identity: 'e2e-harness', provenance: 'test-harness' },
+    });
+
+    const decision = JSON.parse(requireFile(result, 'release-decision.json'));
+    expect(decision.outcome).toBe('authorized-candidate');
+    expect(decision.approver).toBe('e2e-harness');
+    // The marker travels with the file itself, not only the manifest.
+    expect(decision.notRealApproval).toBe(true);
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.notRealApproval).toBe(true);
+    expect(manifestJson.notRealApprovalWarning).toContain('must not be treated as a real approval');
+
+    const report = requireFile(result, 'report.html');
+    expect(report).toContain('NOT A REAL APPROVAL');
+    expect(report).toContain('TEST HARNESS');
+  });
+
+  it('does not mark a real human approval as not-real', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+      blockingReasons: [],
+      repositoryCommit: 'a'.repeat(40),
+      approver: { identity: 'lead@example.com', provenance: 'human' },
+    });
+
+    const decision = JSON.parse(requireFile(result, 'release-decision.json'));
+    expect(decision.outcome).toBe('authorized-candidate');
+    expect(decision.approver).toBe('lead@example.com');
+    expect(decision.notRealApproval).toBeUndefined();
+    expect(requireFile(result, 'report.html')).not.toContain('NOT A REAL APPROVAL');
   });
 
   it('escapes untrusted repository-derived text rather than injecting it into the report as markup', async () => {
