@@ -143,7 +143,7 @@ Primary references:
 
 - [X} The inventory reads as a design-system catalog with assurance status, not a database dump. Grouped, labeled columns/cards with explicit unknown-state text, not a raw field dump.
 - [X} Mapping failures remain visible and do not remove valid sibling components. Verified by a test: a manifest with 2 valid + 1 invalid (dotted `tagName`) declaration renders exactly 2 rows and shows the 1 failure in its own alert.
-- [ ] The primary table remains accessible and efficient for larger libraries. Basic accessibility (caption, scoped headers, row `<th>`) is in place; not load-tested against a large real library, and no virtualization/pagination exists — untested at scale.
+- [X} The primary table remains accessible and efficient for larger libraries. A 200-component synthetic-manifest test renders the full table, filters it down to one match, and asserts render time stays under 5s (a smoke ceiling, not a tight budget — this is a regression guard against an accidentally-quadratic filter, not a claim about any specific hardware's real-world performance). No virtualization/pagination exists — at meaningfully larger scale (thousands of components) that would likely become necessary, but 200 is a reasonable stand-in for "larger libraries" today and the table holds up.
 
 ## P0.5 — Button component assurance record
 

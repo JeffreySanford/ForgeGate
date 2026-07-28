@@ -313,4 +313,50 @@ describe('ComponentsPage', () => {
 
     await expectNoAccessibilityViolations(fixture.nativeElement);
   });
+
+  it('renders and filters a 200-component library without dropping or duplicating rows', async () => {
+    const COMPONENT_COUNT = 200;
+    const largeManifest: CustomElementsManifest = {
+      schemaVersion: '1.0.0',
+      modules: Array.from({ length: COMPONENT_COUNT }, (_, i) => ({
+        kind: 'javascript-module' as const,
+        path: `src/acme-component-${i}.ts`,
+        declarations: [
+          {
+            kind: 'class' as const,
+            name: `AcmeComponent${i}`,
+            customElement: true as const,
+            tagName: `acme-component-${i}`,
+          },
+        ],
+      })),
+    };
+
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(largeManifest);
+
+    const start = performance.now();
+    const fixture = TestBed.createComponent(ComponentsPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const elapsedMs = performance.now() - start;
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelectorAll('.components-page__inventory-table tbody tr')).toHaveLength(COMPONENT_COUNT);
+    // Not a hard performance budget (CI hardware varies) — this is a smoke
+    // check that filtering 200 components isn't accidentally quadratic
+    // (e.g. re-parsing or re-fetching per row), which would show up as
+    // multi-second render time rather than the double-digit milliseconds
+    // a single filter pass over 200 plain objects should take.
+    expect(elapsedMs).toBeLessThan(5000);
+
+    component.searchText.set('acme-component-199');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const filteredRows = compiled.querySelectorAll('.components-page__inventory-table tbody tr');
+    expect(filteredRows).toHaveLength(1);
+    expect(filteredRows[0].textContent).toContain('acme-component-199');
+  });
 });
