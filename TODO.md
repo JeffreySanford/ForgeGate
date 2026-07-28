@@ -211,6 +211,8 @@ P0 is complete only when:
 
 P1 visualizations are not a later cosmetic redesign. They are introduced as soon as their underlying data is real and stable enough to support a decision.
 
+**Status: P1 is complete to the extent real data allows it to be.** Every subsection (P1.1–P1.8) has real, tested, shipped work. What remains unchecked within them is not missing effort — it is genuinely blocked on subsystems ForgeGate does not have yet (see "P1 follow-up backlog" below), and building those is a separate, larger initiative rather than a P1 visualization task. P1 is not being reopened to fabricate coverage for the sake of checking a box.
+
 Primary reference:
 
 - [`documentation/26-workspace-visualization-and-motion.md`](documentation/26-workspace-visualization-and-motion.md)
@@ -284,11 +286,19 @@ Validated against two real external monorepos (`public-sector-federation`, `phas
 
 P1 is complete only when:
 
-- [ ] Each visualization answers a concrete user question.
-- [ ] Each visualization is backed by real data and exposes unknowns.
-- [ ] Each visualization has an equivalent semantic list or table.
-- [ ] Motion remains understandable when disabled.
-- [ ] No chart or animation replaces the explicit readiness decision or blocking explanation.
+- [X} Each visualization answers a concrete user question. Which documentation is stale, which components a change touches, which adapters are healthy, when evidence was created, which components consume which token, which lifecycle bucket to inspect.
+- [X} Each visualization is backed by real data and exposes unknowns. Every P1.x entry above documents its real data source and states its gaps as open checklist items rather than hiding them.
+- [X} Each visualization has an equivalent semantic list or table. Every one renders a real `<table>`, `<ol>`, or `<ul>` as its primary view, not a chart with a separate fallback to keep in sync.
+- [X} Motion remains understandable when disabled. `--fg-motion-duration-*` zero under `prefers-reduced-motion: reduce`; verified for the shell and inherited by every component that consumes the shared tokens.
+- [X} No chart or animation replaces the explicit readiness decision or blocking explanation. Readiness still renders as an explicit "unknown (100%)" bar/label wherever no evidence pipeline exists; motion never stands in for that text.
+
+### P1 follow-up backlog — subsystems that unblock the rest of P1.3/P1.5/P1.8
+
+The items above stayed unchecked deliberately rather than being faked. Building any of them is a real, separate initiative — each is bigger than a "narrow real slice" and should be scoped and prioritized on its own, not squeezed into a P1 visualization task:
+
+- [ ] **DTCG token parser adapter.** `workspace_scan` only *detects* token files by name/content today; nothing parses their contents. Needed for: P1.5's primitive/semantic/component token layering, alias chains, unresolved references, theme/mode coverage, hard-coded implementation-value detection; and for token/anatomy/state linkage (`ManifestTokenMapping` also needs a per-state field added before that link is even representable).
+- [ ] **Evidence history / timeline store.** ForgeGate only holds current-snapshot evidence (whatever `.forgegate/evidence/*.json` says right now); nothing persists prior states. Needed for: P1.3's invalidation, rerun-as-a-distinct-event, review, and decision event kinds, and for explaining the exact causal event that made evidence stale; and for P1.2's real blocked/warning/stale/unknown readiness split (same root gap as P1.3, called out separately in P1.2 above).
+- [ ] **Route and rescan-triggered motion choreography.** No `@angular/animations` (or equivalent) is installed; today's motion is plain CSS transitions on state changes within a single component. Needed for: P1.8's discovery, causality, focus, and route-transition categories, and for testing rapid rescans/route changes specifically.
 
 ---
 
@@ -347,39 +357,48 @@ See [`TODO-DETAILED.md`](TODO-DETAILED.md) for the full task-level plan.
 
 # Immediate next work queue
 
-Work these in order unless a newly discovered safety or correctness defect blocks them:
+Stale as of this update — items 1–10 below (the original P0/early-P1 bootstrap sequence) are all long since shipped and verified; this section had drifted out of sync with the rest of the file. Replaced with what's actually next:
 
-1. [ ] Create ForgeGate semantic UI tokens and global visual foundation.
-2. [ ] Introduce the persistent shell, workspace context bar, and primary routes.
-3. [ ] Move existing real scan output into the workspace command-center structure.
-4. [ ] Build the real-data workspace system map with semantic alternative.
-5. [ ] Move the component inventory to `/components` and implement designer-ready identity/status presentation.
-6. [ ] Add `/components/:componentId` and compose the Button header, preview area, coverage strip, and readiness rail.
-7. [ ] Complete one Storybook index and Button story connection.
-8. [ ] Populate one real state mapping and one real token mapping.
-9. [ ] Add accessibility, responsive, dark-theme, forced-colors, reduced-motion, and visual-regression coverage.
-10. [ ] Begin P1 assurance journey and evidence visualizations only as their real data streams become available.
+1. [ ] Manual keyboard and screen-reader review of the Button assurance record and ForgeGate's own shell (the one human-only item still blocking P0's own definition of done, per P0.7).
+2. [ ] Pick one of the three P1 follow-up backlog subsystems (DTCG token parser, evidence history store, or route/rescan motion choreography) to scope and build next, or move directly to P2 entry-gate work — see "P1 follow-up backlog" above and "P2 entry gates" below.
+3. [ ] Work the P2 entry gates in order once the above is settled.
+
+<details>
+<summary>Original bootstrap sequence (completed, kept for history)</summary>
+
+1. [X} Create ForgeGate semantic UI tokens and global visual foundation.
+2. [X} Introduce the persistent shell, workspace context bar, and primary routes.
+3. [X} Move existing real scan output into the workspace command-center structure.
+4. [X} Build the real-data workspace system map with semantic alternative.
+5. [X} Move the component inventory to `/components` and implement designer-ready identity/status presentation.
+6. [X} Add `/components/:componentId` and compose the Button header, preview area, coverage strip, and readiness rail.
+7. [X} Complete one Storybook index and Button story connection.
+8. [X} Populate one real state mapping and one real token mapping.
+9. [X} Add accessibility, responsive, dark-theme, forced-colors, reduced-motion, and visual-regression coverage.
+10. [X} Begin P1 assurance journey and evidence visualizations only as their real data streams become available.
+
+</details>
 
 ---
 
 # MVP definition of done
 
-The first MVP is complete only when all of the following are true:
+The first MVP is complete only when all of the following are true. Updated to reflect real current state rather than left as an unchecked list from before P0/P1 shipped:
 
-- [ ] ForgeGate installs and launches on Windows.
-- [ ] A user can open a Web Components repository.
-- [ ] ForgeGate detects Git, package manager, Web Components tooling, Storybook, tests, tokens, and Starlight.
-- [ ] ForgeGate discovers a Button component.
-- [ ] The workspace and Button record meet the P0 designer-ready requirements.
-- [ ] ForgeGate associates the Button's stories, states, tokens, tests, and documentation mappings.
-- [ ] ForgeGate runs configured unit, Storybook, Playwright, axe, lint, and build gates.
-- [ ] ForgeGate normalizes results without discarding raw evidence.
-- [ ] ForgeGate guides a manual keyboard and screen-reader review.
-- [ ] ForgeGate ties evidence to the current commit.
-- [ ] ForgeGate marks prior approval stale after a relevant source change.
-- [ ] ForgeGate explains every blocking release condition.
-- [ ] ForgeGate generates a Starlight page.
-- [ ] ForgeGate exports a portable evidence package.
-- [ ] ForgeGate itself passes its required accessibility and quality gates.
+- [X} ForgeGate installs and launches on Windows.
+- [X} A user can open a Web Components repository. Validated this session against two real external monorepos (`public-sector-federation`, `phase-2-cosmic`), not just the in-repo fixture.
+- [X} ForgeGate detects Git, package manager, Web Components tooling, Storybook, tests, tokens, and Starlight. Same real-repo validation.
+- [X} ForgeGate discovers a Button component. True for the in-repo `acme-button` fixture used throughout P0/P1 development and testing.
+- [X} The workspace and Button record meet the P0 designer-ready requirements.
+- [X} ForgeGate associates the Button's stories, states, tokens, tests, and documentation mappings. Via repository-authored `.forgegate/components/*.yaml` overrides merged with CEM-derived data.
+- [ ] ForgeGate runs configured unit, Storybook, Playwright, axe, lint, and build gates. Not implemented for target repositories — ForgeGate ingests *existing* `.forgegate/evidence/*.json` results (the test-evidence adapter) but does not itself trigger a target repo's test/build/lint runners yet.
+- [X} ForgeGate normalizes results without discarding raw evidence. Every adapter that does ingest data today (test evidence, CEM, git status, config, workspace scan) preserves raw output/fingerprints alongside the normalized view (`AdapterDiagnostic.rawOutput`, `TestExecution.rawArtifactRef`).
+- [ ] ForgeGate guides a manual keyboard and screen-reader review. The one human-only item still open from P0.7 — automated axe coverage exists, but no guided manual review flow.
+- [ ] ForgeGate ties evidence to the current commit. `TestExecution.commitOrFingerprint` exists and is displayed (P1.3's evidence timeline), but nothing compares it against the workspace's actual current commit to determine freshness — that comparison is part of the evidence-history-store gap in the P1 follow-up backlog above.
+- [ ] ForgeGate marks prior approval stale after a relevant source change. Not implemented generally — P1.6's documentation drift does this narrowly for documentation only; broader approval staleness needs the same evidence-history store.
+- [ ] ForgeGate explains every blocking release condition. Partially true (`AssuranceJourney`'s blocking reasons, `ComponentDetailPage`'s `recommendedNextAction`) but not verified exhaustively against every possible blocking condition, so left honestly unchecked.
+- [ ] ForgeGate generates a Starlight page. Not implemented — ForgeGate has no documentation-generation feature yet (called out repeatedly in P0.6/P1.6).
+- [ ] ForgeGate exports a portable evidence package. Not implemented.
+- [ ] ForgeGate itself passes its required accessibility and quality gates. Automated lint/test/build/typecheck/cargo-test/axe/visual-regression all pass in CI consistently; blocked on the same manual screen-reader review as above.
 
 Blueprint Studio is not required for this MVP definition of done.
