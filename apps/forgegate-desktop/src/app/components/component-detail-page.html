@@ -124,6 +124,16 @@
       }
     </ul>
     }
+    @if (recommendedNextAction(); as nextAction) {
+    <p class="component-detail__next-action">
+      <strong>Recommended next step:</strong> {{ nextAction }}.
+      <a routerLink="/workspace">Open the workspace page</a> to connect it.
+    </p>
+    } @else if (manifest()) {
+    <p class="component-detail__next-action component-detail__next-action--clear">
+      No blocking connections are missing for this component.
+    </p>
+    }
   </section>
 
   <section class="component-detail__panel" aria-labelledby="evidence-title">

@@ -380,6 +380,23 @@ export class ComponentDetailPage {
     return reasons;
   });
 
+  /**
+   * One focused next step, not a policy decision — this picks the first
+   * entry off the same `blockingReasons` list already shown, the same
+   * "first incomplete thing wins" approach `AssuranceJourney` already
+   * uses at the workspace level (not a new concept invented here). There
+   * is no authoring UI yet to link to for "declare a required state" or
+   * "connect a token mapping", so the action always points at
+   * `/workspace`, where the underlying connections (Storybook, tokens,
+   * tests, docs) actually get configured today.
+   */
+  protected readonly recommendedNextAction = computed<string | null>(() => {
+    if (!this.manifest()) {
+      return null;
+    }
+    return this.blockingReasons()[0] ?? null;
+  });
+
   protected executionFreshness(execution: TestExecution): string {
     if (!/^[0-9a-f]{40}$/i.test(execution.commitOrFingerprint)) {
       return 'Not evaluated — evidence uses a source fingerprint rather than a Git commit';

@@ -229,6 +229,10 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain(
       'ForgeGate does not infer hidden implementation structure',
     );
+
+    const nextAction = compiled.querySelector('.component-detail__next-action');
+    expect(nextAction?.textContent).toContain('No required states declared');
+    expect(nextAction?.querySelector('a')?.getAttribute('href')).toBe('/workspace');
   });
 
   it('updates to show the newly navigated component when moving directly between two detail routes', async () => {

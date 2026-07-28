@@ -161,6 +161,19 @@
   color: var(--fg-color-text-muted);
 }
 
+.component-detail__next-action {
+  margin: var(--fg-space-3) 0 0;
+  padding: var(--fg-space-3);
+  border: 1px solid var(--fg-color-status-warning);
+  background: var(--fg-color-status-warning-soft);
+  border-radius: var(--fg-radius-sm);
+}
+
+.component-detail__next-action--clear {
+  border-color: var(--fg-color-status-passed);
+  background: var(--fg-color-status-passed-soft);
+}
+
 .component-detail__anatomy {
   display: grid;
   grid-template-columns: minmax(10rem, 1fr) 2fr;
