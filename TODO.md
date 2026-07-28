@@ -252,10 +252,12 @@ Primary reference:
 
 ## P1.6 — Documentation drift map
 
-- [ ] Compare repository contract, stories, tokens, tests, and published documentation.
-- [ ] Show which source changed and which documentation sections are stale.
-- [ ] Link to the generated diff or publication action.
-- [ ] Provide a semantic drift list.
+- [X} Compare published documentation against the current component version, aggregated across the whole inventory. `DocumentationDriftMap` (`app/workspace/documentation-drift-map.ts`) renders on `/workspace`, computing `current`/`drifted`/`not-evaluated` for every documentation target on every component via `computeWorkspaceDocumentationDrift`. This is a real aggregation, not a new visualization built on fabricated data — the underlying per-component check already existed in `ComponentDetailPage` (P0.6); it was extracted into a shared, independently-tested pure module (`app/documentation-drift.ts`, 9 tests) so both call sites share one implementation instead of two that could silently drift from each other. "Compare repository contract, stories, tokens, tests" (beyond documentation) is not implemented — that's P1.6's title scope creeping into P1.3/P1.5 territory; this slice is documentation drift specifically, per the section name.
+- [X} Show which source changed and which documentation sections are stale. Each drifted row's detail names both the exact published and current versions (e.g. "Drifted — published 1.0.0, current 2.0.0") — not just a boolean "stale" flag.
+- [ ] Link to the generated diff or publication action. Not implemented — ForgeGate has no documentation-generation feature to link to yet; nothing here to honestly connect.
+- [X} Provide a semantic drift list. The table itself is the primary view (not a chart with a separate alternative) — real semantic markup (`<table>`/`<caption>`/scoped headers) from the start, so there's no separate representation to keep in sync.
+
+Validated against two real external monorepos (`public-sector-federation`, `phase-2-cosmic`) via a temporary, uncommitted Rust test pointed at their real workspace roots — confirmed the underlying `scan_workspace` detection (Storybook, Starlight, tokens, CEM, component packages, PrimeNG and Angular Material UI-technology detection) works correctly against real, large, structurally different production monorepos, not just the in-repo fixture.
 
 ## P1.7 — Adapter constellation
 

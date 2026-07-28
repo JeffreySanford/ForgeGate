@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import { AssuranceJourney } from './assurance-journey';
+import { DocumentationDriftMap } from './documentation-drift-map';
 import { SystemMap } from './system-map';
 import { WorkspaceScanProgressView } from './workspace-scan-progress';
 
 @Component({
-  imports: [AssuranceJourney, SystemMap, WorkspaceScanProgressView, RouterLink],
+  imports: [AssuranceJourney, SystemMap, WorkspaceScanProgressView, RouterLink, DocumentationDriftMap],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',

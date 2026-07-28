@@ -11,6 +11,7 @@ import type { TestExecution } from '@forgegate/core-evidence';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '../storybook/storybook-index';
+import { computeDocumentationDriftState } from '../documentation-drift';
 
 export interface CoverageItem {
   readonly label: string;
@@ -154,39 +155,11 @@ export class ComponentDetailPage {
   protected documentationDriftState(
     target: ManifestDocumentationTarget,
   ): string {
-    if (
-      !this.isDocumentationAdapterDetected(target.adapter, target.pathOrPageId)
-    ) {
-      return 'Not evaluated — adapter not detected';
-    }
-    const currentVersion = this.manifest()?.componentVersion;
-    if (!currentVersion) {
-      return 'Not evaluated — current component version is unavailable';
-    }
-    if (!target.publishedVersion) {
-      return 'Not evaluated — published component version is unavailable';
-    }
-    return target.publishedVersion === currentVersion
-      ? 'Current'
-      : `Drifted — published ${target.publishedVersion}, current ${currentVersion}`;
-  }
-
-  protected isDocumentationAdapterDetected(
-    adapter: string,
-    pathOrPageId?: string,
-  ): boolean {
-    if (adapter !== 'starlight' || !pathOrPageId) return false;
-    const normalizedPath = pathOrPageId.replace(/\\/g, '/');
-    return (
-      this.workspace
-        .workspaceScan()
-        ?.starlightProjects.some(
-          (project) =>
-            project === '' ||
-            project === '.' ||
-            normalizedPath.startsWith(`${project}/`),
-        ) ?? false
-    );
+    return computeDocumentationDriftState(
+      target,
+      this.manifest()?.componentVersion,
+      this.workspace.workspaceScan()?.starlightProjects ?? [],
+    ).detail;
   }
 
   protected readonly coverage = computed<readonly CoverageItem[]>(() => {

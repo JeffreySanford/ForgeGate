@@ -1,0 +1,52 @@
+<section class="documentation-drift-map fg-panel" aria-labelledby="documentation-drift-title">
+  <h2 id="documentation-drift-title">Documentation drift</h2>
+
+  @if (!workspace.workspacePath()) {
+    <p class="fg-empty-state">Open a workspace to evaluate documentation drift.</p>
+  } @else if (entries().length === 0) {
+    <p class="fg-empty-state">
+      No component has a documentation target connected yet. Nothing to compare.
+    </p>
+  } @else {
+    <ul class="documentation-drift-map__counts">
+      <li class="documentation-drift-map__count status-current">
+        <span class="documentation-drift-map__count-value">{{ counts().current }}</span>
+        <span>Current</span>
+      </li>
+      <li class="documentation-drift-map__count status-drifted">
+        <span class="documentation-drift-map__count-value">{{ counts().drifted }}</span>
+        <span>Drifted</span>
+      </li>
+      <li class="documentation-drift-map__count status-not-evaluated">
+        <span class="documentation-drift-map__count-value">{{ counts().notEvaluated }}</span>
+        <span>Not evaluated</span>
+      </li>
+    </ul>
+
+    <table>
+      <caption class="sr-only">Documentation drift per component</caption>
+      <thead>
+        <tr>
+          <th scope="col">Component</th>
+          <th scope="col">Adapter</th>
+          <th scope="col">Page</th>
+          <th scope="col">Status</th>
+          <th scope="col">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of entries(); track entry.componentId + entry.target.adapter + (entry.target.pathOrPageId ?? '')) {
+          <tr [class]="'status-' + entry.result.status">
+            <th scope="row">
+              <a [routerLink]="['/components', entry.componentId]">{{ componentName(entry.componentId) }}</a>
+            </th>
+            <td>{{ entry.target.adapter }}</td>
+            <td>{{ entry.target.pathOrPageId ?? 'Unknown location' }}</td>
+            <td>{{ statusLabel(entry.result.status) }}</td>
+            <td>{{ entry.result.detail }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>

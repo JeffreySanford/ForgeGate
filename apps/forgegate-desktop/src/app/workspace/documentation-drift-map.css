@@ -1,0 +1,66 @@
+.documentation-drift-map h2 {
+  font-size: var(--fg-type-size-lg);
+  margin: 0 0 var(--fg-space-3);
+}
+
+.documentation-drift-map__counts {
+  list-style: none;
+  margin: 0 0 var(--fg-space-4);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fg-space-3);
+}
+
+.documentation-drift-map__count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--fg-space-1);
+  padding: var(--fg-space-2) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface-subtle);
+  min-width: 88px;
+}
+
+.documentation-drift-map__count-value {
+  font-size: var(--fg-type-size-lg);
+  font-weight: 700;
+}
+
+.documentation-drift-map__count.status-current {
+  border-color: var(--fg-color-status-passed);
+  background: var(--fg-color-status-passed-soft);
+}
+
+.documentation-drift-map__count.status-drifted {
+  border-color: var(--fg-color-status-warning);
+  background: var(--fg-color-status-warning-soft);
+}
+
+.documentation-drift-map__count.status-not-evaluated {
+  border-color: var(--fg-color-status-unknown);
+  background: var(--fg-color-status-unknown-soft);
+}
+
+.documentation-drift-map table {
+  width: 100%;
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.documentation-drift-map th,
+.documentation-drift-map td {
+  text-align: left;
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border-bottom: 1px solid var(--fg-color-border);
+  font-size: var(--fg-type-size-sm);
+}
+
+.documentation-drift-map tr.status-drifted td,
+.documentation-drift-map tr.status-drifted th {
+  color: var(--fg-color-status-warning);
+}
