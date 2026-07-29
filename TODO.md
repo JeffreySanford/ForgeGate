@@ -211,7 +211,11 @@ P0 is complete only when:
 
 P1 visualizations are not a later cosmetic redesign. They are introduced as soon as their underlying data is real and stable enough to support a decision.
 
-**Status: P1 is complete to the extent real data allows it to be.** Every subsection (P1.1–P1.8) has real, tested, shipped work. What remains unchecked within them is not missing effort — it is genuinely blocked on subsystems ForgeGate does not have yet (see "P1 follow-up backlog" below), and building those is a separate, larger initiative rather than a P1 visualization task. P1 is not being reopened to fabricate coverage for the sake of checking a box.
+**Status: P1 is complete to the extent real data allows it to be.** Every subsection (P1.1–P1.8) has real, tested, shipped work. What remains unchecked within them is not missing effort — it is genuinely blocked, and building the blockers is a separate, larger initiative rather than a P1 visualization task. P1 is not being reopened to fabricate coverage for the sake of checking a box.
+
+**One of the three original blockers is now cleared.** The "P1 follow-up backlog" below named three subsystems gating the rest of P1.3/P1.5/P1.8. The **DTCG token parser is now built and validated against real production data**, which closed P1.5's alias chains, unresolved references, and theme/mode coverage — those moved from blocked to shipped. Two blockers remain: the evidence-history store (gates P1.2's readiness split and P1.3's invalidation events; planned in full under "Persistence and longitudinal tracking") and route/rescan motion choreography (gates P1.8's remaining categories).
+
+Every other unchecked P1 item is blocked on a *feature that does not exist to link to*, not on effort: P1.4's story/test/review cross-referencing has no adapter data tying a changed file to a story or test run; P1.5's hard-coded-value detection needs source comparison and its anatomy/state linkage needs a per-state field `ManifestTokenMapping` does not have; P1.6's "link to the generated diff" has no documentation-generation feature to link to; P1.7's "link to setup guidance" has no adapter setup flow. Each is recorded at its own bullet with the specific missing capability.
 
 Primary reference:
 
