@@ -8,7 +8,8 @@
     "desktop:build": "cd apps/forgegate-desktop/src-tauri && tauri build",
     "db:up": "docker compose -f docker/dev-compose.yml up -d forgegate-postgres",
     "db:ps": "docker compose -f docker/dev-compose.yml ps",
-    "db:logs": "docker compose -f docker/dev-compose.yml logs forgegate-postgres"
+    "db:logs": "docker compose -f docker/dev-compose.yml logs forgegate-postgres",
+    "db:seed": "docker compose -f docker/dev-compose.yml exec -T forgegate-postgres psql -U forgegate -d forgegate -v ON_ERROR_STOP=1 -f - < apps/forgegate-desktop/src-tauri/seeds/dev_evidence_history.sql"
   },
   "private": true,
   "dependencies": {

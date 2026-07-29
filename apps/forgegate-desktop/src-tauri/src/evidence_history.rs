@@ -15,6 +15,9 @@ const MIGRATIONS: &[Migration] = &[Migration {
     sql: include_str!("../migrations/0001_evidence_history.sql"),
 }];
 
+#[cfg(test)]
+const DEV_EVIDENCE_HISTORY_SEED_SQL: &str = include_str!("../seeds/dev_evidence_history.sql");
+
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PersistenceStatus {
@@ -284,6 +287,19 @@ mod tests {
         assert!(sql.contains("CREATE TABLE IF NOT EXISTS scan_snapshots"));
         assert!(sql.contains("seeded boolean NOT NULL DEFAULT false"));
         assert!(sql.contains("scan jsonb NOT NULL"));
+    }
+
+    #[test]
+    fn dev_seed_sql_is_replaceable_and_unmistakably_seeded() {
+        let sql = DEV_EVIDENCE_HISTORY_SEED_SQL;
+
+        assert!(sql.contains("seed_label = 'dev-history-2026-07'"));
+        assert!(sql.contains("'dev-history-2026-07'"));
+        assert!(sql.contains("seeded,"));
+        assert!(sql.contains("true,"));
+        assert!(sql.contains("D:/repos/public-sector-federation"));
+        assert!(sql.contains("D:/repos/phase-2-cosmic"));
+        assert_eq!(sql.matches("'2026-").count(), 12);
     }
 
     #[test]
