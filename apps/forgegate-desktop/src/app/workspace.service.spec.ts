@@ -492,7 +492,11 @@ describe('WorkspaceService', () => {
 
     await service.selectWorkspace();
 
-    expect(invokeMock).toHaveBeenCalledTimes(5);
+    // select_workspace, read_git_status, read_workspace_scan,
+    // read_repository_config_file, read_evidence_history_trend,
+    // start_workspace_watch — no read_workspace_scan for a CEM that was
+    // never found.
+    expect(invokeMock).toHaveBeenCalledTimes(6);
     expect(service.customElementsManifest()).toBeNull();
     expect(service.customElementsManifestError()).toBeNull();
   });
@@ -1132,6 +1136,107 @@ describe('WorkspaceService', () => {
       );
       expect(service.evidenceExportResult()).toBeNull();
       expect(service.evidenceExportRunning()).toBe(false);
+    });
+  });
+
+  describe('filesystem watch', () => {
+    async function selectWithScanFixture(): Promise<void> {
+      invokeMock
+        .mockResolvedValueOnce('D:/repos/ForgeGate')
+        .mockResolvedValueOnce(gitStatusFixture)
+        .mockResolvedValueOnce(scanFixture)
+        .mockResolvedValueOnce(null);
+      await service.selectWorkspace();
+      invokeMock.mockReset();
+    }
+
+    it('starts a real watch over the directories computed from the real scan, after a successful selection', async () => {
+      invokeMock
+        .mockResolvedValueOnce('D:/repos/ForgeGate')
+        .mockResolvedValueOnce(gitStatusFixture)
+        .mockResolvedValueOnce(scanFixture)
+        .mockResolvedValueOnce(null);
+
+      await service.selectWorkspace();
+
+      const watchCall = invokeMock.mock.calls.find(([name]) => name === 'start_workspace_watch');
+      expect(watchCall).toBeDefined();
+      const [, args] = watchCall as [string, { workspacePath: string; directories: unknown[] }];
+      expect(args.workspacePath).toBe('D:/repos/ForgeGate');
+      expect(args.directories).toEqual([
+        { path: '.', recursive: false },
+        { path: 'packages/design-system', recursive: true },
+      ]);
+    });
+
+    it('records the watch as an honest unavailable adapter diagnostic on failure, without failing the scan', async () => {
+      invokeMock
+        .mockResolvedValueOnce('D:/repos/ForgeGate')
+        .mockResolvedValueOnce(gitStatusFixture)
+        .mockResolvedValueOnce(scanFixture)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ configured: false, connected: false, snapshots: [], error: null })
+        .mockRejectedValueOnce('No real directory could be watched');
+
+      await service.selectWorkspace();
+
+      expect(service.workspaceScan()).not.toBeNull();
+      const diagnostic = service
+        .adapterDiagnostics()
+        .find((entry) => entry.id === 'workspace-watch');
+      expect(diagnostic?.status).toBe('unavailable');
+      expect(diagnostic?.error).toBe('No real directory could be watched');
+    });
+
+    it('sets filesystemChangesDetected from a real workspace-changed event', async () => {
+      let emitChange!: (payload: { changedPaths: string[]; truncated: boolean }) => void;
+      listenMock.mockImplementation(async (eventName: string, handler: (event: unknown) => void) => {
+        if (eventName === 'workspace-changed') {
+          emitChange = (payload) => handler({ payload });
+        }
+        return vi.fn();
+      });
+
+      await selectWithScanFixture();
+
+      expect(emitChange).toBeDefined();
+      emitChange({ changedPaths: ['src/acme-button.ts'], truncated: false });
+
+      expect(service.filesystemChangesDetected()).toEqual({
+        paths: ['src/acme-button.ts'],
+        truncated: false,
+      });
+    });
+
+    it('does nothing if asked to rescan when no workspace is open', async () => {
+      await service.rescanWorkspace();
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('rescans the already-open workspace with no folder dialog, and clears any pending change notice first', async () => {
+      await selectWithScanFixture();
+      service.filesystemChangesDetected.set({ paths: ['x.ts'], truncated: false });
+
+      invokeMock
+        .mockResolvedValueOnce(gitStatusFixture)
+        .mockResolvedValueOnce(scanFixture)
+        .mockResolvedValueOnce(null);
+
+      await service.rescanWorkspace();
+
+      expect(invokeMock).not.toHaveBeenCalledWith('select_workspace');
+      expect(service.workspacePath()).toBe('D:/repos/ForgeGate');
+      expect(service.filesystemChangesDetected()).toBeNull();
+    });
+
+    it('clears the change notice without rescanning when dismissed', async () => {
+      await selectWithScanFixture();
+      service.filesystemChangesDetected.set({ paths: ['x.ts'], truncated: false });
+
+      service.dismissFilesystemChanges();
+
+      expect(service.filesystemChangesDetected()).toBeNull();
+      expect(invokeMock).not.toHaveBeenCalled();
     });
   });
 });

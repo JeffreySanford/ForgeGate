@@ -27,6 +27,7 @@ import {
 } from './storybook/storybook-index';
 import { buildEvidenceExport } from './evidence-export';
 import { parseDtcgTokens, type DtcgToken } from './dtcg-tokens';
+import { computeWorkspaceWatchDirectories } from './workspace-watch-directories';
 import {
   discoverAngularComponents,
   type AngularComponentDeclaration,
@@ -314,12 +315,63 @@ export class WorkspaceService {
     readonly directoryPath: string;
   } | null>(null);
   readonly evidenceExportError = signal<string | null>(null);
+  /**
+   * Set when the filesystem watcher reports a real change inside one of
+   * the workspace's real, already-scanned directories. Deliberately never
+   * auto-triggers a rescan — silently invalidating evidence the user is
+   * actively reading would be worse than asking. `rescanWorkspace()` is
+   * the explicit action a "Rescan" affordance calls; `dismissFilesystemChanges()`
+   * clears the banner without rescanning.
+   */
+  readonly filesystemChangesDetected = signal<{
+    readonly paths: readonly string[];
+    readonly truncated: boolean;
+  } | null>(null);
+  private workspaceChangedListenerReady = false;
   readonly error = signal<string | null>(null);
 
   async selectWorkspace(): Promise<void> {
     if (this.scanProgress()?.state === 'running') {
       return;
     }
+    this.setScanProgress('selecting', 'Choose a repository folder', 0);
+    try {
+      const path = await this.invoke<string | null>('select_workspace');
+      if (!path) {
+        this.scanProgress.set(null);
+        return;
+      }
+      await this.scanWorkspace(path);
+    } catch (error) {
+      this.error.set(String(error));
+      this.scanProgress.set({
+        phase: 'failed',
+        state: 'failed',
+        label: 'Could not open the selected folder',
+        completed: 0,
+        total: WORKSPACE_SCAN_STEP_COUNT,
+      });
+    }
+  }
+
+  /**
+   * Re-scans the currently open workspace with no folder dialog — the
+   * counterpart `selectWorkspace` needs for the filesystem watcher (and
+   * any other future trigger) to request a fresh scan of a workspace the
+   * user has already chosen, rather than only ever scanning in response to
+   * a human picking a folder. A no-op if no workspace is open or a scan is
+   * already running.
+   */
+  async rescanWorkspace(): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.scanProgress()?.state === 'running') {
+      return;
+    }
+    this.filesystemChangesDetected.set(null);
+    await this.scanWorkspace(path);
+  }
+
+  private async scanWorkspace(path: string): Promise<void> {
     this.error.set(null);
     this.repositoryConfigError.set(null);
     this.customElementsManifestError.set(null);
@@ -333,13 +385,8 @@ export class WorkspaceService {
     this.evidenceHistoryTrend.set(null);
     this.evidenceHistoryLoading.set(false);
     this.persistenceError.set(null);
-    this.setScanProgress('selecting', 'Choose a repository folder', 0);
+    this.filesystemChangesDetected.set(null);
     try {
-      const path = await this.invoke<string | null>('select_workspace');
-      if (!path) {
-        this.scanProgress.set(null);
-        return;
-      }
       this.workspacePath.set(path);
       this.setScanProgress(
         'repository',
@@ -406,6 +453,7 @@ export class WorkspaceService {
         total: WORKSPACE_SCAN_STEP_COUNT,
       });
       await this.loadEvidenceHistoryTrend();
+      await this.startWatchingWorkspace(path, scan);
     } catch (error) {
       this.gitStatus.set(null);
       this.workspaceScan.set(null);
@@ -497,6 +545,75 @@ export class WorkspaceService {
     } finally {
       this.evidenceHistoryLoading.set(false);
     }
+  }
+
+  /**
+   * Starts (or restarts, replacing any previous watch) a filesystem watch
+   * over the real directories this scan found — see
+   * `computeWorkspaceWatchDirectories` for why those, not the whole
+   * workspace. Best-effort: a workspace with nothing watchable (every
+   * real component-package/token/UI-source directory has since vanished)
+   * is recorded as an honest `'unavailable'` adapter diagnostic, not a
+   * failed scan — the scan itself already succeeded.
+   */
+  private async startWatchingWorkspace(
+    path: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    await this.ensureWorkspaceChangedListener();
+    const directories = computeWorkspaceWatchDirectories(scan);
+    const source = `${directories.length} watched director${directories.length === 1 ? 'y' : 'ies'}`;
+    try {
+      await this.invoke<void>('start_workspace_watch', {
+        workspacePath: path,
+        directories,
+      });
+      this.setAdapterDiagnostic({
+        id: 'workspace-watch',
+        adapter: 'filesystem watcher',
+        source,
+        status: 'loaded',
+        rawOutput: JSON.stringify(directories, null, 2),
+        error: null,
+      });
+    } catch (error) {
+      this.setAdapterDiagnostic({
+        id: 'workspace-watch',
+        adapter: 'filesystem watcher',
+        source,
+        status: 'unavailable',
+        rawOutput: null,
+        error: String(error),
+      });
+    }
+  }
+
+  /**
+   * Registered once for this service's lifetime (it is a singleton), not
+   * per scan — the Rust side already guarantees only one watch is ever
+   * active at a time (starting a new one replaces the old), so one
+   * listener living for the app's lifetime is enough to receive every
+   * workspace's events, whichever workspace is currently open.
+   */
+  private async ensureWorkspaceChangedListener(): Promise<void> {
+    if (this.workspaceChangedListenerReady) {
+      return;
+    }
+    this.workspaceChangedListenerReady = true;
+    await this.listen<{ changedPaths: string[]; truncated: boolean }>(
+      'workspace-changed',
+      (event) => {
+        this.filesystemChangesDetected.set({
+          paths: event.payload.changedPaths,
+          truncated: event.payload.truncated,
+        });
+      },
+    );
+  }
+
+  /** Clears the "changes detected" banner without rescanning. */
+  dismissFilesystemChanges(): void {
+    this.filesystemChangesDetected.set(null);
   }
 
   selectComponentPackage(path: string): void {

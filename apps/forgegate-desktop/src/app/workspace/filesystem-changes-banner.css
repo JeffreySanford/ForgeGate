@@ -1,0 +1,44 @@
+.filesystem-changes {
+  display: grid;
+  gap: var(--fg-space-3);
+  padding: var(--fg-space-4);
+  border: 1px solid var(--fg-color-status-warning, var(--fg-color-action));
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface);
+}
+
+.filesystem-changes__summary h2,
+.filesystem-changes__summary p {
+  margin: 0;
+}
+
+.filesystem-changes__eyebrow {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.filesystem-changes__paths {
+  display: grid;
+  gap: var(--fg-space-1);
+  max-height: 8rem;
+  margin: 0;
+  padding: var(--fg-space-2) var(--fg-space-3);
+  overflow-y: auto;
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  list-style: none;
+  font-size: var(--fg-type-size-sm);
+  color: var(--fg-color-text-muted);
+}
+
+.filesystem-changes__actions {
+  display: flex;
+  gap: var(--fg-space-2);
+}
+
+.filesystem-changes__dismiss {
+  background: transparent;
+}

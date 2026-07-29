@@ -16,6 +16,9 @@ mod evidence_history;
 mod workspace_scan;
 use workspace_scan::{scan_workspace, WorkspaceScan};
 
+mod workspace_watch;
+use workspace_watch::{WatchDirectory, WorkspaceWatcherState};
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GitStatus {
@@ -180,6 +183,28 @@ fn read_workspace_source_files(
         }
     }
     Ok(files)
+}
+
+/// Starts watching the given, already-scanned real directories for changes,
+/// replacing any previous watch. See `workspace_watch::start` for why this
+/// takes a caller-supplied directory list rather than watching the whole
+/// workspace recursively.
+#[tauri::command]
+fn start_workspace_watch(
+    app: tauri::AppHandle,
+    watcher: tauri::State<'_, WorkspaceWatcherState>,
+    workspace_path: String,
+    directories: Vec<WatchDirectory>,
+) -> Result<(), String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    workspace_watch::start(app, &watcher, &workspace, &directories)
+}
+
+/// Stops the currently active filesystem watch, if any. A no-op if nothing
+/// is being watched.
+#[tauri::command]
+fn stop_workspace_watch(watcher: tauri::State<'_, WorkspaceWatcherState>) {
+    workspace_watch::stop(&watcher);
 }
 
 /// Rejects relative paths and paths that do not resolve to a real directory,
@@ -1108,6 +1133,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(RunningCommand::default())
+        .manage(WorkspaceWatcherState::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -1131,7 +1157,9 @@ pub fn run() {
             read_workspace_source_files,
             read_persistence_status,
             read_evidence_history_trend,
-            record_enriched_scan_snapshot
+            record_enriched_scan_snapshot,
+            start_workspace_watch,
+            stop_workspace_watch
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -8,6 +8,7 @@ import { ChangeImpactTable } from './change-impact-table';
 import { DocumentationDriftMap } from './documentation-drift-map';
 import { EvidenceHistoryTrendView } from './evidence-history-trend-view';
 import { EvidenceTimelineView } from './evidence-timeline-view';
+import { FilesystemChangesBanner } from './filesystem-changes-banner';
 import { SystemMap } from './system-map';
 import { TokenTopologyView } from './token-topology-view';
 import { WorkspaceScanProgressView } from './workspace-scan-progress';
@@ -24,6 +25,7 @@ import { WorkspaceScanProgressView } from './workspace-scan-progress';
     EvidenceHistoryTrendView,
     EvidenceTimelineView,
     TokenTopologyView,
+    FilesystemChangesBanner,
   ],
   selector: 'app-workspace-page',
   templateUrl: './workspace-page.html',

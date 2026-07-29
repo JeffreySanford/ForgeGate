@@ -25,3 +25,5 @@ tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 postgres = { version = "0.19.10", features = ["with-serde_json-1"] }
+notify-debouncer-mini = "0.7"
+notify = "8"

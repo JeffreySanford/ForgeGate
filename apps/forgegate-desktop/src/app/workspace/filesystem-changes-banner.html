@@ -1,0 +1,33 @@
+@if (workspace.filesystemChangesDetected(); as changes) {
+<section
+  class="filesystem-changes"
+  aria-labelledby="filesystem-changes-title"
+  aria-live="polite"
+>
+  <div class="filesystem-changes__summary">
+    <p class="filesystem-changes__eyebrow">Filesystem watcher</p>
+    <h2 id="filesystem-changes-title">
+      {{ changes.paths.length }}
+      {{ changes.paths.length === 1 ? 'file changed' : 'files changed' }}
+      on disk{{ changes.truncated ? ' (showing first ' + changes.paths.length + ')' : '' }}
+    </h2>
+    <p>
+      Evidence shown below may be out of date. Rescan to refresh it, or
+      dismiss this notice if you'll rescan later.
+    </p>
+  </div>
+
+  <ul class="filesystem-changes__paths">
+    @for (path of changes.paths; track path) {
+    <li>{{ path }}</li>
+    }
+  </ul>
+
+  <div class="filesystem-changes__actions">
+    <button type="button" (click)="rescan()">Rescan workspace</button>
+    <button type="button" class="filesystem-changes__dismiss" (click)="dismiss()">
+      Dismiss
+    </button>
+  </div>
+</section>
+}
