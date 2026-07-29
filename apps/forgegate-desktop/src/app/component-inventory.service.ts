@@ -188,6 +188,21 @@ export class ComponentInventoryService {
           error: diagnostic.error,
         })),
       },
+      components: inventory.manifests.map((manifest) => ({
+        componentId: manifest.id,
+        componentVersion: manifest.componentVersion ?? null,
+        framework: manifest.framework,
+        adapter: manifest.adapter,
+        lifecycle: manifest.lifecycle,
+        sourceFiles: manifest.sourceFiles,
+        readiness: 'unknown' as const,
+        findingSummary: {
+          status: 'not-evaluated' as const,
+          findings: [] as const,
+          reason:
+            'ForgeGate has not derived per-component readiness findings yet.',
+        },
+      })),
     };
     const snapshotKey = JSON.stringify({ workspacePath, snapshot });
     if (snapshotKey === this.lastPersistedSnapshotKey) {

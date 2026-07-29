@@ -226,6 +226,23 @@ describe('ComponentInventoryService', () => {
               },
             ],
           },
+          components: [
+            {
+              componentId: 'acme.design-system.acme-button',
+              componentVersion: null,
+              framework: 'angular',
+              adapter: 'framework.angular.source-scan.confirmed',
+              lifecycle: 'proposal',
+              sourceFiles: ['apps/demo/src/app/button.component.ts'],
+              readiness: 'unknown',
+              findingSummary: {
+                status: 'not-evaluated',
+                findings: [],
+                reason:
+                  'ForgeGate has not derived per-component readiness findings yet.',
+              },
+            },
+          ],
         },
       });
     });

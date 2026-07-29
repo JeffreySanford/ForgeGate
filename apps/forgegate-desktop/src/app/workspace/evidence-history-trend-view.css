@@ -67,7 +67,8 @@
 }
 
 .evidence-history-trend__tag,
-.evidence-history-trend__dirty {
+.evidence-history-trend__dirty,
+.evidence-history-trend__component-rows {
   display: inline-flex;
   margin-left: var(--fg-space-2);
   padding: 0 var(--fg-space-1);

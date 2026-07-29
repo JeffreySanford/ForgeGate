@@ -60,6 +60,7 @@ describe('EvidenceHistoryTrendView', () => {
           sourceCommit: 'a'.repeat(40),
           dirty: false,
           componentCount: 8,
+          componentSnapshotCount: 8,
           readinessSummary: {
             total: 8,
             readiness: { unknown: 8 },
@@ -75,6 +76,7 @@ describe('EvidenceHistoryTrendView', () => {
           sourceCommit: 'b'.repeat(40),
           dirty: true,
           componentCount: 12,
+          componentSnapshotCount: 12,
           readinessSummary: {
             total: 12,
             readiness: { unknown: 12 },
@@ -108,6 +110,7 @@ describe('EvidenceHistoryTrendView', () => {
     expect(compiled.textContent).toContain('Seeded development history');
     expect(compiled.textContent).toContain('dev-history-2026-07');
     expect(compiled.textContent).toContain('8 unknown');
+    expect(compiled.textContent).toContain('12 persisted row(s)');
     expect(compiled.textContent).toContain('2 loaded, 1 partial');
     expect(compiled.textContent).toContain('dirty');
 

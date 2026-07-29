@@ -279,6 +279,7 @@ describe('WorkspaceService', () => {
           sourceCommit: 'a'.repeat(40),
           dirty: false,
           componentCount: 4,
+          componentSnapshotCount: 4,
           readinessSummary: {
             total: 4,
             readiness: { unknown: 4 },

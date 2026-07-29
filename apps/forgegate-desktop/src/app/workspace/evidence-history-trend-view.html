@@ -85,6 +85,9 @@
             ></span>
           </span>
           {{ snapshot.componentCount ?? 'unknown' }}
+          <span class="evidence-history-trend__component-rows">
+            {{ snapshot.componentSnapshotCount }} persisted row(s)
+          </span>
         </td>
         <td>{{ readinessUnknown(snapshot) }} unknown</td>
         <td>

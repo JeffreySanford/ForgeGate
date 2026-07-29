@@ -10,10 +10,16 @@ struct Migration {
     sql: &'static str,
 }
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: "0001_evidence_history",
-    sql: include_str!("../migrations/0001_evidence_history.sql"),
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: "0001_evidence_history",
+        sql: include_str!("../migrations/0001_evidence_history.sql"),
+    },
+    Migration {
+        version: "0002_component_snapshots",
+        sql: include_str!("../migrations/0002_component_snapshots.sql"),
+    },
+];
 
 #[cfg(test)]
 const DEV_EVIDENCE_HISTORY_SEED_SQL: &str = include_str!("../seeds/dev_evidence_history.sql");
@@ -36,6 +42,20 @@ pub struct EnrichedScanSnapshot {
     pub component_count: i32,
     pub readiness_summary: serde_json::Value,
     pub adapter_summary: serde_json::Value,
+    pub components: Vec<EnrichedComponentSnapshot>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnrichedComponentSnapshot {
+    pub component_id: String,
+    pub component_version: Option<String>,
+    pub framework: String,
+    pub adapter: String,
+    pub lifecycle: String,
+    pub source_files: Vec<String>,
+    pub readiness: String,
+    pub finding_summary: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,6 +66,7 @@ pub struct EvidenceHistorySnapshot {
     pub source_commit: Option<String>,
     pub dirty: Option<bool>,
     pub component_count: Option<i32>,
+    pub component_snapshot_count: i64,
     pub readiness_summary: Option<serde_json::Value>,
     pub adapter_summary: serde_json::Value,
     pub seeded: bool,
@@ -128,7 +149,10 @@ pub fn enrich_latest_scan_snapshot_if_configured(
 
     let mut client = connect_and_migrate(&database_url)?;
     let workspace_id = upsert_workspace(&mut client, workspace_path)?;
-    let row = client
+    let mut transaction = client
+        .transaction()
+        .map_err(|error| format!("Failed to start scan enrichment transaction: {error}"))?;
+    let row = transaction
         .query_opt(
             "UPDATE scan_snapshots
             SET
@@ -156,7 +180,58 @@ pub fn enrich_latest_scan_snapshot_if_configured(
         )
         .map_err(|error| format!("Failed to enrich scan snapshot: {error}"))?;
 
-    Ok(row.map(|row| row.get(0)))
+    let Some(row) = row else {
+        transaction
+            .commit()
+            .map_err(|error| format!("Failed to commit scan enrichment transaction: {error}"))?;
+        return Ok(None);
+    };
+    let snapshot_id = row.get::<_, i64>(0);
+
+    transaction
+        .execute(
+            "DELETE FROM component_snapshots WHERE scan_snapshot_id = $1",
+            &[&snapshot_id],
+        )
+        .map_err(|error| format!("Failed to replace component snapshots: {error}"))?;
+
+    for component in &snapshot.components {
+        let source_files = serde_json::to_value(&component.source_files)
+            .map_err(|error| format!("Failed to serialize component source files: {error}"))?;
+        transaction
+            .execute(
+                "INSERT INTO component_snapshots (
+                    scan_snapshot_id,
+                    component_id,
+                    component_version,
+                    framework,
+                    adapter,
+                    lifecycle,
+                    source_files,
+                    readiness,
+                    finding_summary
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                &[
+                    &snapshot_id,
+                    &component.component_id,
+                    &component.component_version,
+                    &component.framework,
+                    &component.adapter,
+                    &component.lifecycle,
+                    &source_files,
+                    &component.readiness,
+                    &component.finding_summary,
+                ],
+            )
+            .map_err(|error| format!("Failed to insert component snapshot: {error}"))?;
+    }
+
+    transaction
+        .commit()
+        .map_err(|error| format!("Failed to commit scan enrichment transaction: {error}"))?;
+
+    Ok(Some(snapshot_id))
 }
 
 pub fn record_scan_snapshot_if_configured(
@@ -212,14 +287,17 @@ fn evidence_history_trend(
                 scan_snapshots.source_commit,
                 scan_snapshots.dirty,
                 scan_snapshots.component_count,
+                count(component_snapshots.id)::bigint AS component_snapshot_count,
                 scan_snapshots.readiness_summary,
                 scan_snapshots.adapter_summary,
                 scan_snapshots.seeded,
                 scan_snapshots.seed_label
             FROM scan_snapshots
             JOIN workspaces ON workspaces.id = scan_snapshots.workspace_id
+            LEFT JOIN component_snapshots ON component_snapshots.scan_snapshot_id = scan_snapshots.id
             WHERE workspaces.workspace_path = $1
                OR workspaces.workspace_path = $2
+            GROUP BY scan_snapshots.id
             ORDER BY scan_snapshots.scanned_at DESC, scan_snapshots.id DESC
             LIMIT $3",
             &[&workspace_path, &normalized_workspace_path, &limit],
@@ -233,10 +311,11 @@ fn evidence_history_trend(
                     source_commit: row.get(2),
                     dirty: row.get(3),
                     component_count: row.get(4),
-                    readiness_summary: row.get(5),
-                    adapter_summary: row.get(6),
-                    seeded: row.get(7),
-                    seed_label: row.get(8),
+                    component_snapshot_count: row.get(5),
+                    readiness_summary: row.get(6),
+                    adapter_summary: row.get(7),
+                    seeded: row.get(8),
+                    seed_label: row.get(9),
                 })
                 .collect::<Vec<_>>();
             snapshots.reverse();
@@ -392,6 +471,17 @@ mod tests {
     }
 
     #[test]
+    fn migration_sql_creates_component_snapshots_below_scan_snapshots() {
+        let sql = MIGRATIONS[1].sql;
+
+        assert!(sql.contains("CREATE TABLE IF NOT EXISTS component_snapshots"));
+        assert!(sql.contains("scan_snapshot_id bigint NOT NULL REFERENCES scan_snapshots"));
+        assert!(sql.contains("component_id text NOT NULL"));
+        assert!(sql.contains("finding_summary jsonb NOT NULL"));
+        assert!(sql.contains("readiness IN"));
+    }
+
+    #[test]
     fn dev_seed_sql_is_replaceable_and_unmistakably_seeded() {
         let sql = DEV_EVIDENCE_HISTORY_SEED_SQL;
 
@@ -514,6 +604,35 @@ mod tests {
                 "total": 2,
                 "byStatus": { "loaded": 1, "partial": 1 }
             }),
+            components: vec![
+                EnrichedComponentSnapshot {
+                    component_id: "acme.design-system.button".to_string(),
+                    component_version: Some("1.0.0".to_string()),
+                    framework: "web-components".to_string(),
+                    adapter: "framework.web-components".to_string(),
+                    lifecycle: "candidate".to_string(),
+                    source_files: vec!["src/button.ts".to_string()],
+                    readiness: "unknown".to_string(),
+                    finding_summary: serde_json::json!({
+                        "status": "not-evaluated",
+                        "findings": [],
+                        "reason": "ForgeGate has not derived per-component readiness findings yet."
+                    }),
+                },
+                EnrichedComponentSnapshot {
+                    component_id: "acme.design-system.card".to_string(),
+                    component_version: None,
+                    framework: "web-components".to_string(),
+                    adapter: "framework.web-components".to_string(),
+                    lifecycle: "proposal".to_string(),
+                    source_files: vec!["src/card.ts".to_string()],
+                    readiness: "unknown".to_string(),
+                    finding_summary: serde_json::json!({
+                        "status": "not-evaluated",
+                        "findings": []
+                    }),
+                },
+            ],
         };
         let enriched_id = enrich_latest_scan_snapshot_if_configured("D:/repos/acme", &enriched)
             .expect("snapshot enrichment should succeed")
@@ -534,6 +653,27 @@ mod tests {
         assert_eq!(row.get::<_, i32>(2), 3);
         assert_eq!(row.get::<_, String>(3), "3");
         assert_eq!(row.get::<_, String>(4), "1");
+
+        let component_rows = client
+            .query(
+                "SELECT component_id, component_version, lifecycle, readiness, source_files->>0, finding_summary->>'status'
+                FROM component_snapshots
+                WHERE scan_snapshot_id = $1
+                ORDER BY component_id",
+                &[&snapshot_id],
+            )
+            .expect("component snapshots should be readable");
+
+        assert_eq!(component_rows.len(), 2);
+        assert_eq!(
+            component_rows[0].get::<_, String>(0),
+            "acme.design-system.button"
+        );
+        assert_eq!(component_rows[0].get::<_, String>(1), "1.0.0");
+        assert_eq!(component_rows[0].get::<_, String>(2), "candidate");
+        assert_eq!(component_rows[0].get::<_, String>(3), "unknown");
+        assert_eq!(component_rows[0].get::<_, String>(4), "src/button.ts");
+        assert_eq!(component_rows[0].get::<_, String>(5), "not-evaluated");
     }
 
     #[test]
@@ -584,6 +724,7 @@ mod tests {
         assert_eq!(snapshots.len(), 2);
         assert_eq!(snapshots[0].scanned_at, "2026-01-15T15:00:00Z");
         assert_eq!(snapshots[1].component_count, Some(4));
+        assert_eq!(snapshots[1].component_snapshot_count, 0);
         assert!(snapshots[1].dirty.unwrap());
         assert_eq!(snapshots[1].seed_label.as_deref(), Some("test-seed"));
     }

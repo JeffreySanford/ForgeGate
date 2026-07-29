@@ -156,6 +156,22 @@ export interface EnrichedScanSnapshot {
       'id' | 'adapter' | 'source' | 'status' | 'error'
     >[];
   };
+  readonly components: readonly EnrichedComponentSnapshot[];
+}
+
+export interface EnrichedComponentSnapshot {
+  readonly componentId: string;
+  readonly componentVersion: string | null;
+  readonly framework: string;
+  readonly adapter: string;
+  readonly lifecycle: string;
+  readonly sourceFiles: readonly string[];
+  readonly readiness: 'unknown';
+  readonly findingSummary: {
+    readonly status: 'not-evaluated';
+    readonly findings: readonly [];
+    readonly reason: string;
+  };
 }
 
 export interface EvidenceHistorySnapshot {
@@ -164,6 +180,7 @@ export interface EvidenceHistorySnapshot {
   readonly sourceCommit: string | null;
   readonly dirty: boolean | null;
   readonly componentCount: number | null;
+  readonly componentSnapshotCount: number;
   readonly readinessSummary: {
     readonly total?: number;
     readonly readiness?: Record<string, number>;
