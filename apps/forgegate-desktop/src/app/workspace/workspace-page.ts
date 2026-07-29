@@ -6,6 +6,7 @@ import { AdapterConstellationView } from './adapter-constellation-view';
 import { AssuranceJourney } from './assurance-journey';
 import { ChangeImpactTable } from './change-impact-table';
 import { DocumentationDriftMap } from './documentation-drift-map';
+import { EvidenceHistoryTrendView } from './evidence-history-trend-view';
 import { EvidenceTimelineView } from './evidence-timeline-view';
 import { SystemMap } from './system-map';
 import { TokenTopologyView } from './token-topology-view';
@@ -20,6 +21,7 @@ import { WorkspaceScanProgressView } from './workspace-scan-progress';
     DocumentationDriftMap,
     ChangeImpactTable,
     AdapterConstellationView,
+    EvidenceHistoryTrendView,
     EvidenceTimelineView,
     TokenTopologyView,
   ],

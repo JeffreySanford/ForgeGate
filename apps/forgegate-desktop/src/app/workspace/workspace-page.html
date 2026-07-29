@@ -11,6 +11,7 @@
   <app-documentation-drift-map />
   <app-change-impact-table />
   <app-adapter-constellation-view />
+  <app-evidence-history-trend-view />
   <app-evidence-timeline-view />
   <app-token-topology-view />
 
@@ -212,49 +213,49 @@
       mapped)
     </summary>
     <p>
-      See <a routerLink="/components">Components</a> for the designer-ready
-      view of this same data.
+      See <a routerLink="/components">Components</a> for the designer-ready view
+      of this same data.
     </p>
     @if (componentMapResult().manifests.length) {
-  <table>
-    <thead>
-      <tr>
-        <th scope="col">Component</th>
-        <th scope="col">Framework</th>
-        <th scope="col">Source</th>
-        <th scope="col">Inputs</th>
-        <th scope="col">Outputs</th>
-        <th scope="col">Slots</th>
-        <th scope="col">Methods</th>
-        <th scope="col">Style parts</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (manifest of componentMapResult().manifests; track manifest.id) {
-      <tr>
-        <td>{{ manifest.id }}</td>
-        <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
-        <td>{{ manifest.sourceFiles.join(', ') }}</td>
-        <td>{{ manifest.contract.inputs.length }}</td>
-        <td>{{ manifest.contract.outputs.length }}</td>
-        <td>{{ manifest.contract.content.length }}</td>
-        <td>{{ manifest.contract.publicMethods.length }}</td>
-        <td>{{ manifest.contract.styleParts.length }}</td>
-      </tr>
-      }
-    </tbody>
-  </table>
-  } @else if (!componentMapResult().failures.length) {
-  <p>Manifest present but no custom elements found in it.</p>
-  } @if (componentMapResult().failures.length) {
-  <p role="alert">
-    {{ componentMapResult().failures.length }} declaration(s) could not be
-    mapped: @for ( failure of componentMapResult().failures; track
-    failure.declarationName ) {
-    <br />{{ failure.declarationName }} ({{ failure.modulePath }}): {{
-    failure.message }} }
-  </p>
-  }
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Component</th>
+          <th scope="col">Framework</th>
+          <th scope="col">Source</th>
+          <th scope="col">Inputs</th>
+          <th scope="col">Outputs</th>
+          <th scope="col">Slots</th>
+          <th scope="col">Methods</th>
+          <th scope="col">Style parts</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (manifest of componentMapResult().manifests; track manifest.id) {
+        <tr>
+          <td>{{ manifest.id }}</td>
+          <td>{{ manifest.framework }} ({{ manifest.adapter }})</td>
+          <td>{{ manifest.sourceFiles.join(', ') }}</td>
+          <td>{{ manifest.contract.inputs.length }}</td>
+          <td>{{ manifest.contract.outputs.length }}</td>
+          <td>{{ manifest.contract.content.length }}</td>
+          <td>{{ manifest.contract.publicMethods.length }}</td>
+          <td>{{ manifest.contract.styleParts.length }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+    } @else if (!componentMapResult().failures.length) {
+    <p>Manifest present but no custom elements found in it.</p>
+    } @if (componentMapResult().failures.length) {
+    <p role="alert">
+      {{ componentMapResult().failures.length }} declaration(s) could not be
+      mapped: @for ( failure of componentMapResult().failures; track
+      failure.declarationName ) {
+      <br />{{ failure.declarationName }} ({{ failure.modulePath }}): {{
+      failure.message }} }
+    </p>
+    }
   </details>
   } @if (workspace.customElementsManifestError(); as cemError) {
   <p role="alert">Custom Elements Manifest could not be read: {{ cemError }}</p>
@@ -325,8 +326,7 @@
     <button type="button" (click)="cancelGeneratingCustomElementsManifest()">
       Cancel
     </button>
-    }
-    @if (workspace.cemGenerationLiveOutput()) {
+    } @if (workspace.cemGenerationLiveOutput()) {
     <!--
       Deliberately not role="status"/aria-live: this updates once per
       output line, sometimes rapidly, and role="status" implies polite
@@ -337,10 +337,10 @@
     -->
     <details open>
       <summary>Live output</summary>
-      <pre class="workspace-page__cem-live-output">{{ workspace.cemGenerationLiveOutput() }}</pre>
+      <pre class="workspace-page__cem-live-output">
+{{ workspace.cemGenerationLiveOutput() }}</pre>
     </details>
-    }
-    } } @else {
+    } } } @else {
     <p role="status">
       No package with both a package.json and source directory was found.
       ForgeGate will not run the analyzer at the workspace root.
@@ -357,8 +357,7 @@
       <dd>
         <pre>{{ cemRunResult.stderr }}</pre>
       </dd>
-      }
-      @if (cemRunResult.artifactPath) {
+      } @if (cemRunResult.artifactPath) {
       <dt>Saved artifact</dt>
       <dd>
         <code>{{ cemRunResult.artifactPath }}</code>

@@ -38,6 +38,29 @@ pub struct EnrichedScanSnapshot {
     pub adapter_summary: serde_json::Value,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceHistorySnapshot {
+    pub id: i64,
+    pub scanned_at: String,
+    pub source_commit: Option<String>,
+    pub dirty: Option<bool>,
+    pub component_count: Option<i32>,
+    pub readiness_summary: Option<serde_json::Value>,
+    pub adapter_summary: serde_json::Value,
+    pub seeded: bool,
+    pub seed_label: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceHistoryTrend {
+    pub configured: bool,
+    pub connected: bool,
+    pub snapshots: Vec<EvidenceHistorySnapshot>,
+    pub error: Option<String>,
+}
+
 pub fn persistence_status_from_env() -> PersistenceStatus {
     let Some(database_url) = database_url_from_env() else {
         return PersistenceStatus {
@@ -62,6 +85,34 @@ pub fn persistence_status_from_env() -> PersistenceStatus {
             connected: false,
             applied_migrations: Vec::new(),
             scan_snapshot_count: 0,
+            error: Some(error),
+        },
+    }
+}
+
+pub fn evidence_history_trend_from_env(workspace_path: &str) -> EvidenceHistoryTrend {
+    let Some(database_url) = database_url_from_env() else {
+        return EvidenceHistoryTrend {
+            configured: false,
+            connected: false,
+            snapshots: Vec::new(),
+            error: None,
+        };
+    };
+
+    match connect_and_migrate(&database_url)
+        .and_then(|mut client| evidence_history_trend(&mut client, workspace_path, 24))
+    {
+        Ok(snapshots) => EvidenceHistoryTrend {
+            configured: true,
+            connected: true,
+            snapshots,
+            error: None,
+        },
+        Err(error) => EvidenceHistoryTrend {
+            configured: true,
+            connected: false,
+            snapshots: Vec::new(),
             error: Some(error),
         },
     }
@@ -145,6 +196,57 @@ pub fn record_scan_snapshot_if_configured(
         .map_err(|error| format!("Failed to insert scan snapshot: {error}"))?;
 
     Ok(Some(row.get(0)))
+}
+
+fn evidence_history_trend(
+    client: &mut Client,
+    workspace_path: &str,
+    limit: i64,
+) -> Result<Vec<EvidenceHistorySnapshot>, String> {
+    let normalized_workspace_path = normalize_workspace_path_for_history_lookup(workspace_path);
+    client
+        .query(
+            "SELECT
+                scan_snapshots.id,
+                to_char(scan_snapshots.scanned_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS scanned_at,
+                scan_snapshots.source_commit,
+                scan_snapshots.dirty,
+                scan_snapshots.component_count,
+                scan_snapshots.readiness_summary,
+                scan_snapshots.adapter_summary,
+                scan_snapshots.seeded,
+                scan_snapshots.seed_label
+            FROM scan_snapshots
+            JOIN workspaces ON workspaces.id = scan_snapshots.workspace_id
+            WHERE workspaces.workspace_path = $1
+               OR workspaces.workspace_path = $2
+            ORDER BY scan_snapshots.scanned_at DESC, scan_snapshots.id DESC
+            LIMIT $3",
+            &[&workspace_path, &normalized_workspace_path, &limit],
+        )
+        .map(|rows| {
+            let mut snapshots = rows
+                .into_iter()
+                .map(|row| EvidenceHistorySnapshot {
+                    id: row.get(0),
+                    scanned_at: row.get(1),
+                    source_commit: row.get(2),
+                    dirty: row.get(3),
+                    component_count: row.get(4),
+                    readiness_summary: row.get(5),
+                    adapter_summary: row.get(6),
+                    seeded: row.get(7),
+                    seed_label: row.get(8),
+                })
+                .collect::<Vec<_>>();
+            snapshots.reverse();
+            snapshots
+        })
+        .map_err(|error| format!("Failed to read evidence history trend: {error}"))
+}
+
+fn normalize_workspace_path_for_history_lookup(workspace_path: &str) -> String {
+    workspace_path.replace('\\', "/")
 }
 
 fn database_url_from_env() -> Option<String> {
@@ -303,6 +405,18 @@ mod tests {
     }
 
     #[test]
+    fn trend_query_normalizes_windows_path_separators() {
+        assert_eq!(
+            normalize_workspace_path_for_history_lookup(r"D:\repos\ForgeGate"),
+            "D:/repos/ForgeGate"
+        );
+        assert_eq!(
+            normalize_workspace_path_for_history_lookup("D:/repos/ForgeGate"),
+            "D:/repos/ForgeGate"
+        );
+    }
+
+    #[test]
     #[ignore = "requires FORGEGATE_DATABASE_URL pointing at a disposable Postgres database"]
     fn records_scan_snapshot_when_database_configured() {
         let database_url = std::env::var(DATABASE_URL_ENV)
@@ -420,5 +534,57 @@ mod tests {
         assert_eq!(row.get::<_, i32>(2), 3);
         assert_eq!(row.get::<_, String>(3), "3");
         assert_eq!(row.get::<_, String>(4), "1");
+    }
+
+    #[test]
+    #[ignore = "requires FORGEGATE_DATABASE_URL pointing at a disposable Postgres database"]
+    fn reads_history_trend_for_a_workspace_with_normalized_path_separators() {
+        let database_url = std::env::var(DATABASE_URL_ENV)
+            .expect("FORGEGATE_DATABASE_URL must point at a test Postgres database");
+        let mut client =
+            connect_and_migrate(&database_url).expect("test database should be reachable");
+        client
+            .batch_execute("TRUNCATE scan_snapshots, workspaces RESTART IDENTITY CASCADE")
+            .expect("test database should be disposable");
+
+        let workspace_id = upsert_workspace(&mut client, "D:/repos/acme")
+            .expect("workspace insert should succeed");
+        client
+            .execute(
+                "INSERT INTO scan_snapshots (
+                    workspace_id,
+                    scanned_at,
+                    source_commit,
+                    dirty,
+                    component_count,
+                    readiness_summary,
+                    adapter_summary,
+                    scan,
+                    seeded,
+                    seed_label
+                )
+                VALUES
+                    ($1, '2026-01-15T15:00:00Z', $2, false, 2, $3, $4, '{}'::jsonb, true, 'test-seed'),
+                    ($1, '2026-02-15T15:00:00Z', $5, true, 4, $6, $7, '{}'::jsonb, true, 'test-seed')",
+                &[
+                    &workspace_id,
+                    &"a".repeat(40),
+                    &serde_json::json!({ "readiness": { "unknown": 2 } }),
+                    &serde_json::json!({ "byStatus": { "loaded": 1 } }),
+                    &"b".repeat(40),
+                    &serde_json::json!({ "readiness": { "unknown": 4 } }),
+                    &serde_json::json!({ "byStatus": { "loaded": 2, "partial": 1 } }),
+                ],
+            )
+            .expect("snapshot inserts should succeed");
+
+        let snapshots = evidence_history_trend(&mut client, r"D:\repos\acme", 24)
+            .expect("trend query should succeed");
+
+        assert_eq!(snapshots.len(), 2);
+        assert_eq!(snapshots[0].scanned_at, "2026-01-15T15:00:00Z");
+        assert_eq!(snapshots[1].component_count, Some(4));
+        assert!(snapshots[1].dirty.unwrap());
+        assert_eq!(snapshots[1].seed_label.as_deref(), Some("test-seed"));
     }
 }

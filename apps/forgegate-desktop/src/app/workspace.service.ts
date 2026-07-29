@@ -158,6 +158,32 @@ export interface EnrichedScanSnapshot {
   };
 }
 
+export interface EvidenceHistorySnapshot {
+  readonly id: number;
+  readonly scannedAt: string;
+  readonly sourceCommit: string | null;
+  readonly dirty: boolean | null;
+  readonly componentCount: number | null;
+  readonly readinessSummary: {
+    readonly total?: number;
+    readonly readiness?: Record<string, number>;
+    readonly lifecycle?: Record<string, number>;
+  } | null;
+  readonly adapterSummary: {
+    readonly total?: number;
+    readonly byStatus?: Partial<Record<AdapterDiagnostic['status'], number>>;
+  };
+  readonly seeded: boolean;
+  readonly seedLabel: string | null;
+}
+
+export interface EvidenceHistoryTrend {
+  readonly configured: boolean;
+  readonly connected: boolean;
+  readonly snapshots: readonly EvidenceHistorySnapshot[];
+  readonly error: string | null;
+}
+
 export interface CemGenerationPlan {
   target: ComponentPackageCandidate;
   command: string;
@@ -257,6 +283,8 @@ export class WorkspaceService {
    */
   readonly cemGenerationLiveOutput = signal('');
   readonly adapterDiagnostics = signal<readonly AdapterDiagnostic[]>([]);
+  readonly evidenceHistoryTrend = signal<EvidenceHistoryTrend | null>(null);
+  readonly evidenceHistoryLoading = signal(false);
   readonly persistenceError = signal<string | null>(null);
   readonly evidenceExportRunning = signal(false);
   readonly evidenceExportResult = signal<{
@@ -279,6 +307,8 @@ export class WorkspaceService {
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
     this.adapterDiagnostics.set([]);
+    this.evidenceHistoryTrend.set(null);
+    this.evidenceHistoryLoading.set(false);
     this.persistenceError.set(null);
     this.setScanProgress('selecting', 'Choose a repository folder', 0);
     try {
@@ -352,6 +382,7 @@ export class WorkspaceService {
         completed: WORKSPACE_SCAN_STEP_COUNT,
         total: WORKSPACE_SCAN_STEP_COUNT,
       });
+      await this.loadEvidenceHistoryTrend();
     } catch (error) {
       this.gitStatus.set(null);
       this.workspaceScan.set(null);
@@ -361,6 +392,8 @@ export class WorkspaceService {
       this.testExecutions.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
+      this.evidenceHistoryTrend.set(null);
+      this.evidenceHistoryLoading.set(false);
       this.error.set(String(error));
       this.setAdapterDiagnostic({
         id: 'workspace-selection',
@@ -415,8 +448,30 @@ export class WorkspaceService {
         snapshot,
       });
       this.persistenceError.set(null);
+      await this.loadEvidenceHistoryTrend();
     } catch (error) {
       this.persistenceError.set(String(error));
+    }
+  }
+
+  async loadEvidenceHistoryTrend(): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.evidenceHistoryLoading()) {
+      return;
+    }
+    this.evidenceHistoryLoading.set(true);
+    try {
+      const trend = await this.invoke<EvidenceHistoryTrend>(
+        'read_evidence_history_trend',
+        { path },
+      );
+      this.evidenceHistoryTrend.set(trend);
+      this.persistenceError.set(trend.error);
+    } catch (error) {
+      this.evidenceHistoryTrend.set(null);
+      this.persistenceError.set(String(error));
+    } finally {
+      this.evidenceHistoryLoading.set(false);
     }
   }
 

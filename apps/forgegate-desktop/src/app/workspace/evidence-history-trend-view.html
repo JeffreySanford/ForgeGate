@@ -1,0 +1,105 @@
+<section
+  class="evidence-history-trend fg-panel"
+  aria-labelledby="evidence-history-trend-title"
+>
+  <h2 id="evidence-history-trend-title">Evidence history trend</h2>
+
+  @if (!workspace.workspacePath()) {
+  <p class="fg-empty-state">
+    Open a workspace to inspect persisted evidence history.
+  </p>
+  } @else if (workspace.evidenceHistoryLoading()) {
+  <p class="fg-empty-state">Loading persisted evidence history.</p>
+  } @else if (!workspace.evidenceHistoryTrend()?.configured) {
+  <p class="fg-empty-state">
+    Persistence is not configured. Set FORGEGATE_DATABASE_URL to compare scans
+    over time.
+  </p>
+  } @else if (!workspace.evidenceHistoryTrend()?.connected) {
+  <p role="alert">{{ workspace.evidenceHistoryTrend()?.error }}</p>
+  } @else if (snapshots().length === 0) {
+  <p class="fg-empty-state">
+    No persisted snapshots exist for this workspace yet.
+  </p>
+  } @else {
+  <div
+    class="evidence-history-trend__summary"
+    aria-label="Evidence history summary"
+  >
+    <div>
+      <span class="evidence-history-trend__value"
+        >{{ snapshots().length }}</span
+      >
+      <span>Snapshots</span>
+    </div>
+    <div>
+      <span class="evidence-history-trend__value"
+        >{{ latestSnapshot()?.componentCount ?? 'unknown' }}</span
+      >
+      <span>Latest components</span>
+    </div>
+    <div>
+      <span class="evidence-history-trend__value">
+        {{ componentDelta() === null ? 'unknown' : componentDelta()! >= 0 ? '+'
+        + componentDelta() : componentDelta() }}
+      </span>
+      <span>Component delta</span>
+    </div>
+  </div>
+
+  @if (snapshots()[0]?.seeded) {
+  <p class="evidence-history-trend__seed-note">
+    Seeded development history is included and labeled per row. Do not treat it
+    as audit evidence.
+  </p>
+  }
+
+  <table>
+    <caption class="sr-only">
+      Persisted scan snapshots over time
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Scan</th>
+        <th scope="col">Components</th>
+        <th scope="col">Readiness</th>
+        <th scope="col">Adapters</th>
+        <th scope="col">Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (snapshot of snapshots(); track snapshot.id) {
+      <tr [class.evidence-history-trend__seeded]="snapshot.seeded">
+        <th scope="row">
+          {{ formatShortDate(snapshot.scannedAt) }} @if (snapshot.seeded) {
+          <span class="evidence-history-trend__tag"
+            >{{ snapshot.seedLabel }}</span
+          >
+          }
+        </th>
+        <td>
+          <span class="evidence-history-trend__bar-track" aria-hidden="true">
+            <span
+              class="evidence-history-trend__bar-fill"
+              [style.width.%]="componentWidth(snapshot)"
+            ></span>
+          </span>
+          {{ snapshot.componentCount ?? 'unknown' }}
+        </td>
+        <td>{{ readinessUnknown(snapshot) }} unknown</td>
+        <td>
+          {{ loadedAdapters(snapshot) }} loaded, {{ partialAdapters(snapshot) }}
+          partial
+        </td>
+        <td>
+          <code>{{ shortCommit(snapshot) }}</code>
+          @if (snapshot.dirty) {
+          <span class="evidence-history-trend__dirty">dirty</span>
+          }
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  }
+</section>

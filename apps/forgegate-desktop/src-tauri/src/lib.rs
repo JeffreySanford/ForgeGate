@@ -268,6 +268,16 @@ fn read_persistence_status() -> evidence_history::PersistenceStatus {
 }
 
 #[tauri::command]
+fn read_evidence_history_trend(
+    path: String,
+) -> Result<evidence_history::EvidenceHistoryTrend, String> {
+    let workspace = resolve_workspace_path(&path)?;
+    Ok(evidence_history::evidence_history_trend_from_env(
+        &workspace.display().to_string(),
+    ))
+}
+
+#[tauri::command]
 fn record_enriched_scan_snapshot(
     path: String,
     snapshot: evidence_history::EnrichedScanSnapshot,
@@ -1120,6 +1130,7 @@ pub fn run() {
             write_evidence_package,
             read_workspace_source_files,
             read_persistence_status,
+            read_evidence_history_trend,
             record_enriched_scan_snapshot
         ])
         .run(tauri::generate_context!())

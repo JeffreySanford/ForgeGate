@@ -99,6 +99,9 @@ describe('WorkspaceService', () => {
     expect(service.workspaceScan()).toEqual(scanFixture);
     expect(service.repositoryConfig()).toBeNull();
     expect(service.repositoryConfigError()).toBeNull();
+    expect(invokeMock).toHaveBeenCalledWith('read_evidence_history_trend', {
+      path: 'D:/repos/ForgeGate',
+    });
     expect(service.error()).toBeNull();
     expect(service.scanProgress()).toEqual({
       phase: 'complete',
@@ -260,9 +263,65 @@ describe('WorkspaceService', () => {
 
     await service.selectWorkspace();
 
-    expect(invokeMock).toHaveBeenCalledTimes(4);
+    expect(invokeMock).toHaveBeenCalledTimes(5);
     expect(service.customElementsManifest()).toBeNull();
     expect(service.customElementsManifestError()).toBeNull();
+  });
+
+  it('loads persisted evidence history for the selected workspace', async () => {
+    const trend = {
+      configured: true,
+      connected: true,
+      snapshots: [
+        {
+          id: 1,
+          scannedAt: '2026-01-15T15:00:00Z',
+          sourceCommit: 'a'.repeat(40),
+          dirty: false,
+          componentCount: 4,
+          readinessSummary: {
+            total: 4,
+            readiness: { unknown: 4 },
+            lifecycle: { proposal: 4 },
+          },
+          adapterSummary: { total: 1, byStatus: { loaded: 1 } },
+          seeded: true,
+          seedLabel: 'dev-history-2026-07',
+        },
+      ],
+      error: null,
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(trend);
+
+    await service.selectWorkspace();
+
+    expect(service.evidenceHistoryTrend()).toEqual(trend);
+    expect(service.persistenceError()).toBeNull();
+  });
+
+  it('keeps a persisted evidence history connection failure separate from scan state', async () => {
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixture)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        configured: true,
+        connected: false,
+        snapshots: [],
+        error: 'Failed to connect to Postgres',
+      });
+
+    await service.selectWorkspace();
+
+    expect(service.workspaceScan()).toEqual(scanFixture);
+    expect(service.error()).toBeNull();
+    expect(service.persistenceError()).toBe('Failed to connect to Postgres');
   });
 
   it('reads and parses the first Custom Elements Manifest the scan found', async () => {
@@ -293,7 +352,7 @@ describe('WorkspaceService', () => {
 
     await service.selectWorkspace();
 
-    expect(invokeMock).toHaveBeenLastCalledWith('read_text_file', {
+    expect(invokeMock).toHaveBeenCalledWith('read_text_file', {
       workspacePath: 'D:/repos/ForgeGate',
       relativePath: 'dist/custom-elements.json',
     });
@@ -523,7 +582,9 @@ describe('WorkspaceService', () => {
 
     expect(emitLine).toBeDefined();
     emitLine('wrote custom-elements.json');
-    expect(service.cemGenerationLiveOutput()).toBe('wrote custom-elements.json\n');
+    expect(service.cemGenerationLiveOutput()).toBe(
+      'wrote custom-elements.json\n',
+    );
 
     await generatePromise;
 
@@ -580,7 +641,9 @@ describe('WorkspaceService', () => {
       timeoutSeconds: 120,
     });
     expect(service.cemGenerationResult()?.exitCode).toBe(0);
-    expect(service.cemGenerationResult()?.artifactPath).toBe('/tmp/forgegate-artifacts/42.json');
+    expect(service.cemGenerationResult()?.artifactPath).toBe(
+      '/tmp/forgegate-artifacts/42.json',
+    );
     expect(service.workspaceScan()?.customElementsManifests).toContain(
       'packages/design-system/dist/custom-elements.json',
     );
@@ -683,19 +746,26 @@ describe('WorkspaceService', () => {
     it('writes a real evidence package once a destination is chosen', async () => {
       invokeMock
         .mockResolvedValueOnce('/home/user/exports')
-        .mockResolvedValueOnce('/home/user/exports/acme.lib.button-1.0.0-evidence-uuid');
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
 
       await service.exportEvidencePackage(manifest, []);
 
       expect(invokeMock).toHaveBeenNthCalledWith(1, 'pick_export_directory');
-      const [secondCallName, secondCallArgs] = invokeMock.mock.calls[1] as [string, {
-        parentDirectory: string;
-        directoryName: string;
-        files: Record<string, string>;
-      }];
+      const [secondCallName, secondCallArgs] = invokeMock.mock.calls[1] as [
+        string,
+        {
+          parentDirectory: string;
+          directoryName: string;
+          files: Record<string, string>;
+        },
+      ];
       expect(secondCallName).toBe('write_evidence_package');
       expect(secondCallArgs.parentDirectory).toBe('/home/user/exports');
-      expect(secondCallArgs.directoryName).toContain('acme.lib.button-1.0.0-evidence-');
+      expect(secondCallArgs.directoryName).toContain(
+        'acme.lib.button-1.0.0-evidence-',
+      );
       expect(Object.keys(secondCallArgs.files).sort()).toEqual([
         'checksums.sha256',
         'documentation-status.json',
@@ -713,34 +783,57 @@ describe('WorkspaceService', () => {
       service.gitStatus.set(gitStatusFixture);
       invokeMock
         .mockResolvedValueOnce('/home/user/exports')
-        .mockResolvedValueOnce('/home/user/exports/acme.lib.button-1.0.0-evidence-uuid');
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
 
       await service.exportEvidencePackage(manifest, []);
 
-      const [, secondCallArgs] = invokeMock.mock.calls[1] as [string, { files: Record<string, string> }];
+      const [, secondCallArgs] = invokeMock.mock.calls[1] as [
+        string,
+        { files: Record<string, string> },
+      ];
       const manifestContent = secondCallArgs.files['manifest.json'];
       expect(manifestContent).toBeDefined();
-      expect(JSON.parse(manifestContent ?? '{}').repositoryCommit).toBe(gitStatusFixture.commit);
+      expect(JSON.parse(manifestContent ?? '{}').repositoryCommit).toBe(
+        gitStatusFixture.commit,
+      );
     });
 
     it('writes a real findings/<id>.json file for each real blocking reason passed in', async () => {
       invokeMock
         .mockResolvedValueOnce('/home/user/exports')
-        .mockResolvedValueOnce('/home/user/exports/acme.lib.button-1.0.0-evidence-uuid');
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
 
-      await service.exportEvidencePackage(manifest, [], ['No token mappings connected']);
+      await service.exportEvidencePackage(
+        manifest,
+        [],
+        ['No token mappings connected'],
+      );
 
-      const [, secondCallArgs] = invokeMock.mock.calls[1] as [string, { files: Record<string, string> }];
-      expect(Object.keys(secondCallArgs.files)).toContain('findings/acme.lib.button-blocking-0.json');
-      const findingContent = secondCallArgs.files['findings/acme.lib.button-blocking-0.json'];
+      const [, secondCallArgs] = invokeMock.mock.calls[1] as [
+        string,
+        { files: Record<string, string> },
+      ];
+      expect(Object.keys(secondCallArgs.files)).toContain(
+        'findings/acme.lib.button-blocking-0.json',
+      );
+      const findingContent =
+        secondCallArgs.files['findings/acme.lib.button-blocking-0.json'];
       expect(findingContent).toBeDefined();
-      expect(JSON.parse(findingContent ?? '{}').description).toBe('No token mappings connected');
+      expect(JSON.parse(findingContent ?? '{}').description).toBe(
+        'No token mappings connected',
+      );
     });
 
     it('reports a write failure without leaving the running flag stuck', async () => {
       invokeMock
         .mockResolvedValueOnce('/home/user/exports')
-        .mockRejectedValueOnce('Failed to write manifest.json: permission denied');
+        .mockRejectedValueOnce(
+          'Failed to write manifest.json: permission denied',
+        );
 
       await service.exportEvidencePackage(manifest, []);
 
