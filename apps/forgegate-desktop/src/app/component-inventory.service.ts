@@ -1,4 +1,4 @@
-import { Injectable, computed, inject } from '@angular/core';
+import { Injectable, computed, effect, inject } from '@angular/core';
 import { buildComponentId } from '@forgegate/core-domain';
 import {
   deriveOrganizationAndLibrary,
@@ -48,6 +48,7 @@ export interface ComponentInventoryResult extends MapCemResult {
 @Injectable({ providedIn: 'root' })
 export class ComponentInventoryService {
   private readonly workspace = inject(WorkspaceService);
+  private lastPersistedSnapshotKey: string | null = null;
 
   readonly result = computed<ComponentInventoryResult>(() => {
     const manifest = this.workspace.customElementsManifest();
@@ -149,6 +150,51 @@ export class ComponentInventoryService {
         (item) => item.declarationCount > 1,
       ).length,
     };
+  });
+
+  private readonly persistEnrichedSnapshot = effect(() => {
+    const workspacePath = this.workspace.workspacePath();
+    const scanProgress = this.workspace.scanProgress();
+    const gitStatus = this.workspace.gitStatus();
+    const inventory = this.result();
+    const diagnostics = this.workspace.adapterDiagnostics();
+    if (
+      !workspacePath ||
+      scanProgress?.state !== 'complete' ||
+      scanProgress.phase !== 'complete'
+    ) {
+      return;
+    }
+
+    const snapshot = {
+      sourceCommit: gitStatus?.commit ?? null,
+      dirty: gitStatus?.dirty ?? null,
+      componentCount: inventory.manifests.length,
+      readinessSummary: {
+        total: inventory.manifests.length,
+        readiness: { unknown: inventory.manifests.length },
+        lifecycle: countBy(
+          inventory.manifests.map((manifest) => manifest.lifecycle),
+        ),
+      },
+      adapterSummary: {
+        total: diagnostics.length,
+        byStatus: countBy(diagnostics.map((diagnostic) => diagnostic.status)),
+        diagnostics: diagnostics.map((diagnostic) => ({
+          id: diagnostic.id,
+          adapter: diagnostic.adapter,
+          source: diagnostic.source,
+          status: diagnostic.status,
+          error: diagnostic.error,
+        })),
+      },
+    };
+    const snapshotKey = JSON.stringify({ workspacePath, snapshot });
+    if (snapshotKey === this.lastPersistedSnapshotKey) {
+      return;
+    }
+    this.lastPersistedSnapshotKey = snapshotKey;
+    void this.workspace.recordEnrichedScanSnapshot(snapshot);
   });
 }
 
@@ -315,4 +361,12 @@ function classifySource(
     return 'owned';
   if (/^(apps|packages|libs)\//.test(path)) return 'workspace';
   return 'unknown';
+}
+
+function countBy<T extends string>(values: readonly T[]): Record<T, number> {
+  const counts = {} as Record<T, number>;
+  for (const value of values) {
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+  return counts;
 }

@@ -156,4 +156,98 @@ describe('ComponentInventoryService', () => {
       'libs/ui/src/button/button.component.ts',
     ]);
   });
+
+  it('persists an enriched scan snapshot after the inventory is complete', async () => {
+    invokeMock.mockResolvedValue(null);
+    workspace.workspacePath.set('D:/repos/ForgeGate');
+    workspace.gitStatus.set({
+      branch: 'master',
+      commit: 'a'.repeat(40),
+      dirty: true,
+      changedFiles: ['apps/demo/src/app/button.component.ts'],
+    });
+    workspace.adapterDiagnostics.set([
+      {
+        id: 'workspace-scan',
+        adapter: 'workspace scanner',
+        source: 'read_workspace_scan',
+        status: 'loaded',
+        rawOutput: '{}',
+        error: null,
+      },
+      {
+        id: 'storybook-index',
+        adapter: 'Storybook adapter',
+        source: 'storybook-static/index.json',
+        status: 'unavailable',
+        rawOutput: null,
+        error: 'Storybook not detected',
+      },
+    ]);
+    workspace.angularComponents.set([angularDeclaration()]);
+
+    workspace.scanProgress.set({
+      phase: 'complete',
+      state: 'complete',
+      label: 'Workspace scan complete',
+      completed: 5,
+      total: 5,
+    });
+
+    await vi.waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('record_enriched_scan_snapshot', {
+        path: 'D:/repos/ForgeGate',
+        snapshot: {
+          sourceCommit: 'a'.repeat(40),
+          dirty: true,
+          componentCount: 1,
+          readinessSummary: {
+            total: 1,
+            readiness: { unknown: 1 },
+            lifecycle: { proposal: 1 },
+          },
+          adapterSummary: {
+            total: 2,
+            byStatus: { loaded: 1, unavailable: 1 },
+            diagnostics: [
+              {
+                id: 'workspace-scan',
+                adapter: 'workspace scanner',
+                source: 'read_workspace_scan',
+                status: 'loaded',
+                error: null,
+              },
+              {
+                id: 'storybook-index',
+                adapter: 'Storybook adapter',
+                source: 'storybook-static/index.json',
+                status: 'unavailable',
+                error: 'Storybook not detected',
+              },
+            ],
+          },
+        },
+      });
+    });
+  });
+
+  it('keeps an enriched snapshot failure separate from scan state', async () => {
+    invokeMock.mockRejectedValueOnce('Postgres is unavailable');
+    workspace.workspacePath.set('D:/repos/ForgeGate');
+    workspace.angularComponents.set([angularDeclaration()]);
+
+    workspace.scanProgress.set({
+      phase: 'complete',
+      state: 'complete',
+      label: 'Workspace scan complete',
+      completed: 5,
+      total: 5,
+    });
+
+    await vi.waitFor(() => {
+      expect(workspace.persistenceError()).toBe('Postgres is unavailable');
+    });
+    expect(workspace.scanProgress()?.state).toBe('complete');
+    expect(workspace.error()).toBeNull();
+  });
 });

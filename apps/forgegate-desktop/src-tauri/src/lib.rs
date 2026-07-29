@@ -267,6 +267,18 @@ fn read_persistence_status() -> evidence_history::PersistenceStatus {
     evidence_history::persistence_status_from_env()
 }
 
+#[tauri::command]
+fn record_enriched_scan_snapshot(
+    path: String,
+    snapshot: evidence_history::EnrichedScanSnapshot,
+) -> Result<Option<i64>, String> {
+    let workspace = resolve_workspace_path(&path)?;
+    evidence_history::enrich_latest_scan_snapshot_if_configured(
+        &workspace.display().to_string(),
+        &snapshot,
+    )
+}
+
 /// Returns the raw text of `.forgegate/config.yaml`, or `None` if the
 /// workspace has not been configured yet — that is a normal, expected
 /// state, not an error. Parsing and schema validation happen in
@@ -1107,7 +1119,8 @@ pub fn run() {
             pick_export_directory,
             write_evidence_package,
             read_workspace_source_files,
-            read_persistence_status
+            read_persistence_status,
+            record_enriched_scan_snapshot
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

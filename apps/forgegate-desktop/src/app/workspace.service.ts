@@ -139,6 +139,25 @@ export interface AdapterDiagnostic {
   readonly error: string | null;
 }
 
+export interface EnrichedScanSnapshot {
+  readonly sourceCommit: string | null;
+  readonly dirty: boolean | null;
+  readonly componentCount: number;
+  readonly readinessSummary: {
+    readonly total: number;
+    readonly readiness: Record<string, number>;
+    readonly lifecycle: Record<string, number>;
+  };
+  readonly adapterSummary: {
+    readonly total: number;
+    readonly byStatus: Record<AdapterDiagnostic['status'], number>;
+    readonly diagnostics: readonly Pick<
+      AdapterDiagnostic,
+      'id' | 'adapter' | 'source' | 'status' | 'error'
+    >[];
+  };
+}
+
 export interface CemGenerationPlan {
   target: ComponentPackageCandidate;
   command: string;
@@ -213,7 +232,9 @@ export class WorkspaceService {
   readonly designTokens = signal<readonly DtcgToken[]>([]);
   readonly designTokenError = signal<string | null>(null);
   /** Angular components discovered by scanning TypeScript source. */
-  readonly angularComponents = signal<readonly AngularComponentDeclaration[]>([]);
+  readonly angularComponents = signal<readonly AngularComponentDeclaration[]>(
+    [],
+  );
   readonly angularComponentsError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
@@ -236,8 +257,11 @@ export class WorkspaceService {
    */
   readonly cemGenerationLiveOutput = signal('');
   readonly adapterDiagnostics = signal<readonly AdapterDiagnostic[]>([]);
+  readonly persistenceError = signal<string | null>(null);
   readonly evidenceExportRunning = signal(false);
-  readonly evidenceExportResult = signal<{ readonly directoryPath: string } | null>(null);
+  readonly evidenceExportResult = signal<{
+    readonly directoryPath: string;
+  } | null>(null);
   readonly evidenceExportError = signal<string | null>(null);
   readonly error = signal<string | null>(null);
 
@@ -255,6 +279,7 @@ export class WorkspaceService {
     this.cemGenerationResult.set(null);
     this.cemGenerationError.set(null);
     this.adapterDiagnostics.set([]);
+    this.persistenceError.set(null);
     this.setScanProgress('selecting', 'Choose a repository folder', 0);
     try {
       const path = await this.invoke<string | null>('select_workspace');
@@ -377,6 +402,24 @@ export class WorkspaceService {
     ]);
   }
 
+  async recordEnrichedScanSnapshot(
+    snapshot: EnrichedScanSnapshot,
+  ): Promise<void> {
+    const path = this.workspacePath();
+    if (!path) {
+      return;
+    }
+    try {
+      await this.invoke<number | null>('record_enriched_scan_snapshot', {
+        path,
+        snapshot,
+      });
+      this.persistenceError.set(null);
+    } catch (error) {
+      this.persistenceError.set(String(error));
+    }
+  }
+
   selectComponentPackage(path: string): void {
     this.selectedComponentPackagePath.set(path || null);
     this.cemGenerationResult.set(null);
@@ -429,11 +472,12 @@ export class WorkspaceService {
         source: `${plan.target.path}: ${plan.commandText}`,
         status: result.exitCode === 0 ? 'loaded' : 'failed',
         rawOutput: JSON.stringify(result, null, 2),
-        error: result.exitCode === 0
-          ? null
-          : result.cancelled
-            ? 'Cancelled by user'
-            : result.stderr || 'Command failed',
+        error:
+          result.exitCode === 0
+            ? null
+            : result.cancelled
+              ? 'Cancelled by user'
+              : result.stderr || 'Command failed',
       });
       if (result.exitCode === 0) {
         const relativePath = [
@@ -543,11 +587,14 @@ export class WorkspaceService {
         approver,
         repositoryCommit: this.gitStatus()?.commit ?? null,
       });
-      const directoryPath = await this.invoke<string>('write_evidence_package', {
-        parentDirectory,
-        directoryName,
-        files,
-      });
+      const directoryPath = await this.invoke<string>(
+        'write_evidence_package',
+        {
+          parentDirectory,
+          directoryName,
+          files,
+        },
+      );
       this.evidenceExportResult.set({ directoryPath });
     } catch (error) {
       this.evidenceExportError.set(String(error));
@@ -709,7 +756,9 @@ export class WorkspaceService {
     scan: WorkspaceScan,
   ): Promise<void> {
     this.angularComponents.set([]);
-    const typescriptFiles = (scan.uiSourceFiles ?? []).filter((path) => path.endsWith('.ts'));
+    const typescriptFiles = (scan.uiSourceFiles ?? []).filter((path) =>
+      path.endsWith('.ts'),
+    );
     if (typescriptFiles.length === 0) {
       return;
     }
@@ -718,7 +767,8 @@ export class WorkspaceService {
         'read_workspace_source_files',
         { workspacePath, relativePaths: typescriptFiles },
       );
-      const { declarations, scannedFileCount } = discoverAngularComponents(files);
+      const { declarations, scannedFileCount } =
+        discoverAngularComponents(files);
       this.angularComponents.set(declarations);
       this.setAdapterDiagnostic({
         id: 'angular-components',

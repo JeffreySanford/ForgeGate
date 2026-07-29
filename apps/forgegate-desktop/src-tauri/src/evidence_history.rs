@@ -1,5 +1,5 @@
 use postgres::{Client, NoTls};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::workspace_scan::WorkspaceScan;
 
@@ -23,6 +23,16 @@ pub struct PersistenceStatus {
     pub applied_migrations: Vec<String>,
     pub scan_snapshot_count: i64,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnrichedScanSnapshot {
+    pub source_commit: Option<String>,
+    pub dirty: Option<bool>,
+    pub component_count: i32,
+    pub readiness_summary: serde_json::Value,
+    pub adapter_summary: serde_json::Value,
 }
 
 pub fn persistence_status_from_env() -> PersistenceStatus {
@@ -52,6 +62,47 @@ pub fn persistence_status_from_env() -> PersistenceStatus {
             error: Some(error),
         },
     }
+}
+
+pub fn enrich_latest_scan_snapshot_if_configured(
+    workspace_path: &str,
+    snapshot: &EnrichedScanSnapshot,
+) -> Result<Option<i64>, String> {
+    let Some(database_url) = database_url_from_env() else {
+        return Ok(None);
+    };
+
+    let mut client = connect_and_migrate(&database_url)?;
+    let workspace_id = upsert_workspace(&mut client, workspace_path)?;
+    let row = client
+        .query_opt(
+            "UPDATE scan_snapshots
+            SET
+                source_commit = $2,
+                dirty = $3,
+                component_count = $4,
+                readiness_summary = $5,
+                adapter_summary = $6
+            WHERE id = (
+                SELECT id
+                FROM scan_snapshots
+                WHERE workspace_id = $1 AND seeded = false
+                ORDER BY scanned_at DESC, id DESC
+                LIMIT 1
+            )
+            RETURNING id",
+            &[
+                &workspace_id,
+                &snapshot.source_commit,
+                &snapshot.dirty,
+                &snapshot.component_count,
+                &snapshot.readiness_summary,
+                &snapshot.adapter_summary,
+            ],
+        )
+        .map_err(|error| format!("Failed to enrich scan snapshot: {error}"))?;
+
+    Ok(row.map(|row| row.get(0)))
 }
 
 pub fn record_scan_snapshot_if_configured(
@@ -284,5 +335,74 @@ mod tests {
         assert_eq!(row.get::<_, String>(0), "@acme/design-system");
         assert_eq!(row.get::<_, String>(1), "pnpm");
         assert_eq!(row.get::<_, String>(2), "@acme/design-system");
+    }
+
+    #[test]
+    #[ignore = "requires FORGEGATE_DATABASE_URL pointing at a disposable Postgres database"]
+    fn enriches_latest_scan_snapshot_when_database_configured() {
+        let database_url = std::env::var(DATABASE_URL_ENV)
+            .expect("FORGEGATE_DATABASE_URL must point at a test Postgres database");
+        let mut client =
+            connect_and_migrate(&database_url).expect("test database should be reachable");
+        client
+            .batch_execute("TRUNCATE scan_snapshots, workspaces RESTART IDENTITY CASCADE")
+            .expect("test database should be disposable");
+
+        let scan = WorkspaceScan {
+            package_name: Some("@acme/design-system".to_string()),
+            package_manager: Some("pnpm".to_string()),
+            workspace_manager: Some("nx".to_string()),
+            storybook_projects: Vec::new(),
+            starlight_projects: Vec::new(),
+            has_zeroheight: false,
+            token_files: Vec::new(),
+            test_runners: vec!["vitest".to_string()],
+            visual_regression_providers: Vec::new(),
+            ci_providers: vec!["github-actions".to_string()],
+            custom_elements_manifests: Vec::new(),
+            component_packages: Vec::new(),
+            component_manifests: Vec::new(),
+            test_evidence_files: Vec::new(),
+            ui_technologies: Vec::new(),
+            ui_source_files: Vec::new(),
+            ui_source_files_truncated: false,
+        };
+        let snapshot_id = record_scan_snapshot_if_configured("D:/repos/acme", &scan)
+            .expect("raw snapshot insert should succeed")
+            .expect("configured database should insert a snapshot");
+
+        let enriched = EnrichedScanSnapshot {
+            source_commit: Some("a".repeat(40)),
+            dirty: Some(true),
+            component_count: 3,
+            readiness_summary: serde_json::json!({
+                "total": 3,
+                "readiness": { "unknown": 3 },
+                "lifecycle": { "candidate": 2, "proposal": 1 }
+            }),
+            adapter_summary: serde_json::json!({
+                "total": 2,
+                "byStatus": { "loaded": 1, "partial": 1 }
+            }),
+        };
+        let enriched_id = enrich_latest_scan_snapshot_if_configured("D:/repos/acme", &enriched)
+            .expect("snapshot enrichment should succeed")
+            .expect("latest raw snapshot should be enriched");
+
+        assert_eq!(enriched_id, snapshot_id);
+        let row = client
+            .query_one(
+                "SELECT source_commit, dirty, component_count, readiness_summary->'readiness'->>'unknown', adapter_summary->'byStatus'->>'partial'
+                FROM scan_snapshots
+                WHERE id = $1",
+                &[&snapshot_id],
+            )
+            .expect("enriched snapshot should be readable");
+
+        assert_eq!(row.get::<_, String>(0), "a".repeat(40));
+        assert!(row.get::<_, bool>(1));
+        assert_eq!(row.get::<_, i32>(2), 3);
+        assert_eq!(row.get::<_, String>(3), "3");
+        assert_eq!(row.get::<_, String>(4), "1");
     }
 }
