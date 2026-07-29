@@ -939,10 +939,7 @@ export class WorkspaceService {
         automatedArtifacts.push(...parsed.automatedArtifacts);
         this.setAdapterDiagnostic({
           id: `test-evidence:${relativePath}`,
-          adapter:
-            parsed.adapter === 'Playwright JSON'
-              ? 'Playwright JSON evidence adapter'
-              : 'test evidence adapter',
+          adapter: testEvidenceAdapterLabel(parsed.adapter),
           source: relativePath,
           status: 'loaded',
           rawOutput: text,
@@ -1081,4 +1078,16 @@ function componentVersionId(manifest: ComponentManifest): string {
   return manifest.componentVersion
     ? `${manifest.id}@${manifest.componentVersion}`
     : manifest.id;
+}
+
+function testEvidenceAdapterLabel(
+  adapter: ReturnType<typeof parseTestEvidenceFile>['adapter'],
+): string {
+  if (adapter === 'Playwright JSON') {
+    return 'Playwright JSON evidence adapter';
+  }
+  if (adapter === 'Axe JSON') {
+    return 'axe JSON evidence adapter';
+  }
+  return 'test evidence adapter';
 }

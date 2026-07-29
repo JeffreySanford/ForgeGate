@@ -62,6 +62,29 @@ function playwrightArtifact(
   };
 }
 
+function axeArtifact(
+  overrides: Partial<AutomatedEvidenceArtifact>,
+): AutomatedEvidenceArtifact {
+  return {
+    kind: 'axe-json',
+    id: 'axe-run-1',
+    componentVersionId: 'acme.lib.button@1.0.0',
+    gate: 'axe',
+    tool: 'axe-core',
+    toolVersion: '4.10.3',
+    adapterVersion: '0.1.0',
+    commitOrFingerprint: 'a'.repeat(40),
+    rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+    report: {
+      timestamp: '2026-01-01T00:00:00.000Z',
+      violations: [],
+      incomplete: [],
+      passes: [{ id: 'button-name', nodes: [] }],
+    },
+    ...overrides,
+  };
+}
+
 describe('componentVersionId', () => {
   it('combines id and componentVersion when a version is known', () => {
     const manifest = createComponentManifest({
@@ -486,6 +509,57 @@ describe('buildEvidenceExport', () => {
     expect(manifestJson.excludes).toMatchObject({
       'automated/axe-results.json':
         'No axe-native result artifact is connected for this component yet.',
+      'automated/interaction-results.json':
+        'No Storybook interaction result artifact is connected for this component yet.',
+    });
+  });
+
+  it('writes imported axe reports as a first-class automated artifact when raw evidence is preserved', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+    const artifacts = [
+      axeArtifact({ id: 'matching-axe' }),
+      axeArtifact({
+        id: 'other-component-axe',
+        componentVersionId: 'acme.lib.card@1.0.0',
+      }),
+    ];
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      automatedArtifacts: artifacts,
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files)).toContain('automated/axe-results.json');
+    const axeResults = JSON.parse(
+      requireFile(result, 'automated/axe-results.json'),
+    );
+    expect(axeResults).toHaveLength(1);
+    expect(axeResults[0]).toMatchObject({
+      kind: 'axe-json',
+      id: 'matching-axe',
+      componentVersionId: 'acme.lib.button@1.0.0',
+      report: {
+        passes: [{ id: 'button-name' }],
+      },
+    });
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain('automated/axe-results.json');
+    expect(manifestJson.checksums).toHaveProperty('automated/axe-results.json');
+    expect(Object.keys(manifestJson.excludes)).not.toContain('automated/');
+    expect(manifestJson.excludes).toMatchObject({
+      'automated/playwright-results.json':
+        'No Playwright result artifact is connected for this component yet.',
       'automated/interaction-results.json':
         'No Storybook interaction result artifact is connected for this component yet.',
     });

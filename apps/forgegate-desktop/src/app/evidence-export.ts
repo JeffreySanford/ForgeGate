@@ -158,17 +158,33 @@ export async function buildEvidenceExport(
   const playwrightArtifacts = automatedArtifacts.filter(
     (artifact) => artifact.kind === 'playwright-json',
   );
-  if (playwrightArtifacts.length) {
+  const axeArtifacts = automatedArtifacts.filter(
+    (artifact) => artifact.kind === 'axe-json',
+  );
+  if (playwrightArtifacts.length || axeArtifacts.length) {
     delete excludes['automated/'];
-    excludes['automated/axe-results.json'] =
-      'No axe-native result artifact is connected for this component yet.';
     excludes['automated/interaction-results.json'] =
       'No Storybook interaction result artifact is connected for this component yet.';
-    contentFiles['automated/playwright-results.json'] = JSON.stringify(
-      playwrightArtifacts,
-      null,
-      2,
-    );
+    if (axeArtifacts.length) {
+      contentFiles['automated/axe-results.json'] = JSON.stringify(
+        axeArtifacts,
+        null,
+        2,
+      );
+    } else {
+      excludes['automated/axe-results.json'] =
+        'No axe-native result artifact is connected for this component yet.';
+    }
+    if (playwrightArtifacts.length) {
+      contentFiles['automated/playwright-results.json'] = JSON.stringify(
+        playwrightArtifacts,
+        null,
+        2,
+      );
+    } else {
+      excludes['automated/playwright-results.json'] =
+        'No Playwright result artifact is connected for this component yet.';
+    }
   }
   for (const finding of findings) {
     contentFiles[`findings/${finding.id}.json`] = JSON.stringify(

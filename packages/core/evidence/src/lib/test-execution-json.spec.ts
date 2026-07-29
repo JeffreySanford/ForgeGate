@@ -170,4 +170,119 @@ describe('parseTestEvidenceFile', () => {
       ),
     ).toThrow('Playwright evidence requires componentVersionId');
   });
+
+  it('normalizes an axe JSON report envelope into commit-bound evidence', () => {
+    expect(
+      parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'axe-json',
+          id: 'acme-button-axe',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          toolVersion: '4.10.3',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+          report: {
+            timestamp: '2026-07-24T16:20:00.000Z',
+            testEngine: {
+              name: 'axe-core',
+              version: '4.10.3',
+            },
+            violations: [],
+            incomplete: [],
+            passes: [{ id: 'button-name', nodes: [] }],
+            inapplicable: [],
+          },
+        }),
+      ),
+    ).toEqual({
+      adapter: 'Axe JSON',
+      executions: [
+        {
+          id: 'acme-button-axe',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          gate: 'axe',
+          tool: 'axe-core',
+          toolVersion: '4.10.3',
+          adapterVersion: '0.1.0',
+          status: 'passed',
+          startedAt: '2026-07-24T16:20:00.000Z',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+        },
+      ],
+      automatedArtifacts: [
+        {
+          kind: 'axe-json',
+          id: 'acme-button-axe',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          gate: 'axe',
+          tool: 'axe-core',
+          toolVersion: '4.10.3',
+          adapterVersion: '0.1.0',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+          report: {
+            timestamp: '2026-07-24T16:20:00.000Z',
+            testEngine: {
+              name: 'axe-core',
+              version: '4.10.3',
+            },
+            violations: [],
+            incomplete: [],
+            passes: [{ id: 'button-name', nodes: [] }],
+            inapplicable: [],
+          },
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [
+      { violations: [{ id: 'color-contrast' }], incomplete: [], passes: [] },
+      'failed',
+    ],
+    [
+      { violations: [], incomplete: [{ id: 'aria-valid-attr' }], passes: [] },
+      'warning',
+    ],
+    [{ violations: [], incomplete: [], passes: [] }, 'passed'],
+  ] as const)(
+    'maps axe result buckets %o to %s',
+    (reportBuckets, expectedStatus) => {
+      const result = parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'axe-json',
+          id: `axe-${expectedStatus}`,
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          toolVersion: '4.10.3',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          report: {
+            timestamp: '2026-07-24T16:20:00.000Z',
+            ...reportBuckets,
+          },
+        }),
+      );
+
+      expect(result.executions[0]?.status).toBe(expectedStatus);
+    },
+  );
+
+  it('rejects axe reports without explicit ForgeGate provenance', () => {
+    expect(() =>
+      parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'axe-json',
+          id: 'raw-axe',
+          toolVersion: '4.10.3',
+          report: {
+            timestamp: '2026-07-24T16:20:00.000Z',
+            violations: [],
+            incomplete: [],
+            passes: [],
+          },
+        }),
+      ),
+    ).toThrow('Axe evidence requires componentVersionId');
+  });
 });

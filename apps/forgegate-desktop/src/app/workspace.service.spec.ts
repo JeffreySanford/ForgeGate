@@ -335,6 +335,79 @@ describe('WorkspaceService', () => {
     });
   });
 
+  it('loads axe JSON evidence envelopes without treating raw reports as provenance', async () => {
+    const scanFixtureWithAxeEvidence = {
+      ...scanFixture,
+      testEvidenceFiles: ['.forgegate/evidence/acme-button-axe.json'],
+    };
+    const axeEvidence = {
+      format: 'axe-json',
+      id: 'acme-button-axe',
+      componentVersionId: 'up.design-system.up-button@0.1.0',
+      toolVersion: '4.10.3',
+      commitOrFingerprint: 'b'.repeat(40),
+      rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+      report: {
+        timestamp: '2026-07-24T17:10:00.000Z',
+        violations: [],
+        incomplete: [],
+        passes: [{ id: 'button-name', nodes: [] }],
+      },
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithAxeEvidence)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(JSON.stringify(axeEvidence));
+
+    await service.selectWorkspace();
+
+    expect(service.testExecutions()).toEqual([
+      {
+        id: 'acme-button-axe',
+        componentVersionId: 'up.design-system.up-button@0.1.0',
+        gate: 'axe',
+        tool: 'axe-core',
+        toolVersion: '4.10.3',
+        adapterVersion: '0.1.0',
+        status: 'passed',
+        startedAt: '2026-07-24T17:10:00.000Z',
+        commitOrFingerprint: 'b'.repeat(40),
+        rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+      },
+    ]);
+    expect(service.automatedEvidenceArtifacts()).toEqual([
+      {
+        kind: 'axe-json',
+        id: 'acme-button-axe',
+        componentVersionId: 'up.design-system.up-button@0.1.0',
+        gate: 'axe',
+        tool: 'axe-core',
+        toolVersion: '4.10.3',
+        adapterVersion: '0.1.0',
+        commitOrFingerprint: 'b'.repeat(40),
+        rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+        report: axeEvidence.report,
+      },
+    ]);
+    expect(service.testExecutionError()).toBeNull();
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'test-evidence:.forgegate/evidence/acme-button-axe.json',
+        ),
+    ).toMatchObject({
+      adapter: 'axe JSON evidence adapter',
+      status: 'loaded',
+      rawOutput: JSON.stringify(axeEvidence),
+      error: null,
+    });
+  });
+
   it('does not attempt to read a Custom Elements Manifest when none was found', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
