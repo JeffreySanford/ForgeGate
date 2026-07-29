@@ -5,6 +5,7 @@ import {
 } from '@forgegate/core-config';
 import {
   parseTestExecution,
+  type Finding,
   type TestExecution,
 } from '@forgegate/core-evidence';
 import {
@@ -30,6 +31,7 @@ import {
   type AngularComponentDeclaration,
 } from './angular-components';
 import type { EvidenceApprover } from './release-decision-export';
+import type { ComponentSnapshotReadiness } from './component-readiness';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
 
@@ -166,11 +168,11 @@ export interface EnrichedComponentSnapshot {
   readonly adapter: string;
   readonly lifecycle: string;
   readonly sourceFiles: readonly string[];
-  readonly readiness: 'unknown';
+  readonly readiness: ComponentSnapshotReadiness;
   readonly findingSummary: {
-    readonly status: 'not-evaluated';
-    readonly findings: readonly [];
-    readonly reason: string;
+    readonly status: ComponentSnapshotReadiness;
+    readonly findings: readonly Finding[];
+    readonly reason: string | null;
   };
 }
 

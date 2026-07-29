@@ -18,6 +18,10 @@ import type {
 } from './angular-components';
 import { createStoryIndexLookup } from './storybook/storybook-index';
 import { WorkspaceService } from './workspace.service';
+import {
+  componentVersionId,
+  evaluateComponentReadiness,
+} from './component-readiness';
 
 const EMPTY_MAP_RESULT: MapCemResult = { manifests: [], failures: [] };
 
@@ -158,6 +162,25 @@ export class ComponentInventoryService {
     const gitStatus = this.workspace.gitStatus();
     const inventory = this.result();
     const diagnostics = this.workspace.adapterDiagnostics();
+    const componentEvaluations = inventory.manifests.map((manifest) => ({
+      manifest,
+      evaluation: evaluateComponentReadiness({
+        manifest,
+        testExecutions: this.workspace
+          .testExecutions()
+          .filter(
+            (execution) =>
+              execution.componentVersionId === componentVersionId(manifest),
+          ),
+        currentCommit: gitStatus?.commit ?? null,
+        storybookProjects:
+          this.workspace.workspaceScan()?.storybookProjects ?? [],
+        storybookIndex: this.workspace.storybookIndex(),
+        storybookIndexError: this.workspace.storybookIndexError(),
+        starlightProjects:
+          this.workspace.workspaceScan()?.starlightProjects ?? [],
+      }),
+    }));
     if (
       !workspacePath ||
       scanProgress?.state !== 'complete' ||
@@ -172,7 +195,9 @@ export class ComponentInventoryService {
       componentCount: inventory.manifests.length,
       readinessSummary: {
         total: inventory.manifests.length,
-        readiness: { unknown: inventory.manifests.length },
+        readiness: countBy(
+          componentEvaluations.map((item) => item.evaluation.readiness),
+        ),
         lifecycle: countBy(
           inventory.manifests.map((manifest) => manifest.lifecycle),
         ),
@@ -188,20 +213,15 @@ export class ComponentInventoryService {
           error: diagnostic.error,
         })),
       },
-      components: inventory.manifests.map((manifest) => ({
+      components: componentEvaluations.map(({ manifest, evaluation }) => ({
         componentId: manifest.id,
         componentVersion: manifest.componentVersion ?? null,
         framework: manifest.framework,
         adapter: manifest.adapter,
         lifecycle: manifest.lifecycle,
         sourceFiles: manifest.sourceFiles,
-        readiness: 'unknown' as const,
-        findingSummary: {
-          status: 'not-evaluated' as const,
-          findings: [] as const,
-          reason:
-            'ForgeGate has not derived per-component readiness findings yet.',
-        },
+        readiness: evaluation.readiness,
+        findingSummary: evaluation.findingSummary,
       })),
     };
     const snapshotKey = JSON.stringify({ workspacePath, snapshot });

@@ -79,7 +79,7 @@ describe('EvidenceHistoryTrendView', () => {
           componentSnapshotCount: 12,
           readinessSummary: {
             total: 12,
-            readiness: { unknown: 12 },
+            readiness: { blocked: 1, stale: 2, warning: 4, clear: 5 },
             lifecycle: { candidate: 12 },
           },
           adapterSummary: { total: 3, byStatus: { loaded: 2, partial: 1 } },
@@ -110,6 +110,9 @@ describe('EvidenceHistoryTrendView', () => {
     expect(compiled.textContent).toContain('Seeded development history');
     expect(compiled.textContent).toContain('dev-history-2026-07');
     expect(compiled.textContent).toContain('8 unknown');
+    expect(compiled.textContent).toContain(
+      '1 blocked, 2 stale, 4 warning, 5 clear',
+    );
     expect(compiled.textContent).toContain('12 persisted row(s)');
     expect(compiled.textContent).toContain('2 loaded, 1 partial');
     expect(compiled.textContent).toContain('dirty');

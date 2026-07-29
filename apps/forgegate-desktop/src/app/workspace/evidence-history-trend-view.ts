@@ -51,8 +51,28 @@ export class EvidenceHistoryTrendView {
     return ((snapshot.componentCount ?? 0) / this.maxComponentCount()) * 100;
   }
 
-  protected readinessUnknown(snapshot: EvidenceHistorySnapshot): number {
-    return snapshot.readinessSummary?.readiness?.['unknown'] ?? 0;
+  protected readinessText(snapshot: EvidenceHistorySnapshot): string {
+    const readiness = snapshot.readinessSummary?.readiness ?? {};
+    const ordered = [
+      'blocked',
+      'stale',
+      'warning',
+      'clear',
+      'unknown',
+      'not-evaluated',
+    ];
+    const knownKeys = new Set(ordered);
+    const entries = [
+      ...ordered.flatMap((key) =>
+        readiness[key] ? [[key, readiness[key]] as const] : [],
+      ),
+      ...Object.entries(readiness)
+        .filter(([key, value]) => !knownKeys.has(key) && value)
+        .sort(([left], [right]) => left.localeCompare(right)),
+    ];
+    return entries.length
+      ? entries.map(([key, value]) => `${value} ${key}`).join(', ')
+      : 'not evaluated';
   }
 
   protected loadedAdapters(snapshot: EvidenceHistorySnapshot): number {

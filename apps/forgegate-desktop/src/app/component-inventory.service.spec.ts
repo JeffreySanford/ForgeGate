@@ -203,7 +203,7 @@ describe('ComponentInventoryService', () => {
           componentCount: 1,
           readinessSummary: {
             total: 1,
-            readiness: { unknown: 1 },
+            readiness: { warning: 1 },
             lifecycle: { proposal: 1 },
           },
           adapterSummary: {
@@ -234,12 +234,25 @@ describe('ComponentInventoryService', () => {
               adapter: 'framework.angular.source-scan.confirmed',
               lifecycle: 'proposal',
               sourceFiles: ['apps/demo/src/app/button.component.ts'],
-              readiness: 'unknown',
+              readiness: 'warning',
               findingSummary: {
-                status: 'not-evaluated',
-                findings: [],
-                reason:
-                  'ForgeGate has not derived per-component readiness findings yet.',
+                status: 'warning',
+                findings: expect.arrayContaining([
+                  expect.objectContaining({
+                    componentId: 'acme.design-system.acme-button',
+                    description: 'No required states declared',
+                    severity: 'minor',
+                    status: 'open',
+                  }),
+                  expect.objectContaining({
+                    componentId: 'acme.design-system.acme-button',
+                    description:
+                      'Preview unavailable - Storybook was not detected in this workspace.',
+                    severity: 'minor',
+                    status: 'open',
+                  }),
+                ]),
+                reason: null,
               },
             },
           ],
