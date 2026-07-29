@@ -232,8 +232,28 @@ describe('ComponentDetailPage', () => {
     );
 
     const nextAction = compiled.querySelector('.component-detail__next-action');
-    expect(nextAction?.textContent).toContain('No required states declared');
-    expect(nextAction?.querySelector('a')?.getAttribute('href')).toBe('/workspace');
+    expect(nextAction?.textContent).toContain(
+      'Declare the component states that reviewers must verify',
+    );
+    expect(nextAction?.querySelector('a')?.getAttribute('href')).toBe(
+      '#states-title',
+    );
+    const remediationItems = Array.from(
+      compiled.querySelectorAll('.component-detail__remediation li'),
+    ).map((li) => li.textContent?.replace(/\s+/g, ' ').trim());
+    expect(remediationItems[0]).toContain('No required states declared');
+    expect(remediationItems[0]).toContain(
+      '.forgegate/components/acme.design-system.acme-button.yaml',
+    );
+    expect(remediationItems[0]).toContain('Open states section');
+    expect(remediationItems).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('No token mappings connected'),
+        expect.stringContaining('No automated test requirements declared'),
+        expect.stringContaining('No manual review recorded'),
+        expect.stringContaining('No documentation target connected'),
+      ]),
+    );
   });
 
   it('updates to show the newly navigated component when moving directly between two detail routes', async () => {
@@ -592,7 +612,9 @@ describe('ComponentDetailPage', () => {
         commitOrFingerprint: 'a'.repeat(40),
       },
     ]);
-    const exportSpy = vi.spyOn(workspaceService, 'exportEvidencePackage').mockResolvedValue();
+    const exportSpy = vi
+      .spyOn(workspaceService, 'exportEvidencePackage')
+      .mockResolvedValue();
 
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
@@ -602,14 +624,16 @@ describe('ComponentDetailPage', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const exportButton = Array.from(compiled.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Export evidence package'),
+    const exportButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Export evidence package'),
     );
     expect(exportButton).toBeDefined();
     exportButton?.click();
 
     expect(exportSpy).toHaveBeenCalledTimes(1);
-    expect(exportSpy.mock.calls[0]?.[0].id).toBe('acme.design-system.acme-button');
+    expect(exportSpy.mock.calls[0]?.[0].id).toBe(
+      'acme.design-system.acme-button',
+    );
     expect(exportSpy.mock.calls[0]?.[1]).toHaveLength(1);
     expect(exportSpy.mock.calls[0]?.[1][0]?.id).toBe('acme-button-unit');
     expect(exportSpy.mock.calls[0]?.[2]).toEqual(
@@ -633,7 +657,9 @@ describe('ComponentDetailPage', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('/home/user/exports/acme-button-evidence-1');
+    expect(compiled.textContent).toContain(
+      '/home/user/exports/acme-button-evidence-1',
+    );
 
     await expectNoAccessibilityViolations(compiled);
   });

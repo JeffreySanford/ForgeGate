@@ -38,7 +38,10 @@
     </dl>
   </header>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="preview-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="preview-title"
+  >
     <h2 id="preview-title">Preview</h2>
     <p>
       <strong>Preview type:</strong>
@@ -102,7 +105,10 @@
     </details>
   </section>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="coverage-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="coverage-title"
+  >
     <h2 id="coverage-title">Coverage</h2>
     <ul class="component-detail__coverage-strip">
       @for (item of coverage(); track item.label) {
@@ -114,7 +120,10 @@
     </ul>
   </section>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="readiness-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="readiness-title"
+  >
     <h2 id="readiness-title">Readiness</h2>
     <p class="component-detail__readiness-status">{{ readinessStatus() }}</p>
     @if (blockingReasons().length) {
@@ -123,20 +132,52 @@
       <li>{{ reason }}</li>
       }
     </ul>
-    }
-    @if (recommendedNextAction(); as nextAction) {
+    } @if (recommendedRemediation(); as nextAction) {
     <p class="component-detail__next-action">
-      <strong>Recommended next step:</strong> {{ nextAction }}.
-      <a routerLink="/workspace">Open the workspace page</a> to connect it.
+      <strong>Recommended next step:</strong> {{ nextAction.action }}
+      <a [attr.href]="'#' + nextAction.fragment"
+        >{{ nextAction.destinationLabel }}</a
+      >.
     </p>
+    <div
+      class="component-detail__remediation"
+      aria-labelledby="remediation-title"
+    >
+      <h3 id="remediation-title">Remediation workflow</h3>
+      <ol>
+        @for (action of remediationActions(); track action.id) {
+        <li>
+          <strong>{{ action.reason }}</strong>
+          <p>{{ action.action }}</p>
+          <dl>
+            <dt>Source</dt>
+            <dd><code>{{ action.source }}</code></dd>
+            <dt>Evidence</dt>
+            <dd>{{ action.evidence ?? 'Not connected' }}</dd>
+            <dt>Destination</dt>
+            <dd>
+              <a [attr.href]="'#' + action.fragment"
+                >{{ action.destinationLabel }}</a
+              >
+            </dd>
+          </dl>
+        </li>
+        }
+      </ol>
+    </div>
     } @else if (manifest()) {
-    <p class="component-detail__next-action component-detail__next-action--clear">
+    <p
+      class="component-detail__next-action component-detail__next-action--clear"
+    >
       No blocking connections are missing for this component.
     </p>
     }
   </section>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="evidence-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="evidence-title"
+  >
     <h2 id="evidence-title">Tests and evidence</h2>
     <button
       type="button"
@@ -196,7 +237,10 @@
     }
   </section>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="states-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="states-title"
+  >
     <h2 id="states-title">States and stories</h2>
     @if (authoredManifestPath(); as path) {
     <p>Configuration source: {{ path }}</p>
@@ -226,7 +270,10 @@
     }
   </section>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="anatomy-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="anatomy-title"
+  >
     <h2 id="anatomy-title">Anatomy</h2>
     @if (anatomy().length === 0) {
     <p class="component-detail__unavailable">
@@ -266,7 +313,10 @@
     }
   </section>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="contract-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="contract-title"
+  >
     <h2 id="contract-title">Contract</h2>
 
     @for (group of [ { id: 'contract-inputs', title: 'Inputs', members:
@@ -300,7 +350,10 @@
     } }
   </section>
 
-  <section class="component-detail__panel fg-panel" aria-labelledby="tokens-title">
+  <section
+    class="component-detail__panel fg-panel"
+    aria-labelledby="tokens-title"
+  >
     <h2 id="tokens-title">Token mapping</h2>
     @if (tokenSourcePath(); as path) {
     <p>Token source (DTCG): {{ path }}</p>

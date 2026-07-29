@@ -437,9 +437,10 @@ See [`TODO-DETAILED.md`](TODO-DETAILED.md) for the full task-level plan.
 
 Stale as of this update — items 1–10 below (the original P0/early-P1 bootstrap sequence) are all long since shipped and verified; this section had drifted out of sync with the rest of the file. Replaced with what's actually next:
 
-1. [ ] Manual keyboard and screen-reader review of the Button assurance record and ForgeGate's own shell (the one human-only item still blocking P0's own definition of done, per P0.7).
-2. [ ] Pick one of the two remaining P1 follow-up backlog subsystems (evidence history store or route/rescan motion choreography), build the filesystem watcher that feeds rescan snapshots, or move directly to P2 entry-gate work — see "P1 follow-up backlog" above and "P2 entry gates" below.
-3. [ ] Work the P2 entry gates in order once the above is settled.
+1. [X} First remediation workflow slice on the component assurance record. `ComponentDetailPage` now derives structured remediation actions from the same readiness gaps that already feed blocking reasons: each action includes the gap, the next human/engineering action, source path or evidence source, concrete evidence detail, and an in-page destination. This is deliberately read-only — no auto-writing component manifests and no fabricated manual-review approvals.
+2. [ ] Manual keyboard and screen-reader review of the Button assurance record and ForgeGate's own shell (the one human-only item still blocking P0's own definition of done, per P0.7).
+3. [ ] Pick one of the two remaining P1 follow-up backlog subsystems (evidence history store or route/rescan motion choreography), build the filesystem watcher that feeds rescan snapshots, or move directly to P2 entry-gate work — see "P1 follow-up backlog" above and "P2 entry gates" below.
+4. [ ] Work the P2 entry gates in order once the above is settled.
 
 <details>
 <summary>Original bootstrap sequence (completed, kept for history)</summary>
@@ -474,7 +475,7 @@ The first MVP is complete only when all of the following are true. Updated to re
 - [ ] ForgeGate guides a manual keyboard and screen-reader review. The one human-only item still open from P0.7 — automated axe coverage exists, but no guided manual review flow.
 - [ ] ForgeGate ties evidence to the current commit. `TestExecution.commitOrFingerprint` exists and is displayed (P1.3's evidence timeline), but nothing compares it against the workspace's actual current commit to determine freshness — that comparison is part of the evidence-history-store gap in the P1 follow-up backlog above.
 - [ ] ForgeGate marks prior approval stale after a relevant source change. Not implemented generally — P1.6's documentation drift does this narrowly for documentation only; broader approval staleness needs the same evidence-history store.
-- [ ] ForgeGate explains every blocking release condition. Partially true (`AssuranceJourney`'s blocking reasons, `ComponentDetailPage`'s `recommendedNextAction`) but not verified exhaustively against every possible blocking condition, so left honestly unchecked.
+- [ ] ForgeGate explains every blocking release condition. Closer now: `ComponentDetailPage` turns its real blocking reasons into structured remediation actions with source, evidence, and destination, replacing the old one-line `recommendedNextAction`. Still not marked complete because release-policy blocking conditions, manual-review decisions, and target-repository gate orchestration are not all modeled yet.
 - [ ] ForgeGate generates a Starlight page. Not implemented — ForgeGate has no documentation-generation feature yet (called out repeatedly in P0.6/P1.6).
 - [X} ForgeGate exports a portable evidence package. Implemented as the documented manifest-indexed package shape with real sections for manifest metadata, test summary, documentation status, findings, release decision where backed by policy/commit data, checksums, and `report.html`; missing sections are named in `manifest.json` rather than silently omitted.
 - [ ] ForgeGate itself passes its required accessibility and quality gates. Automated lint/test/build/typecheck/cargo-test/axe/visual-regression all pass in CI consistently; blocked on the same manual screen-reader review as above.

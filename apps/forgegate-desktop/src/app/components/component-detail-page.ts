@@ -3,11 +3,12 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { map } from 'rxjs';
-import type {
-  ComponentManifest,
-  ManifestDocumentationTarget,
-} from '@forgegate/core-manifest';
 import type { TestExecution } from '@forgegate/core-evidence';
+import {
+  componentManifestPath,
+  type ComponentManifest,
+  type ManifestDocumentationTarget,
+} from '@forgegate/core-manifest';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '../storybook/storybook-index';
@@ -38,6 +39,16 @@ export interface PreviewSourceOption {
   readonly label: string;
   readonly status: 'Connected' | 'Not connected' | 'Unsupported here';
   readonly detail: string;
+}
+
+export interface RemediationAction {
+  readonly id: string;
+  readonly reason: string;
+  readonly action: string;
+  readonly source: string;
+  readonly destinationLabel: string;
+  readonly fragment: string;
+  readonly evidence?: string;
 }
 
 const LOCAL_STORYBOOK_ORIGIN = 'http://localhost:6006';
@@ -313,62 +324,179 @@ export class ComponentDetailPage {
   );
 
   protected readonly blockingReasons = computed<readonly string[]>(() => {
+    return this.remediationActions().map((action) => action.reason);
+  });
+
+  protected readonly remediationActions = computed<
+    readonly RemediationAction[]
+  >(() => {
     const manifest = this.manifest();
     if (!manifest) {
       return [];
     }
-    const reasons: string[] = [];
-    if (manifest.states.length === 0)
-      reasons.push('No required states declared');
+    const actions: RemediationAction[] = [];
+    const manifestSource = this.manifestSource(manifest);
+    if (manifest.states.length === 0) {
+      actions.push({
+        id: 'states',
+        reason: 'No required states declared',
+        action:
+          'Declare the component states that reviewers must verify, such as default, hover, focus, disabled, loading, and error.',
+        source: manifestSource,
+        destinationLabel: 'Open states section',
+        fragment: 'states-title',
+        evidence:
+          'ForgeGate found no states in this component manifest or CEM-derived mapping.',
+      });
+    }
     if (this.previewKind() === 'unavailable')
-      reasons.push(`Preview unavailable — ${this.previewUnavailableReason()}`);
-    if (manifest.tokenMappings.length === 0)
-      reasons.push('No token mappings connected');
+      actions.push({
+        id: 'preview',
+        reason: `Preview unavailable — ${this.previewUnavailableReason()}`,
+        action:
+          'Connect a Storybook index and map at least one story ID to this component.',
+        source: manifestSource,
+        destinationLabel: 'Open preview section',
+        fragment: 'preview-title',
+        evidence:
+          this.workspace.workspaceScan()?.storybookProjects.join(', ') ||
+          'No Storybook project detected for this workspace.',
+      });
+    if (manifest.tokenMappings.length === 0) {
+      actions.push({
+        id: 'tokens',
+        reason: 'No token mappings connected',
+        action:
+          'Map required design tokens to the component so visual changes can be reviewed against the contract.',
+        source: this.tokenSourcePath()
+          ? `${manifestSource}; token source ${this.tokenSourcePath()}`
+          : manifestSource,
+        destinationLabel: 'Open token mapping',
+        fragment: 'tokens-title',
+        evidence:
+          this.workspace.workspaceScan()?.tokenFiles.join(', ') ||
+          'No DTCG token file detected for this workspace.',
+      });
+    }
     const executions = this.testExecutions();
-    if (manifest.testRequirements.length === 0)
-      reasons.push('No automated test requirements declared');
-    else if (executions.length === 0)
-      reasons.push('No automated test results connected');
-    else if (
+    if (manifest.testRequirements.length === 0) {
+      actions.push({
+        id: 'test-requirements',
+        reason: 'No automated test requirements declared',
+        action:
+          'Declare required automated gates for this component before evidence can be judged complete.',
+        source: manifestSource,
+        destinationLabel: 'Open tests and evidence',
+        fragment: 'evidence-title',
+        evidence:
+          this.workspace.workspaceScan()?.testRunners.join(', ') ||
+          'No test runner detected for this workspace.',
+      });
+    } else if (executions.length === 0) {
+      actions.push({
+        id: 'test-results',
+        reason: 'No automated test results connected',
+        action:
+          'Add a ForgeGate evidence JSON file for the required automated gates, or export a supported Playwright evidence envelope.',
+        source: '.forgegate/evidence/*.json',
+        destinationLabel: 'Open tests and evidence',
+        fragment: 'evidence-title',
+        evidence:
+          this.workspace.workspaceScan()?.testEvidenceFiles?.join(', ') ||
+          'No test evidence files detected.',
+      });
+    } else if (
       executions.some(
         (execution) =>
           execution.status === 'failed' || execution.status === 'blocked',
       )
-    )
-      reasons.push('Automated evidence contains a failed or blocked result');
-    else if (
+    ) {
+      actions.push({
+        id: 'test-failure',
+        reason: 'Automated evidence contains a failed or blocked result',
+        action:
+          'Inspect the failing raw artifact, fix the component or test contract, and reconnect a passing result.',
+        source: '.forgegate/evidence/*.json',
+        destinationLabel: 'Open tests and evidence',
+        fragment: 'evidence-title',
+        evidence: executions
+          .filter(
+            (execution) =>
+              execution.status === 'failed' || execution.status === 'blocked',
+          )
+          .map((execution) => execution.rawArtifactRef ?? execution.id)
+          .join(', '),
+      });
+    } else if (
       executions.some((execution) => !this.executionIsCurrent(execution))
-    )
-      reasons.push('Automated evidence is stale');
-    if (manifest.manualReviewProcedureIds.length === 0)
-      reasons.push('No manual review recorded');
-    if (manifest.documentationTargets.length === 0)
-      reasons.push('No documentation target connected');
-    else if (
+    ) {
+      actions.push({
+        id: 'test-stale',
+        reason: 'Automated evidence is stale',
+        action:
+          'Rerun the required gates on the current repository commit and replace the stale evidence record.',
+        source: '.forgegate/evidence/*.json',
+        destinationLabel: 'Open tests and evidence',
+        fragment: 'evidence-title',
+        evidence: `Current repository revision is ${this.shortCommit() ?? 'unavailable'}.`,
+      });
+    }
+    if (manifest.manualReviewProcedureIds.length === 0) {
+      actions.push({
+        id: 'manual-review',
+        reason: 'No manual review recorded',
+        action:
+          'Declare a manual keyboard and screen-reader review procedure ID; review decisions are still a separate unsupported workflow.',
+        source: manifestSource,
+        destinationLabel: 'Open readiness section',
+        fragment: 'readiness-title',
+        evidence:
+          'No manual review procedure IDs are declared on this component.',
+      });
+    }
+    if (manifest.documentationTargets.length === 0) {
+      actions.push({
+        id: 'documentation',
+        reason: 'No documentation target connected',
+        action:
+          'Map the component to its documentation target so published guidance can be checked for freshness.',
+        source: manifestSource,
+        destinationLabel: 'Open documentation',
+        fragment: 'documentation-title',
+        evidence:
+          this.workspace.workspaceScan()?.starlightProjects.join(', ') ||
+          'No documentation target is declared on this component.',
+      });
+    } else if (
       manifest.documentationTargets.some(
         (target) => this.documentationDriftState(target) !== 'Current',
       )
-    )
-      reasons.push('Documentation is drifted or freshness is not evaluated');
-    return reasons;
+    ) {
+      actions.push({
+        id: 'documentation-drift',
+        reason: 'Documentation is drifted or freshness is not evaluated',
+        action:
+          'Update the mapped documentation page or its published component version to match the current component version.',
+        source: manifest.documentationTargets
+          .map(
+            (target) =>
+              target.pathOrPageId ?? `${target.adapter} target without path`,
+          )
+          .join(', '),
+        destinationLabel: 'Open documentation',
+        fragment: 'documentation-title',
+        evidence: manifest.documentationTargets
+          .map((target) => this.documentationDriftState(target))
+          .join(', '),
+      });
+    }
+    return actions;
   });
 
-  /**
-   * One focused next step, not a policy decision — this picks the first
-   * entry off the same `blockingReasons` list already shown, the same
-   * "first incomplete thing wins" approach `AssuranceJourney` already
-   * uses at the workspace level (not a new concept invented here). There
-   * is no authoring UI yet to link to for "declare a required state" or
-   * "connect a token mapping", so the action always points at
-   * `/workspace`, where the underlying connections (Storybook, tokens,
-   * tests, docs) actually get configured today.
-   */
-  protected readonly recommendedNextAction = computed<string | null>(() => {
-    if (!this.manifest()) {
-      return null;
-    }
-    return this.blockingReasons()[0] ?? null;
-  });
+  protected readonly recommendedRemediation =
+    computed<RemediationAction | null>(
+      () => this.remediationActions()[0] ?? null,
+    );
 
   protected executionFreshness(execution: TestExecution): string {
     if (!/^[0-9a-f]{40}$/i.test(execution.commitOrFingerprint)) {
@@ -403,6 +531,10 @@ export class ComponentDetailPage {
       this.testExecutions(),
       this.blockingReasons(),
     );
+  }
+
+  private manifestSource(manifest: ComponentManifest): string {
+    return this.authoredManifestPath() ?? componentManifestPath(manifest.id);
   }
 }
 
