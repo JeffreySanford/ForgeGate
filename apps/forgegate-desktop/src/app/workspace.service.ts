@@ -24,6 +24,7 @@ import {
   type StorybookIndex,
 } from './storybook/storybook-index';
 import { buildEvidenceExport } from './evidence-export';
+import { parseDtcgTokens, type DtcgToken } from './dtcg-tokens';
 import type { EvidenceApprover } from './release-decision-export';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
@@ -204,6 +205,9 @@ export class WorkspaceService {
   readonly componentManifestError = signal<string | null>(null);
   readonly testExecutions = signal<readonly TestExecution[]>([]);
   readonly testExecutionError = signal<string | null>(null);
+  /** Every DTCG token parsed from the workspace's detected token files. */
+  readonly designTokens = signal<readonly DtcgToken[]>([]);
+  readonly designTokenError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
   readonly nativeComponentSignals = signal<readonly NativeComponentSignal[]>(
@@ -295,6 +299,7 @@ export class WorkspaceService {
       );
       await this.loadComponentManifests(path, scan);
       await this.loadTestExecutions(path, scan);
+      await this.loadDesignTokens(path, scan);
       this.setScanProgress(
         'storybook',
         'Connecting the Storybook story index',
@@ -673,6 +678,54 @@ export class WorkspaceService {
       }
     }
     this.componentManifestOverrides.set(manifests);
+  }
+
+  /**
+   * Loads and parses every detected DTCG token file. Each file is reported
+   * on its own adapter diagnostic, so one malformed token file never blanks
+   * out the others — the same rule the component-manifest and test-evidence
+   * loaders already follow.
+   */
+  private async loadDesignTokens(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.designTokens.set([]);
+    const tokens: DtcgToken[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.tokenFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        const parsed = parseDtcgTokens(text);
+        tokens.push(...parsed.tokens);
+        this.setAdapterDiagnostic({
+          id: `design-tokens:${relativePath}`,
+          adapter: 'DTCG token adapter',
+          source: relativePath,
+          status: parsed.failures.length ? 'partial' : 'loaded',
+          rawOutput: text,
+          error: parsed.failures.length
+            ? `${parsed.failures.length} entr(y|ies) could not be read as a token or group: ${parsed.failures.join(', ')}`
+            : null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `design-tokens:${relativePath}`,
+          adapter: 'DTCG token adapter',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.designTokens.set(tokens);
+    this.designTokenError.set(errors.length ? errors.join('; ') : null);
   }
 
   private async loadTestExecutions(

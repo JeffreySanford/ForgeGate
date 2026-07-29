@@ -33,3 +33,22 @@
   flex-wrap: wrap;
   gap: var(--fg-space-2);
 }
+
+.token-topology-view h3 {
+  font-size: var(--fg-type-size-md);
+  margin: var(--fg-space-5) 0 var(--fg-space-2);
+}
+
+.token-topology-view__counts {
+  list-style: none;
+  margin: 0 0 var(--fg-space-3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fg-space-4);
+  font-size: var(--fg-type-size-sm);
+}
+
+.token-topology-view__broken {
+  color: var(--fg-color-status-failed);
+}

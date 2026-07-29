@@ -71,7 +71,13 @@ describe('TokenTopologyView', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain('Nothing to show');
+    const emptyStates = Array.from(compiled.querySelectorAll('.fg-empty-state')).map(
+      (element) => element.textContent ?? '',
+    );
+    // Two independent, separately-sourced empty states: no component token
+    // mapping, and no DTCG token file. Neither implies the other.
+    expect(emptyStates.some((text) => text.includes('Nothing to show'))).toBe(true);
+    expect(emptyStates.some((text) => text.includes('No DTCG token file was detected'))).toBe(true);
     expect(compiled.querySelector('table')).toBeNull();
 
     await expectNoAccessibilityViolations(compiled);
@@ -113,6 +119,55 @@ describe('TokenTopologyView', () => {
       '/components/acme.design-system.acme-button',
       '/components/acme.design-system.acme-card',
     ]);
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('surfaces real broken token references from the parsed DTCG tokens', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.designTokens.set([
+      { path: 'primitive.blue', type: 'color', value: '#2563eb' },
+      { path: 'semantic.primary', type: 'color', value: '{primitive.blue}' },
+      { path: 'semantic.broken', type: 'color', value: '{primitive.missing}' },
+      { path: 'semantic.loop', type: 'color', value: '{semantic.loop}' },
+    ]);
+
+    const fixture = TestBed.createComponent(TokenTopologyView);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('4');
+    expect(text).toContain('semantic.broken');
+    expect(text).toContain('unresolved');
+    expect(text).toContain('semantic.loop');
+    expect(text).toContain('circular');
+    // A resolved alias is not reported as broken.
+    expect(compiled.querySelector('caption')?.textContent).toContain('Broken token references');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('reports real theme coverage gaps between sibling groups', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.designTokens.set([
+      { path: 'theme.light.surface.background', type: 'color', value: '#fff' },
+      { path: 'theme.light.surface.border', type: 'color', value: '#eee' },
+      { path: 'theme.dark.surface.background', type: 'color', value: '#000' },
+    ]);
+
+    const fixture = TestBed.createComponent(TokenTopologyView);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('Coverage across');
+    expect(text).toContain('surface.border');
+    expect(text).toContain('1 of 2 token paths are not defined in every group');
 
     await expectNoAccessibilityViolations(compiled);
   });

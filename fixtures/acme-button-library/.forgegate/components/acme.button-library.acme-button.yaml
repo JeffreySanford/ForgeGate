@@ -62,3 +62,8 @@ documentationTargets:
     pathOrPageId: src/content/docs/components/button.md
     publishedVersion: 0.1.0
 consumerApplicationIds: []
+# A real policy reference. ForgeGate produces a release decision only when a
+# component cites both a policy and its version — "evaluated against policy X"
+# is not verifiable later unless it also says which version of X.
+policyId: acme.baseline
+policyVersion: 1.0.0
