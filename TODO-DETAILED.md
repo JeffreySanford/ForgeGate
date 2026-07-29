@@ -428,7 +428,7 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 - [ ] Jest adapter.
 - [ ] Karma adapter.
 - [ ] Web Test Runner adapter.
-- [ ] Playwright adapter.
+- [ ] Playwright adapter. Partial ingestion exists for repository-supplied Playwright JSON reports: `parseTestEvidenceFile` accepts a `.forgegate/evidence/*.json` envelope with `format: "playwright-json"`, required component/commit/tool provenance, and the raw Playwright JSON report under `report`; it normalizes report stats/errors into one `TestExecution` while preserving `rawArtifactRef`. Still open: running Playwright for a target repository, parsing report details into first-class per-test findings, and exporting a dedicated `automated/playwright-results.json` section.
 - [ ] Cypress adapter.
 - [ ] WebdriverIO adapter.
 - [ ] Storybook test adapter.
@@ -437,7 +437,7 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 - [ ] Percy adapter.
 - [ ] Applitools adapter.
 - [ ] Generic JUnit XML adapter.
-- [ ] Generic JSON result adapter.
+- [X} Generic JSON result adapter. `parseTestEvidenceFile` continues to accept the ForgeGate-native `TestExecution` JSON shape and now dispatches supported JSON evidence formats without letting unsupported JSON influence readiness.
 - [ ] Generic command-only adapter.
 
 ## Additional quality gates

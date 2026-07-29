@@ -4,7 +4,7 @@ import {
   type RepositoryConfig,
 } from '@forgegate/core-config';
 import {
-  parseTestExecution,
+  parseTestEvidenceFile,
   type Finding,
   type TestExecution,
 } from '@forgegate/core-evidence';
@@ -923,10 +923,14 @@ export class WorkspaceService {
           workspacePath,
           relativePath,
         });
-        executions.push(parseTestExecution(text));
+        const parsed = parseTestEvidenceFile(text);
+        executions.push(...parsed.executions);
         this.setAdapterDiagnostic({
           id: `test-evidence:${relativePath}`,
-          adapter: 'test evidence adapter',
+          adapter:
+            parsed.adapter === 'Playwright JSON'
+              ? 'Playwright JSON evidence adapter'
+              : 'test evidence adapter',
           source: relativePath,
           status: 'loaded',
           rawOutput: text,

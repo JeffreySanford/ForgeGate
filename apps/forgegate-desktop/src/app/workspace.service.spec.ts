@@ -254,6 +254,73 @@ describe('WorkspaceService', () => {
     });
   });
 
+  it('loads Playwright JSON evidence envelopes without treating raw reports as provenance', async () => {
+    const scanFixtureWithPlaywrightEvidence = {
+      ...scanFixture,
+      testEvidenceFiles: ['.forgegate/evidence/acme-button-playwright.json'],
+    };
+    const playwrightEvidence = {
+      format: 'playwright-json',
+      id: 'acme-button-playwright',
+      componentVersionId: 'up.design-system.up-button@0.1.0',
+      gate: 'interaction',
+      toolVersion: '1.56.0',
+      commitOrFingerprint: 'b'.repeat(40),
+      rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
+      report: {
+        stats: {
+          startTime: '2026-07-24T17:00:00.000Z',
+          duration: 1500,
+          expected: 9,
+          skipped: 0,
+          unexpected: 0,
+          flaky: 0,
+        },
+        errors: [],
+        suites: [],
+      },
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithPlaywrightEvidence)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(JSON.stringify(playwrightEvidence));
+
+    await service.selectWorkspace();
+
+    expect(service.testExecutions()).toEqual([
+      {
+        id: 'acme-button-playwright',
+        componentVersionId: 'up.design-system.up-button@0.1.0',
+        gate: 'interaction',
+        tool: 'playwright',
+        toolVersion: '1.56.0',
+        adapterVersion: '0.1.0',
+        status: 'passed',
+        startedAt: '2026-07-24T17:00:00.000Z',
+        durationMs: 1500,
+        commitOrFingerprint: 'b'.repeat(40),
+        rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
+      },
+    ]);
+    expect(service.testExecutionError()).toBeNull();
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'test-evidence:.forgegate/evidence/acme-button-playwright.json',
+        ),
+    ).toMatchObject({
+      adapter: 'Playwright JSON evidence adapter',
+      status: 'loaded',
+      rawOutput: JSON.stringify(playwrightEvidence),
+      error: null,
+    });
+  });
+
   it('does not attempt to read a Custom Elements Manifest when none was found', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
