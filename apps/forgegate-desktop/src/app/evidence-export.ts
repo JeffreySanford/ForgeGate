@@ -1,9 +1,18 @@
 import type { Severity } from '@forgegate/core-domain';
-import { createEvidencePackage, createFinding, type Finding, type TestExecution } from '@forgegate/core-evidence';
+import {
+  createEvidencePackage,
+  createFinding,
+  type AutomatedEvidenceArtifact,
+  type Finding,
+  type TestExecution,
+} from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { computeDocumentationDriftState } from './documentation-drift';
 import type { ReleaseDecision } from '@forgegate/core-policy';
-import { computeReleaseDecision, type EvidenceApprover } from './release-decision-export';
+import {
+  computeReleaseDecision,
+  type EvidenceApprover,
+} from './release-decision-export';
 
 /**
  * Real target for evidence export, per `documentation/09-manual-review-and-evidence.md`'s
@@ -24,8 +33,10 @@ import { computeReleaseDecision, type EvidenceApprover } from './release-decisio
  * silently omitting them or fabricating empty placeholders.
  */
 const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
-  'policy-snapshot.json': 'No policy evaluation has run for this component yet.',
-  'automated/': "ForgeGate does not yet orchestrate a target repository's own test/axe/Playwright runs.",
+  'policy-snapshot.json':
+    'No policy evaluation has run for this component yet.',
+  'automated/':
+    "ForgeGate does not yet orchestrate a target repository's own test/axe/Playwright runs.",
   'manual/': 'No guided manual review flow exists yet.',
   'exceptions/': 'No exceptions have been recorded for this component yet.',
   'attachments/': 'No attachments have been captured yet.',
@@ -73,7 +84,9 @@ export interface EvidenceExportResult {
 }
 
 export function componentVersionId(manifest: ComponentManifest): string {
-  return manifest.componentVersion ? `${manifest.id}@${manifest.componentVersion}` : manifest.id;
+  return manifest.componentVersion
+    ? `${manifest.id}@${manifest.componentVersion}`
+    : manifest.id;
 }
 
 export interface EvidenceExportInput {
@@ -81,6 +94,7 @@ export interface EvidenceExportInput {
   readonly exportedAt: string;
   readonly manifest: ComponentManifest;
   readonly testExecutions: readonly TestExecution[];
+  readonly automatedArtifacts?: readonly AutomatedEvidenceArtifact[];
   readonly starlightProjects: readonly string[];
   readonly blockingReasons?: readonly string[];
   /**
@@ -103,16 +117,25 @@ export interface EvidenceExportInput {
   readonly approver?: EvidenceApprover | null;
 }
 
-export async function buildEvidenceExport(input: EvidenceExportInput): Promise<EvidenceExportResult> {
+export async function buildEvidenceExport(
+  input: EvidenceExportInput,
+): Promise<EvidenceExportResult> {
   const { id, exportedAt, manifest, testExecutions, starlightProjects } = input;
   const blockingReasons = input.blockingReasons ?? [];
   const repositoryCommit = input.repositoryCommit ?? null;
   const versionId = componentVersionId(manifest);
+  const automatedArtifacts = (input.automatedArtifacts ?? []).filter(
+    (artifact) => artifact.componentVersionId === versionId,
+  );
 
   const documentationStatus = manifest.documentationTargets.map((target) => ({
     adapter: target.adapter,
     pathOrPageId: target.pathOrPageId ?? null,
-    ...computeDocumentationDriftState(target, manifest.componentVersion, starlightProjects),
+    ...computeDocumentationDriftState(
+      target,
+      manifest.componentVersion,
+      starlightProjects,
+    ),
   }));
 
   const findings = findingsFromBlockingReasons(manifest.id, blockingReasons);
@@ -132,8 +155,27 @@ export async function buildEvidenceExport(input: EvidenceExportInput): Promise<E
     'test-summary.json': JSON.stringify(testExecutions, null, 2),
     'documentation-status.json': JSON.stringify(documentationStatus, null, 2),
   };
+  const playwrightArtifacts = automatedArtifacts.filter(
+    (artifact) => artifact.kind === 'playwright-json',
+  );
+  if (playwrightArtifacts.length) {
+    delete excludes['automated/'];
+    excludes['automated/axe-results.json'] =
+      'No axe-native result artifact is connected for this component yet.';
+    excludes['automated/interaction-results.json'] =
+      'No Storybook interaction result artifact is connected for this component yet.';
+    contentFiles['automated/playwright-results.json'] = JSON.stringify(
+      playwrightArtifacts,
+      null,
+      2,
+    );
+  }
   for (const finding of findings) {
-    contentFiles[`findings/${finding.id}.json`] = JSON.stringify(finding, null, 2);
+    contentFiles[`findings/${finding.id}.json`] = JSON.stringify(
+      finding,
+      null,
+      2,
+    );
   }
 
   if ('unavailable' in releaseDecision) {
@@ -159,8 +201,10 @@ export async function buildEvidenceExport(input: EvidenceExportInput): Promise<E
     testExecutions,
     documentationStatus,
     findings,
-    releaseDecision: 'unavailable' in releaseDecision ? null : releaseDecision.decision,
-    releaseDecisionUnavailable: 'unavailable' in releaseDecision ? releaseDecision.unavailable : null,
+    releaseDecision:
+      'unavailable' in releaseDecision ? null : releaseDecision.decision,
+    releaseDecisionUnavailable:
+      'unavailable' in releaseDecision ? releaseDecision.unavailable : null,
     notRealApproval,
     excludes,
   });
@@ -261,11 +305,24 @@ function renderEvidenceReport(input: {
   notRealApproval: boolean;
   excludes: Readonly<Record<string, string>>;
 }): string {
-  const { versionId, manifest, exportedAt, repositoryCommit, testExecutions, documentationStatus, findings } =
-    input;
-  const { releaseDecision, releaseDecisionUnavailable, notRealApproval, excludes } = input;
+  const {
+    versionId,
+    manifest,
+    exportedAt,
+    repositoryCommit,
+    testExecutions,
+    documentationStatus,
+    findings,
+  } = input;
+  const {
+    releaseDecision,
+    releaseDecisionUnavailable,
+    notRealApproval,
+    excludes,
+  } = input;
 
-  const notConnected = (reason: string) => `<p class="not-connected">${escapeHtml(reason)}</p>`;
+  const notConnected = (reason: string) =>
+    `<p class="not-connected">${escapeHtml(reason)}</p>`;
 
   const automatedResults = testExecutions.length
     ? `<table>
@@ -278,7 +335,9 @@ function renderEvidenceReport(input: {
         )
         .join('')}</tbody>
     </table>`
-    : notConnected('No automated result evidence is connected for this component version.');
+    : notConnected(
+        'No automated result evidence is connected for this component version.',
+      );
 
   const findingsSection = findings.length
     ? `<table>
@@ -301,12 +360,17 @@ function renderEvidenceReport(input: {
       <dt>Blocking findings</dt><dd>${releaseDecision.blockingFindingIds.length}</dd>
       <dt>Approver</dt><dd>${
         releaseDecision.approver
-          ? escapeHtml(releaseDecision.approver) + (notRealApproval ? ' <strong>(TEST HARNESS — NOT A REAL APPROVAL)</strong>' : '')
+          ? escapeHtml(releaseDecision.approver) +
+            (notRealApproval
+              ? ' <strong>(TEST HARNESS — NOT A REAL APPROVAL)</strong>'
+              : '')
           : '<span class="not-connected">None — a blocked outcome requires no approver.</span>'
       }</dd>
       <dt>Decided at</dt><dd>${escapeHtml(releaseDecision.decidedAt)}</dd>
     </dl>`
-    : notConnected(releaseDecisionUnavailable ?? 'No release decision is available.');
+    : notConnected(
+        releaseDecisionUnavailable ?? 'No release decision is available.',
+      );
 
   const documentationSection = documentationStatus.length
     ? `<table>
@@ -380,7 +444,10 @@ ${documentationSection}
 <p>These sections of the documented evidence-package structure have no real data source in ForgeGate yet, and are deliberately absent rather than reported as empty or passing:</p>
 <dl>
 ${Object.entries(excludes)
-  .map(([section, reason]) => `  <dt><code>${escapeHtml(section)}</code></dt><dd>${escapeHtml(reason)}</dd>`)
+  .map(
+    ([section, reason]) =>
+      `  <dt><code>${escapeHtml(section)}</code></dt><dd>${escapeHtml(reason)}</dd>`,
+  )
   .join('\n')}
 </dl>
 </body>

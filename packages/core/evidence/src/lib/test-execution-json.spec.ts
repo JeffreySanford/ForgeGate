@@ -49,6 +49,7 @@ describe('parseTestEvidenceFile', () => {
     expect(parseTestEvidenceFile(JSON.stringify(validExecution))).toEqual({
       adapter: 'ForgeGate test execution',
       executions: [validExecution],
+      automatedArtifacts: [],
     });
   });
 
@@ -92,6 +93,31 @@ describe('parseTestEvidenceFile', () => {
           durationMs: 1200,
           commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
           rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
+        },
+      ],
+      automatedArtifacts: [
+        {
+          kind: 'playwright-json',
+          id: 'acme-button-playwright',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          gate: 'interaction',
+          tool: 'playwright',
+          toolVersion: '1.56.0',
+          adapterVersion: '0.1.0',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
+          report: {
+            stats: {
+              startTime: '2026-07-24T16:10:00.000Z',
+              duration: 1200,
+              expected: 8,
+              skipped: 1,
+              unexpected: 0,
+              flaky: 0,
+            },
+            errors: [],
+            suites: [],
+          },
         },
       ],
     });

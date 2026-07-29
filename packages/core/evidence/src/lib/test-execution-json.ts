@@ -8,6 +8,20 @@ const PLAYWRIGHT_ADAPTER_VERSION = '0.1.0';
 export interface ParsedTestEvidence {
   readonly adapter: 'ForgeGate test execution' | 'Playwright JSON';
   readonly executions: readonly TestExecution[];
+  readonly automatedArtifacts: readonly AutomatedEvidenceArtifact[];
+}
+
+export interface AutomatedEvidenceArtifact {
+  readonly kind: 'playwright-json';
+  readonly id: string;
+  readonly componentVersionId: string;
+  readonly gate: string;
+  readonly tool: 'playwright';
+  readonly toolVersion: string;
+  readonly adapterVersion: string;
+  readonly commitOrFingerprint: string;
+  readonly rawArtifactRef: string | null;
+  readonly report: unknown;
 }
 
 /**
@@ -40,13 +54,16 @@ export function parseTestEvidenceFile(jsonText: string): ParsedTestEvidence {
     return {
       adapter: 'ForgeGate test execution',
       executions: [parsed],
+      automatedArtifacts: [],
     };
   }
 
   if (isRecord(parsed) && parsed['format'] === 'playwright-json') {
+    const normalized = normalizePlaywrightJsonEvidence(parsed);
     return {
       adapter: 'Playwright JSON',
-      executions: [normalizePlaywrightJsonEvidence(parsed)],
+      executions: [normalized.execution],
+      automatedArtifacts: [normalized.artifact],
     };
   }
 
@@ -65,9 +82,10 @@ function parseJson(jsonText: string): unknown {
   return parsed;
 }
 
-function normalizePlaywrightJsonEvidence(
-  envelope: Record<string, unknown>,
-): TestExecution {
+function normalizePlaywrightJsonEvidence(envelope: Record<string, unknown>): {
+  readonly execution: TestExecution;
+  readonly artifact: AutomatedEvidenceArtifact;
+} {
   const report = requireRecord(envelope['report'], 'report');
   const stats = requireRecord(report['stats'], 'report.stats');
   const id = requireString(envelope['id'], 'id');
@@ -111,7 +129,21 @@ function normalizePlaywrightJsonEvidence(
     );
   }
 
-  return execution;
+  return {
+    execution,
+    artifact: {
+      kind: 'playwright-json',
+      id,
+      componentVersionId,
+      gate,
+      tool: 'playwright',
+      toolVersion,
+      adapterVersion,
+      commitOrFingerprint,
+      rawArtifactRef: rawArtifactRef ?? null,
+      report,
+    },
+  };
 }
 
 function playwrightStatus(

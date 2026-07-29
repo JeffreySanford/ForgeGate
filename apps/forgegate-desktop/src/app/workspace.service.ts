@@ -5,6 +5,7 @@ import {
 } from '@forgegate/core-config';
 import {
   parseTestEvidenceFile,
+  type AutomatedEvidenceArtifact,
   type Finding,
   type TestExecution,
 } from '@forgegate/core-evidence';
@@ -272,6 +273,9 @@ export class WorkspaceService {
   );
   readonly componentManifestError = signal<string | null>(null);
   readonly testExecutions = signal<readonly TestExecution[]>([]);
+  readonly automatedEvidenceArtifacts = signal<
+    readonly AutomatedEvidenceArtifact[]
+  >([]);
   readonly testExecutionError = signal<string | null>(null);
   /** Every DTCG token parsed from the workspace's detected token files. */
   readonly designTokens = signal<readonly DtcgToken[]>([]);
@@ -409,6 +413,7 @@ export class WorkspaceService {
       this.customElementsManifest.set(null);
       this.componentManifestOverrides.set([]);
       this.testExecutions.set([]);
+      this.automatedEvidenceArtifacts.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.evidenceHistoryTrend.set(null);
@@ -656,6 +661,10 @@ export class WorkspaceService {
         exportedAt: new Date().toISOString(),
         manifest,
         testExecutions,
+        automatedArtifacts: this.automatedEvidenceArtifacts().filter(
+          (artifact) =>
+            artifact.componentVersionId === componentVersionId(manifest),
+        ),
         starlightProjects: this.workspaceScan()?.starlightProjects ?? [],
         blockingReasons,
         approver,
@@ -914,7 +923,9 @@ export class WorkspaceService {
     scan: WorkspaceScan,
   ): Promise<void> {
     this.testExecutions.set([]);
+    this.automatedEvidenceArtifacts.set([]);
     const executions: TestExecution[] = [];
+    const automatedArtifacts: AutomatedEvidenceArtifact[] = [];
     const errors: string[] = [];
     for (const relativePath of scan.testEvidenceFiles ?? []) {
       let text: string | null = null;
@@ -925,6 +936,7 @@ export class WorkspaceService {
         });
         const parsed = parseTestEvidenceFile(text);
         executions.push(...parsed.executions);
+        automatedArtifacts.push(...parsed.automatedArtifacts);
         this.setAdapterDiagnostic({
           id: `test-evidence:${relativePath}`,
           adapter:
@@ -949,6 +961,7 @@ export class WorkspaceService {
       }
     }
     this.testExecutions.set(executions);
+    this.automatedEvidenceArtifacts.set(automatedArtifacts);
     this.testExecutionError.set(errors.length ? errors.join('\n') : null);
   }
 
@@ -1062,4 +1075,10 @@ export class WorkspaceService {
       error: failures.length ? failures.join('\n') : null,
     });
   }
+}
+
+function componentVersionId(manifest: ComponentManifest): string {
+  return manifest.componentVersion
+    ? `${manifest.id}@${manifest.componentVersion}`
+    : manifest.id;
 }

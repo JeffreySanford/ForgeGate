@@ -304,6 +304,20 @@ describe('WorkspaceService', () => {
         rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
       },
     ]);
+    expect(service.automatedEvidenceArtifacts()).toEqual([
+      {
+        kind: 'playwright-json',
+        id: 'acme-button-playwright',
+        componentVersionId: 'up.design-system.up-button@0.1.0',
+        gate: 'interaction',
+        tool: 'playwright',
+        toolVersion: '1.56.0',
+        adapterVersion: '0.1.0',
+        commitOrFingerprint: 'b'.repeat(40),
+        rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
+        report: playwrightEvidence.report,
+      },
+    ]);
     expect(service.testExecutionError()).toBeNull();
     expect(
       service
@@ -845,6 +859,66 @@ describe('WorkspaceService', () => {
         directoryPath: '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
       });
       expect(service.evidenceExportRunning()).toBe(false);
+    });
+
+    it('includes matching preserved Playwright artifacts in the exported evidence package', async () => {
+      service.automatedEvidenceArtifacts.set([
+        {
+          kind: 'playwright-json',
+          id: 'matching-playwright',
+          componentVersionId: 'acme.lib.button@1.0.0',
+          gate: 'interaction',
+          tool: 'playwright',
+          toolVersion: '1.56.0',
+          adapterVersion: '0.1.0',
+          commitOrFingerprint: 'a'.repeat(40),
+          rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
+          report: {
+            stats: {
+              startTime: '2026-07-24T17:00:00.000Z',
+              duration: 1500,
+              expected: 9,
+              skipped: 0,
+              unexpected: 0,
+              flaky: 0,
+            },
+            errors: [],
+            suites: [],
+          },
+        },
+        {
+          kind: 'playwright-json',
+          id: 'other-component-playwright',
+          componentVersionId: 'acme.lib.card@1.0.0',
+          gate: 'interaction',
+          tool: 'playwright',
+          toolVersion: '1.56.0',
+          adapterVersion: '0.1.0',
+          commitOrFingerprint: 'a'.repeat(40),
+          rawArtifactRef: null,
+          report: { stats: { expected: 1 } },
+        },
+      ]);
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
+
+      await service.exportEvidencePackage(manifest, []);
+
+      const [, secondCallArgs] = invokeMock.mock.calls[1] as [
+        string,
+        { files: Record<string, string> },
+      ];
+      expect(Object.keys(secondCallArgs.files)).toContain(
+        'automated/playwright-results.json',
+      );
+      const playwrightResults = JSON.parse(
+        secondCallArgs.files['automated/playwright-results.json'] ?? '[]',
+      );
+      expect(playwrightResults).toHaveLength(1);
+      expect(playwrightResults[0].id).toBe('matching-playwright');
     });
 
     it("records the workspace's real current commit in the exported manifest", async () => {
