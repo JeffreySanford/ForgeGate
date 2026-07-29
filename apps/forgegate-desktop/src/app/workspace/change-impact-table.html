@@ -7,8 +7,10 @@
     <p class="fg-empty-state">Working tree is clean. Nothing to map yet.</p>
   } @else {
     <p class="change-impact-table__caveat">
-      Matches changed files against each component's own source files only. Stories, tests, reviews,
-      documentation, and release decisions are not cross-referenced yet.
+      Changed files are matched against each component's own source files. Stories, tests, and
+      documentation are then cross-referenced <em>through that component</em> — ForgeGate has no direct
+      file-to-story or file-to-test dependency graph, so these are related artifacts of an affected
+      component, not observed dependency edges. Reviews and release decisions are not cross-referenced.
     </p>
     <table>
       <caption class="sr-only">Changed files and the components they affect</caption>
@@ -16,6 +18,9 @@
         <tr>
           <th scope="col">Changed file</th>
           <th scope="col">Affected components</th>
+          <th scope="col">Related stories</th>
+          <th scope="col">Related test runs</th>
+          <th scope="col">Related documentation</th>
         </tr>
       </thead>
       <tbody>
@@ -31,6 +36,39 @@
                     <li><a [routerLink]="['/components', componentId]">{{ componentName(componentId) }}</a></li>
                   }
                 </ul>
+              }
+            </td>
+            <td>
+              @if (entry.affectedStoryIds.length) {
+                <ul class="change-impact-table__components">
+                  @for (storyId of entry.affectedStoryIds; track storyId) {
+                    <li><code>{{ storyId }}</code></li>
+                  }
+                </ul>
+              } @else {
+                <span class="change-impact-table__unmatched">None</span>
+              }
+            </td>
+            <td>
+              @if (entry.affectedTestExecutionIds.length) {
+                <ul class="change-impact-table__components">
+                  @for (runId of entry.affectedTestExecutionIds; track runId) {
+                    <li><code>{{ runId }}</code></li>
+                  }
+                </ul>
+              } @else {
+                <span class="change-impact-table__unmatched">None</span>
+              }
+            </td>
+            <td>
+              @if (entry.affectedDocumentationTargets.length) {
+                <ul class="change-impact-table__components">
+                  @for (target of entry.affectedDocumentationTargets; track target) {
+                    <li><code>{{ target }}</code></li>
+                  }
+                </ul>
+              } @else {
+                <span class="change-impact-table__unmatched">None</span>
               }
             </td>
           </tr>

@@ -29,6 +29,7 @@ export class ChangeImpactTable {
     computeChangeImpact(
       this.workspace.gitStatus()?.changedFiles ?? [],
       this.inventory.result().discoveries,
+      this.workspace.testExecutions(),
     ),
   );
 
