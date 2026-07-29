@@ -14,7 +14,7 @@ import { map } from 'rxjs';
 @Component({
   selector: 'app-coming-soon-page',
   template: `
-    <div class="coming-soon">
+    <div class="coming-soon" animate.enter="fg-route-enter">
       <h1>{{ title() }}</h1>
       <p>{{ description() }}</p>
     </div>

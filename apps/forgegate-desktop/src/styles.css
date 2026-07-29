@@ -46,6 +46,28 @@ button:focus-visible,
   }
 }
 
+/* P1.8 "transition" moment (route arrival only — narrow first slice, no
+ * `leave` half yet). Applied via Angular's native `animate.enter`
+ * template binding on each top-level routed page's own root element, so
+ * it fires exactly once per real navigation into that route, not on
+ * every state change. Uses the shared motion tokens, so it's already
+ * zeroed under `prefers-reduced-motion: reduce` (styles/tokens.css) —
+ * same guarantee as every other motion in the app. */
+.fg-route-enter {
+  animation: fg-route-enter var(--fg-motion-duration-md) var(--fg-motion-ease);
+}
+
+@keyframes fg-route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
