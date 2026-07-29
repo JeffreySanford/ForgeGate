@@ -1,3 +1,7 @@
+:host {
+  display: contents;
+}
+
 .filesystem-changes {
   display: grid;
   gap: var(--fg-space-3);
