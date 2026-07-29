@@ -1,13 +1,21 @@
 import { Injectable, computed, inject } from '@angular/core';
+import { buildComponentId } from '@forgegate/core-domain';
 import {
   deriveOrganizationAndLibrary,
   mapCustomElementsManifestToComponentManifests,
+  type MapCemFailure,
   type MapCemResult,
 } from '@forgegate/adapter-web-components';
 import type {
   ComponentManifest,
+  ManifestContract,
   ManifestStoryMapping,
 } from '@forgegate/core-manifest';
+import { createComponentManifest } from '@forgegate/core-manifest';
+import type {
+  AngularComponentDeclaration,
+  AngularMember,
+} from './angular-components';
 import { createStoryIndexLookup } from './storybook/storybook-index';
 import { WorkspaceService } from './workspace.service';
 
@@ -31,13 +39,6 @@ export interface ComponentInventoryResult extends MapCemResult {
   readonly duplicateGroupCount: number;
 }
 
-const EMPTY_INVENTORY_RESULT: ComponentInventoryResult = {
-  ...EMPTY_MAP_RESULT,
-  discoveries: [],
-  declarationCount: 0,
-  duplicateGroupCount: 0,
-};
-
 /**
  * The mapped-component-inventory computation used to live inline in the
  * workspace page component. Extracted so the workspace system map (P0.3)
@@ -50,17 +51,24 @@ export class ComponentInventoryService {
 
   readonly result = computed<ComponentInventoryResult>(() => {
     const manifest = this.workspace.customElementsManifest();
-    if (!manifest) {
-      return EMPTY_INVENTORY_RESULT;
-    }
     const { organization, library } = deriveOrganizationAndLibrary(
       this.workspace.workspaceScan()?.packageName ?? null,
     );
-    const mapped = mapCustomElementsManifestToComponentManifests(manifest, {
-      organization,
-      library,
-      packagePath: '.',
-    });
+    const mapped = manifest
+      ? mapCustomElementsManifestToComponentManifests(manifest, {
+          organization,
+          library,
+          packagePath: '.',
+        })
+      : EMPTY_MAP_RESULT;
+    const angularMapped = mapAngularDeclarationsToComponentManifests(
+      this.workspace.angularComponents(),
+      {
+        organization,
+        library,
+        packagePath: '.',
+      },
+    );
 
     const storybookIndex = this.workspace.storybookIndex();
     // Built once per recompute, not once per component — see
@@ -76,19 +84,21 @@ export class ComponentInventoryService {
         .componentManifestOverrides()
         .map((item) => [item.id, item]),
     );
-    const enriched = mapped.manifests.map((componentManifest) => {
-      const discoveredStories = lookupStories
-        ? lookupStories(componentManifest.sourceFiles)
-        : [];
-      const override = overrides.get(componentManifest.id);
-      return override
-        ? applyRepositoryOverride(
-            componentManifest,
-            override,
-            discoveredStories,
-          )
-        : { ...componentManifest, storyMappings: discoveredStories };
-    });
+    const enriched = [...mapped.manifests, ...angularMapped.manifests].map(
+      (componentManifest) => {
+        const discoveredStories = lookupStories
+          ? lookupStories(componentManifest.sourceFiles)
+          : [];
+        const override = overrides.get(componentManifest.id);
+        return override
+          ? applyRepositoryOverride(
+              componentManifest,
+              override,
+              discoveredStories,
+            )
+          : { ...componentManifest, storyMappings: discoveredStories };
+      },
+    );
     const groups = new Map<string, (typeof enriched)[number][]>();
     for (const componentManifest of enriched) {
       const group = groups.get(componentManifest.id) ?? [];
@@ -131,7 +141,7 @@ export class ComponentInventoryService {
       };
     });
     return {
-      failures: mapped.failures,
+      failures: [...mapped.failures, ...angularMapped.failures],
       manifests: discoveries.map((item) => item.manifest),
       discoveries,
       declarationCount: enriched.length,
@@ -172,9 +182,87 @@ function applyRepositoryOverride(
     documentationTargets: override.documentationTargets,
     consumerApplicationIds: override.consumerApplicationIds,
     policyId: override.policyId,
+    policyVersion: override.policyVersion,
     deprecatedInFavorOf: override.deprecatedInFavorOf,
     deprecationNotice: override.deprecationNotice,
   };
+}
+
+interface AngularMapOptions {
+  readonly organization: string;
+  readonly library: string;
+  readonly packagePath: string;
+}
+
+function mapAngularDeclarationsToComponentManifests(
+  declarations: readonly AngularComponentDeclaration[],
+  options: AngularMapOptions,
+): MapCemResult {
+  const manifests: ComponentManifest[] = [];
+  const failures: MapCemFailure[] = [];
+
+  for (const declaration of declarations) {
+    try {
+      manifests.push(mapAngularDeclaration(declaration, options));
+    } catch (error) {
+      failures.push({
+        declarationName: declaration.className,
+        modulePath: declaration.sourceFile,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { manifests, failures };
+}
+
+function mapAngularDeclaration(
+  declaration: AngularComponentDeclaration,
+  options: AngularMapOptions,
+): ComponentManifest {
+  const selectorOrClass = declaration.selector ?? declaration.className;
+  return createComponentManifest({
+    id: buildComponentId(
+      options.organization,
+      options.library,
+      sanitizeIdentitySegment(selectorOrClass),
+    ),
+    framework: 'angular',
+    adapter: `framework.angular.source-scan.${declaration.confidence}`,
+    packagePath: options.packagePath,
+    sourceFiles: [declaration.sourceFile],
+    contract: buildAngularContract(declaration),
+  });
+}
+
+function buildAngularContract(
+  declaration: AngularComponentDeclaration,
+): Partial<ManifestContract> {
+  return {
+    inputs: declaration.inputs.map(angularMemberToContractMember),
+    outputs: declaration.outputs.map(angularMemberToContractMember),
+  };
+}
+
+function angularMemberToContractMember(member: AngularMember): {
+  name: string;
+  type?: string;
+  required?: boolean;
+  description?: string;
+} {
+  return {
+    name: member.alias ?? member.name,
+    type: member.type,
+    required: member.required,
+    description:
+      member.alias && member.alias !== member.name
+        ? `Class member: ${member.name}`
+        : undefined,
+  };
+}
+
+function sanitizeIdentitySegment(value: string): string {
+  return value.replace(/[.\s]+/g, '-');
 }
 
 function mergeStoryMappings(
