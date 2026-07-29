@@ -11,6 +11,8 @@ use tauri_plugin_dialog::DialogExt;
 mod command_execution;
 use command_execution::CommandResult;
 
+mod evidence_history;
+
 mod workspace_scan;
 use workspace_scan::{scan_workspace, WorkspaceScan};
 
@@ -124,14 +126,17 @@ fn write_evidence_package(
 
     for (name, content) in &files {
         if !is_safe_relative_artifact_path(name) {
-            return Err(format!("Refusing to write unexpected artifact filename \"{name}\""));
+            return Err(format!(
+                "Refusing to write unexpected artifact filename \"{name}\""
+            ));
         }
         let path = export_dir.join(name);
         if let Some(parent_dir) = path.parent() {
             fs::create_dir_all(parent_dir)
                 .map_err(|error| format!("Failed to create {}: {error}", parent_dir.display()))?;
         }
-        fs::write(&path, content).map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+        fs::write(&path, content)
+            .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
     }
 
     Ok(export_dir.display().to_string())
@@ -163,7 +168,8 @@ fn read_workspace_source_files(
     let workspace = resolve_workspace_path(&workspace_path)?;
     let mut files = Vec::new();
     for relative_path in relative_paths {
-        let Ok(resolved) = resolve_relative_path_within_workspace(&workspace, &relative_path) else {
+        let Ok(resolved) = resolve_relative_path_within_workspace(&workspace, &relative_path)
+        else {
             continue;
         };
         if let Ok(contents) = fs::read_to_string(&resolved) {
@@ -226,7 +232,9 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
         // a staged (`A `) or untracked (`??`) status, which has no leading
         // space and so never exposed it. Trailing trim is all `rev-parse`
         // needs anyway.
-        Ok(String::from_utf8_lossy(&output.stdout).trim_end().to_string())
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .trim_end()
+            .to_string())
     };
 
     let branch = run_git(&["rev-parse", "--abbrev-ref", "HEAD"])?;
@@ -244,7 +252,19 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
 #[tauri::command]
 fn read_workspace_scan(path: String) -> Result<WorkspaceScan, String> {
     let workspace = resolve_workspace_path(&path)?;
-    scan_workspace(&workspace)
+    let scan = scan_workspace(&workspace)?;
+    if let Err(error) = evidence_history::record_scan_snapshot_if_configured(
+        &workspace.display().to_string(),
+        &scan,
+    ) {
+        log::warn!("Failed to persist workspace scan snapshot: {error}");
+    }
+    Ok(scan)
+}
+
+#[tauri::command]
+fn read_persistence_status() -> evidence_history::PersistenceStatus {
+    evidence_history::persistence_status_from_env()
 }
 
 /// Returns the raw text of `.forgegate/config.yaml`, or `None` if the
@@ -295,7 +315,8 @@ fn read_text_file(workspace_path: String, relative_path: String) -> Result<Strin
     if !resolved.is_file() {
         return Err(format!("{relative_path} is not a file"));
     }
-    fs::read_to_string(&resolved).map_err(|error| format!("Failed to read {relative_path}: {error}"))
+    fs::read_to_string(&resolved)
+        .map_err(|error| format!("Failed to read {relative_path}: {error}"))
 }
 
 /// Tracks the currently running `run_workspace_command` invocation, if
@@ -379,8 +400,12 @@ async fn run_workspace_command_inner(
     drop(guard);
 
     result.map(|mut command_result| {
-        command_result.artifact_path =
-            write_command_artifact(id, &command_for_artifact, &args_for_artifact, &command_result);
+        command_result.artifact_path = write_command_artifact(
+            id,
+            &command_for_artifact,
+            &args_for_artifact,
+            &command_result,
+        );
         command_result
     })
 }
@@ -405,11 +430,19 @@ async fn run_workspace_command_inner(
 /// are: a literal secret can just as easily arrive as a CLI argument
 /// (`--token=...`) as in a program's own output, and the artifact would
 /// otherwise leak it even though the captured output next to it is clean.
-fn write_command_artifact(id: u64, command: &str, args: &[String], result: &CommandResult) -> Option<String> {
+fn write_command_artifact(
+    id: u64,
+    command: &str,
+    args: &[String],
+    result: &CommandResult,
+) -> Option<String> {
     let artifacts_dir = std::env::temp_dir().join("forgegate-artifacts");
     fs::create_dir_all(&artifacts_dir).ok()?;
 
-    let redacted_args: Vec<String> = args.iter().map(|arg| command_execution::redact_secrets(arg)).collect();
+    let redacted_args: Vec<String> = args
+        .iter()
+        .map(|arg| command_execution::redact_secrets(arg))
+        .collect();
     let artifact = serde_json::json!({
         "id": id,
         "command": command_execution::redact_secrets(command),
@@ -527,7 +560,8 @@ mod tests {
 
     #[test]
     fn reads_repository_config_file_contents_when_present() {
-        let dir = std::env::temp_dir().join(format!("forgegate-with-config-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-with-config-{}", std::process::id()));
         let forgegate_dir = dir.join(".forgegate");
         std::fs::create_dir_all(&forgegate_dir).expect("should create .forgegate dir");
         std::fs::write(forgegate_dir.join("config.yaml"), "configVersion: 0.1.0\n").unwrap();
@@ -544,10 +578,17 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("forgegate-read-text-{}", std::process::id()));
         let nested = dir.join("dist");
         std::fs::create_dir_all(&nested).expect("should create nested dir");
-        std::fs::write(nested.join("custom-elements.json"), "{\"schemaVersion\":\"1.0.0\"}").unwrap();
+        std::fs::write(
+            nested.join("custom-elements.json"),
+            "{\"schemaVersion\":\"1.0.0\"}",
+        )
+        .unwrap();
 
-        let result = read_text_file(dir.display().to_string(), "dist/custom-elements.json".to_string())
-            .expect("reading a file inside the workspace should succeed");
+        let result = read_text_file(
+            dir.display().to_string(),
+            "dist/custom-elements.json".to_string(),
+        )
+        .expect("reading a file inside the workspace should succeed");
         assert_eq!(result, "{\"schemaVersion\":\"1.0.0\"}");
 
         std::fs::remove_dir_all(&dir).ok();
@@ -555,7 +596,8 @@ mod tests {
 
     #[test]
     fn rejects_a_relative_path_that_escapes_the_workspace() {
-        let dir = std::env::temp_dir().join(format!("forgegate-read-text-escape-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-read-text-escape-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("should create temp dir");
 
         let error = read_text_file(dir.display().to_string(), "../../etc/passwd".to_string())
@@ -567,7 +609,10 @@ mod tests {
 
     #[test]
     fn rejects_a_relative_path_that_does_not_exist() {
-        let dir = std::env::temp_dir().join(format!("forgegate-read-text-missing-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-read-text-missing-{}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&dir).expect("should create temp dir");
 
         let error = read_text_file(dir.display().to_string(), "does-not-exist.json".to_string())
@@ -612,14 +657,19 @@ mod tests {
             .artifact_path
             .as_ref()
             .expect("a successful run should persist an artifact");
-        let contents = std::fs::read_to_string(artifact_path).expect("artifact file should exist and be readable");
+        let contents = std::fs::read_to_string(artifact_path)
+            .expect("artifact file should exist and be readable");
         let artifact: serde_json::Value =
             serde_json::from_str(&contents).expect("artifact should be valid JSON");
 
         assert_eq!(artifact["id"], id);
         assert_eq!(artifact["command"], "git");
         assert_eq!(artifact["exitCode"], 0);
-        assert!(artifact["stdout"].as_str().unwrap().to_lowercase().contains("git version"));
+        assert!(artifact["stdout"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("git version"));
 
         std::fs::remove_file(artifact_path).ok();
     }
@@ -641,8 +691,11 @@ mod tests {
         ))
         .expect("echoing a line should succeed");
 
-        let artifact_path = result.artifact_path.expect("a successful run should persist an artifact");
-        let contents = std::fs::read_to_string(&artifact_path).expect("artifact file should exist and be readable");
+        let artifact_path = result
+            .artifact_path
+            .expect("a successful run should persist an artifact");
+        let contents = std::fs::read_to_string(&artifact_path)
+            .expect("artifact file should exist and be readable");
 
         assert!(contents.contains("MY_SECRET_TOKEN=***REDACTED***"));
         assert!(!contents.contains("abc123def456"));
@@ -659,7 +712,8 @@ mod tests {
 
     #[test]
     fn rejects_a_working_directory_that_escapes_the_workspace() {
-        let dir = std::env::temp_dir().join(format!("forgegate-run-cmd-escape-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-run-cmd-escape-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("should create temp dir");
 
         let error = tauri::async_runtime::block_on(run_workspace_command_inner(
@@ -759,8 +813,13 @@ mod tests {
 
         assert_eq!(result.exit_code, Some(0));
         let captured = lines.lock().unwrap();
-        assert!(!captured.is_empty(), "expected at least one streamed line from a real git --version run");
-        assert!(captured.iter().any(|(run_id, line)| *run_id == 4 && line.to_lowercase().contains("git version")));
+        assert!(
+            !captured.is_empty(),
+            "expected at least one streamed line from a real git --version run"
+        );
+        assert!(captured
+            .iter()
+            .any(|(run_id, line)| *run_id == 4 && line.to_lowercase().contains("git version")));
     }
 
     #[test]
@@ -846,7 +905,8 @@ mod tests {
     /// through `read_git_status` can catch this class of bug.
     #[test]
     fn reports_the_full_path_of_an_unstaged_modification() {
-        let dir = std::env::temp_dir().join(format!("forgegate-unstaged-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-unstaged-test-{}", std::process::id()));
         std::fs::remove_dir_all(&dir).ok();
         let nested = dir.join("docker");
         std::fs::create_dir_all(&nested).expect("should create temp repo dir");
@@ -868,7 +928,11 @@ mod tests {
         git(&["commit", "-m", "initial"]);
 
         // Modify without staging — this is exactly the ` M path` case.
-        std::fs::write(nested.join("dev-compose.yml"), "version: '3'\nchanged: true\n").unwrap();
+        std::fs::write(
+            nested.join("dev-compose.yml"),
+            "version: '3'\nchanged: true\n",
+        )
+        .unwrap();
 
         let status = read_git_status(dir.display().to_string()).expect("git status should succeed");
 
@@ -880,13 +944,22 @@ mod tests {
 
     #[test]
     fn writes_a_real_evidence_package_directory_with_every_file() {
-        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-test-{}", std::process::id()));
+        let parent = std::env::temp_dir().join(format!(
+            "forgegate-evidence-export-test-{}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&parent).expect("should create temp parent dir");
 
         let mut files = std::collections::HashMap::new();
-        files.insert("manifest.json".to_string(), "{\"id\":\"export-1\"}".to_string());
+        files.insert(
+            "manifest.json".to_string(),
+            "{\"id\":\"export-1\"}".to_string(),
+        );
         files.insert("test-summary.json".to_string(), "[]".to_string());
-        files.insert("checksums.sha256".to_string(), "abc  manifest.json\n".to_string());
+        files.insert(
+            "checksums.sha256".to_string(),
+            "abc  manifest.json\n".to_string(),
+        );
 
         let export_dir_path = write_evidence_package(
             parent.display().to_string(),
@@ -901,7 +974,10 @@ mod tests {
             std::fs::read_to_string(export_dir.join("manifest.json")).unwrap(),
             "{\"id\":\"export-1\"}",
         );
-        assert_eq!(std::fs::read_to_string(export_dir.join("test-summary.json")).unwrap(), "[]");
+        assert_eq!(
+            std::fs::read_to_string(export_dir.join("test-summary.json")).unwrap(),
+            "[]"
+        );
         assert!(export_dir.join("checksums.sha256").is_file());
 
         std::fs::remove_dir_all(&parent).ok();
@@ -921,7 +997,10 @@ mod tests {
 
     #[test]
     fn rejects_a_filename_that_attempts_to_escape_the_export_directory() {
-        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-escape-test-{}", std::process::id()));
+        let parent = std::env::temp_dir().join(format!(
+            "forgegate-evidence-export-escape-test-{}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&parent).expect("should create temp parent dir");
 
         let mut files = std::collections::HashMap::new();
@@ -940,11 +1019,17 @@ mod tests {
 
     #[test]
     fn writes_a_file_one_subdirectory_deep_creating_that_subdirectory() {
-        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-subdir-test-{}", std::process::id()));
+        let parent = std::env::temp_dir().join(format!(
+            "forgegate-evidence-export-subdir-test-{}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&parent).expect("should create temp parent dir");
 
         let mut files = std::collections::HashMap::new();
-        files.insert("findings/acme-lib-button-blocking-0.json".to_string(), "{}".to_string());
+        files.insert(
+            "findings/acme-lib-button-blocking-0.json".to_string(),
+            "{}".to_string(),
+        );
 
         let export_dir_path = write_evidence_package(
             parent.display().to_string(),
@@ -963,7 +1048,10 @@ mod tests {
 
     #[test]
     fn rejects_a_filename_more_than_one_subdirectory_deep() {
-        let parent = std::env::temp_dir().join(format!("forgegate-evidence-export-deep-test-{}", std::process::id()));
+        let parent = std::env::temp_dir().join(format!(
+            "forgegate-evidence-export-deep-test-{}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&parent).expect("should create temp parent dir");
 
         let mut files = std::collections::HashMap::new();
@@ -1018,7 +1106,8 @@ pub fn run() {
             cancel_workspace_command,
             pick_export_directory,
             write_evidence_package,
-            read_workspace_source_files
+            read_workspace_source_files,
+            read_persistence_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

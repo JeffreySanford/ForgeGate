@@ -44,23 +44,23 @@ pub struct UiTechnologyDetection {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScan {
-    package_name: Option<String>,
-    package_manager: Option<String>,
-    workspace_manager: Option<String>,
-    storybook_projects: Vec<String>,
-    starlight_projects: Vec<String>,
-    has_zeroheight: bool,
-    token_files: Vec<String>,
-    test_runners: Vec<String>,
-    visual_regression_providers: Vec<String>,
-    ci_providers: Vec<String>,
-    custom_elements_manifests: Vec<String>,
-    component_packages: Vec<ComponentPackageCandidate>,
-    component_manifests: Vec<String>,
-    test_evidence_files: Vec<String>,
-    ui_technologies: Vec<UiTechnologyDetection>,
-    ui_source_files: Vec<String>,
-    ui_source_files_truncated: bool,
+    pub package_name: Option<String>,
+    pub package_manager: Option<String>,
+    pub workspace_manager: Option<String>,
+    pub storybook_projects: Vec<String>,
+    pub starlight_projects: Vec<String>,
+    pub has_zeroheight: bool,
+    pub token_files: Vec<String>,
+    pub test_runners: Vec<String>,
+    pub visual_regression_providers: Vec<String>,
+    pub ci_providers: Vec<String>,
+    pub custom_elements_manifests: Vec<String>,
+    pub component_packages: Vec<ComponentPackageCandidate>,
+    pub component_manifests: Vec<String>,
+    pub test_evidence_files: Vec<String>,
+    pub ui_technologies: Vec<UiTechnologyDetection>,
+    pub ui_source_files: Vec<String>,
+    pub ui_source_files_truncated: bool,
 }
 
 /// Fails loudly if the workspace root itself cannot be read (permissions,
@@ -75,8 +75,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
     let package_json = read_package_json(root, &entries);
     let project_dirs = candidate_project_dirs(root, &entries);
 
-    let (ui_source_files, ui_source_files_truncated) =
-        detect_ui_source_files(root, &project_dirs);
+    let (ui_source_files, ui_source_files_truncated) = detect_ui_source_files(root, &project_dirs);
     Ok(WorkspaceScan {
         package_name: package_json
             .as_ref()
@@ -148,10 +147,7 @@ fn collect_ui_source_files(
             *truncated = true;
             return;
         }
-        let Ok(file_type) = path
-            .symlink_metadata()
-            .map(|metadata| metadata.file_type())
-        else {
+        let Ok(file_type) = path.symlink_metadata().map(|metadata| metadata.file_type()) else {
             continue;
         };
         if file_type.is_symlink() {
@@ -184,9 +180,7 @@ fn detect_ui_technologies(root: &Path, project_dirs: &[PathBuf]) -> Vec<UiTechno
             project_path
         };
         for dependency_kind in ["dependencies", "devDependencies"] {
-            let Some(dependencies) = package_json
-                .get(dependency_kind)
-                .and_then(Value::as_object)
+            let Some(dependencies) = package_json.get(dependency_kind).and_then(Value::as_object)
             else {
                 continue;
             };
@@ -208,7 +202,11 @@ fn detect_ui_technologies(root: &Path, project_dirs: &[PathBuf]) -> Vec<UiTechno
                     detected_package: package_name.clone(),
                     evidence_source: format!(
                         "{}/package.json:{}",
-                        if project_path == "." { "" } else { &project_path },
+                        if project_path == "." {
+                            ""
+                        } else {
+                            &project_path
+                        },
                         dependency_kind
                     )
                     .trim_start_matches('/')
@@ -227,7 +225,9 @@ fn detect_ui_technologies(root: &Path, project_dirs: &[PathBuf]) -> Vec<UiTechno
     detections
 }
 
-fn ui_technology_descriptor(package_name: &str) -> Option<(&'static str, &'static str, &'static str)> {
+fn ui_technology_descriptor(
+    package_name: &str,
+) -> Option<(&'static str, &'static str, &'static str)> {
     match package_name {
         "primeng" => Some(("primeng", "PrimeNG", "component-library")),
         "@angular/material" => Some(("angular-material", "Angular Material", "component-library")),
@@ -262,7 +262,12 @@ fn detect_component_manifests(root: &Path) -> Vec<String> {
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
         .filter(|path| path.is_file())
-        .filter(|path| matches!(path.extension().and_then(|ext| ext.to_str()), Some("yaml" | "yml")))
+        .filter(|path| {
+            matches!(
+                path.extension().and_then(|ext| ext.to_str()),
+                Some("yaml" | "yml")
+            )
+        })
         .map(|path| relative_display(root, &path))
         .collect::<Vec<_>>();
     manifests.sort();
@@ -287,7 +292,10 @@ fn detect_test_evidence_files(root: &Path) -> Vec<String> {
 
 fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
     let dir = fs::read_dir(root).map_err(|error| {
-        format!("Could not read workspace directory {}: {error}", root.display())
+        format!(
+            "Could not read workspace directory {}: {error}",
+            root.display()
+        )
     })?;
     Ok(dir
         .filter_map(|entry| entry.ok())
@@ -336,7 +344,10 @@ fn read_package_json_at(dir: &Path) -> Option<Value> {
     serde_json::from_str(&contents).ok()
 }
 
-fn detect_component_packages(root: &Path, project_dirs: &[PathBuf]) -> Vec<ComponentPackageCandidate> {
+fn detect_component_packages(
+    root: &Path,
+    project_dirs: &[PathBuf],
+) -> Vec<ComponentPackageCandidate> {
     project_dirs
         .iter()
         .filter(|dir| dir.join("src").is_dir())
@@ -344,7 +355,11 @@ fn detect_component_packages(root: &Path, project_dirs: &[PathBuf]) -> Vec<Compo
             let package_json = read_package_json_at(dir)?;
             let name = package_json.get("name")?.as_str()?.to_string();
             let package_path = relative_display(root, dir);
-            let path = if package_path.is_empty() { ".".to_string() } else { package_path };
+            let path = if package_path.is_empty() {
+                ".".to_string()
+            } else {
+                package_path
+            };
             let declared_manifest = package_json
                 .get("customElements")
                 .and_then(Value::as_str)
@@ -406,13 +421,18 @@ fn detect_workspace_manager(entries: &[String], package_json: Option<&Value>) ->
     if entries.contains(&"rush.json".to_string()) {
         return Some("rush".to_string());
     }
-    if entries.contains(&"lage.config.js".to_string()) || entries.contains(&"lage.config.json".to_string()) {
+    if entries.contains(&"lage.config.js".to_string())
+        || entries.contains(&"lage.config.json".to_string())
+    {
         return Some("lage".to_string());
     }
     if entries.contains(&"pnpm-workspace.yaml".to_string()) {
         return Some("pnpm-workspaces".to_string());
     }
-    if package_json.and_then(|value| value.get("workspaces")).is_some() {
+    if package_json
+        .and_then(|value| value.get("workspaces"))
+        .is_some()
+    {
         return Some("package-json-workspaces".to_string());
     }
     None
@@ -487,7 +507,9 @@ fn detect_token_files(root: &Path, project_dirs: &[PathBuf]) -> Vec<String> {
                 }
                 let file_path = search_dir.join(&name);
                 let has_dtcg_marker = fs::read_to_string(&file_path)
-                    .map(|contents| contents.contains("\"$value\"") || contents.contains("\"$type\""))
+                    .map(|contents| {
+                        contents.contains("\"$value\"") || contents.contains("\"$type\"")
+                    })
                     .unwrap_or(false);
                 if is_dtcg_named(&name) || has_dtcg_marker {
                     found.push(relative_display(root, &file_path));
@@ -501,12 +523,26 @@ fn detect_token_files(root: &Path, project_dirs: &[PathBuf]) -> Vec<String> {
 
 fn detect_test_runners(entries: &[String], package_json: Option<&Value>) -> Vec<String> {
     let mut runners = Vec::new();
-    let has_any = |names: &[&str]| names.iter().any(|name| entries.contains(&(*name).to_string()));
+    let has_any = |names: &[&str]| {
+        names
+            .iter()
+            .any(|name| entries.contains(&(*name).to_string()))
+    };
 
-    if has_any(&["vitest.config.ts", "vitest.config.mts", "vitest.config.js", "vitest.workspace.ts"]) {
+    if has_any(&[
+        "vitest.config.ts",
+        "vitest.config.mts",
+        "vitest.config.js",
+        "vitest.workspace.ts",
+    ]) {
         runners.push("vitest".to_string());
     }
-    if has_any(&["jest.config.ts", "jest.config.js", "jest.config.cjs", "jest.config.json"]) {
+    if has_any(&[
+        "jest.config.ts",
+        "jest.config.js",
+        "jest.config.cjs",
+        "jest.config.json",
+    ]) {
         runners.push("jest".to_string());
     }
     if has_any(&["playwright.config.ts", "playwright.config.js"]) {
@@ -572,7 +608,9 @@ fn detect_custom_elements_manifests(root: &Path, project_dirs: &[PathBuf]) -> Ve
                 None => dir.join("custom-elements.json"),
             };
 
-            candidate.is_file().then(|| relative_display(root, &candidate))
+            candidate
+                .is_file()
+                .then(|| relative_display(root, &candidate))
         })
         .collect()
 }
@@ -624,16 +662,28 @@ mod tests {
         assert_eq!(scan.package_name, Some("forgegate".to_string()));
         assert_eq!(scan.package_manager, Some("pnpm".to_string()));
         assert_eq!(scan.workspace_manager, Some("nx".to_string()));
-        assert!(scan.storybook_projects.is_empty(), "ForgeGate does not use Storybook on itself");
-        assert!(scan.starlight_projects.is_empty(), "ForgeGate does not use Starlight on itself");
+        assert!(
+            scan.storybook_projects.is_empty(),
+            "ForgeGate does not use Storybook on itself"
+        );
+        assert!(
+            scan.starlight_projects.is_empty(),
+            "ForgeGate does not use Starlight on itself"
+        );
         assert!(!scan.has_zeroheight);
         assert!(scan.token_files.is_empty());
         assert!(scan.test_runners.contains(&"vitest".to_string()));
         assert!(!scan.test_runners.contains(&"jest".to_string()));
         assert!(scan.visual_regression_providers.is_empty());
         assert!(scan.ci_providers.contains(&"github-actions".to_string()));
-        assert!(scan.custom_elements_manifests.is_empty(), "ForgeGate does not publish a CEM on itself");
-        assert!(scan.ui_technologies.is_empty(), "Angular itself is a framework, not a detected UI library");
+        assert!(
+            scan.custom_elements_manifests.is_empty(),
+            "ForgeGate does not publish a CEM on itself"
+        );
+        assert!(
+            scan.ui_technologies.is_empty(),
+            "Angular itself is a framework, not a detected UI library"
+        );
     }
 
     /// Regression protection for the checked-in ADR 0003 fixture
@@ -646,8 +696,14 @@ mod tests {
         let scan = scan_workspace(&fixture_root()).expect("scan should succeed");
 
         assert_eq!(scan.package_name, Some("@acme/button-library".to_string()));
-        assert_eq!(scan.custom_elements_manifests, vec!["custom-elements.json".to_string()]);
-        assert_eq!(scan.token_files, vec!["tokens/acme.tokens.json".to_string()]);
+        assert_eq!(
+            scan.custom_elements_manifests,
+            vec!["custom-elements.json".to_string()]
+        );
+        assert_eq!(
+            scan.token_files,
+            vec!["tokens/acme.tokens.json".to_string()]
+        );
         assert_eq!(scan.storybook_projects, vec![".storybook".to_string()]);
         assert_eq!(scan.starlight_projects, vec!["".to_string()]);
         assert_eq!(
@@ -691,10 +747,8 @@ mod tests {
 
     #[test]
     fn discovers_supported_ui_sources_without_reading_docs() {
-        let dir = std::env::temp_dir().join(format!(
-            "forgegate-scan-ui-sources-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-ui-sources-{}", std::process::id()));
         let source = dir.join("src").join("components");
         fs::create_dir_all(&source).expect("should create source directory");
         fs::write(source.join("button.html"), "<button pButton>Save</button>").unwrap();
@@ -717,16 +771,19 @@ mod tests {
 
     #[test]
     fn reports_an_actionable_error_when_the_workspace_directory_cannot_be_read() {
-        let missing = std::env::temp_dir().join(format!("forgegate-scan-missing-{}", std::process::id()));
+        let missing =
+            std::env::temp_dir().join(format!("forgegate-scan-missing-{}", std::process::id()));
         // Deliberately not created — read_dir must fail.
 
-        let error = scan_workspace(&missing).expect_err("scan should fail for a nonexistent directory");
+        let error =
+            scan_workspace(&missing).expect_err("scan should fail for a nonexistent directory");
         assert!(error.contains("Could not read workspace directory"));
     }
 
     #[test]
     fn prefers_pnpm_over_npm_when_both_lockfiles_are_present() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-pm-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-pm-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(dir.join("pnpm-lock.yaml"), "").unwrap();
         fs::write(dir.join("package-lock.json"), "").unwrap();
@@ -739,7 +796,8 @@ mod tests {
 
     #[test]
     fn prefers_nx_over_turborepo_when_both_are_present() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-wm-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-wm-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(dir.join("nx.json"), "{}").unwrap();
         fs::write(dir.join("turbo.json"), "{}").unwrap();
@@ -752,19 +810,28 @@ mod tests {
 
     #[test]
     fn detects_package_json_workspaces_when_no_dedicated_tool_is_present() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-pjw-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-pjw-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
-        fs::write(dir.join("package.json"), r#"{"workspaces": ["packages/*"]}"#).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"workspaces": ["packages/*"]}"#,
+        )
+        .unwrap();
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
-        assert_eq!(scan.workspace_manager, Some("package-json-workspaces".to_string()));
+        assert_eq!(
+            scan.workspace_manager,
+            Some("package-json-workspaces".to_string())
+        );
 
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn detects_visual_regression_providers_from_package_json_dependencies() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-vr-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-vr-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(
             dir.join("package.json"),
@@ -773,15 +840,20 @@ mod tests {
         .unwrap();
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
-        assert!(scan.visual_regression_providers.contains(&"chromatic".to_string()));
-        assert!(scan.visual_regression_providers.contains(&"percy".to_string()));
+        assert!(scan
+            .visual_regression_providers
+            .contains(&"chromatic".to_string()));
+        assert!(scan
+            .visual_regression_providers
+            .contains(&"percy".to_string()));
 
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn detects_ui_and_styling_technologies_from_direct_project_dependencies() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-ui-tech-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-ui-tech-{}", std::process::id()));
         let app = dir.join("apps").join("portal");
         fs::create_dir_all(&app).expect("should create app directory");
         fs::write(
@@ -824,7 +896,8 @@ mod tests {
 
     #[test]
     fn reports_the_scoped_package_name_from_package_json() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-pkgname-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-pkgname-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(dir.join("package.json"), r#"{"name": "@up/design-system"}"#).unwrap();
 
@@ -836,7 +909,8 @@ mod tests {
 
     #[test]
     fn detects_zeroheight_from_a_config_file() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-zh-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-zh-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(dir.join("zeroheight.config.json"), "{}").unwrap();
 
@@ -848,7 +922,10 @@ mod tests {
 
     #[test]
     fn detects_a_custom_elements_manifest_declared_in_package_json() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-declared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-scan-cem-declared-{}",
+            std::process::id()
+        ));
         let dist_dir = dir.join("dist");
         fs::create_dir_all(&dist_dir).expect("should create dist dir");
         fs::write(
@@ -856,29 +933,47 @@ mod tests {
             r#"{"name": "up-design-system", "customElements": "dist/custom-elements.json"}"#,
         )
         .unwrap();
-        fs::write(dist_dir.join("custom-elements.json"), r#"{"schemaVersion": "1.0.0", "modules": []}"#).unwrap();
+        fs::write(
+            dist_dir.join("custom-elements.json"),
+            r#"{"schemaVersion": "1.0.0", "modules": []}"#,
+        )
+        .unwrap();
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
-        assert_eq!(scan.custom_elements_manifests, vec!["dist/custom-elements.json".to_string()]);
+        assert_eq!(
+            scan.custom_elements_manifests,
+            vec!["dist/custom-elements.json".to_string()]
+        );
 
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn falls_back_to_the_conventional_filename_when_package_json_does_not_declare_one() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-fallback-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-scan-cem-fallback-{}",
+            std::process::id()
+        ));
         fs::create_dir_all(&dir).expect("should create temp dir");
-        fs::write(dir.join("custom-elements.json"), r#"{"schemaVersion": "1.0.0", "modules": []}"#).unwrap();
+        fs::write(
+            dir.join("custom-elements.json"),
+            r#"{"schemaVersion": "1.0.0", "modules": []}"#,
+        )
+        .unwrap();
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
-        assert_eq!(scan.custom_elements_manifests, vec!["custom-elements.json".to_string()]);
+        assert_eq!(
+            scan.custom_elements_manifests,
+            vec!["custom-elements.json".to_string()]
+        );
 
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn does_not_report_a_declared_manifest_path_that_does_not_actually_exist() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-missing-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-cem-missing-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("should create temp dir");
         fs::write(
             dir.join("package.json"),
@@ -900,7 +995,8 @@ mod tests {
     /// both.
     #[test]
     fn detects_storybook_and_starlight_nested_under_apps() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-nested-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-nested-test-{}", std::process::id()));
         let qa_remote_storybook = dir.join("apps").join("qa-remote").join(".storybook");
         let starlight_app = dir.join("apps").join("starlight");
         fs::create_dir_all(&qa_remote_storybook).unwrap();
@@ -913,7 +1009,10 @@ mod tests {
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
 
-        assert_eq!(scan.storybook_projects, vec!["apps/qa-remote/.storybook".to_string()]);
+        assert_eq!(
+            scan.storybook_projects,
+            vec!["apps/qa-remote/.storybook".to_string()]
+        );
         assert_eq!(scan.starlight_projects, vec!["apps/starlight".to_string()]);
 
         fs::remove_dir_all(&dir).ok();
@@ -925,12 +1024,16 @@ mod tests {
     /// be silently treated as having no Storybook at all.
     #[test]
     fn detects_storybook_nested_under_libs() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-libs-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-libs-test-{}", std::process::id()));
         let ui_kit_storybook = dir.join("libs").join("ui-kit").join(".storybook");
         fs::create_dir_all(&ui_kit_storybook).unwrap();
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
-        assert_eq!(scan.storybook_projects, vec!["libs/ui-kit/.storybook".to_string()]);
+        assert_eq!(
+            scan.storybook_projects,
+            vec!["libs/ui-kit/.storybook".to_string()]
+        );
 
         fs::remove_dir_all(&dir).ok();
     }
@@ -941,8 +1044,12 @@ mod tests {
     /// but never had its own nested-case test — the code path was
     /// exercised only at the workspace root before this test existed.
     #[test]
-    fn discovers_component_package_candidates_without_treating_every_workspace_project_as_one_package() {
-        let dir = std::env::temp_dir().join(format!("forgegate-component-packages-{}", std::process::id()));
+    fn discovers_component_package_candidates_without_treating_every_workspace_project_as_one_package(
+    ) {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-component-packages-{}",
+            std::process::id()
+        ));
         let package = dir.join("packages").join("button");
         fs::create_dir_all(package.join("src")).unwrap();
         fs::write(
@@ -969,7 +1076,8 @@ mod tests {
 
     #[test]
     fn detects_a_custom_elements_manifest_nested_under_packages() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-cem-nested-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-cem-nested-{}", std::process::id()));
         let button_pkg = dir.join("packages").join("button");
         fs::create_dir_all(&button_pkg).unwrap();
         fs::write(
@@ -977,7 +1085,11 @@ mod tests {
             r#"{"name": "@up/button", "customElements": "custom-elements.json"}"#,
         )
         .unwrap();
-        fs::write(button_pkg.join("custom-elements.json"), r#"{"schemaVersion": "1.0.0", "modules": []}"#).unwrap();
+        fs::write(
+            button_pkg.join("custom-elements.json"),
+            r#"{"schemaVersion": "1.0.0", "modules": []}"#,
+        )
+        .unwrap();
 
         let scan = scan_workspace(&dir).expect("scan should succeed");
         assert_eq!(
@@ -995,7 +1107,8 @@ mod tests {
     /// here; content-aware detection must find it via the DTCG "$value" marker.
     #[test]
     fn detects_dtcg_token_files_by_content_even_with_a_plain_filename() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-dtcg-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-scan-dtcg-test-{}", std::process::id()));
         let tokens_src = dir.join("packages").join("tokens").join("src");
         fs::create_dir_all(&tokens_src).unwrap();
         fs::write(
@@ -1018,7 +1131,10 @@ mod tests {
 
     #[test]
     fn still_detects_a_dtcg_suffixed_filename_even_without_content_markers() {
-        let dir = std::env::temp_dir().join(format!("forgegate-scan-dtcg-suffix-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-scan-dtcg-suffix-test-{}",
+            std::process::id()
+        ));
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("brand.tokens.json"), "{}").unwrap();
 

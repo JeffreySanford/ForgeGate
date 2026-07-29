@@ -196,8 +196,12 @@ pub fn run_command(
         }
     }
 
-    let stdout = stdout_rx.recv_timeout(READER_DRAIN_GRACE_PERIOD).unwrap_or_default();
-    let stderr = stderr_rx.recv_timeout(READER_DRAIN_GRACE_PERIOD).unwrap_or_default();
+    let stdout = stdout_rx
+        .recv_timeout(READER_DRAIN_GRACE_PERIOD)
+        .unwrap_or_default();
+    let stderr = stderr_rx
+        .recv_timeout(READER_DRAIN_GRACE_PERIOD)
+        .unwrap_or_default();
 
     Ok(CommandResult {
         exit_code,
@@ -241,7 +245,13 @@ fn read_streamed<R: Read>(pipe: Option<R>, mut on_line: impl FnMut(&str)) -> Str
 /// mark the value as a secret worth redacting, e.g. from a tool that dumps
 /// its environment (`env`, `printenv`, a verbose CI runner) into stdout.
 const SECRET_KEY_MARKERS: [&str; 7] = [
-    "SECRET", "TOKEN", "PASSWORD", "PASSWD", "APIKEY", "PRIVATE_KEY", "ACCESS_KEY",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASSWD",
+    "APIKEY",
+    "PRIVATE_KEY",
+    "ACCESS_KEY",
 ];
 
 /// Known credential-format prefixes redacted wherever they appear inside a
@@ -338,13 +348,19 @@ fn redact_word(word: &str) -> String {
             !key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
         if is_bare_identifier {
             let key_upper = key.to_ascii_uppercase();
-            if SECRET_KEY_MARKERS.iter().any(|marker| key_upper.contains(marker)) {
+            if SECRET_KEY_MARKERS
+                .iter()
+                .any(|marker| key_upper.contains(marker))
+            {
                 return format!("{key}=***REDACTED***");
             }
         }
     }
 
-    if KNOWN_TOKEN_PREFIXES.iter().any(|prefix| word.contains(prefix)) {
+    if KNOWN_TOKEN_PREFIXES
+        .iter()
+        .any(|prefix| word.contains(prefix))
+    {
         return "***REDACTED***".to_string();
     }
 
@@ -495,7 +511,8 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn runs_a_windows_batch_script_wrapper_like_npx_cmd() {
-        let dir = std::env::temp_dir().join(format!("forgegate-cmd-batch-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("forgegate-cmd-batch-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("should create temp dir");
         let script_path = dir.join("hello.cmd");
         std::fs::write(&script_path, "@echo off\r\necho hello-from-batch\r\n").unwrap();
@@ -534,7 +551,10 @@ mod tests {
         assert!(result.timed_out);
         assert!(!result.cancelled);
         assert_eq!(result.exit_code, None);
-        assert!(result.duration_ms < 5000, "should be killed well before its own 5s sleep finishes");
+        assert!(
+            result.duration_ms < 5000,
+            "should be killed well before its own 5s sleep finishes"
+        );
     }
 
     #[test]
@@ -651,23 +671,38 @@ mod tests {
         let cwd = std::env::temp_dir();
         let (command, args) = echo_command("STREAM_SECRET=abc123def456");
 
-        let lines: Arc<std::sync::Mutex<Vec<(bool, String)>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let lines: Arc<std::sync::Mutex<Vec<(bool, String)>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
         let collector = lines.clone();
         let on_line: Arc<LineSink> = Arc::new(move |is_stderr, line| {
-            collector.lock().unwrap().push((is_stderr, line.to_string()));
+            collector
+                .lock()
+                .unwrap()
+                .push((is_stderr, line.to_string()));
         });
 
-        let result = run_command(&cwd, command, &args, Duration::from_secs(10), &not_cancelled(), on_line)
-            .expect("echoing a line should succeed");
+        let result = run_command(
+            &cwd,
+            command,
+            &args,
+            Duration::from_secs(10),
+            &not_cancelled(),
+            on_line,
+        )
+        .expect("echoing a line should succeed");
 
         assert!(result.stdout.contains("STREAM_SECRET=***REDACTED***"));
         let captured = lines.lock().unwrap();
         assert!(
-            captured.iter().any(|(is_stderr, line)| !is_stderr && line == "STREAM_SECRET=***REDACTED***"),
+            captured
+                .iter()
+                .any(|(is_stderr, line)| !is_stderr && line == "STREAM_SECRET=***REDACTED***"),
             "expected a live stdout line already redacted, got {captured:?}",
         );
         assert!(
-            captured.iter().all(|(_, line)| !line.contains("abc123def456")),
+            captured
+                .iter()
+                .all(|(_, line)| !line.contains("abc123def456")),
             "no live line should ever carry the raw secret",
         );
     }
