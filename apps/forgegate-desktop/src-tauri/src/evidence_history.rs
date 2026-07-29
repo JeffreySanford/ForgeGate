@@ -19,6 +19,10 @@ const MIGRATIONS: &[Migration] = &[
         version: "0002_component_snapshots",
         sql: include_str!("../migrations/0002_component_snapshots.sql"),
     },
+    Migration {
+        version: "0003_evidence_events",
+        sql: include_str!("../migrations/0003_evidence_events.sql"),
+    },
 ];
 
 #[cfg(test)]
@@ -80,6 +84,134 @@ pub struct EvidenceHistoryTrend {
     pub connected: bool,
     pub snapshots: Vec<EvidenceHistorySnapshot>,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentEvidenceEvent {
+    pub occurred_at: String,
+    pub event_kind: String,
+    pub previous_readiness: String,
+    pub next_readiness: String,
+    pub previous_commit: Option<String>,
+    pub next_commit: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentEvidenceEvents {
+    pub configured: bool,
+    pub connected: bool,
+    pub events: Vec<ComponentEvidenceEvent>,
+    pub error: Option<String>,
+}
+
+/// A component whose derived readiness differs between two consecutive
+/// enriched scans of the same workspace — the real, narrow first slice of
+/// "the exact causal event that made evidence stale" (see TODO.md's
+/// evidence-history follow-up backlog). Only readiness changes are modeled
+/// here; manual-review and release-decision event kinds need those features
+/// to exist first and are deliberately not fabricated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ComponentReadinessChange {
+    pub component_id: String,
+    pub previous_readiness: String,
+    pub next_readiness: String,
+}
+
+/// Pure diff, no database or Tauri types involved, so it can be unit-tested
+/// directly with synthetic inputs. Only emits a change for a component that
+/// existed in the previous scan with a *different* readiness value — a
+/// component with no prior recorded readiness (first time seen) has nothing
+/// to compare against, so it is not a "change" yet.
+fn diff_component_readiness(
+    previous_readiness_by_component: &std::collections::HashMap<String, String>,
+    next: &[EnrichedComponentSnapshot],
+) -> Vec<ComponentReadinessChange> {
+    next.iter()
+        .filter_map(|component| {
+            let previous_readiness =
+                previous_readiness_by_component.get(&component.component_id)?;
+            if previous_readiness == &component.readiness {
+                return None;
+            }
+            Some(ComponentReadinessChange {
+                component_id: component.component_id.clone(),
+                previous_readiness: previous_readiness.clone(),
+                next_readiness: component.readiness.clone(),
+            })
+        })
+        .collect()
+}
+
+pub fn component_evidence_events_from_env(
+    workspace_path: &str,
+    component_id: &str,
+) -> ComponentEvidenceEvents {
+    let Some(database_url) = database_url_from_env() else {
+        return ComponentEvidenceEvents {
+            configured: false,
+            connected: false,
+            events: Vec::new(),
+            error: None,
+        };
+    };
+
+    match connect_and_migrate(&database_url)
+        .and_then(|mut client| component_evidence_events(&mut client, workspace_path, component_id, 20))
+    {
+        Ok(events) => ComponentEvidenceEvents {
+            configured: true,
+            connected: true,
+            events,
+            error: None,
+        },
+        Err(error) => ComponentEvidenceEvents {
+            configured: true,
+            connected: false,
+            events: Vec::new(),
+            error: Some(error),
+        },
+    }
+}
+
+fn component_evidence_events(
+    client: &mut Client,
+    workspace_path: &str,
+    component_id: &str,
+    limit: i64,
+) -> Result<Vec<ComponentEvidenceEvent>, String> {
+    let normalized_workspace_path = normalize_workspace_path_for_history_lookup(workspace_path);
+    client
+        .query(
+            "SELECT
+                to_char(evidence_events.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS occurred_at,
+                evidence_events.event_kind,
+                evidence_events.previous_readiness,
+                evidence_events.next_readiness,
+                evidence_events.previous_commit,
+                evidence_events.next_commit
+            FROM evidence_events
+            JOIN workspaces ON workspaces.id = evidence_events.workspace_id
+            WHERE (workspaces.workspace_path = $1 OR workspaces.workspace_path = $2)
+              AND evidence_events.component_id = $3
+            ORDER BY evidence_events.occurred_at DESC, evidence_events.id DESC
+            LIMIT $4",
+            &[&workspace_path, &normalized_workspace_path, &component_id, &limit],
+        )
+        .map(|rows| {
+            rows.into_iter()
+                .map(|row| ComponentEvidenceEvent {
+                    occurred_at: row.get(0),
+                    event_kind: row.get(1),
+                    previous_readiness: row.get(2),
+                    next_readiness: row.get(3),
+                    previous_commit: row.get(4),
+                    next_commit: row.get(5),
+                })
+                .collect()
+        })
+        .map_err(|error| format!("Failed to read component evidence events: {error}"))
 }
 
 pub fn persistence_status_from_env() -> PersistenceStatus {
@@ -188,6 +320,36 @@ pub fn enrich_latest_scan_snapshot_if_configured(
     };
     let snapshot_id = row.get::<_, i64>(0);
 
+    let previous_scan = transaction
+        .query_opt(
+            "SELECT scan_snapshots.id, scan_snapshots.source_commit
+            FROM scan_snapshots
+            WHERE workspace_id = $1 AND id != $2
+              AND EXISTS (
+                SELECT 1 FROM component_snapshots
+                WHERE component_snapshots.scan_snapshot_id = scan_snapshots.id
+              )
+            ORDER BY scanned_at DESC, id DESC
+            LIMIT 1",
+            &[&workspace_id, &snapshot_id],
+        )
+        .map_err(|error| format!("Failed to look up the previous enriched scan: {error}"))?;
+
+    let previous_readiness_by_component = if let Some(previous_scan) = &previous_scan {
+        let previous_scan_id: i64 = previous_scan.get(0);
+        transaction
+            .query(
+                "SELECT component_id, readiness FROM component_snapshots WHERE scan_snapshot_id = $1",
+                &[&previous_scan_id],
+            )
+            .map_err(|error| format!("Failed to read previous component readiness: {error}"))?
+            .into_iter()
+            .map(|row| (row.get::<_, String>(0), row.get::<_, String>(1)))
+            .collect::<std::collections::HashMap<String, String>>()
+    } else {
+        std::collections::HashMap::new()
+    };
+
     transaction
         .execute(
             "DELETE FROM component_snapshots WHERE scan_snapshot_id = $1",
@@ -225,6 +387,42 @@ pub fn enrich_latest_scan_snapshot_if_configured(
                 ],
             )
             .map_err(|error| format!("Failed to insert component snapshot: {error}"))?;
+    }
+
+    let previous_scan_id: Option<i64> = previous_scan.as_ref().map(|row| row.get(0));
+    let previous_commit: Option<String> = previous_scan
+        .as_ref()
+        .and_then(|row| row.get::<_, Option<String>>(1));
+    let readiness_changes =
+        diff_component_readiness(&previous_readiness_by_component, &snapshot.components);
+
+    for change in &readiness_changes {
+        transaction
+            .execute(
+                "INSERT INTO evidence_events (
+                    workspace_id,
+                    component_id,
+                    scan_snapshot_id,
+                    previous_scan_snapshot_id,
+                    event_kind,
+                    previous_readiness,
+                    next_readiness,
+                    previous_commit,
+                    next_commit
+                )
+                VALUES ($1, $2, $3, $4, 'readiness-changed', $5, $6, $7, $8)",
+                &[
+                    &workspace_id,
+                    &change.component_id,
+                    &snapshot_id,
+                    &previous_scan_id,
+                    &change.previous_readiness,
+                    &change.next_readiness,
+                    &previous_commit,
+                    &snapshot.source_commit,
+                ],
+            )
+            .map_err(|error| format!("Failed to record evidence event: {error}"))?;
     }
 
     transaction
@@ -482,6 +680,75 @@ mod tests {
     }
 
     #[test]
+    fn migration_sql_creates_append_only_evidence_events_referencing_scan_snapshots() {
+        let sql = MIGRATIONS[2].sql;
+
+        assert!(sql.contains("CREATE TABLE IF NOT EXISTS evidence_events"));
+        assert!(sql.contains("component_id text NOT NULL"));
+        assert!(sql.contains("scan_snapshot_id bigint NOT NULL REFERENCES scan_snapshots"));
+        assert!(sql.contains("event_kind text NOT NULL"));
+        assert!(sql.contains("'readiness-changed'"));
+    }
+
+    #[test]
+    fn diff_component_readiness_reports_only_components_whose_readiness_actually_changed() {
+        let mut previous = std::collections::HashMap::new();
+        previous.insert("acme.button".to_string(), "clear".to_string());
+        previous.insert("acme.card".to_string(), "warning".to_string());
+
+        let next = vec![
+            EnrichedComponentSnapshot {
+                component_id: "acme.button".to_string(),
+                component_version: None,
+                framework: "web-components".to_string(),
+                adapter: "framework.web-components".to_string(),
+                lifecycle: "candidate".to_string(),
+                source_files: Vec::new(),
+                readiness: "stale".to_string(),
+                finding_summary: serde_json::json!({}),
+            },
+            EnrichedComponentSnapshot {
+                component_id: "acme.card".to_string(),
+                component_version: None,
+                framework: "web-components".to_string(),
+                adapter: "framework.web-components".to_string(),
+                lifecycle: "candidate".to_string(),
+                source_files: Vec::new(),
+                readiness: "warning".to_string(),
+                finding_summary: serde_json::json!({}),
+            },
+        ];
+
+        let changes = diff_component_readiness(&previous, &next);
+
+        assert_eq!(
+            changes,
+            vec![ComponentReadinessChange {
+                component_id: "acme.button".to_string(),
+                previous_readiness: "clear".to_string(),
+                next_readiness: "stale".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn diff_component_readiness_reports_nothing_for_a_component_with_no_previous_readiness() {
+        let previous = std::collections::HashMap::new();
+        let next = vec![EnrichedComponentSnapshot {
+            component_id: "acme.newly-scanned".to_string(),
+            component_version: None,
+            framework: "web-components".to_string(),
+            adapter: "framework.web-components".to_string(),
+            lifecycle: "proposal".to_string(),
+            source_files: Vec::new(),
+            readiness: "unknown".to_string(),
+            finding_summary: serde_json::json!({}),
+        }];
+
+        assert!(diff_component_readiness(&previous, &next).is_empty());
+    }
+
+    #[test]
     fn dev_seed_sql_is_replaceable_and_unmistakably_seeded() {
         let sql = DEV_EVIDENCE_HISTORY_SEED_SQL;
 
@@ -674,6 +941,104 @@ mod tests {
         assert_eq!(component_rows[0].get::<_, String>(3), "unknown");
         assert_eq!(component_rows[0].get::<_, String>(4), "src/button.ts");
         assert_eq!(component_rows[0].get::<_, String>(5), "not-evaluated");
+    }
+
+    #[test]
+    #[ignore = "requires FORGEGATE_DATABASE_URL pointing at a disposable Postgres database"]
+    fn records_a_readiness_changed_evidence_event_across_two_enriched_scans() {
+        let database_url = std::env::var(DATABASE_URL_ENV)
+            .expect("FORGEGATE_DATABASE_URL must point at a test Postgres database");
+        let mut client =
+            connect_and_migrate(&database_url).expect("test database should be reachable");
+        client
+            .batch_execute(
+                "TRUNCATE evidence_events, component_snapshots, scan_snapshots, workspaces RESTART IDENTITY CASCADE",
+            )
+            .expect("test database should be disposable");
+
+        let scan = WorkspaceScan {
+            package_name: Some("@acme/design-system".to_string()),
+            package_manager: Some("pnpm".to_string()),
+            workspace_manager: Some("nx".to_string()),
+            storybook_projects: Vec::new(),
+            starlight_projects: Vec::new(),
+            has_zeroheight: false,
+            token_files: Vec::new(),
+            test_runners: Vec::new(),
+            visual_regression_providers: Vec::new(),
+            ci_providers: Vec::new(),
+            custom_elements_manifests: Vec::new(),
+            component_packages: Vec::new(),
+            component_manifests: Vec::new(),
+            test_evidence_files: Vec::new(),
+            ui_technologies: Vec::new(),
+            ui_source_files: Vec::new(),
+            ui_source_files_truncated: false,
+        };
+
+        let button = |readiness: &str| EnrichedComponentSnapshot {
+            component_id: "acme.design-system.button".to_string(),
+            component_version: Some("1.0.0".to_string()),
+            framework: "web-components".to_string(),
+            adapter: "framework.web-components".to_string(),
+            lifecycle: "candidate".to_string(),
+            source_files: vec!["src/button.ts".to_string()],
+            readiness: readiness.to_string(),
+            finding_summary: serde_json::json!({}),
+        };
+
+        record_scan_snapshot_if_configured("D:/repos/acme", &scan)
+            .expect("first raw snapshot insert should succeed");
+        enrich_latest_scan_snapshot_if_configured(
+            "D:/repos/acme",
+            &EnrichedScanSnapshot {
+                source_commit: Some("a".repeat(40)),
+                dirty: Some(false),
+                component_count: 1,
+                readiness_summary: serde_json::json!({}),
+                adapter_summary: serde_json::json!({}),
+                components: vec![button("clear")],
+            },
+        )
+        .expect("first enrichment should succeed");
+
+        // No previous enriched scan yet, so a first-ever readiness has
+        // nothing to compare against and must not produce an event.
+        assert!(diff_component_readiness(
+            &std::collections::HashMap::new(),
+            &[button("clear")]
+        )
+        .is_empty());
+
+        record_scan_snapshot_if_configured("D:/repos/acme", &scan)
+            .expect("second raw snapshot insert should succeed");
+        enrich_latest_scan_snapshot_if_configured(
+            "D:/repos/acme",
+            &EnrichedScanSnapshot {
+                source_commit: Some("b".repeat(40)),
+                dirty: Some(true),
+                component_count: 1,
+                readiness_summary: serde_json::json!({}),
+                adapter_summary: serde_json::json!({}),
+                components: vec![button("stale")],
+            },
+        )
+        .expect("second enrichment should succeed");
+
+        let events = component_evidence_events(
+            &mut client,
+            "D:/repos/acme",
+            "acme.design-system.button",
+            10,
+        )
+        .expect("component evidence events should be readable");
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_kind, "readiness-changed");
+        assert_eq!(events[0].previous_readiness, "clear");
+        assert_eq!(events[0].next_readiness, "stale");
+        assert_eq!(events[0].previous_commit.as_deref(), Some("a".repeat(40).as_str()));
+        assert_eq!(events[0].next_commit.as_deref(), Some("b".repeat(40).as_str()));
     }
 
     #[test]

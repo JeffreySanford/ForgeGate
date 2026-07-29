@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
@@ -90,6 +90,20 @@ export class ComponentDetailPage {
     },
   );
 
+  /** Loads this component's derived readiness-change history whenever the
+   * route's componentId or the open workspace changes — mirrors `id`'s own
+   * reactivity note above: this component instance is reused across
+   * component-to-component navigation. */
+  private readonly loadEvidenceEventsOnRouteChange = effect(() => {
+    const id = this.id();
+    const workspacePath = this.workspace.workspacePath();
+    if (!id || !workspacePath) {
+      this.workspace.componentEvidenceEvents.set(null);
+      return;
+    }
+    void this.workspace.loadComponentEvidenceEvents(id);
+  });
+
   protected readonly manifest = computed<ComponentManifest | null>(() => {
     const id = this.id();
     return this.inventory.result().manifests.find((m) => m.id === id) ?? null;
@@ -114,6 +128,10 @@ export class ComponentDetailPage {
   protected readonly shortCommit = computed<string | null>(
     () => this.workspace.gitStatus()?.commit.slice(0, 8) ?? null,
   );
+
+  protected shortEventCommit(commit: string | null): string {
+    return commit ? commit.slice(0, 8) : 'unknown';
+  }
 
   protected readonly testExecutions = computed<readonly TestExecution[]>(() => {
     const manifest = this.manifest();

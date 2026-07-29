@@ -303,6 +303,18 @@ fn read_evidence_history_trend(
 }
 
 #[tauri::command]
+fn read_component_evidence_events(
+    path: String,
+    component_id: String,
+) -> Result<evidence_history::ComponentEvidenceEvents, String> {
+    let workspace = resolve_workspace_path(&path)?;
+    Ok(evidence_history::component_evidence_events_from_env(
+        &workspace.display().to_string(),
+        &component_id,
+    ))
+}
+
+#[tauri::command]
 fn record_enriched_scan_snapshot(
     path: String,
     snapshot: evidence_history::EnrichedScanSnapshot,
@@ -1157,6 +1169,7 @@ pub fn run() {
             read_workspace_source_files,
             read_persistence_status,
             read_evidence_history_trend,
+            read_component_evidence_events,
             record_enriched_scan_snapshot,
             start_workspace_watch,
             stop_workspace_watch

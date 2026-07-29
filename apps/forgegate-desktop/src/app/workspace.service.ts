@@ -205,6 +205,29 @@ export interface EvidenceHistoryTrend {
   readonly error: string | null;
 }
 
+/**
+ * A real, narrow first slice of "the exact causal event that made evidence
+ * stale" (evidence-history follow-up backlog in TODO.md): derived by
+ * diffing a component's readiness between two consecutive enriched scans on
+ * the Rust side. Only `readiness-changed` exists today — manual-review and
+ * release-decision event kinds need those features to exist first.
+ */
+export interface ComponentEvidenceEvent {
+  readonly occurredAt: string;
+  readonly eventKind: string;
+  readonly previousReadiness: string;
+  readonly nextReadiness: string;
+  readonly previousCommit: string | null;
+  readonly nextCommit: string | null;
+}
+
+export interface ComponentEvidenceEvents {
+  readonly configured: boolean;
+  readonly connected: boolean;
+  readonly events: readonly ComponentEvidenceEvent[];
+  readonly error: string | null;
+}
+
 export interface CemGenerationPlan {
   target: ComponentPackageCandidate;
   command: string;
@@ -310,6 +333,9 @@ export class WorkspaceService {
   readonly evidenceHistoryTrend = signal<EvidenceHistoryTrend | null>(null);
   readonly evidenceHistoryLoading = signal(false);
   readonly persistenceError = signal<string | null>(null);
+  readonly componentEvidenceEvents = signal<ComponentEvidenceEvents | null>(
+    null,
+  );
   readonly evidenceExportRunning = signal(false);
   readonly evidenceExportResult = signal<{
     readonly directoryPath: string;
@@ -544,6 +570,34 @@ export class WorkspaceService {
       this.persistenceError.set(String(error));
     } finally {
       this.evidenceHistoryLoading.set(false);
+    }
+  }
+
+  /**
+   * Loads a single component's derived readiness-change history. Called
+   * per component (from `ComponentDetailPage`, keyed on the route's
+   * `componentId`), not as part of the workspace-wide scan, since it is
+   * scoped to one component and would be wasted work for every other one.
+   */
+  async loadComponentEvidenceEvents(componentId: string): Promise<void> {
+    const path = this.workspacePath();
+    if (!path) {
+      this.componentEvidenceEvents.set(null);
+      return;
+    }
+    try {
+      const events = await this.invoke<ComponentEvidenceEvents>(
+        'read_component_evidence_events',
+        { path, componentId },
+      );
+      this.componentEvidenceEvents.set(events);
+    } catch (error) {
+      this.componentEvidenceEvents.set({
+        configured: true,
+        connected: false,
+        events: [],
+        error: String(error),
+      });
     }
   }
 

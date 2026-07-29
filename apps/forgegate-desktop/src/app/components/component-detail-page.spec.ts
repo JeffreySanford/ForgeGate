@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet } from '@angular/router';
+import { vi } from 'vitest';
 import {
   parseCustomElementsManifest,
   type CustomElementsManifest,
@@ -662,5 +663,140 @@ describe('ComponentDetailPage', () => {
     );
 
     await expectNoAccessibilityViolations(compiled);
+  });
+
+  describe('evidence history', () => {
+    it('loads the real component evidence events on navigation, keyed by componentId', async () => {
+      workspaceService.workspacePath.set('/repos/example');
+      workspaceService.workspaceScan.set(scan);
+      workspaceService.customElementsManifest.set(richManifest);
+      const loadSpy = vi
+        .spyOn(workspaceService, 'loadComponentEvidenceEvents')
+        .mockResolvedValue();
+
+      const fixture = TestBed.createComponent(HostComponent);
+      fixture.detectChanges();
+      await router.navigateByUrl('/components/acme.design-system.acme-button');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(loadSpy).toHaveBeenCalledWith('acme.design-system.acme-button');
+    });
+
+    it('states when persistence is not configured', async () => {
+      workspaceService.workspacePath.set('/repos/example');
+      workspaceService.workspaceScan.set(scan);
+      workspaceService.customElementsManifest.set(richManifest);
+
+      const fixture = TestBed.createComponent(HostComponent);
+      fixture.detectChanges();
+      await router.navigateByUrl('/components/acme.design-system.acme-button');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      workspaceService.componentEvidenceEvents.set({
+        configured: false,
+        connected: false,
+        events: [],
+        error: null,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('FORGEGATE_DATABASE_URL');
+
+      await expectNoAccessibilityViolations(compiled);
+    });
+
+    it('surfaces a connection error rather than hiding it', async () => {
+      workspaceService.workspacePath.set('/repos/example');
+      workspaceService.workspaceScan.set(scan);
+      workspaceService.customElementsManifest.set(richManifest);
+
+      const fixture = TestBed.createComponent(HostComponent);
+      fixture.detectChanges();
+      await router.navigateByUrl('/components/acme.design-system.acme-button');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      workspaceService.componentEvidenceEvents.set({
+        configured: true,
+        connected: false,
+        events: [],
+        error: 'Failed to connect to Postgres: connection refused',
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+        'connection refused',
+      );
+    });
+
+    it('states plainly when no readiness changes have been recorded yet', async () => {
+      workspaceService.workspacePath.set('/repos/example');
+      workspaceService.workspaceScan.set(scan);
+      workspaceService.customElementsManifest.set(richManifest);
+
+      const fixture = TestBed.createComponent(HostComponent);
+      fixture.detectChanges();
+      await router.navigateByUrl('/components/acme.design-system.acme-button');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      workspaceService.componentEvidenceEvents.set({
+        configured: true,
+        connected: true,
+        events: [],
+        error: null,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('No recorded readiness changes');
+
+      await expectNoAccessibilityViolations(compiled);
+    });
+
+    it('renders real recorded readiness-change events with short commit hashes', async () => {
+      workspaceService.workspacePath.set('/repos/example');
+      workspaceService.workspaceScan.set(scan);
+      workspaceService.customElementsManifest.set(richManifest);
+
+      const fixture = TestBed.createComponent(HostComponent);
+      fixture.detectChanges();
+      await router.navigateByUrl('/components/acme.design-system.acme-button');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      workspaceService.componentEvidenceEvents.set({
+        configured: true,
+        connected: true,
+        events: [
+          {
+            occurredAt: '2026-06-01T10:00:00Z',
+            eventKind: 'readiness-changed',
+            previousReadiness: 'clear',
+            nextReadiness: 'stale',
+            previousCommit: 'a'.repeat(40),
+            nextCommit: 'b'.repeat(40),
+          },
+        ],
+        error: null,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const item = compiled.querySelector(
+        '.component-detail__evidence-events li',
+      );
+      expect(item?.textContent).toContain('clear');
+      expect(item?.textContent).toContain('stale');
+      expect(item?.textContent).toContain('a'.repeat(8));
+      expect(item?.textContent).toContain('b'.repeat(8));
+      expect(item?.textContent).not.toContain('a'.repeat(40));
+
+      await expectNoAccessibilityViolations(compiled);
+    });
   });
 });

@@ -1239,4 +1239,62 @@ describe('WorkspaceService', () => {
       expect(invokeMock).not.toHaveBeenCalled();
     });
   });
+
+  describe('loadComponentEvidenceEvents', () => {
+    it('does nothing and clears the signal if no workspace is open', async () => {
+      service.componentEvidenceEvents.set({
+        configured: true,
+        connected: true,
+        events: [],
+        error: null,
+      });
+
+      await service.loadComponentEvidenceEvents('acme.design-system.button');
+
+      expect(service.componentEvidenceEvents()).toBeNull();
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('loads real recorded readiness-change events for the given component', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      const events = {
+        configured: true,
+        connected: true,
+        events: [
+          {
+            occurredAt: '2026-06-01T10:00:00Z',
+            eventKind: 'readiness-changed',
+            previousReadiness: 'clear',
+            nextReadiness: 'stale',
+            previousCommit: 'a'.repeat(40),
+            nextCommit: 'b'.repeat(40),
+          },
+        ],
+        error: null,
+      };
+      invokeMock.mockResolvedValueOnce(events);
+
+      await service.loadComponentEvidenceEvents('acme.design-system.button');
+
+      expect(invokeMock).toHaveBeenCalledWith('read_component_evidence_events', {
+        path: 'D:/repos/ForgeGate',
+        componentId: 'acme.design-system.button',
+      });
+      expect(service.componentEvidenceEvents()).toEqual(events);
+    });
+
+    it('surfaces a real IPC failure as a connection error rather than throwing', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock.mockRejectedValueOnce('Failed to connect to Postgres');
+
+      await service.loadComponentEvidenceEvents('acme.design-system.button');
+
+      expect(service.componentEvidenceEvents()).toEqual({
+        configured: true,
+        connected: false,
+        events: [],
+        error: 'Failed to connect to Postgres',
+      });
+    });
+  });
 });

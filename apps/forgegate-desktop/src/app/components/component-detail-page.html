@@ -239,6 +239,46 @@
 
   <section
     class="component-detail__panel fg-panel"
+    aria-labelledby="evidence-history-title"
+  >
+    <h2 id="evidence-history-title">Evidence history</h2>
+    @if (!workspace.workspacePath()) {
+    <p class="component-detail__unavailable">
+      Open a workspace to inspect this component's evidence history.
+    </p>
+    } @else if (!workspace.componentEvidenceEvents()?.configured) {
+    <p class="component-detail__unavailable">
+      Persistence is not configured. Set FORGEGATE_DATABASE_URL to record and
+      explain readiness changes over time.
+    </p>
+    } @else if (!workspace.componentEvidenceEvents()?.connected) {
+    <p role="alert">{{ workspace.componentEvidenceEvents()?.error }}</p>
+    } @else if ((workspace.componentEvidenceEvents()?.events?.length ?? 0) === 0) {
+    <p class="component-detail__unavailable">
+      No recorded readiness changes yet for this component. This fills in as
+      the workspace is rescanned over time.
+    </p>
+    } @else {
+    <ul class="component-detail__evidence-events">
+      @for (event of workspace.componentEvidenceEvents()!.events; track $index) {
+      <li>
+        <strong
+          >Readiness changed: {{ event.previousReadiness }} &rarr;
+          {{ event.nextReadiness }}</strong
+        >
+        <span
+          >{{ event.occurredAt }} &mdash; commit
+          <code>{{ shortEventCommit(event.previousCommit) }}</code> &rarr;
+          <code>{{ shortEventCommit(event.nextCommit) }}</code></span
+        >
+      </li>
+      }
+    </ul>
+    }
+  </section>
+
+  <section
+    class="component-detail__panel fg-panel"
     aria-labelledby="states-title"
   >
     <h2 id="states-title">States and stories</h2>
