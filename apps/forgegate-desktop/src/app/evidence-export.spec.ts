@@ -85,6 +85,27 @@ function axeArtifact(
   };
 }
 
+function storybookInteractionArtifact(
+  overrides: Partial<AutomatedEvidenceArtifact>,
+): AutomatedEvidenceArtifact {
+  return {
+    kind: 'storybook-interactions-json',
+    id: 'storybook-interactions-run-1',
+    componentVersionId: 'acme.lib.button@1.0.0',
+    gate: 'storybook-interaction',
+    tool: 'storybook/test-runner',
+    toolVersion: '9.0.0',
+    adapterVersion: '0.1.0',
+    commitOrFingerprint: 'a'.repeat(40),
+    rawArtifactRef: '.forgegate/evidence/raw/storybook-interactions.json',
+    report: {
+      startedAt: '2026-01-01T00:00:00.000Z',
+      stories: [{ id: 'button--primary', status: 'passed' }],
+    },
+    ...overrides,
+  };
+}
+
 describe('componentVersionId', () => {
   it('combines id and componentVersion when a version is known', () => {
     const manifest = createComponentManifest({
@@ -562,6 +583,63 @@ describe('buildEvidenceExport', () => {
         'No Playwright result artifact is connected for this component yet.',
       'automated/interaction-results.json':
         'No Storybook interaction result artifact is connected for this component yet.',
+    });
+  });
+
+  it('writes imported Storybook interaction reports as a first-class automated artifact when raw evidence is preserved', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+    const artifacts = [
+      storybookInteractionArtifact({ id: 'matching-storybook-interactions' }),
+      storybookInteractionArtifact({
+        id: 'other-component-storybook-interactions',
+        componentVersionId: 'acme.lib.card@1.0.0',
+      }),
+    ];
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      automatedArtifacts: artifacts,
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files)).toContain(
+      'automated/interaction-results.json',
+    );
+    const interactionResults = JSON.parse(
+      requireFile(result, 'automated/interaction-results.json'),
+    );
+    expect(interactionResults).toHaveLength(1);
+    expect(interactionResults[0]).toMatchObject({
+      kind: 'storybook-interactions-json',
+      id: 'matching-storybook-interactions',
+      componentVersionId: 'acme.lib.button@1.0.0',
+      report: {
+        stories: [{ id: 'button--primary', status: 'passed' }],
+      },
+    });
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain(
+      'automated/interaction-results.json',
+    );
+    expect(manifestJson.checksums).toHaveProperty(
+      'automated/interaction-results.json',
+    );
+    expect(Object.keys(manifestJson.excludes)).not.toContain('automated/');
+    expect(manifestJson.excludes).toMatchObject({
+      'automated/axe-results.json':
+        'No axe-native result artifact is connected for this component yet.',
+      'automated/playwright-results.json':
+        'No Playwright result artifact is connected for this component yet.',
     });
   });
 

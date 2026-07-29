@@ -1089,5 +1089,8 @@ function testEvidenceAdapterLabel(
   if (adapter === 'Axe JSON') {
     return 'axe JSON evidence adapter';
   }
+  if (adapter === 'Storybook interactions JSON') {
+    return 'Storybook interactions JSON evidence adapter';
+  }
   return 'test evidence adapter';
 }

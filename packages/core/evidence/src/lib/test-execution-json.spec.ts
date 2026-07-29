@@ -285,4 +285,115 @@ describe('parseTestEvidenceFile', () => {
       ),
     ).toThrow('Axe evidence requires componentVersionId');
   });
+
+  it('normalizes a Storybook interactions JSON report envelope into commit-bound evidence', () => {
+    expect(
+      parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'storybook-interactions-json',
+          id: 'acme-button-storybook-interactions',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          toolVersion: '9.0.0',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/storybook-interactions.json',
+          report: {
+            startedAt: '2026-07-24T16:30:00.000Z',
+            durationMs: 830,
+            stories: [
+              {
+                id: 'button--primary',
+                title: 'Button',
+                name: 'Primary',
+                status: 'passed',
+              },
+            ],
+          },
+        }),
+      ),
+    ).toEqual({
+      adapter: 'Storybook interactions JSON',
+      executions: [
+        {
+          id: 'acme-button-storybook-interactions',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          gate: 'storybook-interaction',
+          tool: 'storybook/test-runner',
+          toolVersion: '9.0.0',
+          adapterVersion: '0.1.0',
+          status: 'passed',
+          startedAt: '2026-07-24T16:30:00.000Z',
+          durationMs: 830,
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/storybook-interactions.json',
+        },
+      ],
+      automatedArtifacts: [
+        {
+          kind: 'storybook-interactions-json',
+          id: 'acme-button-storybook-interactions',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          gate: 'storybook-interaction',
+          tool: 'storybook/test-runner',
+          toolVersion: '9.0.0',
+          adapterVersion: '0.1.0',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/storybook-interactions.json',
+          report: {
+            startedAt: '2026-07-24T16:30:00.000Z',
+            durationMs: 830,
+            stories: [
+              {
+                id: 'button--primary',
+                title: 'Button',
+                name: 'Primary',
+                status: 'passed',
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [[{ status: 'passed' }, { status: 'failed' }], 'failed'],
+    [[{ status: 'passed' }, { status: 'flaky' }], 'warning'],
+    [[{ status: 'skipped' }, { status: 'pending' }], 'skipped'],
+    [[{ status: 'success' }, { status: 'ok' }], 'passed'],
+  ] as const)(
+    'maps Storybook interaction story statuses %o to %s',
+    (stories, expectedStatus) => {
+      const result = parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'storybook-interactions-json',
+          id: `storybook-${expectedStatus}`,
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          toolVersion: '9.0.0',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          report: {
+            startedAt: '2026-07-24T16:30:00.000Z',
+            stories,
+          },
+        }),
+      );
+
+      expect(result.executions[0]?.status).toBe(expectedStatus);
+    },
+  );
+
+  it('rejects Storybook interaction reports without explicit ForgeGate provenance', () => {
+    expect(() =>
+      parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'storybook-interactions-json',
+          id: 'raw-storybook-interactions',
+          toolVersion: '9.0.0',
+          report: {
+            startedAt: '2026-07-24T16:30:00.000Z',
+            stories: [{ status: 'passed' }],
+          },
+        }),
+      ),
+    ).toThrow('Storybook evidence requires componentVersionId');
+  });
 });

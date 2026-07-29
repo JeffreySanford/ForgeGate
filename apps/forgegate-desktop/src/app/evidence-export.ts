@@ -36,7 +36,7 @@ const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'policy-snapshot.json':
     'No policy evaluation has run for this component yet.',
   'automated/':
-    "ForgeGate does not yet orchestrate a target repository's own test/axe/Playwright runs.",
+    'No imported automated result artifact is connected for this component yet.',
   'manual/': 'No guided manual review flow exists yet.',
   'exceptions/': 'No exceptions have been recorded for this component yet.',
   'attachments/': 'No attachments have been captured yet.',
@@ -161,10 +161,15 @@ export async function buildEvidenceExport(
   const axeArtifacts = automatedArtifacts.filter(
     (artifact) => artifact.kind === 'axe-json',
   );
-  if (playwrightArtifacts.length || axeArtifacts.length) {
+  const interactionArtifacts = automatedArtifacts.filter(
+    (artifact) => artifact.kind === 'storybook-interactions-json',
+  );
+  if (
+    playwrightArtifacts.length ||
+    axeArtifacts.length ||
+    interactionArtifacts.length
+  ) {
     delete excludes['automated/'];
-    excludes['automated/interaction-results.json'] =
-      'No Storybook interaction result artifact is connected for this component yet.';
     if (axeArtifacts.length) {
       contentFiles['automated/axe-results.json'] = JSON.stringify(
         axeArtifacts,
@@ -184,6 +189,16 @@ export async function buildEvidenceExport(
     } else {
       excludes['automated/playwright-results.json'] =
         'No Playwright result artifact is connected for this component yet.';
+    }
+    if (interactionArtifacts.length) {
+      contentFiles['automated/interaction-results.json'] = JSON.stringify(
+        interactionArtifacts,
+        null,
+        2,
+      );
+    } else {
+      excludes['automated/interaction-results.json'] =
+        'No Storybook interaction result artifact is connected for this component yet.';
     }
   }
   for (const finding of findings) {

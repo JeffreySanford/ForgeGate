@@ -192,12 +192,14 @@ Required action:
 > the "Export evidence package" button on a component's detail page). Implemented
 > today: `manifest.json` (including the real repository commit and a
 > `checksums` map), `test-summary.json`, `documentation-status.json`,
+> `automated/` for imported Playwright, axe, and Storybook interaction reports,
 > `findings/`, `release-decision.json`, `report.html`, and `checksums.sha256`.
 > Not yet implemented, and named explicitly in `manifest.json`'s `excludes` map
 > and in the report's "Not connected" section rather than silently omitted:
-> `policy-snapshot.json`, `automated/`, `manual/`, `exceptions/`, and
-> `attachments/`. See TODO.md's "Evidence export remaining sections" for what
-> each one is blocked on.
+> `policy-snapshot.json`, `manual/`, `exceptions/`, and `attachments/`. See
+> TODO.md's "Evidence export remaining sections" for what each one is blocked
+> on. ForgeGate still imports externally produced automated evidence; it does
+> not yet orchestrate target-repository commands itself.
 >
 > **`release-decision.json` and approvals.** A `blocked` outcome requires no
 > approver, so it is produced from real data today whenever the repository has

@@ -408,6 +408,81 @@ describe('WorkspaceService', () => {
     });
   });
 
+  it('loads Storybook interactions JSON evidence envelopes without treating raw reports as provenance', async () => {
+    const scanFixtureWithStorybookInteractionEvidence = {
+      ...scanFixture,
+      testEvidenceFiles: [
+        '.forgegate/evidence/acme-button-storybook-interactions.json',
+      ],
+    };
+    const storybookEvidence = {
+      format: 'storybook-interactions-json',
+      id: 'acme-button-storybook-interactions',
+      componentVersionId: 'up.design-system.up-button@0.1.0',
+      toolVersion: '9.0.0',
+      commitOrFingerprint: 'b'.repeat(40),
+      rawArtifactRef: '.forgegate/evidence/raw/storybook-interactions.json',
+      report: {
+        startedAt: '2026-07-24T17:20:00.000Z',
+        durationMs: 640,
+        stories: [{ id: 'button--primary', status: 'passed' }],
+      },
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithStorybookInteractionEvidence)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(JSON.stringify(storybookEvidence));
+
+    await service.selectWorkspace();
+
+    expect(service.testExecutions()).toEqual([
+      {
+        id: 'acme-button-storybook-interactions',
+        componentVersionId: 'up.design-system.up-button@0.1.0',
+        gate: 'storybook-interaction',
+        tool: 'storybook/test-runner',
+        toolVersion: '9.0.0',
+        adapterVersion: '0.1.0',
+        status: 'passed',
+        startedAt: '2026-07-24T17:20:00.000Z',
+        durationMs: 640,
+        commitOrFingerprint: 'b'.repeat(40),
+        rawArtifactRef: '.forgegate/evidence/raw/storybook-interactions.json',
+      },
+    ]);
+    expect(service.automatedEvidenceArtifacts()).toEqual([
+      {
+        kind: 'storybook-interactions-json',
+        id: 'acme-button-storybook-interactions',
+        componentVersionId: 'up.design-system.up-button@0.1.0',
+        gate: 'storybook-interaction',
+        tool: 'storybook/test-runner',
+        toolVersion: '9.0.0',
+        adapterVersion: '0.1.0',
+        commitOrFingerprint: 'b'.repeat(40),
+        rawArtifactRef: '.forgegate/evidence/raw/storybook-interactions.json',
+        report: storybookEvidence.report,
+      },
+    ]);
+    expect(service.testExecutionError()).toBeNull();
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'test-evidence:.forgegate/evidence/acme-button-storybook-interactions.json',
+        ),
+    ).toMatchObject({
+      adapter: 'Storybook interactions JSON evidence adapter',
+      status: 'loaded',
+      rawOutput: JSON.stringify(storybookEvidence),
+      error: null,
+    });
+  });
+
   it('does not attempt to read a Custom Elements Manifest when none was found', async () => {
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')

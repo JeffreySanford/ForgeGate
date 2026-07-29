@@ -135,6 +135,14 @@ ForgeGate coordinates existing executors and converts their output into one evid
 
 Passing axe alone must never be represented as legal or complete accessibility compliance. ForgeGate tracks conformance evidence, review completeness, unresolved findings, and policy decisions.
 
+Current implementation status: ForgeGate ingests repository-owned
+`.forgegate/evidence/*.json` records today. Supported imported formats are the
+native ForgeGate `TestExecution` shape plus provenance-bearing
+`playwright-json`, `axe-json`, and `storybook-interactions-json` envelopes. Raw
+Playwright, axe, and Storybook interaction reports are preserved and exported
+under the documented `automated/` evidence-package files. Running target
+repository gates from ForgeGate is still a future orchestration milestone.
+
 ### Manual review and evidence
 
 - Guided keyboard procedures

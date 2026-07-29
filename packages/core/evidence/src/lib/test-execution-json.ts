@@ -5,19 +5,24 @@ import { testExecutionSchema } from './schemas';
 const validate = createValidator<TestExecution>(testExecutionSchema);
 const PLAYWRIGHT_ADAPTER_VERSION = '0.1.0';
 const AXE_ADAPTER_VERSION = '0.1.0';
+const STORYBOOK_INTERACTIONS_ADAPTER_VERSION = '0.1.0';
 
 export interface ParsedTestEvidence {
-  readonly adapter: 'ForgeGate test execution' | 'Playwright JSON' | 'Axe JSON';
+  readonly adapter:
+    | 'ForgeGate test execution'
+    | 'Playwright JSON'
+    | 'Axe JSON'
+    | 'Storybook interactions JSON';
   readonly executions: readonly TestExecution[];
   readonly automatedArtifacts: readonly AutomatedEvidenceArtifact[];
 }
 
 export interface AutomatedEvidenceArtifact {
-  readonly kind: 'playwright-json' | 'axe-json';
+  readonly kind: 'playwright-json' | 'axe-json' | 'storybook-interactions-json';
   readonly id: string;
   readonly componentVersionId: string;
   readonly gate: string;
-  readonly tool: 'playwright' | 'axe-core';
+  readonly tool: 'playwright' | 'axe-core' | 'storybook/test-runner';
   readonly toolVersion: string;
   readonly adapterVersion: string;
   readonly commitOrFingerprint: string;
@@ -43,10 +48,11 @@ export function parseTestExecution(jsonText: string): TestExecution {
 
 /**
  * Parses one repository-owned evidence artifact. ForgeGate-native
- * `TestExecution` JSON yields one execution. A `playwright-json` or
- * `axe-json` envelope yields a normalized execution only when the
- * repository supplies the component version and commit/fingerprint that
- * native tool JSON does not carry itself.
+ * `TestExecution` JSON yields one execution. A `playwright-json`,
+ * `axe-json`, or `storybook-interactions-json` envelope yields a
+ * normalized execution only when the repository supplies the component
+ * version and commit/fingerprint that native tool JSON does not carry
+ * itself.
  */
 export function parseTestEvidenceFile(jsonText: string): ParsedTestEvidence {
   const parsed = parseJson(jsonText);
@@ -72,6 +78,15 @@ export function parseTestEvidenceFile(jsonText: string): ParsedTestEvidence {
     const normalized = normalizeAxeJsonEvidence(parsed);
     return {
       adapter: 'Axe JSON',
+      executions: [normalized.execution],
+      automatedArtifacts: [normalized.artifact],
+    };
+  }
+
+  if (isRecord(parsed) && parsed['format'] === 'storybook-interactions-json') {
+    const normalized = normalizeStorybookInteractionsJsonEvidence(parsed);
+    return {
+      adapter: 'Storybook interactions JSON',
       executions: [normalized.execution],
       automatedArtifacts: [normalized.artifact],
     };
@@ -229,6 +244,81 @@ function normalizeAxeJsonEvidence(envelope: Record<string, unknown>): {
   };
 }
 
+function normalizeStorybookInteractionsJsonEvidence(
+  envelope: Record<string, unknown>,
+): {
+  readonly execution: TestExecution;
+  readonly artifact: AutomatedEvidenceArtifact;
+} {
+  const report = requireRecord(envelope['report'], 'report', 'Storybook');
+  const id = requireString(envelope['id'], 'id', 'Storybook');
+  const componentVersionId = requireString(
+    envelope['componentVersionId'],
+    'componentVersionId',
+    'Storybook',
+  );
+  const gate = readString(envelope['gate']) ?? 'storybook-interaction';
+  const toolVersion = requireString(
+    envelope['toolVersion'],
+    'toolVersion',
+    'Storybook',
+  );
+  const adapterVersion =
+    readString(envelope['adapterVersion']) ??
+    STORYBOOK_INTERACTIONS_ADAPTER_VERSION;
+  const commitOrFingerprint = requireString(
+    envelope['commitOrFingerprint'],
+    'commitOrFingerprint',
+    'Storybook',
+  );
+  const startedAt =
+    readString(envelope['startedAt']) ??
+    readString(report['startedAt']) ??
+    readString(report['timestamp']) ??
+    requireString(report['startedAt'], 'report.startedAt', 'Storybook');
+  const durationMs =
+    readNumber(envelope['durationMs']) ??
+    readNumber(report['durationMs']) ??
+    readNumber(report['duration']);
+  const rawArtifactRef = readString(envelope['rawArtifactRef']);
+
+  const execution: TestExecution = {
+    id,
+    componentVersionId,
+    gate,
+    tool: 'storybook/test-runner',
+    toolVersion,
+    adapterVersion,
+    status: storybookInteractionsStatus(report),
+    startedAt,
+    ...(durationMs === undefined ? {} : { durationMs }),
+    commitOrFingerprint,
+    ...(rawArtifactRef === undefined ? {} : { rawArtifactRef }),
+  };
+
+  if (!validate(execution)) {
+    throw new Error(
+      `Normalized Storybook interactions evidence does not match the TestExecution schema: ${describeErrors(validate)}`,
+    );
+  }
+
+  return {
+    execution,
+    artifact: {
+      kind: 'storybook-interactions-json',
+      id,
+      componentVersionId,
+      gate,
+      tool: 'storybook/test-runner',
+      toolVersion,
+      adapterVersion,
+      commitOrFingerprint,
+      rawArtifactRef: rawArtifactRef ?? null,
+      report,
+    },
+  };
+}
+
 function playwrightStatus(
   report: Record<string, unknown>,
   stats: Record<string, unknown>,
@@ -253,6 +343,76 @@ function playwrightStatus(
     return 'passed';
   }
   return 'unknown';
+}
+
+function storybookInteractionsStatus(
+  report: Record<string, unknown>,
+): TestExecution['status'] {
+  const explicitStatus = readString(report['status']);
+  if (explicitStatus !== undefined) {
+    return normalizeInteractionStatus(explicitStatus) ?? 'unknown';
+  }
+
+  const results =
+    readArray(report['stories']) ??
+    readArray(report['results']) ??
+    readArray(report['tests']);
+  if (results === undefined) {
+    return 'unknown';
+  }
+
+  const statuses = results
+    .flatMap((result) =>
+      isRecord(result) ? [readString(result['status'])] : [],
+    )
+    .filter((status): status is string => status !== undefined)
+    .map((status) => normalizeInteractionStatus(status) ?? 'unknown');
+
+  if (statuses.some((status) => status === 'failed')) {
+    return 'failed';
+  }
+  if (statuses.some((status) => status === 'warning')) {
+    return 'warning';
+  }
+  if (statuses.length > 0 && statuses.every((status) => status === 'skipped')) {
+    return 'skipped';
+  }
+  if (statuses.some((status) => status === 'passed')) {
+    return 'passed';
+  }
+  return 'unknown';
+}
+
+function normalizeInteractionStatus(
+  status: string,
+): TestExecution['status'] | undefined {
+  switch (status.toLowerCase()) {
+    case 'passed':
+    case 'pass':
+    case 'success':
+    case 'ok':
+      return 'passed';
+    case 'failed':
+    case 'fail':
+    case 'error':
+    case 'timedout':
+    case 'timed-out':
+      return 'failed';
+    case 'warning':
+    case 'warn':
+    case 'flaky':
+      return 'warning';
+    case 'skipped':
+    case 'skip':
+    case 'pending':
+      return 'skipped';
+    case 'blocked':
+      return 'blocked';
+    case 'unknown':
+      return 'unknown';
+    default:
+      return undefined;
+  }
 }
 
 function axeStatus(report: Record<string, unknown>): TestExecution['status'] {
@@ -285,7 +445,7 @@ function readAxeTestEngineVersion(
 function requireRecord(
   value: unknown,
   label: string,
-  evidenceType: 'Playwright' | 'Axe',
+  evidenceType: 'Playwright' | 'Axe' | 'Storybook',
 ): Record<string, unknown> {
   if (!isRecord(value)) {
     throw new Error(`${evidenceType} evidence requires ${label}`);
@@ -296,7 +456,7 @@ function requireRecord(
 function requireString(
   value: unknown,
   label: string,
-  evidenceType: 'Playwright' | 'Axe',
+  evidenceType: 'Playwright' | 'Axe' | 'Storybook',
 ): string {
   const result = readString(value);
   if (result === undefined) {

@@ -123,6 +123,22 @@ Adapters should parse structured formats whenever available:
 
 Console-text parsing should be a fallback and must be version tested.
 
+Current implementation supports imported `.forgegate/evidence/*.json` records
+for a narrow, provenance-safe subset:
+
+- ForgeGate-native `TestExecution` JSON.
+- `playwright-json` envelopes that carry raw Playwright JSON plus
+  `componentVersionId`, `commitOrFingerprint`, `toolVersion`, and optional
+  `rawArtifactRef`.
+- `axe-json` envelopes that carry raw axe-core JSON plus the same ForgeGate
+  provenance.
+- `storybook-interactions-json` envelopes that carry raw Storybook interaction
+  result JSON plus the same ForgeGate provenance.
+
+These adapters normalize a single `TestExecution` and preserve the raw report
+for evidence export. ForgeGate still does not run target-repository commands
+itself; command orchestration remains a separate milestone from result import.
+
 ## Normalized evidence
 
 Proposed result contract:
@@ -286,3 +302,8 @@ The initial orchestration milestone should normalize at least:
 - Build
 
 It must preserve raw results and mark evidence stale after a relevant source change.
+
+Implementation status: imported Storybook interaction, axe, and Playwright
+results are normalized and raw reports are preserved. Native Jest/Vitest, lint,
+build, and ForgeGate-triggered target-repository command execution are still
+open, as is source-change stale-evidence invalidation.
