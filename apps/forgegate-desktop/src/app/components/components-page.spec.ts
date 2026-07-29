@@ -107,7 +107,7 @@ describe('ComponentsPage', () => {
     ).toContain('declares no custom elements');
   });
 
-  it('renders a table row per real component, with honest unknown fields', async () => {
+  it('renders a table row per real component, with derived readiness fields', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);
     workspaceService.customElementsManifest.set(twoComponentManifest);
@@ -131,7 +131,7 @@ describe('ComponentsPage', () => {
       'owned',
       'src/acme-button.ts',
       'proposal',
-      'Unknown — no evidence connected',
+      'Warning — 6 finding(s)',
       'Not evaluated',
       'Not reviewed',
       'Not connected',
@@ -140,6 +140,7 @@ describe('ComponentsPage', () => {
     expect(rows[0].querySelector('a')?.getAttribute('href')).toBe(
       '/components/acme.design-system.acme-button',
     );
+    expect(compiled.textContent).toContain('warning (2)');
   });
 
   it('deduplicates repeated declarations and exposes their provenance in diagnostics', async () => {
@@ -344,7 +345,9 @@ describe('ComponentsPage', () => {
     const elapsedMs = performance.now() - start;
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelectorAll('.components-page__inventory-table tbody tr')).toHaveLength(COMPONENT_COUNT);
+    expect(
+      compiled.querySelectorAll('.components-page__inventory-table tbody tr'),
+    ).toHaveLength(COMPONENT_COUNT);
     // Not a hard performance budget (CI hardware varies) — this is a smoke
     // check that filtering 200 components isn't accidentally quadratic
     // (e.g. re-parsing or re-fetching per row), which would show up as
@@ -355,7 +358,9 @@ describe('ComponentsPage', () => {
     component.searchText.set('acme-component-199');
     fixture.detectChanges();
     await fixture.whenStable();
-    const filteredRows = compiled.querySelectorAll('.components-page__inventory-table tbody tr');
+    const filteredRows = compiled.querySelectorAll(
+      '.components-page__inventory-table tbody tr',
+    );
     expect(filteredRows).toHaveLength(1);
     expect(filteredRows[0].textContent).toContain('acme-component-199');
   });

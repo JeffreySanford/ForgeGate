@@ -6,6 +6,7 @@ import type {
   ComponentDiscovery,
   ComponentProvenance,
 } from '../component-inventory.service';
+import type { ComponentSnapshotReadiness } from '../component-readiness';
 import { WorkspaceService } from '../workspace.service';
 import { ReadinessDistribution } from './readiness-distribution';
 
@@ -18,13 +19,9 @@ type InventoryMode = 'catalog' | 'diagnostics';
  * Real data only: everything here comes from `ComponentInventoryService`,
  * which maps a live Custom Elements Manifest. Several columns are honestly
  * static right now rather than fabricated, because nothing in ForgeGate
- * populates them from a CEM: `lifecycle` is always the manifest's own
- * default ('proposal') since nothing sets it yet; readiness has no source
- * at all (no evidence/findings pipeline is wired into the desktop app),
- * so it is always shown as explicitly unknown rather than guessed; state
- * coverage, review status, and documentation status are always "not
- * evaluated/connected" for the same reason — those fields exist on
- * `ComponentManifest` but nothing populates them from a bare CEM mapping.
+ * populates them from a CEM: bare CEM rows still start at the manifest's
+ * default lifecycle and will usually warn until repository-owned evidence
+ * manifests, tests, review procedures, and documentation targets are connected.
  */
 @Component({
   selector: 'app-components-page',
@@ -47,6 +44,15 @@ export class ComponentsPage {
   );
   protected readonly discoveries = computed(
     () => this.inventory.result().discoveries,
+  );
+  protected readonly readinessByComponent = computed(
+    () =>
+      new Map(
+        this.discoveries().map((item) => [
+          item.manifest.id,
+          item.readiness.readiness,
+        ]),
+      ),
   );
   protected readonly failures = computed(
     () => this.inventory.result().failures,
@@ -127,6 +133,15 @@ export class ComponentsPage {
     return manifest.owner ?? 'Unknown';
   }
 
+  protected readinessLabel(discovery: ComponentDiscovery): string {
+    const { readiness, blockingReasons } = discovery.readiness;
+    const findingCount = blockingReasons.length;
+    if (readiness === 'clear') {
+      return 'Clear — no derived findings';
+    }
+    return `${formatReadiness(readiness)} — ${findingCount} finding(s)`;
+  }
+
   protected setViewMode(mode: ViewMode): void {
     this.viewMode.set(mode);
   }
@@ -148,6 +163,10 @@ export class ComponentsPage {
 function componentName(id: string): string {
   const parts = id.split('.');
   return parts[parts.length - 1] ?? id;
+}
+
+function formatReadiness(readiness: ComponentSnapshotReadiness): string {
+  return readiness.charAt(0).toUpperCase() + readiness.slice(1);
 }
 
 /** Whether any evidence-bearing field on the manifest is populated at all. */

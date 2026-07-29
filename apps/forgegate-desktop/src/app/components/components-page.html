@@ -45,6 +45,7 @@
 
   <app-readiness-distribution
     [manifests]="manifests()"
+    [readinessByComponent]="readinessByComponent()"
     [selectedLifecycle]="selectedLifecycle()"
     (lifecycleSelect)="onLifecycleSelect($event)"
   />
@@ -146,7 +147,7 @@
           }
         </td>
         <td>{{ manifest.lifecycle }}</td>
-        <td>Unknown — no evidence connected</td>
+        <td>{{ readinessLabel(discovery) }}</td>
         <td>{{ stateCoverageLabel(manifest) }}</td>
         <td>{{ reviewStatusLabel(manifest) }}</td>
         <td>{{ documentationStatusLabel(manifest) }}</td>
@@ -172,7 +173,7 @@
           <dt>Lifecycle</dt>
           <dd>{{ manifest.lifecycle }}</dd>
           <dt>Readiness</dt>
-          <dd>Unknown — no evidence connected</dd>
+          <dd>{{ readinessLabel(discovery) }}</dd>
           <dt>States</dt>
           <dd>{{ stateCoverageLabel(manifest) }}</dd>
           <dt>Owner</dt>

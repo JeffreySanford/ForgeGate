@@ -4,17 +4,33 @@ import type { ComponentManifest } from '@forgegate/core-manifest';
 import { createComponentManifest } from '@forgegate/core-manifest';
 import { ReadinessDistribution } from './readiness-distribution';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
+import type { ComponentSnapshotReadiness } from '../component-readiness';
 
-function manifest(id: string, lifecycle: ComponentManifest['lifecycle']): ComponentManifest {
-  return createComponentManifest({ id, framework: 'web-components', adapter: 'framework.web-components', packagePath: '.', lifecycle });
+function manifest(
+  id: string,
+  lifecycle: ComponentManifest['lifecycle'],
+): ComponentManifest {
+  return createComponentManifest({
+    id,
+    framework: 'web-components',
+    adapter: 'framework.web-components',
+    packagePath: '.',
+    lifecycle,
+  });
 }
 
 @Component({
   imports: [ReadinessDistribution],
-  template: `<app-readiness-distribution [manifests]="manifests" [selectedLifecycle]="selected" (lifecycleSelect)="onSelect($event)" />`,
+  template: `<app-readiness-distribution
+    [manifests]="manifests"
+    [readinessByComponent]="readinessByComponent"
+    [selectedLifecycle]="selected"
+    (lifecycleSelect)="onSelect($event)"
+  />`,
 })
 class HostComponent {
   manifests: readonly ComponentManifest[] = [];
+  readinessByComponent = new Map<string, ComponentSnapshotReadiness>();
   selected: ComponentManifest['lifecycle'] | null = null;
   lastSelected: ComponentManifest['lifecycle'] | null | undefined;
 
@@ -25,7 +41,9 @@ class HostComponent {
 
 describe('ReadinessDistribution', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent],
+    }).compileComponents();
   });
 
   it('shows an explicit empty state with no components', async () => {
@@ -33,9 +51,11 @@ describe('ReadinessDistribution', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.readiness-distribution__empty')?.textContent).toContain(
-      'No components to distribute',
-    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.readiness-distribution__empty',
+      )?.textContent,
+    ).toContain('No components to distribute');
   });
 
   it('groups real components by lifecycle with real counts and percentages', async () => {
@@ -50,20 +70,56 @@ describe('ReadinessDistribution', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const labels = Array.from(compiled.querySelectorAll('.readiness-distribution__bar-button .readiness-distribution__bar-label')).map(
-      (el) => el.textContent,
-    );
+    const labels = Array.from(
+      compiled.querySelectorAll(
+        '.readiness-distribution__bar-button .readiness-distribution__bar-label',
+      ),
+    ).map((el) => el.textContent);
     expect(labels).toEqual(['proposal (2)', 'candidate (2)']);
   });
 
-  it('always reports readiness as a single unknown bucket, honestly, since no evidence pipeline exists', async () => {
+  it('groups real components by derived readiness with stable status ordering', async () => {
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifests = [
+      manifest('acme.lib.a', 'proposal'),
+      manifest('acme.lib.b', 'proposal'),
+      manifest('acme.lib.c', 'candidate'),
+      manifest('acme.lib.d', 'approved'),
+    ];
+    fixture.componentInstance.readinessByComponent = new Map([
+      ['acme.lib.a', 'clear'],
+      ['acme.lib.b', 'warning'],
+      ['acme.lib.c', 'blocked'],
+      ['acme.lib.d', 'stale'],
+    ]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const readinessGroup = compiled.querySelectorAll(
+      '.readiness-distribution__group',
+    )[1];
+    const labels = Array.from(
+      readinessGroup.querySelectorAll('.readiness-distribution__bar-label'),
+    ).map((el) => el.textContent);
+    expect(labels).toEqual([
+      'blocked (1)',
+      'stale (1)',
+      'warning (1)',
+      'clear (1)',
+    ]);
+  });
+
+  it('falls back to unknown when a component has no readiness decision yet', async () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.componentInstance.manifests = [manifest('acme.lib.a', 'proposal')];
     fixture.detectChanges();
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const readinessGroup = compiled.querySelectorAll('.readiness-distribution__group')[1];
+    const readinessGroup = compiled.querySelectorAll(
+      '.readiness-distribution__group',
+    )[1];
     expect(readinessGroup.textContent).toContain('unknown (1)');
   });
 
@@ -74,7 +130,9 @@ describe('ReadinessDistribution', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const button = compiled.querySelector<HTMLButtonElement>('.readiness-distribution__bar-button');
+    const button = compiled.querySelector<HTMLButtonElement>(
+      '.readiness-distribution__bar-button',
+    );
     button?.click();
     expect(fixture.componentInstance.lastSelected).toBe('proposal');
 
@@ -95,7 +153,9 @@ describe('ReadinessDistribution', () => {
     await fixture.whenStable();
 
     const buttons = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      (
+        fixture.nativeElement as HTMLElement
+      ).querySelectorAll<HTMLButtonElement>(
         '.readiness-distribution__bar-button',
       ),
     );
@@ -113,7 +173,10 @@ describe('ReadinessDistribution', () => {
 
   it('has no automated accessibility violations', async () => {
     const fixture = TestBed.createComponent(HostComponent);
-    fixture.componentInstance.manifests = [manifest('acme.lib.a', 'proposal'), manifest('acme.lib.b', 'candidate')];
+    fixture.componentInstance.manifests = [
+      manifest('acme.lib.a', 'proposal'),
+      manifest('acme.lib.b', 'candidate'),
+    ];
     fixture.detectChanges();
     await fixture.whenStable();
 

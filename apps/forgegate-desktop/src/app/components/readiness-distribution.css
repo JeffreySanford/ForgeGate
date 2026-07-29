@@ -89,6 +89,22 @@
   background: var(--fg-color-status-unknown);
 }
 
+.readiness-distribution__bar-fill--blocked {
+  background: var(--fg-color-status-blocked);
+}
+
+.readiness-distribution__bar-fill--stale {
+  background: var(--fg-color-status-stale);
+}
+
+.readiness-distribution__bar-fill--warning {
+  background: var(--fg-color-status-warning);
+}
+
+.readiness-distribution__bar-fill--clear {
+  background: var(--fg-color-status-passed);
+}
+
 .readiness-distribution__hint {
   margin: var(--fg-space-2) 0 0;
   font-size: var(--fg-type-size-sm);

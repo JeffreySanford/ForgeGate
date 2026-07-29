@@ -21,6 +21,7 @@ import { WorkspaceService } from './workspace.service';
 import {
   componentVersionId,
   evaluateComponentReadiness,
+  type ComponentReadinessEvaluation,
 } from './component-readiness';
 
 const EMPTY_MAP_RESULT: MapCemResult = { manifests: [], failures: [] };
@@ -30,6 +31,7 @@ export type ComponentProvenance =
 
 export interface ComponentDiscovery {
   readonly manifest: MapCemResult['manifests'][number];
+  readonly readiness: ComponentReadinessEvaluation;
   readonly classification: ComponentProvenance;
   readonly sourcePackage: string;
   readonly canonicalSource: string;
@@ -116,6 +118,13 @@ export class ComponentInventoryService {
         (candidate) =>
           candidate.path === this.workspace.selectedComponentPackagePath(),
       );
+    const scan = this.workspace.workspaceScan();
+    const currentCommit = this.workspace.gitStatus()?.commit ?? null;
+    const testExecutions = this.workspace.testExecutions();
+    const storybookIndexError = this.workspace.storybookIndexError();
+    const starlightProjects = scan?.starlightProjects ?? [];
+    const storybookProjects = scan?.storybookProjects ?? [];
+
     const discoveries = Array.from(groups.values()).map((declarations) => {
       const sourceFiles = Array.from(
         new Set(declarations.flatMap((item) => item.sourceFiles)),
@@ -128,12 +137,25 @@ export class ComponentInventoryService {
       if (!first) {
         throw new Error('Component declaration group cannot be empty');
       }
+      const manifest = { ...first, sourceFiles };
       const classification = classifySource(
         canonicalSource,
         selectedPackage?.path,
       );
       return {
-        manifest: { ...first, sourceFiles },
+        manifest,
+        readiness: evaluateComponentReadiness({
+          manifest,
+          testExecutions: testExecutions.filter(
+            (execution) =>
+              execution.componentVersionId === componentVersionId(manifest),
+          ),
+          currentCommit,
+          storybookProjects,
+          storybookIndex,
+          storybookIndexError,
+          starlightProjects,
+        }),
         classification,
         sourcePackage: resolveSourcePackage(
           canonicalSource,
@@ -162,25 +184,6 @@ export class ComponentInventoryService {
     const gitStatus = this.workspace.gitStatus();
     const inventory = this.result();
     const diagnostics = this.workspace.adapterDiagnostics();
-    const componentEvaluations = inventory.manifests.map((manifest) => ({
-      manifest,
-      evaluation: evaluateComponentReadiness({
-        manifest,
-        testExecutions: this.workspace
-          .testExecutions()
-          .filter(
-            (execution) =>
-              execution.componentVersionId === componentVersionId(manifest),
-          ),
-        currentCommit: gitStatus?.commit ?? null,
-        storybookProjects:
-          this.workspace.workspaceScan()?.storybookProjects ?? [],
-        storybookIndex: this.workspace.storybookIndex(),
-        storybookIndexError: this.workspace.storybookIndexError(),
-        starlightProjects:
-          this.workspace.workspaceScan()?.starlightProjects ?? [],
-      }),
-    }));
     if (
       !workspacePath ||
       scanProgress?.state !== 'complete' ||
@@ -196,7 +199,7 @@ export class ComponentInventoryService {
       readinessSummary: {
         total: inventory.manifests.length,
         readiness: countBy(
-          componentEvaluations.map((item) => item.evaluation.readiness),
+          inventory.discoveries.map((item) => item.readiness.readiness),
         ),
         lifecycle: countBy(
           inventory.manifests.map((manifest) => manifest.lifecycle),
@@ -213,15 +216,15 @@ export class ComponentInventoryService {
           error: diagnostic.error,
         })),
       },
-      components: componentEvaluations.map(({ manifest, evaluation }) => ({
+      components: inventory.discoveries.map(({ manifest, readiness }) => ({
         componentId: manifest.id,
         componentVersion: manifest.componentVersion ?? null,
         framework: manifest.framework,
         adapter: manifest.adapter,
         lifecycle: manifest.lifecycle,
         sourceFiles: manifest.sourceFiles,
-        readiness: evaluation.readiness,
-        findingSummary: evaluation.findingSummary,
+        readiness: readiness.readiness,
+        findingSummary: readiness.findingSummary,
       })),
     };
     const snapshotKey = JSON.stringify({ workspacePath, snapshot });

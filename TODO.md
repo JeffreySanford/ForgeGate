@@ -231,7 +231,7 @@ Primary reference:
 ## P1.2 — Component landscape and readiness distribution
 
 - [X} Visualize components by lifecycle and readiness without collapsing them into a single health score. `ReadinessDistribution` (`app/components/readiness-distribution.ts`) renders on `/components` above the existing inventory — a real per-lifecycle bar breakdown (computed from the actual manifest list, not hardcoded) plus a readiness breakdown, never a single percentage or score.
-- [ ] Show blocked, warning, stale, unknown, and not-evaluated components distinctly. Structurally ready (the readiness bucket computation is a real reduction over the manifest list, documented to start reporting real splits the moment evidence exists) but currently always renders one honest "unknown (100%)" bar — ForgeGate still has no findings/evidence pipeline to derive blocked/warning/stale from, same root gap as P0.5's readiness rail.
+- [X} Show blocked, warning, stale, unknown, and not-evaluated components distinctly. `ReadinessDistribution` now reduces the live component inventory over derived readiness decisions rather than rendering a fixed unknown bucket: failed/blocked automated evidence appears as `blocked`, stale automated/docs evidence as `stale`, incomplete required evidence as `warning`, no derived findings as `clear`, and components without a decision fall back to `unknown`. Text labels and semantic tables expose the same counts as the bars; not-evaluated states remain explicit in documentation/evidence-specific surfaces where a source cannot be evaluated.
 - [X} Allow selection and filtering to update the accessible inventory. Clicking a lifecycle bar (a real `<button aria-pressed>`, not a fake `role="button"` `<div>` — P0.7's axe pass specifically caught and fixed that mistake elsewhere) sets the same `lifecycleFilter` signal the search/dropdown filters already drive, verified by a test that clicks a bar and asserts the emitted value, plus toggle-off-on-second-click.
 - [X} Provide a semantic table equivalent. A `<details>`-disclosed table alongside the bars carries the same lifecycle/count/percent data.
 
@@ -318,7 +318,7 @@ P1 is complete only when:
 - [X} Each visualization is backed by real data and exposes unknowns. Every P1.x entry above documents its real data source and states its gaps as open checklist items rather than hiding them.
 - [X} Each visualization has an equivalent semantic list or table. Every one renders a real `<table>`, `<ol>`, or `<ul>` as its primary view, not a chart with a separate fallback to keep in sync.
 - [X} Motion remains understandable when disabled. `--fg-motion-duration-*` zero under `prefers-reduced-motion: reduce`; verified for the shell and inherited by every component that consumes the shared tokens.
-- [X} No chart or animation replaces the explicit readiness decision or blocking explanation. Readiness still renders as an explicit "unknown (100%)" bar/label wherever no evidence pipeline exists; motion never stands in for that text.
+- [X} No chart or animation replaces the explicit readiness decision or blocking explanation. Readiness distribution bars now render derived bucket labels/counts, and row/card readiness text names the current decision plus finding count; motion never stands in for that text.
 
 ### P1 follow-up backlog — subsystems that unblock the rest of P1.3/P1.5/P1.8
 
