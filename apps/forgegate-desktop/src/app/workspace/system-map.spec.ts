@@ -106,6 +106,29 @@ describe('SystemMap', () => {
     );
   });
 
+  /**
+   * The phase-2-cosmic case: a real Angular repository with no CEM at all.
+   * Before the Angular adapter existed this node read "No Custom Elements
+   * Manifest" and the whole inventory was empty, which was accurate about
+   * CEM but wrong about the repository.
+   */
+  it('reports components as connected from Angular discovery alone, with no Custom Elements Manifest', async () => {
+    workspaceService.workspacePath.set('/repos/angular-app');
+    workspaceService.workspaceScan.set(scanWithNothingDetected);
+    workspaceService.angularComponents.set([
+      { className: 'HeaderComponent', selector: 'app-header', sourceFile: 'src/header.component.ts', inputs: [], outputs: [], confidence: 'confirmed' },
+      { className: 'SidebarComponent', selector: 'app-sidebar', sourceFile: 'src/sidebar.component.ts', inputs: [], outputs: [], confidence: 'confirmed' },
+    ]);
+
+    const fixture = TestBed.createComponent(SystemMap);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('2 Angular component(s)');
+    expect(text).not.toContain('No Custom Elements Manifest');
+  });
+
   it('reports components as partial when the manifest maps some but not all declarations', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set({

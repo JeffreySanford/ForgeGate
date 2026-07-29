@@ -137,6 +137,45 @@ fn write_evidence_package(
     Ok(export_dir.display().to_string())
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct SourceFileContents {
+    path: String,
+    contents: String,
+}
+
+/// Reads the contents of the given workspace-relative source files in a
+/// single call. The Angular adapter needs to scan every TypeScript file in
+/// a workspace (225 of them in one real repository), and doing that through
+/// per-file `read_text_file` calls would mean hundreds of IPC round trips
+/// for one scan step.
+///
+/// Every path is validated with the same
+/// `resolve_relative_path_within_workspace` guard the single-file read uses,
+/// so this widens throughput without widening what the frontend can reach.
+/// A file that cannot be read is skipped rather than failing the batch — one
+/// unreadable file should not blank out an entire component inventory.
+#[tauri::command]
+fn read_workspace_source_files(
+    workspace_path: String,
+    relative_paths: Vec<String>,
+) -> Result<Vec<SourceFileContents>, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    let mut files = Vec::new();
+    for relative_path in relative_paths {
+        let Ok(resolved) = resolve_relative_path_within_workspace(&workspace, &relative_path) else {
+            continue;
+        };
+        if let Ok(contents) = fs::read_to_string(&resolved) {
+            files.push(SourceFileContents {
+                path: relative_path,
+                contents,
+            });
+        }
+    }
+    Ok(files)
+}
+
 /// Rejects relative paths and paths that do not resolve to a real directory,
 /// so downstream commands never shell out against an unvalidated string.
 fn resolve_workspace_path(path: &str) -> Result<PathBuf, String> {
@@ -764,6 +803,36 @@ mod tests {
         assert!(parse_changed_files("").is_empty());
     }
 
+    #[test]
+    fn reads_many_source_files_in_one_call_and_skips_unreadable_ones() {
+        let dir = std::env::temp_dir().join(format!("forgegate-batch-read-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(dir.join("src")).expect("should create temp dir");
+        std::fs::write(dir.join("src/a.ts"), "export const a = 1;").unwrap();
+        std::fs::write(dir.join("src/b.ts"), "export const b = 2;").unwrap();
+
+        let files = read_workspace_source_files(
+            dir.display().to_string(),
+            vec![
+                "src/a.ts".to_string(),
+                "src/b.ts".to_string(),
+                // Does not exist — skipped, never fails the batch.
+                "src/missing.ts".to_string(),
+                // Escapes the workspace — rejected by the same guard the
+                // single-file read uses.
+                "../escape.ts".to_string(),
+            ],
+        )
+        .expect("batch read should succeed");
+
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].path, "src/a.ts");
+        assert_eq!(files[0].contents, "export const a = 1;");
+        assert_eq!(files[1].path, "src/b.ts");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     /// Regression test for a real bug found by validating against an external
     /// repository: `run_git` used to `trim()` the whole `status --porcelain`
     /// output, which strips the leading space that marks an *unstaged*
@@ -948,7 +1017,8 @@ pub fn run() {
             run_workspace_command,
             cancel_workspace_command,
             pick_export_directory,
-            write_evidence_package
+            write_evidence_package,
+            read_workspace_source_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

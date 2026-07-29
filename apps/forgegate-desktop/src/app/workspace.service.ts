@@ -25,6 +25,10 @@ import {
 } from './storybook/storybook-index';
 import { buildEvidenceExport } from './evidence-export';
 import { parseDtcgTokens, type DtcgToken } from './dtcg-tokens';
+import {
+  discoverAngularComponents,
+  type AngularComponentDeclaration,
+} from './angular-components';
 import type { EvidenceApprover } from './release-decision-export';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
@@ -208,6 +212,9 @@ export class WorkspaceService {
   /** Every DTCG token parsed from the workspace's detected token files. */
   readonly designTokens = signal<readonly DtcgToken[]>([]);
   readonly designTokenError = signal<string | null>(null);
+  /** Angular components discovered by scanning TypeScript source. */
+  readonly angularComponents = signal<readonly AngularComponentDeclaration[]>([]);
+  readonly angularComponentsError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
   readonly nativeComponentSignals = signal<readonly NativeComponentSignal[]>(
@@ -300,6 +307,7 @@ export class WorkspaceService {
       await this.loadComponentManifests(path, scan);
       await this.loadTestExecutions(path, scan);
       await this.loadDesignTokens(path, scan);
+      await this.loadAngularComponents(path, scan);
       this.setScanProgress(
         'storybook',
         'Connecting the Storybook story index',
@@ -686,6 +694,55 @@ export class WorkspaceService {
    * out the others — the same rule the component-manifest and test-evidence
    * loaders already follow.
    */
+  /**
+   * Discovers Angular components by scanning the workspace's TypeScript
+   * sources. Runs regardless of whether a CEM exists: a repository can hold
+   * both Web Components and Angular components, and only one of those has a
+   * build-output manifest to read.
+   *
+   * Reads every file in one batched IPC call — 225 files in one real
+   * repository, which would otherwise be 225 round trips for a single scan
+   * step.
+   */
+  private async loadAngularComponents(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.angularComponents.set([]);
+    const typescriptFiles = (scan.uiSourceFiles ?? []).filter((path) => path.endsWith('.ts'));
+    if (typescriptFiles.length === 0) {
+      return;
+    }
+    try {
+      const files = await this.invoke<{ path: string; contents: string }[]>(
+        'read_workspace_source_files',
+        { workspacePath, relativePaths: typescriptFiles },
+      );
+      const { declarations, scannedFileCount } = discoverAngularComponents(files);
+      this.angularComponents.set(declarations);
+      this.setAdapterDiagnostic({
+        id: 'angular-components',
+        adapter: 'Angular adapter',
+        source: `${scannedFileCount} TypeScript source file(s)`,
+        status: scan.uiSourceFilesTruncated ? 'partial' : 'loaded',
+        rawOutput: JSON.stringify(declarations, null, 2),
+        error: scan.uiSourceFilesTruncated
+          ? 'Source discovery reached its file limit, so this scan is partial.'
+          : null,
+      });
+    } catch (error) {
+      this.angularComponentsError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'angular-components',
+        adapter: 'Angular adapter',
+        source: `${typescriptFiles.length} TypeScript source file(s)`,
+        status: 'failed',
+        rawOutput: null,
+        error: String(error),
+      });
+    }
+  }
+
   private async loadDesignTokens(
     workspacePath: string,
     scan: WorkspaceScan,

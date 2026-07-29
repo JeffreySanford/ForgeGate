@@ -109,13 +109,34 @@ export class SystemMap {
         : node('tokens', 'Design tokens', 'missing', 'Not detected')
       : node('tokens', 'Design tokens', 'missing', 'Not scanned yet');
 
-    const components = !manifestPresent
-      ? node('components', 'Components', 'missing', 'No Custom Elements Manifest')
-      : manifests.length === 0 && failures.length === 0
-        ? node('components', 'Components', 'partial', 'Manifest present, no components declared')
-        : failures.length > 0
-          ? node('components', 'Components', 'partial', `${manifests.length} mapped · ${failures.length} failed`)
-          : node('components', 'Components', 'connected', `${manifests.length} component(s)`);
+    // Two independent discovery adapters can contribute components: the Web
+    // Components adapter (reads a CEM build output) and the Angular adapter
+    // (scans TypeScript source). A repository may have either, both, or
+    // neither, so "no CEM" no longer means "no components".
+    const angularCount = this.workspace.angularComponents().length;
+    const components = (() => {
+      if (!manifestPresent && angularCount > 0) {
+        return node('components', 'Components', 'connected', `${angularCount} Angular component(s)`);
+      }
+      if (!manifestPresent) {
+        return node('components', 'Components', 'missing', 'No Custom Elements Manifest or Angular component');
+      }
+      const angularSuffix = angularCount > 0 ? ` · ${angularCount} Angular` : '';
+      if (manifests.length === 0 && failures.length === 0) {
+        return angularCount > 0
+          ? node('components', 'Components', 'connected', `${angularCount} Angular component(s)`)
+          : node('components', 'Components', 'partial', 'Manifest present, no components declared');
+      }
+      if (failures.length > 0) {
+        return node(
+          'components',
+          'Components',
+          'partial',
+          `${manifests.length} mapped · ${failures.length} failed${angularSuffix}`,
+        );
+      }
+      return node('components', 'Components', 'connected', `${manifests.length} component(s)${angularSuffix}`);
+    })();
 
     const automatedEvidence =
       scan && (scan.testRunners.length || scan.ciProviders.length)
