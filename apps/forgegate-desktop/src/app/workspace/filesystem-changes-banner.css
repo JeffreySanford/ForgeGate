@@ -9,6 +9,24 @@
   border: 1px solid var(--fg-color-status-warning, var(--fg-color-action));
   border-radius: var(--fg-radius-md);
   background: var(--fg-color-surface);
+  /* P1.8 "discovery" moment: this banner only exists when the watcher
+   * found something new, so its entrance itself is the signal. Uses the
+   * shared duration token, which is zeroed under
+   * `prefers-reduced-motion: reduce` (styles/tokens.css), same as every
+   * other motion in the app. */
+  animation: fg-filesystem-changes-discover var(--fg-motion-duration-md)
+    var(--fg-motion-ease);
+}
+
+@keyframes fg-filesystem-changes-discover {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .filesystem-changes__summary h2,
