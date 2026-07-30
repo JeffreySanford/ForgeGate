@@ -1,5 +1,5 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
-import type { ManualReview, TestExecution } from '@forgegate/core-evidence';
+import type { Finding, ManualReview, TestExecution } from '@forgegate/core-evidence';
 import {
   componentVersionId,
   evaluateComponentReadiness,
@@ -33,6 +33,21 @@ function manualReview(overrides: Partial<ManualReview> = {}): ManualReview {
     operatingSystem: 'macOS 15',
     status: 'passed',
     commitOrFingerprint: commit,
+    ...overrides,
+  };
+}
+
+function persistedFinding(overrides: Partial<Finding> = {}): Finding {
+  return {
+    id: 'keyboard-review-1-step-1',
+    componentId: 'acme.lib.button',
+    scenario: 'Activate using Space.',
+    description:
+      'Activate using Space. — expected once, but the review recorded failed.',
+    severity: 'serious',
+    sourceEvidenceId: 'keyboard-review-1',
+    standardOrPolicyRef: 'default-review',
+    status: 'open',
     ...overrides,
   };
 }
@@ -166,6 +181,46 @@ describe('evaluateComponentReadiness', () => {
         description: 'No manual review results connected',
       }),
     );
+  });
+
+  it('merges a real persisted finding into findingSummary, scoped to this component and open status', () => {
+    const result = evaluate({
+      manualReviews: [manualReview({ status: 'failed' })],
+      persistedFindings: [
+        persistedFinding(),
+        persistedFinding({ id: 'other-component-finding', componentId: 'acme.lib.card' }),
+        persistedFinding({ id: 'resolved-finding', status: 'resolved' }),
+      ],
+    });
+
+    expect(result.findingSummary.findings).toContainEqual(
+      expect.objectContaining({ id: 'keyboard-review-1-step-1' }),
+    );
+    expect(result.findingSummary.findings.map((finding) => finding.id)).not.toContain(
+      'other-component-finding',
+    );
+    expect(result.findingSummary.findings.map((finding) => finding.id)).not.toContain(
+      'resolved-finding',
+    );
+  });
+
+  it('does not duplicate a persisted finding that shares an id with a blocking-reason finding', () => {
+    const result = evaluate({
+      manualReviews: [],
+      persistedFindings: [
+        persistedFinding({ id: 'acme.lib.button-blocking-0' }),
+      ],
+    });
+
+    expect(result.findingSummary.findings).toContainEqual(
+      expect.objectContaining({
+        description: 'No manual review results connected',
+      }),
+    );
+    const matches = result.findingSummary.findings.filter(
+      (finding) => finding.id === 'acme.lib.button-blocking-0',
+    );
+    expect(matches).toHaveLength(1);
   });
 
   it('returns warning when required evidence connections are incomplete', () => {

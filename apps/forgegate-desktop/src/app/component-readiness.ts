@@ -25,6 +25,19 @@ export interface ComponentReadinessInput {
   readonly manifest: ComponentManifest;
   readonly testExecutions: readonly TestExecution[];
   readonly manualReviews: readonly ManualReview[];
+  /**
+   * Real findings already persisted for this component — today always one
+   * per failed/blocked guided-review step
+   * (`findingsFromManualReviewStepResults`, written by
+   * `WorkspaceService.saveManualReview`). Merged into `findingSummary`
+   * below so a reviewer sees the specific "Activate using Space fired
+   * twice" finding, not only the generic "Manual review contains a failed
+   * or blocked result" blocking reason. Readiness blocked/stale/warning
+   * classification itself does not change here — the manual review's own
+   * `status` field (already the worst-of-steps rollup) already drives
+   * that through the existing blocking-reason check below.
+   */
+  readonly persistedFindings?: readonly Finding[];
   readonly currentCommit: string | null;
   readonly storybookProjects: readonly string[];
   readonly storybookIndex: StorybookIndex | null;
@@ -36,10 +49,20 @@ export function evaluateComponentReadiness(
   input: ComponentReadinessInput,
 ): ComponentReadinessEvaluation {
   const blockingReasons = componentBlockingReasons(input);
-  const findings = findingsFromBlockingReasons(
+  const blockingReasonFindings = findingsFromBlockingReasons(
     input.manifest.id,
     blockingReasons,
   );
+  const blockingReasonFindingIds = new Set(
+    blockingReasonFindings.map((finding) => finding.id),
+  );
+  const relevantPersistedFindings = (input.persistedFindings ?? []).filter(
+    (finding) =>
+      finding.componentId === input.manifest.id &&
+      finding.status === 'open' &&
+      !blockingReasonFindingIds.has(finding.id),
+  );
+  const findings = [...blockingReasonFindings, ...relevantPersistedFindings];
   const readiness = classifyReadiness(blockingReasons);
 
   return {

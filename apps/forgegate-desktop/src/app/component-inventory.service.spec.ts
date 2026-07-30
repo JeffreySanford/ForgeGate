@@ -157,6 +157,37 @@ describe('ComponentInventoryService', () => {
     ]);
   });
 
+  it('merges a real persisted finding into a component\'s readiness, scoped to its own componentId', () => {
+    workspace.angularComponents.set([
+      angularDeclaration({ sourceFile: 'apps/demo/src/app/button.component.ts' }),
+    ]);
+    workspace.findings.set([
+      {
+        id: 'acme-button-keyboard-review-1-step-1',
+        componentId: 'acme.design-system.acme-button',
+        description: 'Activate using Space fired twice.',
+        severity: 'serious',
+        status: 'open',
+      },
+      {
+        id: 'other-component-finding',
+        componentId: 'some-other-component',
+        description: 'Not this component.',
+        severity: 'serious',
+        status: 'open',
+      },
+    ]);
+
+    const discovery = inventory.result().discoveries[0];
+
+    expect(discovery?.readiness.findingSummary.findings).toContainEqual(
+      expect.objectContaining({ id: 'acme-button-keyboard-review-1-step-1' }),
+    );
+    expect(
+      discovery?.readiness.findingSummary.findings.map((finding) => finding.id),
+    ).not.toContain('other-component-finding');
+  });
+
   it('persists an enriched scan snapshot after the inventory is complete', async () => {
     invokeMock.mockResolvedValue(null);
     workspace.workspacePath.set('D:/repos/ForgeGate');
