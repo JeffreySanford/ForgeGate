@@ -35,6 +35,12 @@ const procedure = {
   ],
 };
 
+const procedureWithRoleAndExpiration = {
+  ...procedure,
+  requiredReviewerRole: 'accessibility-reviewer',
+  expirationDays: 90,
+};
+
 function manifestWithProcedure(): ComponentManifest {
   return createComponentManifest({
     id: 'acme.design-system.acme-button',
@@ -221,5 +227,59 @@ describe('ManualReviewWalkthrough', () => {
         status: 'failed',
       },
     ]);
+  });
+
+  it('shows the real expiration hint when the procedure declares one', () => {
+    workspace.procedures.set([procedureWithRoleAndExpiration]);
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifest = manifestWithProcedure();
+    fixture.detectChanges();
+
+    selectProcedure(fixture.nativeElement);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'requires re-review every 90 days',
+    );
+  });
+
+  it('pre-fills the reviewer role from the procedure and blocks saving until it matches', () => {
+    workspace.procedures.set([procedureWithRoleAndExpiration]);
+    workspace.gitStatus.set({
+      branch: 'main',
+      commit: 'a'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifest = manifestWithProcedure();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    selectProcedure(compiled);
+    fixture.detectChanges();
+    fillReviewerIdentity(compiled, 'reviewer@acme.example');
+    fixture.detectChanges();
+
+    const roleInput = compiled.querySelectorAll(
+      '.manual-review-walkthrough__form input',
+    )[1] as HTMLInputElement;
+    expect(roleInput.value).toBe('accessibility-reviewer');
+
+    const saveButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button: HTMLButtonElement) =>
+        button.textContent?.includes('Save manual review'),
+    ) as HTMLButtonElement;
+    // Pre-filled to the exact required role, so saving is already allowed.
+    expect(saveButton.disabled).toBe(false);
+
+    roleInput.value = 'random-role';
+    roleInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(saveButton.disabled).toBe(true);
+    expect(compiled.textContent).toContain(
+      'Must match the required reviewer role',
+    );
   });
 });

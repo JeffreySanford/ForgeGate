@@ -112,3 +112,13 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.manual-review-walkthrough__hint {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+}
+
+.manual-review-walkthrough__role-mismatch {
+  color: var(--fg-color-status-failed);
+  font-size: var(--fg-type-size-sm);
+}

@@ -59,8 +59,16 @@ function worstStatus(statuses: readonly ResultStatus[]): ResultStatus {
  * is always the real worst-of-steps rollup, so it can't silently disagree
  * with what the per-step results actually say.
  *
+ * When the selected procedure declares a `requiredReviewerRole`
+ * (documentation/09's "Required reviewer role"), saving is blocked until
+ * the entered reviewer role matches it (case-insensitively) — a review
+ * recorded by the wrong role is not a substitute for the real one. A
+ * declared `expirationDays` (the doc's "Expiration or re-review rule") is
+ * shown as a real, disclosed hint here; it is not yet enforced anywhere
+ * else in the app (see TODO.md).
+ *
  * Deliberately narrower than the full documented model still: no required
- * attachments, no reviewer-role requirement, no re-review/expiration rule.
+ * attachments, no preconditions, no starting-state field.
  */
 @Component({
   selector: 'app-manual-review-walkthrough',
@@ -114,11 +122,22 @@ export class ManualReviewWalkthrough {
     );
   });
 
+  protected readonly reviewerRoleMismatch = computed<boolean>(() => {
+    const required = this.selectedProcedure()?.requiredReviewerRole;
+    if (!required) {
+      return false;
+    }
+    return (
+      this.reviewerRole().trim().toLowerCase() !== required.toLowerCase()
+    );
+  });
+
   protected readonly canSave = computed<boolean>(
     () =>
       !!this.selectedProcedure() &&
       this.reviewerIdentity().trim().length > 0 &&
-      this.operatingSystem().trim().length > 0,
+      this.operatingSystem().trim().length > 0 &&
+      !this.reviewerRoleMismatch(),
   );
 
   protected selectProcedure(procedureId: string): void {
@@ -130,6 +149,7 @@ export class ManualReviewWalkthrough {
     this.assistiveTechnology.set(
       (procedure?.environment?.assistiveTechnology ?? []).join(', '),
     );
+    this.reviewerRole.set(procedure?.requiredReviewerRole ?? '');
     this.stepStatuses.set({});
     this.stepNotes.set({});
   }

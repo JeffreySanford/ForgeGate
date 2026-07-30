@@ -141,6 +141,8 @@ export const manualProcedureSchema = {
       items: manualProcedureStepSchema,
       minItems: 1,
     },
+    requiredReviewerRole: { type: 'string', minLength: 1 },
+    expirationDays: { type: 'integer', minimum: 1 },
   },
   required: ['id', 'version', 'appliesTo', 'steps'],
   additionalProperties: false,

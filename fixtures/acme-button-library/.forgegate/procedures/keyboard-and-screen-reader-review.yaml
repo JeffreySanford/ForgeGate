@@ -13,3 +13,5 @@ steps:
     expected: The configured action occurs exactly once.
   - action: Review the disabled example.
     expected: The unavailable state is conveyed and activation does not occur.
+requiredReviewerRole: accessibility-reviewer
+expirationDays: 90

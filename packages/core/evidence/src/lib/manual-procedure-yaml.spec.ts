@@ -58,4 +58,18 @@ describe('parseManualProcedure', () => {
       ),
     ).toThrow('Manual procedure does not match the schema');
   });
+
+  it('parses a real required reviewer role and expiration period', () => {
+    const procedure = parseManualProcedure(
+      `${validYaml}\nrequiredReviewerRole: accessibility-reviewer\nexpirationDays: 90\n`,
+    );
+    expect(procedure.requiredReviewerRole).toBe('accessibility-reviewer');
+    expect(procedure.expirationDays).toBe(90);
+  });
+
+  it('rejects a non-positive expiration period', () => {
+    expect(() =>
+      parseManualProcedure(`${validYaml}\nexpirationDays: 0\n`),
+    ).toThrow('Manual procedure does not match the schema');
+  });
 });
