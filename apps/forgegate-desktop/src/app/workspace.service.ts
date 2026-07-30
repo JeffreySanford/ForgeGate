@@ -5,11 +5,13 @@ import {
 } from '@forgegate/core-config';
 import {
   parseException,
+  parseManualProcedure,
   parseManualReview,
   parseTestEvidenceFile,
   type AutomatedEvidenceArtifact,
   type Exception,
   type Finding,
+  type ManualProcedure,
   type ManualReview,
   type TestExecution,
 } from '@forgegate/core-evidence';
@@ -94,6 +96,7 @@ export interface WorkspaceScan {
   testEvidenceFiles?: string[];
   manualReviewFiles?: string[];
   exceptionFiles?: string[];
+  procedureFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -317,6 +320,15 @@ export class WorkspaceService {
    * not something ForgeGate computes on its own. */
   readonly exceptions = signal<readonly Exception[]>([]);
   readonly exceptionError = signal<string | null>(null);
+  /** Every real `.forgegate/procedures/*.yaml` record — the ordered steps a
+   * human follows during a guided manual review. */
+  readonly procedures = signal<readonly ManualProcedure[]>([]);
+  readonly procedureError = signal<string | null>(null);
+  readonly saveManualReviewRunning = signal(false);
+  readonly saveManualReviewError = signal<string | null>(null);
+  readonly saveManualReviewResult = signal<{ readonly path: string } | null>(
+    null,
+  );
   /** Every DTCG token parsed from the workspace's detected token files. */
   readonly designTokens = signal<readonly DtcgToken[]>([]);
   readonly designTokenError = signal<string | null>(null);
@@ -421,6 +433,7 @@ export class WorkspaceService {
     this.testExecutionError.set(null);
     this.manualReviewError.set(null);
     this.exceptionError.set(null);
+    this.procedureError.set(null);
     this.storybookIndexError.set(null);
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
@@ -477,6 +490,7 @@ export class WorkspaceService {
       await this.loadTestExecutions(path, scan);
       await this.loadManualReviews(path, scan);
       await this.loadExceptions(path, scan);
+      await this.loadProcedures(path, scan);
       await this.loadDesignTokens(path, scan);
       await this.loadAngularComponents(path, scan);
       this.setScanProgress(
@@ -510,6 +524,7 @@ export class WorkspaceService {
       this.automatedEvidenceArtifacts.set([]);
       this.manualReviews.set([]);
       this.exceptions.set([]);
+      this.procedures.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.evidenceHistoryTrend.set(null);
@@ -1240,6 +1255,77 @@ export class WorkspaceService {
     }
     this.exceptions.set(exceptions);
     this.exceptionError.set(errors.length ? errors.join('\n') : null);
+  }
+
+  private async loadProcedures(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.procedures.set([]);
+    const procedures: ManualProcedure[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.procedureFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        procedures.push(parseManualProcedure(text));
+        this.setAdapterDiagnostic({
+          id: `procedure:${relativePath}`,
+          adapter: 'manual review procedure',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `procedure:${relativePath}`,
+          adapter: 'manual review procedure',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.procedures.set(procedures);
+    this.procedureError.set(errors.length ? errors.join('\n') : null);
+  }
+
+  /**
+   * Saves a real, already-completed guided manual review as
+   * `.forgegate/manual-reviews/<review.id>.json` inside the open
+   * workspace — a genuine write into the reviewed repository, so this is
+   * only ever called from an explicit "Save manual review" action the
+   * user takes after reviewing the constructed record, never
+   * automatically. Reloads `manualReviews` afterward so readiness reflects
+   * it immediately, without requiring a full rescan.
+   */
+  async saveManualReview(review: ManualReview): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.saveManualReviewRunning()) {
+      return;
+    }
+    this.saveManualReviewRunning.set(true);
+    this.saveManualReviewError.set(null);
+    this.saveManualReviewResult.set(null);
+    try {
+      const writtenPath = await this.invoke<string>('write_manual_review', {
+        workspacePath: path,
+        reviewId: review.id,
+        content: JSON.stringify(review, null, 2),
+      });
+      this.saveManualReviewResult.set({ path: writtenPath });
+      this.manualReviews.set([...this.manualReviews(), review]);
+    } catch (error) {
+      this.saveManualReviewError.set(String(error));
+    } finally {
+      this.saveManualReviewRunning.set(false);
+    }
   }
 
   /**

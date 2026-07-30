@@ -1,0 +1,15 @@
+id: keyboard-and-screen-reader-review
+version: 1.0.0
+appliesTo: [button]
+environment:
+  operatingSystem: Windows
+  assistiveTechnology: [JAWS, NVDA]
+steps:
+  - action: Move focus to the button using Tab.
+    expected: The accessible name and button role are announced.
+  - action: Activate using Space.
+    expected: The configured action occurs exactly once.
+  - action: Activate using Enter.
+    expected: The configured action occurs exactly once.
+  - action: Review the disabled example.
+    expected: The unavailable state is conveyed and activation does not occur.

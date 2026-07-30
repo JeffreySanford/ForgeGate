@@ -13,6 +13,7 @@ import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '../storybook/storybook-index';
 import { computeDocumentationDriftState } from '../documentation-drift';
+import { ManualReviewWalkthrough } from './manual-review-walkthrough';
 
 export interface CoverageItem {
   readonly label: string;
@@ -66,7 +67,7 @@ const LOCAL_STORYBOOK_ORIGIN = 'http://localhost:6006';
  */
 @Component({
   selector: 'app-component-detail-page',
-  imports: [RouterLink],
+  imports: [RouterLink, ManualReviewWalkthrough],
   templateUrl: './component-detail-page.html',
   styleUrl: './component-detail-page.css',
 })

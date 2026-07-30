@@ -97,6 +97,41 @@ export const manualReviewSchema = {
   additionalProperties: false,
 } as const;
 
+const manualProcedureStepSchema = {
+  type: 'object',
+  properties: {
+    action: { type: 'string', minLength: 1 },
+    expected: { type: 'string', minLength: 1 },
+  },
+  required: ['action', 'expected'],
+  additionalProperties: false,
+} as const;
+
+export const manualProcedureSchema = {
+  $id: 'https://forgegate.dev/schemas/manual-procedure.schema.json',
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    version: { type: 'string', minLength: 1 },
+    appliesTo: { type: 'array', items: { type: 'string', minLength: 1 } },
+    environment: {
+      type: 'object',
+      properties: {
+        operatingSystem: { type: 'string' },
+        assistiveTechnology: { type: 'array', items: { type: 'string' } },
+      },
+      additionalProperties: false,
+    },
+    steps: {
+      type: 'array',
+      items: manualProcedureStepSchema,
+      minItems: 1,
+    },
+  },
+  required: ['id', 'version', 'appliesTo', 'steps'],
+  additionalProperties: false,
+} as const;
+
 export const approvalSchema = {
   $id: 'https://forgegate.dev/schemas/approval.schema.json',
   type: 'object',

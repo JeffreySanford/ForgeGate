@@ -1,0 +1,121 @@
+@if (manifest().manualReviewProcedureIds.length === 0) {
+<p class="manual-review-walkthrough__unavailable">
+  No manual review procedure is declared for this component.
+</p>
+} @else if (availableProcedures().length === 0) {
+<p class="manual-review-walkthrough__unavailable">
+  {{ manifest().manualReviewProcedureIds.length }} declared procedure(s), but
+  none are connected. Add a matching
+  <code>.forgegate/procedures/&lt;id&gt;.yaml</code> file to guide a review.
+</p>
+} @else {
+<div class="manual-review-walkthrough">
+  <label>
+    Procedure
+    <select
+      [value]="selectedProcedureId() ?? ''"
+      (change)="selectProcedure($any($event.target).value)"
+    >
+      <option value="">Choose a connected procedure&hellip;</option>
+      @for (procedure of availableProcedures(); track procedure.id) {
+      <option [value]="procedure.id">
+        {{ procedure.id }} (v{{ procedure.version }})
+      </option>
+      }
+    </select>
+  </label>
+
+  @if (selectedProcedure(); as procedure) {
+  <ol class="manual-review-walkthrough__steps">
+    @for (step of procedure.steps; track $index) {
+    <li>
+      <strong>{{ step.action }}</strong>
+      <span>Expected: {{ step.expected }}</span>
+    </li>
+    }
+  </ol>
+
+  <div class="manual-review-walkthrough__form">
+    <label>
+      Reviewer identity
+      <input
+        type="text"
+        [value]="reviewerIdentity()"
+        (input)="reviewerIdentity.set($any($event.target).value)"
+        placeholder="name@example.com"
+      />
+    </label>
+    <label>
+      Reviewer role
+      <input
+        type="text"
+        [value]="reviewerRole()"
+        (input)="reviewerRole.set($any($event.target).value)"
+        placeholder="accessibility-reviewer"
+      />
+    </label>
+    <label>
+      Operating system
+      <input
+        type="text"
+        [value]="operatingSystem()"
+        (input)="operatingSystem.set($any($event.target).value)"
+      />
+    </label>
+    <label>
+      Browser
+      <input
+        type="text"
+        [value]="browser()"
+        (input)="browser.set($any($event.target).value)"
+      />
+    </label>
+    <label>
+      Assistive technology
+      <input
+        type="text"
+        [value]="assistiveTechnology()"
+        (input)="assistiveTechnology.set($any($event.target).value)"
+      />
+    </label>
+    <label>
+      Story or scenario
+      <input
+        type="text"
+        [value]="storyOrScenario()"
+        (input)="storyOrScenario.set($any($event.target).value)"
+      />
+    </label>
+    <label>
+      Result
+      <select
+        [value]="status()"
+        (change)="status.set($any($event.target).value)"
+      >
+        @for (option of resultStatusOptions; track option) {
+        <option [value]="option">{{ option }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Notes
+      <textarea
+        [value]="notes()"
+        (input)="notes.set($any($event.target).value)"
+      ></textarea>
+    </label>
+
+    <button type="button" [disabled]="!canSave()" (click)="save()">
+      {{ workspace.saveManualReviewRunning() ? 'Saving…' : 'Save manual
+      review' }}
+    </button>
+
+    @if (workspace.saveManualReviewResult(); as result) {
+    <p role="status">Manual review saved to <code>{{ result.path }}</code></p>
+    } @if (workspace.saveManualReviewError(); as error) {
+    <p role="alert">Failed to save manual review: {{ error }}</p>
+    }
+  </div>
+  }
+</div>
+}

@@ -145,6 +145,55 @@ fn write_evidence_package(
     Ok(export_dir.display().to_string())
 }
 
+/// A safe bare filename for a file this command writes directly into the
+/// target workspace (not a user-picked export destination) — no path
+/// separator of either kind, no `..`, non-empty. Deliberately stricter than
+/// `is_safe_relative_artifact_path` (which allows one subdirectory level):
+/// a real workspace write should never be able to name a subdirectory at
+/// all, since the directory it lands in is fixed by this command, not by
+/// the caller.
+fn is_safe_bare_filename(name: &str) -> bool {
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+        return false;
+    }
+    true
+}
+
+/// Writes a real guided manual review the user just completed into
+/// `.forgegate/manual-reviews/<review_id>.json` inside the target
+/// workspace — the same convention `detect_manual_review_files` already
+/// reads back. Unlike `write_evidence_package` (writes to a destination the
+/// user picked outside the workspace), this genuinely modifies the
+/// reviewed repository, so it is deliberately narrow: it can only ever
+/// create a file directly inside `.forgegate/manual-reviews/`, never an
+/// arbitrary path, and the frontend only calls it from an explicit "Save
+/// manual review" action the user takes after reviewing the constructed
+/// record — never silently.
+#[tauri::command]
+fn write_manual_review(
+    workspace_path: String,
+    review_id: String,
+    content: String,
+) -> Result<String, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    let filename = format!("{review_id}.json");
+    if !is_safe_bare_filename(&filename) {
+        return Err(format!(
+            "Refusing to write unexpected manual review filename \"{filename}\""
+        ));
+    }
+
+    let directory = workspace.join(".forgegate").join("manual-reviews");
+    fs::create_dir_all(&directory)
+        .map_err(|error| format!("Failed to create {}: {error}", directory.display()))?;
+
+    let path = directory.join(&filename);
+    fs::write(&path, content)
+        .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+
+    Ok(path.display().to_string())
+}
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct SourceFileContents {
@@ -1138,6 +1187,72 @@ mod tests {
         assert!(!is_safe_relative_artifact_path(""));
         assert!(!is_safe_relative_artifact_path("trailing-slash/"));
     }
+
+    #[test]
+    fn is_safe_bare_filename_accepts_and_rejects_the_expected_shapes() {
+        assert!(is_safe_bare_filename("acme-button-keyboard-review.json"));
+        assert!(!is_safe_bare_filename("findings/x.json"));
+        assert!(!is_safe_bare_filename("../escape.json"));
+        assert!(!is_safe_bare_filename("windows\\backslash.json"));
+        assert!(!is_safe_bare_filename(""));
+    }
+
+    #[test]
+    fn writes_a_real_manual_review_into_the_conventional_workspace_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-write-manual-review-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let result = write_manual_review(
+            dir.display().to_string(),
+            "acme-button-keyboard-review".to_string(),
+            "{\"status\":\"passed\"}".to_string(),
+        )
+        .expect("write should succeed");
+
+        let result_path = PathBuf::from(&result);
+        assert_eq!(
+            result_path.file_name().and_then(|n| n.to_str()),
+            Some("acme-button-keyboard-review.json")
+        );
+        assert_eq!(
+            result_path
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str()),
+            Some("manual-reviews")
+        );
+        assert_eq!(
+            fs::read_to_string(&result).expect("file should be readable"),
+            "{\"status\":\"passed\"}"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_write_a_manual_review_id_that_would_escape_the_conventional_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-write-manual-review-escape-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let result = write_manual_review(
+            dir.display().to_string(),
+            "../escape".to_string(),
+            "{}".to_string(),
+        );
+
+        assert!(result.is_err());
+        assert!(!dir.join(".forgegate").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1166,6 +1281,7 @@ pub fn run() {
             cancel_workspace_command,
             pick_export_directory,
             write_evidence_package,
+            write_manual_review,
             read_workspace_source_files,
             read_persistence_status,
             read_evidence_history_trend,

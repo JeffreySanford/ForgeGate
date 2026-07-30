@@ -60,6 +60,7 @@ pub struct WorkspaceScan {
     pub test_evidence_files: Vec<String>,
     pub manual_review_files: Vec<String>,
     pub exception_files: Vec<String>,
+    pub procedure_files: Vec<String>,
     pub ui_technologies: Vec<UiTechnologyDetection>,
     pub ui_source_files: Vec<String>,
     pub ui_source_files_truncated: bool,
@@ -99,6 +100,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         test_evidence_files: detect_test_evidence_files(root),
         manual_review_files: detect_manual_review_files(root),
         exception_files: detect_exception_files(root),
+        procedure_files: detect_procedure_files(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
         ui_source_files,
         ui_source_files_truncated,
@@ -332,6 +334,30 @@ fn detect_exception_files(root: &Path) -> Vec<String> {
         .collect::<Vec<_>>();
     exceptions.sort();
     exceptions
+}
+
+/// Mirrors `detect_component_manifests` one directory over: manual
+/// procedures are also real, repository-authored YAML definitions, not
+/// evidence artifacts.
+fn detect_procedure_files(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("procedures");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut procedures = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| {
+            matches!(
+                path.extension().and_then(|ext| ext.to_str()),
+                Some("yaml" | "yml")
+            )
+        })
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    procedures.sort();
+    procedures
 }
 
 fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
@@ -766,6 +792,10 @@ mod tests {
             scan.exception_files,
             vec![".forgegate/exceptions/acme-button-manual-review-exception.json".to_string()]
         );
+        assert_eq!(
+            scan.procedure_files,
+            vec![".forgegate/procedures/keyboard-and-screen-reader-review.yaml".to_string()]
+        );
         assert_eq!(scan.test_runners, vec!["node:test".to_string()]);
         assert!(scan.ui_technologies.is_empty());
     }
@@ -792,6 +822,7 @@ mod tests {
         assert!(scan.test_evidence_files.is_empty());
         assert!(scan.manual_review_files.is_empty());
         assert!(scan.exception_files.is_empty());
+        assert!(scan.procedure_files.is_empty());
         assert!(scan.ui_technologies.is_empty());
         assert!(scan.ui_source_files.is_empty());
         assert!(!scan.ui_source_files_truncated);

@@ -65,6 +65,14 @@ const scanFixtureWithExceptions = {
   ],
 };
 
+const scanFixtureWithProcedures = {
+  ...scanFixture,
+  procedureFiles: [
+    '.forgegate/procedures/keyboard-and-screen-reader-review.yaml',
+    '.forgegate/procedures/broken.yaml',
+  ],
+};
+
 const gitStatusFixture = {
   branch: 'master',
   commit: 'a'.repeat(40),
@@ -369,6 +377,60 @@ describe('WorkspaceService', () => {
       status: 'failed',
       rawOutput: '{"status":"green"}',
     });
+  });
+
+  it('loads a valid manual review procedure and isolates an invalid sibling record', async () => {
+    const procedureYaml = [
+      'id: keyboard-and-screen-reader-review',
+      'version: 1.0.0',
+      'appliesTo: [button]',
+      'steps:',
+      '  - action: Move focus to the button using Tab.',
+      '    expected: The accessible name and button role are announced.',
+    ].join('\n');
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithProcedures)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(procedureYaml)
+      .mockResolvedValueOnce('id: [unterminated');
+
+    await service.selectWorkspace();
+
+    expect(service.procedures()).toEqual([
+      {
+        id: 'keyboard-and-screen-reader-review',
+        version: '1.0.0',
+        appliesTo: ['button'],
+        steps: [
+          {
+            action: 'Move focus to the button using Tab.',
+            expected: 'The accessible name and button role are announced.',
+          },
+        ],
+      },
+    ]);
+    expect(service.procedureError()).toContain(
+      '.forgegate/procedures/broken.yaml',
+    );
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'procedure:.forgegate/procedures/keyboard-and-screen-reader-review.yaml',
+        ),
+    ).toMatchObject({ status: 'loaded', error: null });
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id === 'procedure:.forgegate/procedures/broken.yaml',
+        ),
+    ).toMatchObject({ status: 'failed' });
   });
 
   it('loads Playwright JSON evidence envelopes without treating raw reports as provenance', async () => {
@@ -1495,6 +1557,66 @@ describe('WorkspaceService', () => {
         events: [],
         error: 'Failed to connect to Postgres',
       });
+    });
+  });
+
+  describe('saveManualReview', () => {
+    const review = {
+      id: 'acme.design-system.acme-button-keyboard-and-screen-reader-review-1',
+      componentVersionId: 'acme.design-system.acme-button@0.1.0',
+      procedureId: 'keyboard-and-screen-reader-review',
+      procedureVersion: '1.0.0',
+      reviewerIdentity: 'reviewer@acme.example',
+      date: '2026-07-24T16:00:00.000Z',
+      operatingSystem: 'Windows',
+      status: 'passed' as const,
+      commitOrFingerprint: 'a'.repeat(40),
+    };
+
+    it('does nothing if no workspace is open', async () => {
+      await service.saveManualReview(review);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('writes a real manual review file and appends it to manualReviews without a full rescan', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock.mockResolvedValueOnce(
+        'D:/repos/ForgeGate/.forgegate/manual-reviews/acme.design-system.acme-button-keyboard-and-screen-reader-review-1.json',
+      );
+
+      await service.saveManualReview(review);
+
+      expect(invokeMock).toHaveBeenCalledWith('write_manual_review', {
+        workspacePath: 'D:/repos/ForgeGate',
+        reviewId: review.id,
+        content: JSON.stringify(review, null, 2),
+      });
+      expect(service.saveManualReviewResult()).toEqual({
+        path: 'D:/repos/ForgeGate/.forgegate/manual-reviews/acme.design-system.acme-button-keyboard-and-screen-reader-review-1.json',
+      });
+      expect(service.manualReviews()).toEqual([review]);
+      expect(service.saveManualReviewRunning()).toBe(false);
+    });
+
+    it('surfaces a real write failure without losing the running flag', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock.mockRejectedValueOnce('Permission denied');
+
+      await service.saveManualReview(review);
+
+      expect(service.saveManualReviewError()).toBe('Permission denied');
+      expect(service.saveManualReviewRunning()).toBe(false);
+      expect(service.manualReviews()).toEqual([]);
+    });
+
+    it('does nothing if a save is already running', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.saveManualReviewRunning.set(true);
+
+      await service.saveManualReview(review);
+
+      expect(invokeMock).not.toHaveBeenCalled();
     });
   });
 });
