@@ -19,6 +19,8 @@ use workspace_scan::{scan_workspace, WorkspaceScan};
 mod workspace_watch;
 use workspace_watch::{WatchDirectory, WorkspaceWatcherState};
 
+mod staged_write;
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GitStatus {
@@ -145,88 +147,102 @@ fn write_evidence_package(
     Ok(export_dir.display().to_string())
 }
 
-/// A safe bare filename for a file this command writes directly into the
-/// target workspace (not a user-picked export destination) — no path
-/// separator of either kind, no `..`, non-empty. Deliberately stricter than
-/// `is_safe_relative_artifact_path` (which allows one subdirectory level):
-/// a real workspace write should never be able to name a subdirectory at
-/// all, since the directory it lands in is fixed by this command, not by
-/// the caller.
-fn is_safe_bare_filename(name: &str) -> bool {
-    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
-        return false;
-    }
-    true
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct StagedEvidenceWriteDto {
+    staging_id: String,
+    subdirectory: String,
+    filename: String,
+    previous_content: Option<String>,
+    new_content: String,
 }
 
-/// Shared by every command that writes a real, ForgeGate-authored evidence
-/// file directly into the target workspace under a fixed conventional
-/// subdirectory (`.forgegate/manual-reviews/`, `.forgegate/findings/`) —
-/// never a user-picked external destination like `write_evidence_package`,
-/// so every caller is deliberately narrow: one fixed subdirectory, a bare
-/// filename only, no arbitrary path.
-fn write_conventional_evidence_file(
-    workspace: &std::path::Path,
-    subdirectory: &str,
-    filename: &str,
-    content: &str,
-) -> Result<String, String> {
-    if !is_safe_bare_filename(filename) {
-        return Err(format!(
-            "Refusing to write unexpected {subdirectory} filename \"{filename}\""
-        ));
+impl From<staged_write::StagedEvidenceWrite> for StagedEvidenceWriteDto {
+    fn from(staged: staged_write::StagedEvidenceWrite) -> Self {
+        Self {
+            staging_id: staged.staging_id,
+            subdirectory: staged.subdirectory,
+            filename: staged.filename,
+            previous_content: staged.previous_content,
+            new_content: staged.new_content,
+        }
     }
-
-    let directory = workspace.join(".forgegate").join(subdirectory);
-    fs::create_dir_all(&directory)
-        .map_err(|error| format!("Failed to create {}: {error}", directory.display()))?;
-
-    let path = directory.join(filename);
-    fs::write(&path, content)
-        .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
-
-    Ok(path.display().to_string())
 }
 
-/// Writes a real guided manual review the user just completed into
-/// `.forgegate/manual-reviews/<review_id>.json` inside the target
-/// workspace — the same convention `detect_manual_review_files` already
-/// reads back. This genuinely modifies the reviewed repository, so the
-/// frontend only calls it from an explicit "Save manual review" action the
-/// user takes after reviewing the constructed record — never silently.
+/// Stages a real guided manual review the user just completed into a
+/// temporary directory, alongside whatever real content it would replace,
+/// so the frontend can render an honest diff — per P2 entry gate 2, real
+/// writes into the reviewed repository must go through staging, an
+/// explicit diff, and an explicit approval before they commit. Nothing is
+/// written to `.forgegate/manual-reviews/` until a matching
+/// `approve_staged_evidence_write` call.
 #[tauri::command]
-fn write_manual_review(
+fn stage_manual_review(
     workspace_path: String,
     review_id: String,
     content: String,
-) -> Result<String, String> {
+) -> Result<StagedEvidenceWriteDto, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
-    write_conventional_evidence_file(
-        &workspace,
-        "manual-reviews",
-        &format!("{review_id}.json"),
-        &content,
-    )
+    staged_write::stage_evidence_write(&workspace, "manual-reviews", &format!("{review_id}.json"), &content)
+        .map(Into::into)
 }
 
-/// Writes one real `Finding` — derived from a failed or blocked guided
-/// review step, per `findingsFromManualReviewStepResults` — into
-/// `.forgegate/findings/<finding_id>.json`. Called once per finding
-/// alongside `write_manual_review` when the reviewer saves a review with
-/// at least one failed or blocked step; never called with a fabricated
-/// finding, and never silently.
+/// Stages one real `Finding` — derived from a failed or blocked guided
+/// review step, per `findingsFromManualReviewStepResults` — the same way
+/// `stage_manual_review` stages the review it came from. Never called
+/// with a fabricated finding.
 #[tauri::command]
-fn write_finding(
+fn stage_finding(
     workspace_path: String,
     finding_id: String,
     content: String,
+) -> Result<StagedEvidenceWriteDto, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::stage_evidence_write(&workspace, "findings", &format!("{finding_id}.json"), &content)
+        .map(Into::into)
+}
+
+/// Commits a previously staged evidence write into the real conventional
+/// evidence directory. Only ever called from an explicit "Approve" action
+/// the reviewer takes after being shown the staged diff — never silently
+/// or automatically alongside staging.
+#[tauri::command]
+fn approve_staged_evidence_write(
+    workspace_path: String,
+    staging_id: String,
+    subdirectory: String,
+    filename: String,
 ) -> Result<String, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
-    write_conventional_evidence_file(
+    staged_write::approve_staged_write(&workspace, &staging_id, &subdirectory, &filename)
+}
+
+/// Discards a staged evidence write without ever touching the real
+/// workspace — the reviewer chose not to approve it.
+#[tauri::command]
+fn discard_staged_evidence_write(workspace_path: String, staging_id: String) -> Result<(), String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::discard_staged_write(&workspace, &staging_id)
+}
+
+/// Restores a real conventional evidence file to its previous content (or
+/// removes it, if the committed write had created it), undoing a write
+/// `approve_staged_evidence_write` already committed. `previous_content`
+/// must be the exact value the matching `stage_manual_review`/
+/// `stage_finding` call returned, not a value the caller invents.
+#[tauri::command]
+fn rollback_evidence_write(
+    workspace_path: String,
+    subdirectory: String,
+    filename: String,
+    previous_content: Option<String>,
+) -> Result<(), String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::rollback_committed_write(
         &workspace,
-        "findings",
-        &format!("{finding_id}.json"),
-        &content,
+        &subdirectory,
+        &filename,
+        previous_content.as_deref(),
     )
 }
 
@@ -1380,29 +1396,34 @@ mod tests {
     }
 
     #[test]
-    fn is_safe_bare_filename_accepts_and_rejects_the_expected_shapes() {
-        assert!(is_safe_bare_filename("acme-button-keyboard-review.json"));
-        assert!(!is_safe_bare_filename("findings/x.json"));
-        assert!(!is_safe_bare_filename("../escape.json"));
-        assert!(!is_safe_bare_filename("windows\\backslash.json"));
-        assert!(!is_safe_bare_filename(""));
-    }
-
-    #[test]
-    fn writes_a_real_manual_review_into_the_conventional_workspace_directory() {
+    fn stages_and_approves_a_real_manual_review_into_the_conventional_workspace_directory() {
         let dir = std::env::temp_dir().join(format!(
-            "forgegate-write-manual-review-{}-{}",
+            "forgegate-stage-manual-review-{}-{}",
             std::process::id(),
             line!()
         ));
         fs::create_dir_all(&dir).expect("should create temp workspace dir");
 
-        let result = write_manual_review(
+        let staged = stage_manual_review(
             dir.display().to_string(),
             "acme-button-keyboard-review".to_string(),
             "{\"status\":\"passed\"}".to_string(),
         )
-        .expect("write should succeed");
+        .expect("stage should succeed");
+        assert!(
+            !dir.join(".forgegate/manual-reviews/acme-button-keyboard-review.json")
+                .exists(),
+            "staging must not touch the real directory"
+        );
+        assert_eq!(staged.previous_content, None);
+
+        let result = approve_staged_evidence_write(
+            dir.display().to_string(),
+            staged.staging_id,
+            "manual-reviews".to_string(),
+            "acme-button-keyboard-review.json".to_string(),
+        )
+        .expect("approve should succeed");
 
         let result_path = PathBuf::from(&result);
         assert_eq!(
@@ -1425,15 +1446,15 @@ mod tests {
     }
 
     #[test]
-    fn refuses_to_write_a_manual_review_id_that_would_escape_the_conventional_directory() {
+    fn refuses_to_stage_a_manual_review_id_that_would_escape_the_conventional_directory() {
         let dir = std::env::temp_dir().join(format!(
-            "forgegate-write-manual-review-escape-{}-{}",
+            "forgegate-stage-manual-review-escape-{}-{}",
             std::process::id(),
             line!()
         ));
         fs::create_dir_all(&dir).expect("should create temp workspace dir");
 
-        let result = write_manual_review(
+        let result = stage_manual_review(
             dir.display().to_string(),
             "../escape".to_string(),
             "{}".to_string(),
@@ -1446,20 +1467,28 @@ mod tests {
     }
 
     #[test]
-    fn writes_a_real_finding_into_the_conventional_workspace_directory() {
+    fn stages_and_approves_a_real_finding_into_the_conventional_workspace_directory() {
         let dir = std::env::temp_dir().join(format!(
-            "forgegate-write-finding-{}-{}",
+            "forgegate-stage-finding-{}-{}",
             std::process::id(),
             line!()
         ));
         fs::create_dir_all(&dir).expect("should create temp workspace dir");
 
-        let result = write_finding(
+        let staged = stage_finding(
             dir.display().to_string(),
             "acme-button-keyboard-review-1-step-1".to_string(),
             "{\"status\":\"open\"}".to_string(),
         )
-        .expect("write should succeed");
+        .expect("stage should succeed");
+
+        let result = approve_staged_evidence_write(
+            dir.display().to_string(),
+            staged.staging_id,
+            "findings".to_string(),
+            "acme-button-keyboard-review-1-step-1.json".to_string(),
+        )
+        .expect("approve should succeed");
 
         let result_path = PathBuf::from(&result);
         assert_eq!(
@@ -1482,15 +1511,15 @@ mod tests {
     }
 
     #[test]
-    fn refuses_to_write_a_finding_id_that_would_escape_the_conventional_directory() {
+    fn refuses_to_stage_a_finding_id_that_would_escape_the_conventional_directory() {
         let dir = std::env::temp_dir().join(format!(
-            "forgegate-write-finding-escape-{}-{}",
+            "forgegate-stage-finding-escape-{}-{}",
             std::process::id(),
             line!()
         ));
         fs::create_dir_all(&dir).expect("should create temp workspace dir");
 
-        let result = write_finding(
+        let result = stage_finding(
             dir.display().to_string(),
             "../escape".to_string(),
             "{}".to_string(),
@@ -1498,6 +1527,69 @@ mod tests {
 
         assert!(result.is_err());
         assert!(!dir.join(".forgegate").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn discards_a_staged_evidence_write_via_the_command_without_committing_it() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-discard-staged-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let staged = stage_finding(
+            dir.display().to_string(),
+            "some-finding".to_string(),
+            "{}".to_string(),
+        )
+        .expect("stage should succeed");
+
+        discard_staged_evidence_write(dir.display().to_string(), staged.staging_id)
+            .expect("discard should succeed");
+
+        assert!(!dir.join(".forgegate/findings/some-finding.json").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn rolls_back_a_committed_evidence_write_via_the_command() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-rollback-command-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let staged = stage_manual_review(
+            dir.display().to_string(),
+            "acme-button-keyboard-review".to_string(),
+            "{\"status\":\"passed\"}".to_string(),
+        )
+        .expect("stage should succeed");
+        approve_staged_evidence_write(
+            dir.display().to_string(),
+            staged.staging_id,
+            "manual-reviews".to_string(),
+            "acme-button-keyboard-review.json".to_string(),
+        )
+        .expect("approve should succeed");
+
+        rollback_evidence_write(
+            dir.display().to_string(),
+            "manual-reviews".to_string(),
+            "acme-button-keyboard-review.json".to_string(),
+            staged.previous_content,
+        )
+        .expect("rollback should succeed");
+
+        assert!(
+            !dir.join(".forgegate/manual-reviews/acme-button-keyboard-review.json")
+                .exists()
+        );
 
         fs::remove_dir_all(&dir).ok();
     }
@@ -1530,8 +1622,11 @@ pub fn run() {
             cancel_workspace_command,
             pick_export_directory,
             write_evidence_package,
-            write_manual_review,
-            write_finding,
+            stage_manual_review,
+            stage_finding,
+            approve_staged_evidence_write,
+            discard_staged_evidence_write,
+            rollback_evidence_write,
             read_workspace_source_files,
             read_persistence_status,
             read_evidence_history_trend,

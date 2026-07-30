@@ -138,17 +138,56 @@
       ></textarea>
     </label>
 
-    <button type="button" [disabled]="!canSave()" (click)="save()">
-      {{ workspace.saveManualReviewRunning() ? 'Saving…' : 'Save manual
+    <button
+      type="button"
+      [disabled]="!canSave() || !!workspace.stagedManualReview()"
+      (click)="save()"
+    >
+      {{ workspace.saveManualReviewRunning() ? 'Staging…' : 'Save manual
       review' }}
     </button>
 
     @if (workspace.saveManualReviewResult(); as result) {
     <p role="status">Manual review saved to <code>{{ result.path }}</code></p>
     } @if (workspace.saveManualReviewError(); as error) {
-    <p role="alert">Failed to save manual review: {{ error }}</p>
+    <p role="alert">Failed to stage manual review: {{ error }}</p>
     }
   </div>
+
+  @if (workspace.stagedManualReview(); as staged) {
+  <div class="manual-review-walkthrough__staged" role="region">
+    <p>
+      Review the real diff below, then approve to write it into
+      <code>.forgegate/</code>, or discard to drop it.
+    </p>
+    <h4>Manual review</h4>
+    <pre class="manual-review-walkthrough__diff">{{
+      staged.reviewWrite.previousContent ?? '(new file)'
+    }}
+&#8594;
+{{ staged.reviewWrite.newContent }}</pre>
+    @if (staged.findingWrites.length) {
+    <h4>{{ staged.findingWrites.length }} derived finding(s)</h4>
+    @for (item of staged.findingWrites; track item.finding.id) {
+    <pre class="manual-review-walkthrough__diff">{{ item.finding.description }} ({{ item.finding.severity }})</pre>
+    }
+    }
+    <div class="manual-review-walkthrough__staged-actions">
+      <button
+        type="button"
+        [disabled]="workspace.approveManualReviewRunning()"
+        (click)="approve()"
+      >
+        {{ workspace.approveManualReviewRunning() ? 'Approving…' : 'Approve'
+        }}
+      </button>
+      <button type="button" (click)="discard()">Discard</button>
+    </div>
+    @if (workspace.approveManualReviewError(); as error) {
+    <p role="alert">Failed to approve manual review: {{ error }}</p>
+    }
+  </div>
+  }
   }
 </div>
 }

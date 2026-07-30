@@ -1560,7 +1560,7 @@ describe('WorkspaceService', () => {
     });
   });
 
-  describe('saveManualReview', () => {
+  describe('stageManualReview / approveStagedManualReview / discardStagedManualReview', () => {
     const componentId = 'acme.design-system.acme-button';
     const review = {
       id: 'acme.design-system.acme-button-keyboard-and-screen-reader-review-1',
@@ -1573,58 +1573,66 @@ describe('WorkspaceService', () => {
       status: 'passed' as const,
       commitOrFingerprint: 'a'.repeat(40),
     };
+    const stagedReviewWrite = {
+      stagingId: 'stg-1',
+      subdirectory: 'manual-reviews',
+      filename: `${review.id}.json`,
+      previousContent: null,
+      newContent: JSON.stringify(review, null, 2),
+    };
 
     it('does nothing if no workspace is open', async () => {
-      await service.saveManualReview(review, componentId);
+      await service.stageManualReview(review, componentId);
 
       expect(invokeMock).not.toHaveBeenCalled();
     });
 
-    it('writes a real manual review file and appends it to manualReviews without a full rescan', async () => {
+    it('stages a real manual review write without touching manualReviews or writing anything real', async () => {
       service.workspacePath.set('D:/repos/ForgeGate');
-      invokeMock.mockResolvedValueOnce(
-        'D:/repos/ForgeGate/.forgegate/manual-reviews/acme.design-system.acme-button-keyboard-and-screen-reader-review-1.json',
-      );
+      invokeMock.mockResolvedValueOnce(stagedReviewWrite);
 
-      await service.saveManualReview(review, componentId);
+      await service.stageManualReview(review, componentId);
 
-      expect(invokeMock).toHaveBeenCalledWith('write_manual_review', {
+      expect(invokeMock).toHaveBeenCalledWith('stage_manual_review', {
         workspacePath: 'D:/repos/ForgeGate',
         reviewId: review.id,
         content: JSON.stringify(review, null, 2),
       });
-      expect(service.saveManualReviewResult()).toEqual({
-        path: 'D:/repos/ForgeGate/.forgegate/manual-reviews/acme.design-system.acme-button-keyboard-and-screen-reader-review-1.json',
+      expect(service.stagedManualReview()).toEqual({
+        review,
+        componentId,
+        reviewWrite: stagedReviewWrite,
+        findingWrites: [],
       });
-      expect(service.manualReviews()).toEqual([review]);
+      expect(service.manualReviews()).toEqual([]);
       expect(service.saveManualReviewRunning()).toBe(false);
     });
 
-    it('surfaces a real write failure without losing the running flag', async () => {
+    it('surfaces a real staging failure without losing the running flag', async () => {
       service.workspacePath.set('D:/repos/ForgeGate');
       invokeMock.mockRejectedValueOnce('Permission denied');
 
-      await service.saveManualReview(review, componentId);
+      await service.stageManualReview(review, componentId);
 
       expect(service.saveManualReviewError()).toBe('Permission denied');
       expect(service.saveManualReviewRunning()).toBe(false);
-      expect(service.manualReviews()).toEqual([]);
+      expect(service.stagedManualReview()).toBeNull();
     });
 
-    it('does nothing if a save is already running', async () => {
+    it('does nothing if a stage is already running', async () => {
       service.workspacePath.set('D:/repos/ForgeGate');
       service.saveManualReviewRunning.set(true);
 
-      await service.saveManualReview(review, componentId);
+      await service.stageManualReview(review, componentId);
 
       expect(invokeMock).not.toHaveBeenCalled();
     });
 
-    it('writes no finding when every step passed', async () => {
+    it('stages no finding when every step passed', async () => {
       service.workspacePath.set('D:/repos/ForgeGate');
-      invokeMock.mockResolvedValueOnce('D:/repos/ForgeGate/.forgegate/manual-reviews/x.json');
+      invokeMock.mockResolvedValueOnce(stagedReviewWrite);
 
-      await service.saveManualReview(
+      await service.stageManualReview(
         {
           ...review,
           stepResults: [
@@ -1641,13 +1649,13 @@ describe('WorkspaceService', () => {
 
       expect(invokeMock).toHaveBeenCalledTimes(1);
       expect(invokeMock).not.toHaveBeenCalledWith(
-        'write_finding',
+        'stage_finding',
         expect.anything(),
       );
-      expect(service.findings()).toEqual([]);
+      expect(service.stagedManualReview()?.findingWrites).toEqual([]);
     });
 
-    it('writes a real linked finding for each failed or blocked step and updates findings', async () => {
+    it('stages one linked finding per failed or blocked step without touching findings', async () => {
       service.workspacePath.set('D:/repos/ForgeGate');
       const reviewWithFailure = {
         ...review,
@@ -1667,36 +1675,44 @@ describe('WorkspaceService', () => {
           },
         ],
       };
+      const stagedFindingWrite = {
+        stagingId: 'stg-2',
+        subdirectory: 'findings',
+        filename: `${review.id}-step-1.json`,
+        previousContent: null,
+        newContent: 'irrelevant for this assertion',
+      };
       invokeMock
-        .mockResolvedValueOnce('D:/repos/ForgeGate/.forgegate/manual-reviews/x.json')
-        .mockResolvedValueOnce(
-          `D:/repos/ForgeGate/.forgegate/findings/${review.id}-step-1.json`,
-        );
+        .mockResolvedValueOnce(stagedReviewWrite)
+        .mockResolvedValueOnce(stagedFindingWrite);
 
-      await service.saveManualReview(reviewWithFailure, componentId);
+      await service.stageManualReview(reviewWithFailure, componentId);
 
-      expect(invokeMock).toHaveBeenNthCalledWith(2, 'write_finding', {
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'stage_finding', {
         workspacePath: 'D:/repos/ForgeGate',
         findingId: `${review.id}-step-1`,
         content: expect.stringContaining('"status": "open"'),
       });
-      expect(service.findings()).toHaveLength(1);
-      expect(service.findings()[0]).toMatchObject({
+      const staged = service.stagedManualReview();
+      expect(staged?.findingWrites).toHaveLength(1);
+      expect(staged?.findingWrites[0]?.finding).toMatchObject({
         id: `${review.id}-step-1`,
         componentId,
         sourceEvidenceId: review.id,
         standardOrPolicyRef: review.procedureId,
         severity: 'serious',
       });
+      expect(staged?.findingWrites[0]?.write).toEqual(stagedFindingWrite);
+      expect(service.findings()).toEqual([]);
     });
 
-    it('surfaces a finding write failure without losing the already-saved review', async () => {
+    it('surfaces a finding staging failure without ever setting a staged review', async () => {
       service.workspacePath.set('D:/repos/ForgeGate');
       invokeMock
-        .mockResolvedValueOnce('D:/repos/ForgeGate/.forgegate/manual-reviews/x.json')
+        .mockResolvedValueOnce(stagedReviewWrite)
         .mockRejectedValueOnce('Permission denied');
 
-      await service.saveManualReview(
+      await service.stageManualReview(
         {
           ...review,
           stepResults: [
@@ -1712,8 +1728,145 @@ describe('WorkspaceService', () => {
       );
 
       expect(service.saveManualReviewError()).toBe('Permission denied');
-      expect(service.manualReviews()).toHaveLength(1);
+      expect(service.stagedManualReview()).toBeNull();
+      expect(service.manualReviews()).toEqual([]);
       expect(service.findings()).toEqual([]);
+    });
+
+    it('approves a staged review and its findings, updates manualReviews/findings, and clears staged state', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      const finding = {
+        id: `${review.id}-step-1`,
+        componentId,
+        description: 'x',
+        severity: 'serious' as const,
+        status: 'open' as const,
+      };
+      const stagedFindingWrite = {
+        stagingId: 'stg-2',
+        subdirectory: 'findings',
+        filename: `${review.id}-step-1.json`,
+        previousContent: null,
+        newContent: JSON.stringify(finding, null, 2),
+      };
+      service.stagedManualReview.set({
+        review,
+        componentId,
+        reviewWrite: stagedReviewWrite,
+        findingWrites: [{ finding, write: stagedFindingWrite }],
+      });
+      invokeMock
+        .mockResolvedValueOnce(
+          `D:/repos/ForgeGate/.forgegate/manual-reviews/${review.id}.json`,
+        )
+        .mockResolvedValueOnce(
+          `D:/repos/ForgeGate/.forgegate/findings/${finding.id}.json`,
+        );
+
+      await service.approveStagedManualReview();
+
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        1,
+        'approve_staged_evidence_write',
+        {
+          workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-1',
+          subdirectory: 'manual-reviews',
+          filename: stagedReviewWrite.filename,
+        },
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        2,
+        'approve_staged_evidence_write',
+        {
+          workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-2',
+          subdirectory: 'findings',
+          filename: stagedFindingWrite.filename,
+        },
+      );
+      expect(service.manualReviews()).toEqual([review]);
+      expect(service.findings()).toEqual([finding]);
+      expect(service.stagedManualReview()).toBeNull();
+      expect(service.approveManualReviewRunning()).toBe(false);
+    });
+
+    it('does nothing to approve when there is no staged review', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+
+      await service.approveStagedManualReview();
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('surfaces an approval failure without silently clearing the staged review', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.stagedManualReview.set({
+        review,
+        componentId,
+        reviewWrite: stagedReviewWrite,
+        findingWrites: [],
+      });
+      invokeMock.mockRejectedValueOnce('Permission denied');
+
+      await service.approveStagedManualReview();
+
+      expect(service.approveManualReviewError()).toBe('Permission denied');
+      expect(service.stagedManualReview()).not.toBeNull();
+      expect(service.manualReviews()).toEqual([]);
+    });
+
+    it('discards a staged review and its findings without ever committing them', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      const stagedFindingWrite = {
+        stagingId: 'stg-2',
+        subdirectory: 'findings',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      };
+      service.stagedManualReview.set({
+        review,
+        componentId,
+        reviewWrite: stagedReviewWrite,
+        findingWrites: [
+          {
+            finding: {
+              id: 'x',
+              componentId,
+              description: 'x',
+              severity: 'serious',
+              status: 'open',
+            },
+            write: stagedFindingWrite,
+          },
+        ],
+      });
+      invokeMock.mockResolvedValue(undefined);
+
+      await service.discardStagedManualReview();
+
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        1,
+        'discard_staged_evidence_write',
+        { workspacePath: 'D:/repos/ForgeGate', stagingId: 'stg-1' },
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        2,
+        'discard_staged_evidence_write',
+        { workspacePath: 'D:/repos/ForgeGate', stagingId: 'stg-2' },
+      );
+      expect(service.stagedManualReview()).toBeNull();
+      expect(service.manualReviews()).toEqual([]);
+      expect(service.findings()).toEqual([]);
+    });
+
+    it('does nothing to discard when there is no staged review', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+
+      await service.discardStagedManualReview();
+
+      expect(invokeMock).not.toHaveBeenCalled();
     });
   });
 

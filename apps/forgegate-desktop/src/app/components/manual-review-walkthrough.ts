@@ -48,12 +48,14 @@ function worstStatus(statuses: readonly ResultStatus[]): ResultStatus {
  * "Procedure model"): the reviewer picks one of the component's own
  * declared, connected procedures, records a real per-step result for each
  * ordered step (not just one overall outcome), confirms the environment
- * they actually reviewed in, and saves. `WorkspaceService.saveManualReview`
- * writes the resulting `ManualReview` — with real `stepResults` — to
- * `.forgegate/manual-reviews/<id>.json`, and derives a real `Finding` for
- * every step recorded as `failed` or `blocked`
+ * they actually reviewed in, and saves. `WorkspaceService.stageManualReview`
+ * stages the resulting `ManualReview` — with real `stepResults` — plus a
+ * real `Finding` for every step recorded as `failed` or `blocked`
  * (`findingsFromManualReviewStepResults`), per the doc's "A failed step
- * should create or link to a finding."
+ * should create or link to a finding." Nothing is written into the
+ * reviewed workspace yet at this point: the reviewer must review the real
+ * staged diff and explicitly approve it (`approveStagedManualReview`) or
+ * discard it (`discardStagedManualReview`), per P2 entry gate 2.
  *
  * The overall `status` on the saved review is never chosen directly — it
  * is always the real worst-of-steps rollup, so it can't silently disagree
@@ -214,6 +216,14 @@ export class ManualReviewWalkthrough {
       commitOrFingerprint: commit,
       stepResults,
     };
-    void this.workspace.saveManualReview(review, manifest.id);
+    void this.workspace.stageManualReview(review, manifest.id);
+  }
+
+  protected approve(): void {
+    void this.workspace.approveStagedManualReview();
+  }
+
+  protected discard(): void {
+    void this.workspace.discardStagedManualReview();
   }
 }

@@ -1,0 +1,358 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// A safe bare filename for a file this module writes directly into the
+/// target workspace (not a user-picked export destination) — no path
+/// separator of either kind, no `..`, non-empty. Deliberately stricter than
+/// the evidence-package export path (which allows one subdirectory level):
+/// a real workspace write should never be able to name a subdirectory at
+/// all, since the directory it lands in is fixed by the caller, not by the
+/// content being written.
+pub(crate) fn is_safe_bare_filename(name: &str) -> bool {
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+        return false;
+    }
+    true
+}
+
+/// A staging id this module minted itself (`stage_evidence_write`'s
+/// return value) — never accepted as free-form input, since it becomes a
+/// path segment for `approve_staged_write`/`discard_staged_write`.
+fn is_safe_staging_id(id: &str) -> bool {
+    match id.strip_prefix("stg-") {
+        Some(suffix) => !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()),
+        None => false,
+    }
+}
+
+fn staging_root(workspace: &Path) -> PathBuf {
+    workspace.join(".forgegate").join(".staging")
+}
+
+fn new_staging_id() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    format!("stg-{nanos}")
+}
+
+/// One evidence write ForgeGate has staged but not yet committed into the
+/// real workspace. `previous_content` is whatever real file this write
+/// would replace, if any — captured up front so a caller can show a real
+/// diff, and so `rollback_committed_write` can restore it later.
+pub(crate) struct StagedEvidenceWrite {
+    pub staging_id: String,
+    pub subdirectory: String,
+    pub filename: String,
+    pub previous_content: Option<String>,
+    pub new_content: String,
+}
+
+/// Writes `content` into a temporary staging directory
+/// (`.forgegate/.staging/<staging-id>/<subdirectory>/<filename>`) rather
+/// than the real conventional evidence directory. The real workspace is
+/// never touched by this step — per P2 entry gate 2 ("temporary output,
+/// explicit diffs, approval, validation, and rollback"), this is the
+/// "temporary output" half; nothing commits until `approve_staged_write`
+/// is called explicitly.
+pub(crate) fn stage_evidence_write(
+    workspace: &Path,
+    subdirectory: &str,
+    filename: &str,
+    content: &str,
+) -> Result<StagedEvidenceWrite, String> {
+    if !is_safe_bare_filename(filename) {
+        return Err(format!(
+            "Refusing to stage unexpected {subdirectory} filename \"{filename}\""
+        ));
+    }
+
+    let target_path = workspace.join(".forgegate").join(subdirectory).join(filename);
+    let previous_content = fs::read_to_string(&target_path).ok();
+
+    let staging_id = new_staging_id();
+    let staging_dir = staging_root(workspace).join(&staging_id).join(subdirectory);
+    fs::create_dir_all(&staging_dir)
+        .map_err(|error| format!("Failed to create {}: {error}", staging_dir.display()))?;
+    let staged_path = staging_dir.join(filename);
+    fs::write(&staged_path, content)
+        .map_err(|error| format!("Failed to write {}: {error}", staged_path.display()))?;
+
+    Ok(StagedEvidenceWrite {
+        staging_id,
+        subdirectory: subdirectory.to_string(),
+        filename: filename.to_string(),
+        previous_content,
+        new_content: content.to_string(),
+    })
+}
+
+/// Commits a previously staged write into the real conventional evidence
+/// directory, then removes its staging directory. Only ever called after
+/// an explicit approval action in the frontend — never automatically
+/// alongside `stage_evidence_write`.
+pub(crate) fn approve_staged_write(
+    workspace: &Path,
+    staging_id: &str,
+    subdirectory: &str,
+    filename: &str,
+) -> Result<String, String> {
+    if !is_safe_staging_id(staging_id) {
+        return Err(format!("\"{staging_id}\" is not a real staging id"));
+    }
+    if !is_safe_bare_filename(filename) {
+        return Err(format!(
+            "Refusing to approve unexpected {subdirectory} filename \"{filename}\""
+        ));
+    }
+
+    let staged_path = staging_root(workspace)
+        .join(staging_id)
+        .join(subdirectory)
+        .join(filename);
+    let content = fs::read_to_string(&staged_path).map_err(|error| {
+        format!(
+            "No staged write found at {}: {error}",
+            staged_path.display()
+        )
+    })?;
+
+    let target_dir = workspace.join(".forgegate").join(subdirectory);
+    fs::create_dir_all(&target_dir)
+        .map_err(|error| format!("Failed to create {}: {error}", target_dir.display()))?;
+    let target_path = target_dir.join(filename);
+    fs::write(&target_path, &content)
+        .map_err(|error| format!("Failed to write {}: {error}", target_path.display()))?;
+
+    discard_staged_write(workspace, staging_id)?;
+
+    Ok(target_path.display().to_string())
+}
+
+/// Discards a staged write without ever touching the real workspace —
+/// the reviewer chose not to approve it. Also used internally by
+/// `approve_staged_write` to clean up once a write has committed.
+pub(crate) fn discard_staged_write(workspace: &Path, staging_id: &str) -> Result<(), String> {
+    if !is_safe_staging_id(staging_id) {
+        return Err(format!("\"{staging_id}\" is not a real staging id"));
+    }
+    let staging_dir = staging_root(workspace).join(staging_id);
+    if staging_dir.exists() {
+        fs::remove_dir_all(&staging_dir)
+            .map_err(|error| format!("Failed to remove {}: {error}", staging_dir.display()))?;
+    }
+    Ok(())
+}
+
+/// Restores a real conventional evidence file to `previous_content`
+/// (or removes it, if the committed write had created a new file), using
+/// the `previous_content` captured by `stage_evidence_write` before the
+/// matching `approve_staged_write` committed it.
+pub(crate) fn rollback_committed_write(
+    workspace: &Path,
+    subdirectory: &str,
+    filename: &str,
+    previous_content: Option<&str>,
+) -> Result<(), String> {
+    if !is_safe_bare_filename(filename) {
+        return Err(format!(
+            "Refusing to roll back unexpected {subdirectory} filename \"{filename}\""
+        ));
+    }
+
+    let target_path = workspace.join(".forgegate").join(subdirectory).join(filename);
+    match previous_content {
+        Some(content) => {
+            fs::write(&target_path, content)
+                .map_err(|error| format!("Failed to write {}: {error}", target_path.display()))?;
+        }
+        None => {
+            if target_path.exists() {
+                fs::remove_file(&target_path).map_err(|error| {
+                    format!("Failed to remove {}: {error}", target_path.display())
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_workspace(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-staged-write-{label}-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+        dir
+    }
+
+    #[test]
+    fn is_safe_bare_filename_accepts_and_rejects_the_expected_shapes() {
+        assert!(is_safe_bare_filename("acme-button-keyboard-review.json"));
+        assert!(!is_safe_bare_filename("findings/x.json"));
+        assert!(!is_safe_bare_filename("../escape.json"));
+        assert!(!is_safe_bare_filename("windows\\backslash.json"));
+        assert!(!is_safe_bare_filename(""));
+    }
+
+    #[test]
+    fn is_safe_staging_id_accepts_only_ids_this_module_would_mint() {
+        assert!(is_safe_staging_id("stg-123456"));
+        assert!(!is_safe_staging_id("../escape"));
+        assert!(!is_safe_staging_id("stg-"));
+        assert!(!is_safe_staging_id("stg-12a"));
+        assert!(!is_safe_staging_id(""));
+    }
+
+    #[test]
+    fn stages_a_write_without_touching_the_real_workspace() {
+        let dir = temp_workspace("stage-only");
+
+        let staged = stage_evidence_write(&dir, "manual-reviews", "review.json", "{\"a\":1}")
+            .expect("stage should succeed");
+
+        assert!(!dir.join(".forgegate/manual-reviews/review.json").exists());
+        assert!(dir
+            .join(".forgegate/.staging")
+            .join(&staged.staging_id)
+            .join("manual-reviews/review.json")
+            .exists());
+        assert_eq!(staged.previous_content, None);
+        assert_eq!(staged.new_content, "{\"a\":1}");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn captures_real_previous_content_for_a_real_diff() {
+        let dir = temp_workspace("stage-diff");
+        let target_dir = dir.join(".forgegate/manual-reviews");
+        fs::create_dir_all(&target_dir).unwrap();
+        fs::write(target_dir.join("review.json"), "{\"a\":1}").unwrap();
+
+        let staged = stage_evidence_write(&dir, "manual-reviews", "review.json", "{\"a\":2}")
+            .expect("stage should succeed");
+
+        assert_eq!(staged.previous_content.as_deref(), Some("{\"a\":1}"));
+        assert_eq!(
+            fs::read_to_string(target_dir.join("review.json")).unwrap(),
+            "{\"a\":1}",
+            "the real file must be untouched until approval"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_stage_a_filename_that_would_escape_the_conventional_directory() {
+        let dir = temp_workspace("stage-escape");
+
+        let result = stage_evidence_write(&dir, "manual-reviews", "../escape.json", "{}");
+
+        assert!(result.is_err());
+        assert!(!dir.join(".forgegate").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn approves_a_staged_write_into_the_real_directory_and_clears_staging() {
+        let dir = temp_workspace("approve");
+        let staged = stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
+            .expect("stage should succeed");
+
+        let result_path =
+            approve_staged_write(&dir, &staged.staging_id, "findings", "finding.json")
+                .expect("approve should succeed");
+
+        assert_eq!(
+            fs::read_to_string(&result_path).unwrap(),
+            "{\"status\":\"open\"}"
+        );
+        assert!(!staging_root(&dir).join(&staged.staging_id).exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_approve_a_staging_id_it_never_minted() {
+        let dir = temp_workspace("approve-forged-id");
+
+        let result = approve_staged_write(&dir, "../escape", "findings", "finding.json");
+
+        assert!(result.is_err());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn discards_a_staged_write_without_ever_creating_the_real_file() {
+        let dir = temp_workspace("discard");
+        let staged = stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
+            .expect("stage should succeed");
+
+        discard_staged_write(&dir, &staged.staging_id).expect("discard should succeed");
+
+        assert!(!staging_root(&dir).join(&staged.staging_id).exists());
+        assert!(!dir.join(".forgegate/findings/finding.json").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn rolls_back_a_committed_write_to_its_real_previous_content() {
+        let dir = temp_workspace("rollback-existing");
+        let target_dir = dir.join(".forgegate/manual-reviews");
+        fs::create_dir_all(&target_dir).unwrap();
+        fs::write(target_dir.join("review.json"), "{\"a\":1}").unwrap();
+
+        let staged = stage_evidence_write(&dir, "manual-reviews", "review.json", "{\"a\":2}")
+            .expect("stage should succeed");
+        approve_staged_write(&dir, &staged.staging_id, "manual-reviews", "review.json")
+            .expect("approve should succeed");
+        assert_eq!(
+            fs::read_to_string(target_dir.join("review.json")).unwrap(),
+            "{\"a\":2}"
+        );
+
+        rollback_committed_write(
+            &dir,
+            "manual-reviews",
+            "review.json",
+            staged.previous_content.as_deref(),
+        )
+        .expect("rollback should succeed");
+
+        assert_eq!(
+            fs::read_to_string(target_dir.join("review.json")).unwrap(),
+            "{\"a\":1}"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn rolls_back_a_committed_write_by_removing_a_file_it_newly_created() {
+        let dir = temp_workspace("rollback-new");
+
+        let staged = stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
+            .expect("stage should succeed");
+        approve_staged_write(&dir, &staged.staging_id, "findings", "finding.json")
+            .expect("approve should succeed");
+        assert!(dir.join(".forgegate/findings/finding.json").exists());
+
+        rollback_committed_write(&dir, "findings", "finding.json", None)
+            .expect("rollback should succeed");
+
+        assert!(!dir.join(".forgegate/findings/finding.json").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+}

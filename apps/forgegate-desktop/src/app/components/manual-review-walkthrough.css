@@ -122,3 +122,44 @@
   color: var(--fg-color-status-failed);
   font-size: var(--fg-type-size-sm);
 }
+
+.manual-review-walkthrough__staged {
+  display: grid;
+  gap: var(--fg-space-2);
+  padding: var(--fg-space-3) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface-subtle);
+}
+
+.manual-review-walkthrough__diff {
+  margin: 0;
+  padding: var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  white-space: pre-wrap;
+  font-size: var(--fg-type-size-sm);
+}
+
+.manual-review-walkthrough__staged-actions {
+  display: flex;
+  gap: var(--fg-space-2);
+}
+
+.manual-review-walkthrough__staged-actions button {
+  padding: var(--fg-space-2) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-sm);
+  cursor: pointer;
+}
+
+.manual-review-walkthrough__staged-actions button:first-child {
+  background: var(--fg-color-action);
+  color: var(--fg-color-text-inverse);
+}
+
+.manual-review-walkthrough__staged-actions button:last-child {
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+}

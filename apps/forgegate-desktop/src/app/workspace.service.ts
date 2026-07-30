@@ -57,6 +57,32 @@ export interface GitStatus {
   changedFiles: string[];
 }
 
+/**
+ * One evidence write ForgeGate has staged into a temporary directory but
+ * not yet committed into the reviewed workspace, mirroring the Rust
+ * `StagedEvidenceWriteDto` returned by `stage_manual_review`/
+ * `stage_finding`. `previousContent` is whatever real file this write
+ * would replace, if any — enough to render a real diff.
+ */
+export interface StagedEvidenceWrite {
+  readonly stagingId: string;
+  readonly subdirectory: string;
+  readonly filename: string;
+  readonly previousContent: string | null;
+  readonly newContent: string;
+}
+
+/** A staged manual review plus every finding staged alongside it. */
+export interface StagedManualReview {
+  readonly review: ManualReview;
+  readonly componentId: string;
+  readonly reviewWrite: StagedEvidenceWrite;
+  readonly findingWrites: readonly {
+    readonly finding: Finding;
+    readonly write: StagedEvidenceWrite;
+  }[];
+}
+
 export interface ComponentPackageCandidate {
   name: string;
   path: string;
@@ -336,6 +362,14 @@ export class WorkspaceService {
   readonly saveManualReviewResult = signal<{ readonly path: string } | null>(
     null,
   );
+  /** A manual review (and its derived findings) staged into a temporary
+   * directory but not yet committed into the workspace — populated by
+   * `stageManualReview`, cleared by `approveStagedManualReview` or
+   * `discardStagedManualReview`. Real writes into the reviewed repository
+   * always pass through this staged/approved flow, per P2 entry gate 2. */
+  readonly stagedManualReview = signal<StagedManualReview | null>(null);
+  readonly approveManualReviewRunning = signal(false);
+  readonly approveManualReviewError = signal<string | null>(null);
   /**
    * Real files changed between a stale review's recorded commit and the
    * workspace's current commit (documentation/09-manual-review-and-evidence.md's
@@ -1377,11 +1411,14 @@ export class WorkspaceService {
    * "A failed step should create or link to a finding"
    * (documentation/09-manual-review-and-evidence.md): when
    * `review.stepResults` includes a real failed or blocked step, this also
-   * writes one real `Finding` per such step to
-   * `.forgegate/findings/<finding.id>.json` and updates `findings` — the
-   * same explicit, user-initiated save, never a silent side effect.
+   * stages one real `Finding` per such step alongside the review.
+   *
+   * Nothing is written into the reviewed workspace by this call — per P2
+   * entry gate 2, real writes go through temporary staging, an explicit
+   * diff, and an explicit approval. Call `approveStagedManualReview` to
+   * commit what this stages, or `discardStagedManualReview` to drop it.
    */
-  async saveManualReview(
+  async stageManualReview(
     review: ManualReview,
     componentId: string,
   ): Promise<void> {
@@ -1392,34 +1429,120 @@ export class WorkspaceService {
     this.saveManualReviewRunning.set(true);
     this.saveManualReviewError.set(null);
     this.saveManualReviewResult.set(null);
+    this.stagedManualReview.set(null);
     try {
-      const writtenPath = await this.invoke<string>('write_manual_review', {
-        workspacePath: path,
-        reviewId: review.id,
-        content: JSON.stringify(review, null, 2),
-      });
-      this.saveManualReviewResult.set({ path: writtenPath });
-      this.manualReviews.set([...this.manualReviews(), review]);
+      const reviewWrite = await this.invoke<StagedEvidenceWrite>(
+        'stage_manual_review',
+        {
+          workspacePath: path,
+          reviewId: review.id,
+          content: JSON.stringify(review, null, 2),
+        },
+      );
 
       const newFindings = findingsFromManualReviewStepResults(
         componentId,
         review,
         review.stepResults ?? [],
       );
+      const findingWrites: {
+        readonly finding: Finding;
+        readonly write: StagedEvidenceWrite;
+      }[] = [];
       for (const finding of newFindings) {
-        await this.invoke<string>('write_finding', {
+        const write = await this.invoke<StagedEvidenceWrite>('stage_finding', {
           workspacePath: path,
           findingId: finding.id,
           content: JSON.stringify(finding, null, 2),
         });
+        findingWrites.push({ finding, write });
       }
-      if (newFindings.length) {
-        this.findings.set([...this.findings(), ...newFindings]);
-      }
+
+      this.stagedManualReview.set({
+        review,
+        componentId,
+        reviewWrite,
+        findingWrites,
+      });
     } catch (error) {
       this.saveManualReviewError.set(String(error));
     } finally {
       this.saveManualReviewRunning.set(false);
+    }
+  }
+
+  /**
+   * Commits a staged manual review (and every finding staged alongside
+   * it) into the reviewed workspace, then clears the staged state. Only
+   * ever called from an explicit "Approve" action the reviewer takes
+   * after being shown the staged diff.
+   */
+  async approveStagedManualReview(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedManualReview();
+    if (!path || !staged || this.approveManualReviewRunning()) {
+      return;
+    }
+    this.approveManualReviewRunning.set(true);
+    this.approveManualReviewError.set(null);
+    try {
+      const writtenPath = await this.invoke<string>(
+        'approve_staged_evidence_write',
+        {
+          workspacePath: path,
+          stagingId: staged.reviewWrite.stagingId,
+          subdirectory: staged.reviewWrite.subdirectory,
+          filename: staged.reviewWrite.filename,
+        },
+      );
+      this.saveManualReviewResult.set({ path: writtenPath });
+      this.manualReviews.set([...this.manualReviews(), staged.review]);
+
+      const approvedFindings: Finding[] = [];
+      for (const { finding, write } of staged.findingWrites) {
+        await this.invoke<string>('approve_staged_evidence_write', {
+          workspacePath: path,
+          stagingId: write.stagingId,
+          subdirectory: write.subdirectory,
+          filename: write.filename,
+        });
+        approvedFindings.push(finding);
+      }
+      if (approvedFindings.length) {
+        this.findings.set([...this.findings(), ...approvedFindings]);
+      }
+
+      this.stagedManualReview.set(null);
+    } catch (error) {
+      this.approveManualReviewError.set(String(error));
+    } finally {
+      this.approveManualReviewRunning.set(false);
+    }
+  }
+
+  /**
+   * Discards a staged manual review (and its staged findings) without
+   * ever committing them into the reviewed workspace.
+   */
+  async discardStagedManualReview(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedManualReview();
+    if (!path || !staged) {
+      return;
+    }
+    try {
+      await this.invoke<void>('discard_staged_evidence_write', {
+        workspacePath: path,
+        stagingId: staged.reviewWrite.stagingId,
+      });
+      for (const { write } of staged.findingWrites) {
+        await this.invoke<void>('discard_staged_evidence_write', {
+          workspacePath: path,
+          stagingId: write.stagingId,
+        });
+      }
+    } finally {
+      this.stagedManualReview.set(null);
     }
   }
 

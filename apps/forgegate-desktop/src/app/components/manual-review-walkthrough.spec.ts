@@ -172,7 +172,7 @@ describe('ManualReviewWalkthrough', () => {
       changedFiles: [],
     });
     const saveSpy = vi
-      .spyOn(workspace, 'saveManualReview')
+      .spyOn(workspace, 'stageManualReview')
       .mockResolvedValue();
 
     fixture = TestBed.createComponent(HostComponent);
@@ -227,6 +227,65 @@ describe('ManualReviewWalkthrough', () => {
         status: 'failed',
       },
     ]);
+  });
+
+  it('shows a staged review as a real diff and routes Approve/Discard to the workspace service', () => {
+    workspace.procedures.set([procedure]);
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifest = manifestWithProcedure();
+    fixture.detectChanges();
+    selectProcedure(fixture.nativeElement);
+    fixture.detectChanges();
+
+    workspace.stagedManualReview.set({
+      review: {
+        id: 'r1',
+        componentVersionId: 'acme.design-system.acme-button@0.1.0',
+        procedureId: procedure.id,
+        procedureVersion: procedure.version,
+        reviewerIdentity: 'reviewer@acme.example',
+        date: new Date().toISOString(),
+        operatingSystem: 'Windows',
+        status: 'passed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+      componentId: 'acme.design-system.acme-button',
+      reviewWrite: {
+        stagingId: 'stg-1',
+        subdirectory: 'manual-reviews',
+        filename: 'r1.json',
+        previousContent: null,
+        newContent: '{"status":"passed"}',
+      },
+      findingWrites: [],
+    });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('{"status":"passed"}');
+
+    const approveSpy = vi
+      .spyOn(workspace, 'approveStagedManualReview')
+      .mockResolvedValue();
+    const discardSpy = vi
+      .spyOn(workspace, 'discardStagedManualReview')
+      .mockResolvedValue();
+
+    const approveButton = Array.from(
+      compiled.querySelectorAll('button'),
+    ).find((button: HTMLButtonElement) =>
+      button.textContent?.includes('Approve'),
+    ) as HTMLButtonElement;
+    approveButton.click();
+    expect(approveSpy).toHaveBeenCalledTimes(1);
+
+    const discardButton = Array.from(
+      compiled.querySelectorAll('button'),
+    ).find((button: HTMLButtonElement) =>
+      button.textContent?.includes('Discard'),
+    ) as HTMLButtonElement;
+    discardButton.click();
+    expect(discardSpy).toHaveBeenCalledTimes(1);
   });
 
   it('shows the real expiration hint when the procedure declares one', () => {

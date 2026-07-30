@@ -29,7 +29,7 @@ export interface ComponentReadinessInput {
    * Real findings already persisted for this component — today always one
    * per failed/blocked guided-review step
    * (`findingsFromManualReviewStepResults`, written by
-   * `WorkspaceService.saveManualReview`). Merged into `findingSummary`
+   * `WorkspaceService.approveStagedManualReview`). Merged into `findingSummary`
    * below so a reviewer sees the specific "Activate using Space fired
    * twice" finding, not only the generic "Manual review contains a failed
    * or blocked result" blocking reason. Readiness blocked/stale/warning
