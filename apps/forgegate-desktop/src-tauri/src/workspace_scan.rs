@@ -59,6 +59,7 @@ pub struct WorkspaceScan {
     pub component_manifests: Vec<String>,
     pub test_evidence_files: Vec<String>,
     pub manual_review_files: Vec<String>,
+    pub exception_files: Vec<String>,
     pub ui_technologies: Vec<UiTechnologyDetection>,
     pub ui_source_files: Vec<String>,
     pub ui_source_files_truncated: bool,
@@ -97,6 +98,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         component_manifests: detect_component_manifests(root),
         test_evidence_files: detect_test_evidence_files(root),
         manual_review_files: detect_manual_review_files(root),
+        exception_files: detect_exception_files(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
         ui_source_files,
         ui_source_files_truncated,
@@ -310,6 +312,26 @@ fn detect_manual_review_files(root: &Path) -> Vec<String> {
         .collect::<Vec<_>>();
     reviews.sort();
     reviews
+}
+
+/// Mirrors `detect_manual_review_files` one directory over: an exception is
+/// also a human-authored evidence record (an explicit, rationale-bearing
+/// approval of a deviation against a finding), not something ForgeGate can
+/// compute on its own.
+fn detect_exception_files(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("exceptions");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut exceptions = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    exceptions.sort();
+    exceptions
 }
 
 fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
@@ -740,6 +762,10 @@ mod tests {
             scan.manual_review_files,
             vec![".forgegate/manual-reviews/acme-button-keyboard-review.json".to_string()]
         );
+        assert_eq!(
+            scan.exception_files,
+            vec![".forgegate/exceptions/acme-button-manual-review-exception.json".to_string()]
+        );
         assert_eq!(scan.test_runners, vec!["node:test".to_string()]);
         assert!(scan.ui_technologies.is_empty());
     }
@@ -765,6 +791,7 @@ mod tests {
         assert!(scan.component_manifests.is_empty());
         assert!(scan.test_evidence_files.is_empty());
         assert!(scan.manual_review_files.is_empty());
+        assert!(scan.exception_files.is_empty());
         assert!(scan.ui_technologies.is_empty());
         assert!(scan.ui_source_files.is_empty());
         assert!(!scan.ui_source_files_truncated);

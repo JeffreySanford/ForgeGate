@@ -570,6 +570,7 @@ export class ComponentDetailPage {
       this.blockingReasons(),
       undefined,
       this.manualReviews(),
+      this.workspace.exceptions(),
     );
   }
 

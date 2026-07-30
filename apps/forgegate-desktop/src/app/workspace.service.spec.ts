@@ -57,6 +57,14 @@ const scanFixtureWithManualReviews = {
   ],
 };
 
+const scanFixtureWithExceptions = {
+  ...scanFixture,
+  exceptionFiles: [
+    '.forgegate/exceptions/acme-button-token-exception.json',
+    '.forgegate/exceptions/broken.json',
+  ],
+};
+
 const gitStatusFixture = {
   branch: 'master',
   commit: 'a'.repeat(40),
@@ -308,6 +316,54 @@ describe('WorkspaceService', () => {
           (diagnostic) =>
             diagnostic.id ===
             'manual-review:.forgegate/manual-reviews/broken.json',
+        ),
+    ).toMatchObject({
+      status: 'failed',
+      rawOutput: '{"status":"green"}',
+    });
+  });
+
+  it('loads valid exception evidence and isolates an invalid sibling record', async () => {
+    const record = {
+      id: 'acme-button-token-exception',
+      findingId: 'up.design-system.up-button-blocking-0',
+      approvedBy: 'lead-reviewer@example.com',
+      approvedAt: '2026-07-24T16:00:00.000Z',
+      rationale: 'Token migration scheduled for next quarter.',
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithExceptions)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(JSON.stringify(record))
+      .mockResolvedValueOnce('{"status":"green"}');
+
+    await service.selectWorkspace();
+
+    expect(service.exceptions()).toEqual([record]);
+    expect(service.exceptionError()).toContain(
+      '.forgegate/exceptions/broken.json',
+    );
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'exception:.forgegate/exceptions/acme-button-token-exception.json',
+        ),
+    ).toMatchObject({
+      status: 'loaded',
+      rawOutput: JSON.stringify(record),
+      error: null,
+    });
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id === 'exception:.forgegate/exceptions/broken.json',
         ),
     ).toMatchObject({
       status: 'failed',
@@ -1230,6 +1286,39 @@ describe('WorkspaceService', () => {
       );
       expect(Object.keys(secondCallArgs.files)).not.toContain(
         'manual/other-component-review.json',
+      );
+    });
+
+    it('writes a real exceptions/<id>.json file for an exception approving one of this export\'s findings', async () => {
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
+
+      await service.exportEvidencePackage(
+        manifest,
+        [],
+        ['No token mappings connected'],
+        undefined,
+        [],
+        [
+          {
+            id: 'acme-button-token-exception',
+            findingId: 'acme.lib.button-blocking-0',
+            approvedBy: 'lead-reviewer@example.com',
+            approvedAt: '2026-01-01T00:00:00.000Z',
+            rationale: 'Risk accepted until next sprint.',
+          },
+        ],
+      );
+
+      const [, secondCallArgs] = invokeMock.mock.calls[1] as [
+        string,
+        { files: Record<string, string> },
+      ];
+      expect(Object.keys(secondCallArgs.files)).toContain(
+        'exceptions/acme-button-token-exception.json',
       );
     });
 

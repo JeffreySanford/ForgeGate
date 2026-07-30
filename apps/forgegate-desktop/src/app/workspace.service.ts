@@ -4,9 +4,11 @@ import {
   type RepositoryConfig,
 } from '@forgegate/core-config';
 import {
+  parseException,
   parseManualReview,
   parseTestEvidenceFile,
   type AutomatedEvidenceArtifact,
+  type Exception,
   type Finding,
   type ManualReview,
   type TestExecution,
@@ -91,6 +93,7 @@ export interface WorkspaceScan {
   componentManifests?: string[];
   testEvidenceFiles?: string[];
   manualReviewFiles?: string[];
+  exceptionFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -309,6 +312,11 @@ export class WorkspaceService {
    * declaring that a procedure exists. */
   readonly manualReviews = signal<readonly ManualReview[]>([]);
   readonly manualReviewError = signal<string | null>(null);
+  /** Every real `.forgegate/exceptions/*.json` record — a human's explicit,
+   * rationale-bearing approval of a deviation against a specific finding,
+   * not something ForgeGate computes on its own. */
+  readonly exceptions = signal<readonly Exception[]>([]);
+  readonly exceptionError = signal<string | null>(null);
   /** Every DTCG token parsed from the workspace's detected token files. */
   readonly designTokens = signal<readonly DtcgToken[]>([]);
   readonly designTokenError = signal<string | null>(null);
@@ -412,6 +420,7 @@ export class WorkspaceService {
     this.componentManifestError.set(null);
     this.testExecutionError.set(null);
     this.manualReviewError.set(null);
+    this.exceptionError.set(null);
     this.storybookIndexError.set(null);
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
@@ -467,6 +476,7 @@ export class WorkspaceService {
       await this.loadComponentManifests(path, scan);
       await this.loadTestExecutions(path, scan);
       await this.loadManualReviews(path, scan);
+      await this.loadExceptions(path, scan);
       await this.loadDesignTokens(path, scan);
       await this.loadAngularComponents(path, scan);
       this.setScanProgress(
@@ -499,6 +509,7 @@ export class WorkspaceService {
       this.testExecutions.set([]);
       this.automatedEvidenceArtifacts.set([]);
       this.manualReviews.set([]);
+      this.exceptions.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.evidenceHistoryTrend.set(null);
@@ -804,7 +815,8 @@ export class WorkspaceService {
 
   /**
    * Exports one component's real evidence — its own test executions,
-   * manual reviews, per-target documentation drift, and blocking-reason
+   * manual reviews, any exception approving one of this export's own
+   * findings, per-target documentation drift, and blocking-reason
    * findings, per `buildEvidenceExport` — as a real directory the user
    * picks via a native folder dialog. A no-op if an export is already
    * running.
@@ -826,6 +838,7 @@ export class WorkspaceService {
      */
     approver?: EvidenceApprover | null,
     manualReviews: readonly ManualReview[] = [],
+    exceptions: readonly Exception[] = [],
   ): Promise<void> {
     if (this.evidenceExportRunning()) {
       return;
@@ -853,6 +866,7 @@ export class WorkspaceService {
           (review) =>
             review.componentVersionId === componentVersionId(manifest),
         ),
+        exceptions,
         starlightProjects: this.workspaceScan()?.starlightProjects ?? [],
         blockingReasons,
         approver,
@@ -1187,6 +1201,45 @@ export class WorkspaceService {
     }
     this.manualReviews.set(reviews);
     this.manualReviewError.set(errors.length ? errors.join('\n') : null);
+  }
+
+  private async loadExceptions(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.exceptions.set([]);
+    const exceptions: Exception[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.exceptionFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        exceptions.push(parseException(text));
+        this.setAdapterDiagnostic({
+          id: `exception:${relativePath}`,
+          adapter: 'exception evidence',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `exception:${relativePath}`,
+          adapter: 'exception evidence',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.exceptions.set(exceptions);
+    this.exceptionError.set(errors.length ? errors.join('\n') : null);
   }
 
   /**

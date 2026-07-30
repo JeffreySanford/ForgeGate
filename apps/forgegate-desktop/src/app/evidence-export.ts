@@ -3,6 +3,7 @@ import {
   createEvidencePackage,
   createFinding,
   type AutomatedEvidenceArtifact,
+  type Exception,
   type Finding,
   type ManualReview,
   type TestExecution,
@@ -27,13 +28,16 @@ import {
  * `Finding` records — see `findingsFromBlockingReasons`), and
  * `report.html` (the documented human-readable report, rendering the
  * sections backed by real data and naming the rest as not connected —
- * see `renderEvidenceReport`). `automated/` and `manual/` are included
- * only when real connected evidence exists for this component version —
- * see the filtering below, mirrored for both. Everything the documented
- * shape also lists (`policy-snapshot.json`, `release-decision.json`,
- * `exceptions/`, `attachments/`) is honestly absent — `manifest.json`'s
- * `excludes` field says why for each, rather than silently omitting them
- * or fabricating empty placeholders.
+ * see `renderEvidenceReport`). `automated/`, `manual/`, and `exceptions/`
+ * are included only when real connected evidence exists — `automated/`
+ * and `manual/` are scoped by this component version, `exceptions/` is
+ * scoped by whether the exception's `findingId` matches one of _this
+ * export's own_ real findings (an exception approves a specific finding,
+ * not a component version in general). Everything the documented shape
+ * also lists (`policy-snapshot.json`, `release-decision.json`,
+ * `attachments/`) is honestly absent — `manifest.json`'s `excludes` field
+ * says why for each, rather than silently omitting them or fabricating
+ * empty placeholders.
  */
 const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'policy-snapshot.json':
@@ -42,7 +46,8 @@ const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
     'No imported automated result artifact is connected for this component yet.',
   'manual/':
     'No manual review result is connected for this component yet.',
-  'exceptions/': 'No exceptions have been recorded for this component yet.',
+  'exceptions/':
+    "No exception approves any of this export's findings yet.",
   'attachments/': 'No attachments have been captured yet.',
 };
 
@@ -100,6 +105,7 @@ export interface EvidenceExportInput {
   readonly testExecutions: readonly TestExecution[];
   readonly automatedArtifacts?: readonly AutomatedEvidenceArtifact[];
   readonly manualReviews?: readonly ManualReview[];
+  readonly exceptions?: readonly Exception[];
   readonly starlightProjects: readonly string[];
   readonly blockingReasons?: readonly string[];
   /**
@@ -147,6 +153,10 @@ export async function buildEvidenceExport(
   }));
 
   const findings = findingsFromBlockingReasons(manifest.id, blockingReasons);
+  const findingIds = new Set(findings.map((finding) => finding.id));
+  const relevantExceptions = (input.exceptions ?? []).filter((exception) =>
+    findingIds.has(exception.findingId),
+  );
 
   const releaseDecision = computeReleaseDecision({
     manifest,
@@ -223,6 +233,13 @@ export async function buildEvidenceExport(
       2,
     );
   }
+  if (relevantExceptions.length) {
+    delete excludes['exceptions/'];
+    for (const exception of relevantExceptions) {
+      contentFiles[`exceptions/${sanitizeForFilename(exception.id)}.json`] =
+        JSON.stringify(exception, null, 2);
+    }
+  }
 
   if ('unavailable' in releaseDecision) {
     excludes['release-decision.json'] = releaseDecision.unavailable;
@@ -246,6 +263,7 @@ export async function buildEvidenceExport(
     repositoryCommit,
     testExecutions,
     manualReviews,
+    exceptions: relevantExceptions,
     documentationStatus,
     findings,
     releaseDecision:
@@ -346,6 +364,7 @@ function renderEvidenceReport(input: {
   repositoryCommit: string | null;
   testExecutions: readonly TestExecution[];
   manualReviews: readonly ManualReview[];
+  exceptions: readonly Exception[];
   documentationStatus: readonly DocumentationStatusRow[];
   findings: readonly Finding[];
   releaseDecision: ReleaseDecision | null;
@@ -360,6 +379,7 @@ function renderEvidenceReport(input: {
     repositoryCommit,
     testExecutions,
     manualReviews,
+    exceptions,
     documentationStatus,
     findings,
   } = input;
@@ -415,6 +435,21 @@ function renderEvidenceReport(input: {
         .join('')}</tbody>
     </table>`
     : `<p>No blocking findings were recorded for this component version.</p>`;
+
+  const exceptionsSection = exceptions.length
+    ? `<table>
+      <caption>Exceptions</caption>
+      <thead><tr><th scope="col">Finding</th><th scope="col">Approved by</th><th scope="col">Approved at</th><th scope="col">Rationale</th><th scope="col">Expires</th></tr></thead>
+      <tbody>${exceptions
+        .map(
+          (exception) =>
+            `<tr><th scope="row"><code>${escapeHtml(exception.findingId)}</code></th><td>${escapeHtml(exception.approvedBy)}</td><td>${escapeHtml(exception.approvedAt)}</td><td>${escapeHtml(exception.rationale)}</td><td>${exception.expiresAt ? escapeHtml(exception.expiresAt) : '<span class="not-connected">No expiry recorded</span>'}</td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>`
+    : notConnected(
+        "No exception approves any of this export's findings.",
+      );
 
   const releaseDecisionSection = releaseDecision
     ? `<dl>
@@ -500,6 +535,9 @@ ${manualReviewsSection}
 
 <h2>Findings</h2>
 ${findingsSection}
+
+<h2>Exceptions</h2>
+${exceptionsSection}
 
 <h2>Release decision</h2>
 ${releaseDecisionSection}

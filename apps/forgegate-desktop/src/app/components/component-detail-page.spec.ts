@@ -695,6 +695,15 @@ describe('ComponentDetailPage', () => {
         commitOrFingerprint: 'a'.repeat(40),
       },
     ]);
+    workspaceService.exceptions.set([
+      {
+        id: 'acme-button-token-exception',
+        findingId: 'acme.design-system.acme-button-blocking-0',
+        approvedBy: 'lead-reviewer@acme.example',
+        approvedAt: '2026-07-24T16:00:00.000Z',
+        rationale: 'Risk accepted until next sprint.',
+      },
+    ]);
     const exportSpy = vi
       .spyOn(workspaceService, 'exportEvidencePackage')
       .mockResolvedValue();
@@ -725,6 +734,10 @@ describe('ComponentDetailPage', () => {
     expect(exportSpy.mock.calls[0]?.[4]).toHaveLength(1);
     expect(exportSpy.mock.calls[0]?.[4]?.[0]?.id).toBe(
       'acme-button-keyboard-review',
+    );
+    expect(exportSpy.mock.calls[0]?.[5]).toHaveLength(1);
+    expect(exportSpy.mock.calls[0]?.[5]?.[0]?.id).toBe(
+      'acme-button-token-exception',
     );
   });
 

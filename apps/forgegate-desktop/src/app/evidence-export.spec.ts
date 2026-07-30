@@ -1,6 +1,7 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
 import type {
   AutomatedEvidenceArtifact,
+  Exception,
   ManualReview,
   TestExecution,
 } from '@forgegate/core-evidence';
@@ -45,6 +46,17 @@ function manualReview(overrides: Partial<ManualReview>): ManualReview {
     operatingSystem: 'macOS 15',
     status: 'passed',
     commitOrFingerprint: 'a'.repeat(40),
+    ...overrides,
+  };
+}
+
+function exception(overrides: Partial<Exception>): Exception {
+  return {
+    id: 'acme-button-token-exception',
+    findingId: 'acme.lib.button-blocking-0',
+    approvedBy: 'lead-reviewer@example.com',
+    approvedAt: '2026-01-01T00:00:00.000Z',
+    rationale: 'Risk accepted until next sprint.',
     ...overrides,
   };
 }
@@ -732,6 +744,74 @@ describe('buildEvidenceExport', () => {
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     expect(manifestJson.excludes['manual/']).toBe(
       'No manual review result is connected for this component yet.',
+    );
+  });
+
+  it('writes one real exceptions/<id>.json file when it approves one of this export\'s own findings', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      blockingReasons: ['No token mappings connected'],
+      exceptions: [exception({ findingId: 'acme.lib.button-blocking-0' })],
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files)).toContain(
+      'exceptions/acme-button-token-exception.json',
+    );
+    const exceptionContent = JSON.parse(
+      requireFile(result, 'exceptions/acme-button-token-exception.json'),
+    );
+    expect(exceptionContent.findingId).toBe('acme.lib.button-blocking-0');
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain(
+      'exceptions/acme-button-token-exception.json',
+    );
+    expect(Object.keys(manifestJson.excludes)).not.toContain('exceptions/');
+    expect(requireFile(result, 'report.html')).toContain(
+      'Risk accepted until next sprint.',
+    );
+  });
+
+  it('leaves exceptions/ excluded when no exception approves any of this export\'s own findings', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      blockingReasons: ['No token mappings connected'],
+      // Approves a finding from a completely different export/component —
+      // an exception is scoped to the specific finding it was granted
+      // against, not to "any finding this component ever has".
+      exceptions: [exception({ findingId: 'acme.lib.card-blocking-0' })],
+      starlightProjects: [],
+    });
+
+    expect(
+      Object.keys(result.files).some((name) => name.startsWith('exceptions/')),
+    ).toBe(false);
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.excludes['exceptions/']).toBe(
+      "No exception approves any of this export's findings yet.",
     );
   });
 
