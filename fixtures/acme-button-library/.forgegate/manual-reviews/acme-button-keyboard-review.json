@@ -1,0 +1,16 @@
+{
+  "id": "acme-button-keyboard-review-2026-07-24",
+  "componentVersionId": "acme.button-library.acme-button@0.1.0",
+  "procedureId": "keyboard-and-screen-reader-review",
+  "procedureVersion": "1.0.0",
+  "reviewerIdentity": "reviewer@acme.example",
+  "reviewerRole": "accessibility-reviewer",
+  "date": "2026-07-24T16:00:00.000Z",
+  "operatingSystem": "macOS 15",
+  "browser": "Safari 18",
+  "assistiveTechnology": "VoiceOver",
+  "storyOrScenario": "default",
+  "status": "passed",
+  "notes": "Tab order, focus visibility, and activation announcement all verified.",
+  "commitOrFingerprint": "95e7160229bcb43c7b096ac8aabee9f14acbb0dc"
+}

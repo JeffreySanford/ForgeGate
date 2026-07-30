@@ -1,5 +1,5 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
-import type { TestExecution } from '@forgegate/core-evidence';
+import type { ManualReview, TestExecution } from '@forgegate/core-evidence';
 import {
   componentVersionId,
   evaluateComponentReadiness,
@@ -17,6 +17,21 @@ function execution(overrides: Partial<TestExecution> = {}): TestExecution {
     adapterVersion: '1.0.0',
     status: 'passed',
     startedAt: '2026-01-01T00:00:00.000Z',
+    commitOrFingerprint: commit,
+    ...overrides,
+  };
+}
+
+function manualReview(overrides: Partial<ManualReview> = {}): ManualReview {
+  return {
+    id: 'keyboard-review-pass',
+    componentVersionId: 'acme.lib.button@1.0.0',
+    procedureId: 'default-review',
+    procedureVersion: '1.0.0',
+    reviewerIdentity: 'reviewer@example.com',
+    date: '2026-01-01T00:00:00.000Z',
+    operatingSystem: 'macOS 15',
+    status: 'passed',
     commitOrFingerprint: commit,
     ...overrides,
   };
@@ -53,6 +68,7 @@ function evaluate(
   return evaluateComponentReadiness({
     manifest,
     testExecutions: [execution()],
+    manualReviews: [manualReview()],
     currentCommit: commit,
     storybookProjects: ['apps/storybook'],
     storybookIndex: {
@@ -111,6 +127,43 @@ describe('evaluateComponentReadiness', () => {
       expect.objectContaining({
         description: 'Automated evidence is stale',
         severity: 'moderate',
+      }),
+    );
+  });
+
+  it('returns blocked when manual review evidence failed or was blocked', () => {
+    const result = evaluate({
+      manualReviews: [manualReview({ status: 'blocked' })],
+    });
+
+    expect(result.readiness).toBe('blocked');
+    expect(result.findingSummary.findings).toContainEqual(
+      expect.objectContaining({
+        description: 'Manual review contains a failed or blocked result',
+      }),
+    );
+  });
+
+  it('returns stale when connected manual review evidence is for another commit', () => {
+    const result = evaluate({
+      manualReviews: [manualReview({ commitOrFingerprint: 'b'.repeat(40) })],
+    });
+
+    expect(result.readiness).toBe('stale');
+    expect(result.findingSummary.findings).toContainEqual(
+      expect.objectContaining({
+        description: 'Manual review evidence is stale',
+      }),
+    );
+  });
+
+  it('returns warning when a manual review procedure is declared but never performed', () => {
+    const result = evaluate({ manualReviews: [] });
+
+    expect(result.readiness).toBe('warning');
+    expect(result.findingSummary.findings).toContainEqual(
+      expect.objectContaining({
+        description: 'No manual review results connected',
       }),
     );
   });

@@ -572,6 +572,75 @@ describe('ComponentDetailPage', () => {
     expect(compiled.textContent).toContain('Automated evidence is stale');
   });
 
+  it('renders real connected manual review evidence and marks it current or stale', async () => {
+    const reviewCommit = 'a'.repeat(40);
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '0.1.0',
+        manualReviewProcedureIds: ['keyboard-and-screen-reader-review'],
+      }),
+    ]);
+    workspaceService.gitStatus.set({
+      branch: 'main',
+      commit: reviewCommit,
+      dirty: false,
+      changedFiles: [],
+    });
+    workspaceService.manualReviews.set([
+      {
+        id: 'acme-button-keyboard-review',
+        componentVersionId: 'acme.design-system.acme-button@0.1.0',
+        procedureId: 'keyboard-and-screen-reader-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@acme.example',
+        reviewerRole: 'accessibility-reviewer',
+        date: '2026-07-24T16:00:00.000Z',
+        operatingSystem: 'macOS 15',
+        assistiveTechnology: 'VoiceOver',
+        status: 'passed',
+        commitOrFingerprint: reviewCommit,
+      },
+    ]);
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const evidencePanel = compiled.querySelector(
+      '[aria-labelledby="evidence-title"]',
+    );
+    expect(evidencePanel?.textContent).toContain(
+      'keyboard-and-screen-reader-review',
+    );
+    expect(evidencePanel?.textContent).toContain('reviewer@acme.example');
+    expect(evidencePanel?.textContent).toContain('macOS 15');
+    expect(evidencePanel?.textContent).toContain('VoiceOver');
+    expect(evidencePanel?.textContent).toContain('Current');
+
+    workspaceService.gitStatus.set({
+      branch: 'main',
+      commit: 'b'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    fixture.detectChanges();
+
+    expect(evidencePanel?.textContent).toContain(
+      'Stale — recorded at aaaaaaaa',
+    );
+  });
+
   it('has no automated accessibility violations for a matched component', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

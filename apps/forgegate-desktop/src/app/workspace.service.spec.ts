@@ -49,6 +49,14 @@ const scanFixtureWithEvidence = {
   ],
 };
 
+const scanFixtureWithManualReviews = {
+  ...scanFixture,
+  manualReviewFiles: [
+    '.forgegate/manual-reviews/acme-button-keyboard-review.json',
+    '.forgegate/manual-reviews/broken.json',
+  ],
+};
+
 const gitStatusFixture = {
   branch: 'master',
   commit: 'a'.repeat(40),
@@ -247,6 +255,59 @@ describe('WorkspaceService', () => {
         .find(
           (diagnostic) =>
             diagnostic.id === 'test-evidence:.forgegate/evidence/broken.json',
+        ),
+    ).toMatchObject({
+      status: 'failed',
+      rawOutput: '{"status":"green"}',
+    });
+  });
+
+  it('loads valid manual review evidence and isolates an invalid sibling record', async () => {
+    const review = {
+      id: 'acme-button-keyboard-review',
+      componentVersionId: 'up.design-system.up-button@0.1.0',
+      procedureId: 'keyboard-and-screen-reader-review',
+      procedureVersion: '1.0.0',
+      reviewerIdentity: 'reviewer@example.com',
+      date: '2026-07-24T16:00:00.000Z',
+      operatingSystem: 'macOS 15',
+      status: 'passed',
+      commitOrFingerprint: 'a'.repeat(40),
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithManualReviews)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(JSON.stringify(review))
+      .mockResolvedValueOnce('{"status":"green"}');
+
+    await service.selectWorkspace();
+
+    expect(service.manualReviews()).toEqual([review]);
+    expect(service.manualReviewError()).toContain(
+      '.forgegate/manual-reviews/broken.json',
+    );
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'manual-review:.forgegate/manual-reviews/acme-button-keyboard-review.json',
+        ),
+    ).toMatchObject({
+      status: 'loaded',
+      rawOutput: JSON.stringify(review),
+      error: null,
+    });
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'manual-review:.forgegate/manual-reviews/broken.json',
         ),
     ).toMatchObject({
       status: 'failed',

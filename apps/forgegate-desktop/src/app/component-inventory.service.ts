@@ -121,6 +121,7 @@ export class ComponentInventoryService {
     const scan = this.workspace.workspaceScan();
     const currentCommit = this.workspace.gitStatus()?.commit ?? null;
     const testExecutions = this.workspace.testExecutions();
+    const manualReviews = this.workspace.manualReviews();
     const storybookIndexError = this.workspace.storybookIndexError();
     const starlightProjects = scan?.starlightProjects ?? [];
     const storybookProjects = scan?.storybookProjects ?? [];
@@ -149,6 +150,10 @@ export class ComponentInventoryService {
           testExecutions: testExecutions.filter(
             (execution) =>
               execution.componentVersionId === componentVersionId(manifest),
+          ),
+          manualReviews: manualReviews.filter(
+            (review) =>
+              review.componentVersionId === componentVersionId(manifest),
           ),
           currentCommit,
           storybookProjects,

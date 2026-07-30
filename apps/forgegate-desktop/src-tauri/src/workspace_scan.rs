@@ -58,6 +58,7 @@ pub struct WorkspaceScan {
     pub component_packages: Vec<ComponentPackageCandidate>,
     pub component_manifests: Vec<String>,
     pub test_evidence_files: Vec<String>,
+    pub manual_review_files: Vec<String>,
     pub ui_technologies: Vec<UiTechnologyDetection>,
     pub ui_source_files: Vec<String>,
     pub ui_source_files_truncated: bool,
@@ -95,6 +96,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         component_packages: detect_component_packages(root, &project_dirs),
         component_manifests: detect_component_manifests(root),
         test_evidence_files: detect_test_evidence_files(root),
+        manual_review_files: detect_manual_review_files(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
         ui_source_files,
         ui_source_files_truncated,
@@ -288,6 +290,26 @@ fn detect_test_evidence_files(root: &Path) -> Vec<String> {
         .collect::<Vec<_>>();
     evidence.sort();
     evidence
+}
+
+/// Mirrors `detect_test_evidence_files` exactly, one directory over: a
+/// human-performed manual review is a repository-owned evidence record too
+/// (documentation/07-compliance-testing.md, "Manual result model"), just
+/// authored by a person instead of a test runner.
+fn detect_manual_review_files(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("manual-reviews");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut reviews = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    reviews.sort();
+    reviews
 }
 
 fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
@@ -714,6 +736,10 @@ mod tests {
             scan.test_evidence_files,
             vec![".forgegate/evidence/acme-button-unit.json".to_string()]
         );
+        assert_eq!(
+            scan.manual_review_files,
+            vec![".forgegate/manual-reviews/acme-button-keyboard-review.json".to_string()]
+        );
         assert_eq!(scan.test_runners, vec!["node:test".to_string()]);
         assert!(scan.ui_technologies.is_empty());
     }
@@ -738,6 +764,7 @@ mod tests {
         assert!(scan.custom_elements_manifests.is_empty());
         assert!(scan.component_manifests.is_empty());
         assert!(scan.test_evidence_files.is_empty());
+        assert!(scan.manual_review_files.is_empty());
         assert!(scan.ui_technologies.is_empty());
         assert!(scan.ui_source_files.is_empty());
         assert!(!scan.ui_source_files_truncated);

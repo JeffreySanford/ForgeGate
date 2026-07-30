@@ -1,4 +1,8 @@
-import type { Finding, TestExecution } from '@forgegate/core-evidence';
+import type {
+  Finding,
+  ManualReview,
+  TestExecution,
+} from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { findingsFromBlockingReasons } from './evidence-export';
 import { computeDocumentationDriftState } from './documentation-drift';
@@ -20,6 +24,7 @@ export interface ComponentReadinessEvaluation {
 export interface ComponentReadinessInput {
   readonly manifest: ComponentManifest;
   readonly testExecutions: readonly TestExecution[];
+  readonly manualReviews: readonly ManualReview[];
   readonly currentCommit: string | null;
   readonly storybookProjects: readonly string[];
   readonly storybookIndex: StorybookIndex | null;
@@ -95,6 +100,20 @@ function componentBlockingReasons(
 
   if (manifest.manualReviewProcedureIds.length === 0) {
     reasons.push('No manual review recorded');
+  } else if (input.manualReviews.length === 0) {
+    reasons.push('No manual review results connected');
+  } else if (
+    input.manualReviews.some(
+      (review) => review.status === 'failed' || review.status === 'blocked',
+    )
+  ) {
+    reasons.push('Manual review contains a failed or blocked result');
+  } else if (
+    input.manualReviews.some(
+      (review) => !executionIsCurrent(review, input.currentCommit),
+    )
+  ) {
+    reasons.push('Manual review evidence is stale');
   }
 
   if (manifest.documentationTargets.length === 0) {
@@ -166,7 +185,7 @@ function getPreviewUnavailableReason(
 }
 
 function executionIsCurrent(
-  execution: TestExecution,
+  execution: { readonly commitOrFingerprint: string },
   currentCommit: string | null,
 ): boolean {
   return (

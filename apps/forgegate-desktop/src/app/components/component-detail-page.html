@@ -235,6 +235,46 @@
       </tbody>
     </table>
     }
+
+    <h3 id="manual-reviews-title">Manual reviews</h3>
+    @if (workspace.manualReviewError(); as reviewError) {
+    <p role="alert">
+      Some manual review evidence could not be loaded: {{ reviewError }}
+    </p>
+    } @if (manualReviews().length === 0) {
+    <p class="component-detail__unavailable">
+      No manual review results are connected for this component version.
+    </p>
+    } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Procedure</th>
+          <th scope="col">Status</th>
+          <th scope="col">Reviewer</th>
+          <th scope="col">Date</th>
+          <th scope="col">Environment</th>
+          <th scope="col">Freshness</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (review of manualReviews(); track review.id) {
+        <tr>
+          <th scope="row">{{ review.procedureId }}</th>
+          <td>{{ review.status }}</td>
+          <td>{{ review.reviewerIdentity }}</td>
+          <td>{{ review.date }}</td>
+          <td>
+            {{ review.operatingSystem }}
+            @if (review.assistiveTechnology) { , {{ review.assistiveTechnology
+            }} }
+          </td>
+          <td>{{ manualReviewFreshness(review) }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+    }
   </section>
 
   <section

@@ -4,9 +4,11 @@ import {
   type RepositoryConfig,
 } from '@forgegate/core-config';
 import {
+  parseManualReview,
   parseTestEvidenceFile,
   type AutomatedEvidenceArtifact,
   type Finding,
+  type ManualReview,
   type TestExecution,
 } from '@forgegate/core-evidence';
 import {
@@ -88,6 +90,7 @@ export interface WorkspaceScan {
   componentPackages: ComponentPackageCandidate[];
   componentManifests?: string[];
   testEvidenceFiles?: string[];
+  manualReviewFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -301,6 +304,11 @@ export class WorkspaceService {
     readonly AutomatedEvidenceArtifact[]
   >([]);
   readonly testExecutionError = signal<string | null>(null);
+  /** Every real `.forgegate/manual-reviews/*.json` record — a human
+   * actually performing a declared procedure, not just the manifest
+   * declaring that a procedure exists. */
+  readonly manualReviews = signal<readonly ManualReview[]>([]);
+  readonly manualReviewError = signal<string | null>(null);
   /** Every DTCG token parsed from the workspace's detected token files. */
   readonly designTokens = signal<readonly DtcgToken[]>([]);
   readonly designTokenError = signal<string | null>(null);
@@ -403,6 +411,7 @@ export class WorkspaceService {
     this.customElementsManifestError.set(null);
     this.componentManifestError.set(null);
     this.testExecutionError.set(null);
+    this.manualReviewError.set(null);
     this.storybookIndexError.set(null);
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
@@ -457,6 +466,7 @@ export class WorkspaceService {
       );
       await this.loadComponentManifests(path, scan);
       await this.loadTestExecutions(path, scan);
+      await this.loadManualReviews(path, scan);
       await this.loadDesignTokens(path, scan);
       await this.loadAngularComponents(path, scan);
       this.setScanProgress(
@@ -488,6 +498,7 @@ export class WorkspaceService {
       this.componentManifestOverrides.set([]);
       this.testExecutions.set([]);
       this.automatedEvidenceArtifacts.set([]);
+      this.manualReviews.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.evidenceHistoryTrend.set(null);
@@ -1131,6 +1142,45 @@ export class WorkspaceService {
     this.testExecutions.set(executions);
     this.automatedEvidenceArtifacts.set(automatedArtifacts);
     this.testExecutionError.set(errors.length ? errors.join('\n') : null);
+  }
+
+  private async loadManualReviews(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.manualReviews.set([]);
+    const reviews: ManualReview[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.manualReviewFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        reviews.push(parseManualReview(text));
+        this.setAdapterDiagnostic({
+          id: `manual-review:${relativePath}`,
+          adapter: 'manual review evidence',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `manual-review:${relativePath}`,
+          adapter: 'manual review evidence',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.manualReviews.set(reviews);
+    this.manualReviewError.set(errors.length ? errors.join('\n') : null);
   }
 
   /**

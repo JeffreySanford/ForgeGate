@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { map } from 'rxjs';
-import type { TestExecution } from '@forgegate/core-evidence';
+import type { ManualReview, TestExecution } from '@forgegate/core-evidence';
 import {
   componentManifestPath,
   type ComponentManifest,
@@ -140,6 +140,15 @@ export class ComponentDetailPage {
     return this.workspace
       .testExecutions()
       .filter((execution) => execution.componentVersionId === versionId);
+  });
+
+  protected readonly manualReviews = computed<readonly ManualReview[]>(() => {
+    const manifest = this.manifest();
+    if (!manifest) return [];
+    const versionId = componentVersionId(manifest);
+    return this.workspace
+      .manualReviews()
+      .filter((review) => review.componentVersionId === versionId);
   });
 
   protected readonly evidenceFreshness = computed<string>(() => {
@@ -532,6 +541,17 @@ export class ComponentDetailPage {
       /^[0-9a-f]{40}$/i.test(execution.commitOrFingerprint) &&
       execution.commitOrFingerprint.toLowerCase() === commit.toLowerCase()
     );
+  }
+
+  protected manualReviewFreshness(review: ManualReview): string {
+    if (!/^[0-9a-f]{40}$/i.test(review.commitOrFingerprint)) {
+      return 'Not evaluated — evidence uses a source fingerprint rather than a Git commit';
+    }
+    const commit = this.workspace.gitStatus()?.commit;
+    return commit &&
+      review.commitOrFingerprint.toLowerCase() === commit.toLowerCase()
+      ? 'Current'
+      : `Stale — recorded at ${review.commitOrFingerprint.slice(0, 8)}`;
   }
 
   protected componentName(id: string): string {

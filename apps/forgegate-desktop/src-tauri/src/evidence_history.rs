@@ -801,6 +801,7 @@ mod tests {
                 ".forgegate/components/acme.design-system.button.yaml".to_string()
             ],
             test_evidence_files: Vec::new(),
+            manual_review_files: Vec::new(),
             ui_technologies: Vec::new(),
             ui_source_files: vec!["src/button.component.ts".to_string()],
             ui_source_files_truncated: false,
@@ -850,6 +851,7 @@ mod tests {
             component_packages: Vec::new(),
             component_manifests: Vec::new(),
             test_evidence_files: Vec::new(),
+            manual_review_files: Vec::new(),
             ui_technologies: Vec::new(),
             ui_source_files: Vec::new(),
             ui_source_files_truncated: false,
@@ -971,6 +973,7 @@ mod tests {
             component_packages: Vec::new(),
             component_manifests: Vec::new(),
             test_evidence_files: Vec::new(),
+            manual_review_files: Vec::new(),
             ui_technologies: Vec::new(),
             ui_source_files: Vec::new(),
             ui_source_files_truncated: false,
