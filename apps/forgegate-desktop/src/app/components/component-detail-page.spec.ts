@@ -682,6 +682,19 @@ describe('ComponentDetailPage', () => {
         commitOrFingerprint: 'a'.repeat(40),
       },
     ]);
+    workspaceService.manualReviews.set([
+      {
+        id: 'acme-button-keyboard-review',
+        componentVersionId: 'acme.design-system.acme-button@0.1.0',
+        procedureId: 'keyboard-and-screen-reader-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@acme.example',
+        date: '2026-07-24T16:00:00.000Z',
+        operatingSystem: 'macOS 15',
+        status: 'passed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+    ]);
     const exportSpy = vi
       .spyOn(workspaceService, 'exportEvidencePackage')
       .mockResolvedValue();
@@ -708,6 +721,10 @@ describe('ComponentDetailPage', () => {
     expect(exportSpy.mock.calls[0]?.[1][0]?.id).toBe('acme-button-unit');
     expect(exportSpy.mock.calls[0]?.[2]).toEqual(
       expect.arrayContaining([expect.any(String)]),
+    );
+    expect(exportSpy.mock.calls[0]?.[4]).toHaveLength(1);
+    expect(exportSpy.mock.calls[0]?.[4]?.[0]?.id).toBe(
+      'acme-button-keyboard-review',
     );
   });
 

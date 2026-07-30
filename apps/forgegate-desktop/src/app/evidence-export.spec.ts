@@ -1,6 +1,7 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
 import type {
   AutomatedEvidenceArtifact,
+  ManualReview,
   TestExecution,
 } from '@forgegate/core-evidence';
 import {
@@ -28,6 +29,21 @@ function execution(overrides: Partial<TestExecution>): TestExecution {
     adapterVersion: '1.0.0',
     status: 'passed',
     startedAt: '2026-01-01T00:00:00.000Z',
+    commitOrFingerprint: 'a'.repeat(40),
+    ...overrides,
+  };
+}
+
+function manualReview(overrides: Partial<ManualReview>): ManualReview {
+  return {
+    id: 'acme-button-keyboard-review',
+    componentVersionId: 'acme.lib.button@1.0.0',
+    procedureId: 'keyboard-and-screen-reader-review',
+    procedureVersion: '1.0.0',
+    reviewerIdentity: 'reviewer@example.com',
+    date: '2026-01-01T00:00:00.000Z',
+    operatingSystem: 'macOS 15',
+    status: 'passed',
     commitOrFingerprint: 'a'.repeat(40),
     ...overrides,
   };
@@ -641,6 +657,82 @@ describe('buildEvidenceExport', () => {
       'automated/playwright-results.json':
         'No Playwright result artifact is connected for this component yet.',
     });
+  });
+
+  it('writes one real manual/<id>.json file per connected manual review, scoped to this component version', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+    const reviews = [
+      manualReview({ id: 'acme-button-keyboard-review' }),
+      manualReview({
+        id: 'other-component-review',
+        componentVersionId: 'acme.lib.card@1.0.0',
+      }),
+    ];
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      manualReviews: reviews,
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files)).toContain(
+      'manual/acme-button-keyboard-review.json',
+    );
+    expect(Object.keys(result.files)).not.toContain(
+      'manual/other-component-review.json',
+    );
+    const reviewContent = JSON.parse(
+      requireFile(result, 'manual/acme-button-keyboard-review.json'),
+    );
+    expect(reviewContent).toEqual(reviews[0]);
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain(
+      'manual/acme-button-keyboard-review.json',
+    );
+    expect(manifestJson.checksums).toHaveProperty(
+      'manual/acme-button-keyboard-review.json',
+    );
+    expect(Object.keys(manifestJson.excludes)).not.toContain('manual/');
+    expect(requireFile(result, 'report.html')).toContain(
+      'keyboard-and-screen-reader-review',
+    );
+  });
+
+  it('leaves manual/ excluded when no manual review matches this component version', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      manualReviews: [manualReview({ componentVersionId: 'acme.lib.card@1.0.0' })],
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files).some((name) => name.startsWith('manual/'))).toBe(
+      false,
+    );
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.excludes['manual/']).toBe(
+      'No manual review result is connected for this component yet.',
+    );
   });
 
   it('computes real per-target documentation drift into documentation-status.json', async () => {

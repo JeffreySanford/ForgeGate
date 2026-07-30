@@ -804,9 +804,10 @@ export class WorkspaceService {
 
   /**
    * Exports one component's real evidence — its own test executions,
-   * per-target documentation drift, and blocking-reason findings, per
-   * `buildEvidenceExport` — as a real directory the user picks via a
-   * native folder dialog. A no-op if an export is already running.
+   * manual reviews, per-target documentation drift, and blocking-reason
+   * findings, per `buildEvidenceExport` — as a real directory the user
+   * picks via a native folder dialog. A no-op if an export is already
+   * running.
    * Cancelling the folder dialog (returning null) is a quiet no-op too,
    * not an error: the user simply changed their mind, same as declining
    * `select_workspace`'s dialog.
@@ -824,6 +825,7 @@ export class WorkspaceService {
      * everything produced that way is marked as not a real approval.
      */
     approver?: EvidenceApprover | null,
+    manualReviews: readonly ManualReview[] = [],
   ): Promise<void> {
     if (this.evidenceExportRunning()) {
       return;
@@ -846,6 +848,10 @@ export class WorkspaceService {
         automatedArtifacts: this.automatedEvidenceArtifacts().filter(
           (artifact) =>
             artifact.componentVersionId === componentVersionId(manifest),
+        ),
+        manualReviews: manualReviews.filter(
+          (review) =>
+            review.componentVersionId === componentVersionId(manifest),
         ),
         starlightProjects: this.workspaceScan()?.starlightProjects ?? [],
         blockingReasons,

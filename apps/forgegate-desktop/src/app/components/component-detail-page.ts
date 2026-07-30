@@ -568,6 +568,8 @@ export class ComponentDetailPage {
       manifest,
       this.testExecutions(),
       this.blockingReasons(),
+      undefined,
+      this.manualReviews(),
     );
   }
 

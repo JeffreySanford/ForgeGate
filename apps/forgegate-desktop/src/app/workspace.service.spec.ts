@@ -1183,6 +1183,56 @@ describe('WorkspaceService', () => {
       );
     });
 
+    it('writes a real manual/<id>.json file for a manual review scoped to this component version', async () => {
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
+
+      await service.exportEvidencePackage(
+        manifest,
+        [],
+        [],
+        undefined,
+        [
+          {
+            id: 'acme-button-keyboard-review',
+            componentVersionId: 'acme.lib.button@1.0.0',
+            procedureId: 'keyboard-and-screen-reader-review',
+            procedureVersion: '1.0.0',
+            reviewerIdentity: 'reviewer@example.com',
+            date: '2026-01-01T00:00:00.000Z',
+            operatingSystem: 'macOS 15',
+            status: 'passed',
+            commitOrFingerprint: 'a'.repeat(40),
+          },
+          {
+            id: 'other-component-review',
+            componentVersionId: 'acme.lib.card@1.0.0',
+            procedureId: 'keyboard-and-screen-reader-review',
+            procedureVersion: '1.0.0',
+            reviewerIdentity: 'reviewer@example.com',
+            date: '2026-01-01T00:00:00.000Z',
+            operatingSystem: 'macOS 15',
+            status: 'passed',
+            commitOrFingerprint: 'a'.repeat(40),
+          },
+        ],
+      );
+
+      const [, secondCallArgs] = invokeMock.mock.calls[1] as [
+        string,
+        { files: Record<string, string> },
+      ];
+      expect(Object.keys(secondCallArgs.files)).toContain(
+        'manual/acme-button-keyboard-review.json',
+      );
+      expect(Object.keys(secondCallArgs.files)).not.toContain(
+        'manual/other-component-review.json',
+      );
+    });
+
     it('reports a write failure without leaving the running flag stuck', async () => {
       invokeMock
         .mockResolvedValueOnce('/home/user/exports')

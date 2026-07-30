@@ -4,6 +4,7 @@ import {
   createFinding,
   type AutomatedEvidenceArtifact,
   type Finding,
+  type ManualReview,
   type TestExecution,
 } from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
@@ -26,18 +27,21 @@ import {
  * `Finding` records — see `findingsFromBlockingReasons`), and
  * `report.html` (the documented human-readable report, rendering the
  * sections backed by real data and naming the rest as not connected —
- * see `renderEvidenceReport`). Everything the documented shape also lists
- * (`policy-snapshot.json`, `release-decision.json`, `automated/`,
- * `manual/`, `exceptions/`, `attachments/`) is honestly absent —
- * `manifest.json`'s `excludes` field says why for each, rather than
- * silently omitting them or fabricating empty placeholders.
+ * see `renderEvidenceReport`). `automated/` and `manual/` are included
+ * only when real connected evidence exists for this component version —
+ * see the filtering below, mirrored for both. Everything the documented
+ * shape also lists (`policy-snapshot.json`, `release-decision.json`,
+ * `exceptions/`, `attachments/`) is honestly absent — `manifest.json`'s
+ * `excludes` field says why for each, rather than silently omitting them
+ * or fabricating empty placeholders.
  */
 const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'policy-snapshot.json':
     'No policy evaluation has run for this component yet.',
   'automated/':
     'No imported automated result artifact is connected for this component yet.',
-  'manual/': 'No guided manual review flow exists yet.',
+  'manual/':
+    'No manual review result is connected for this component yet.',
   'exceptions/': 'No exceptions have been recorded for this component yet.',
   'attachments/': 'No attachments have been captured yet.',
 };
@@ -95,6 +99,7 @@ export interface EvidenceExportInput {
   readonly manifest: ComponentManifest;
   readonly testExecutions: readonly TestExecution[];
   readonly automatedArtifacts?: readonly AutomatedEvidenceArtifact[];
+  readonly manualReviews?: readonly ManualReview[];
   readonly starlightProjects: readonly string[];
   readonly blockingReasons?: readonly string[];
   /**
@@ -126,6 +131,9 @@ export async function buildEvidenceExport(
   const versionId = componentVersionId(manifest);
   const automatedArtifacts = (input.automatedArtifacts ?? []).filter(
     (artifact) => artifact.componentVersionId === versionId,
+  );
+  const manualReviews = (input.manualReviews ?? []).filter(
+    (review) => review.componentVersionId === versionId,
   );
 
   const documentationStatus = manifest.documentationTargets.map((target) => ({
@@ -201,6 +209,13 @@ export async function buildEvidenceExport(
         'No Storybook interaction result artifact is connected for this component yet.';
     }
   }
+  if (manualReviews.length) {
+    delete excludes['manual/'];
+    for (const review of manualReviews) {
+      contentFiles[`manual/${sanitizeForFilename(review.id)}.json`] =
+        JSON.stringify(review, null, 2);
+    }
+  }
   for (const finding of findings) {
     contentFiles[`findings/${finding.id}.json`] = JSON.stringify(
       finding,
@@ -230,6 +245,7 @@ export async function buildEvidenceExport(
     exportedAt,
     repositoryCommit,
     testExecutions,
+    manualReviews,
     documentationStatus,
     findings,
     releaseDecision:
@@ -329,6 +345,7 @@ function renderEvidenceReport(input: {
   exportedAt: string;
   repositoryCommit: string | null;
   testExecutions: readonly TestExecution[];
+  manualReviews: readonly ManualReview[];
   documentationStatus: readonly DocumentationStatusRow[];
   findings: readonly Finding[];
   releaseDecision: ReleaseDecision | null;
@@ -342,6 +359,7 @@ function renderEvidenceReport(input: {
     exportedAt,
     repositoryCommit,
     testExecutions,
+    manualReviews,
     documentationStatus,
     findings,
   } = input;
@@ -368,6 +386,21 @@ function renderEvidenceReport(input: {
     </table>`
     : notConnected(
         'No automated result evidence is connected for this component version.',
+      );
+
+  const manualReviewsSection = manualReviews.length
+    ? `<table>
+      <caption>Manual reviews</caption>
+      <thead><tr><th scope="col">Procedure</th><th scope="col">Status</th><th scope="col">Reviewer</th><th scope="col">Date</th><th scope="col">Commit or fingerprint</th></tr></thead>
+      <tbody>${manualReviews
+        .map(
+          (review) =>
+            `<tr><th scope="row">${escapeHtml(review.procedureId)}</th><td>${escapeHtml(review.status)}</td><td>${escapeHtml(review.reviewerIdentity)}</td><td>${escapeHtml(review.date)}</td><td><code>${escapeHtml(review.commitOrFingerprint)}</code></td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>`
+    : notConnected(
+        'No manual review result is connected for this component version.',
       );
 
   const findingsSection = findings.length
@@ -461,6 +494,9 @@ ${
 
 <h2>Automated results</h2>
 ${automatedResults}
+
+<h2>Manual reviews</h2>
+${manualReviewsSection}
 
 <h2>Findings</h2>
 ${findingsSection}
