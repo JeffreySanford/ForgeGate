@@ -269,7 +269,28 @@
             @if (review.assistiveTechnology) { , {{ review.assistiveTechnology
             }} }
           </td>
-          <td>{{ manualReviewFreshness(review) }}</td>
+          <td>
+            {{ manualReviewFreshness(review) }}
+            @if (manualReviewIsStale(review)) {
+            <button
+              type="button"
+              (click)="showStaleReviewChangedFiles(review)"
+            >
+              Show changed files
+            </button>
+            @if (workspace.staleReviewChangedFiles()[review.commitOrFingerprint]; as diff) {
+            @if (diff.error) {
+            <p role="alert">{{ diff.error }}</p>
+            } @else if (diff.files.length === 0) {
+            <p>No file differences were detected.</p>
+            } @else {
+            <ul class="component-detail__stale-review-changed-files">
+              @for (file of diff.files; track file) {
+              <li><code>{{ file }}</code></li>
+              }
+            </ul>
+            } } }
+          </td>
         </tr>
         }
       </tbody>

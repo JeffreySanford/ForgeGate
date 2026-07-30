@@ -336,6 +336,18 @@ export class WorkspaceService {
   readonly saveManualReviewResult = signal<{ readonly path: string } | null>(
     null,
   );
+  /**
+   * Real files changed between a stale review's recorded commit and the
+   * workspace's current commit (documentation/09-manual-review-and-evidence.md's
+   * "Stale approvals" example), keyed by the reviewed commit hash so
+   * several reviews sharing the same commit only ever fetch it once.
+   * Lazy and explicit: only fetched when the user asks (never eagerly for
+   * every review shown), since it is a real `git diff` shell-out per
+   * distinct commit.
+   */
+  readonly staleReviewChangedFiles = signal<
+    Readonly<Record<string, { readonly files: readonly string[]; readonly error: string | null }>>
+  >({});
   /** Every DTCG token parsed from the workspace's detected token files. */
   readonly designTokens = signal<readonly DtcgToken[]>([]);
   readonly designTokenError = signal<string | null>(null);
@@ -1408,6 +1420,35 @@ export class WorkspaceService {
       this.saveManualReviewError.set(String(error));
     } finally {
       this.saveManualReviewRunning.set(false);
+    }
+  }
+
+  /**
+   * Loads the real files changed between `fromCommit` (a stale review's
+   * recorded commit) and the workspace's current commit. A no-op if no
+   * workspace is open or this commit's diff was already fetched — never
+   * called automatically, only from an explicit "Show changed files"
+   * action, since it is a real per-commit `git diff` shell-out.
+   */
+  async loadStaleReviewChangedFiles(fromCommit: string): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.staleReviewChangedFiles()[fromCommit]) {
+      return;
+    }
+    try {
+      const files = await this.invoke<string[]>('read_commit_diff_files', {
+        path,
+        fromCommit,
+      });
+      this.staleReviewChangedFiles.update((current) => ({
+        ...current,
+        [fromCommit]: { files, error: null },
+      }));
+    } catch (error) {
+      this.staleReviewChangedFiles.update((current) => ({
+        ...current,
+        [fromCommit]: { files: [], error: String(error) },
+      }));
     }
   }
 

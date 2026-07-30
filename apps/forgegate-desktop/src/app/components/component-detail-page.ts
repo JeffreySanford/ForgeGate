@@ -555,6 +555,23 @@ export class ComponentDetailPage {
       : `Stale — recorded at ${review.commitOrFingerprint.slice(0, 8)}`;
   }
 
+  protected manualReviewIsStale(review: ManualReview): boolean {
+    if (!/^[0-9a-f]{40}$/i.test(review.commitOrFingerprint)) {
+      return false;
+    }
+    const commit = this.workspace.gitStatus()?.commit;
+    return (
+      !!commit &&
+      review.commitOrFingerprint.toLowerCase() !== commit.toLowerCase()
+    );
+  }
+
+  protected showStaleReviewChangedFiles(review: ManualReview): void {
+    void this.workspace.loadStaleReviewChangedFiles(
+      review.commitOrFingerprint,
+    );
+  }
+
   protected componentName(id: string): string {
     const parts = id.split('.');
     return parts[parts.length - 1] ?? id;

@@ -641,6 +641,76 @@ describe('ComponentDetailPage', () => {
     );
   });
 
+  it('clicking "Show changed files" on a stale review loads and renders the real diff', async () => {
+    const reviewCommit = 'a'.repeat(40);
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '0.1.0',
+        manualReviewProcedureIds: ['keyboard-and-screen-reader-review'],
+      }),
+    ]);
+    workspaceService.gitStatus.set({
+      branch: 'main',
+      commit: 'b'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    workspaceService.manualReviews.set([
+      {
+        id: 'acme-button-keyboard-review',
+        componentVersionId: 'acme.design-system.acme-button@0.1.0',
+        procedureId: 'keyboard-and-screen-reader-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@acme.example',
+        date: '2026-07-24T16:00:00.000Z',
+        operatingSystem: 'macOS 15',
+        status: 'passed',
+        commitOrFingerprint: reviewCommit,
+      },
+    ]);
+    const loadSpy = vi
+      .spyOn(workspaceService, 'loadStaleReviewChangedFiles')
+      .mockImplementation(async (fromCommit) => {
+        workspaceService.staleReviewChangedFiles.set({
+          [fromCommit]: {
+            files: ['button.component.html', 'button.component.ts'],
+            error: null,
+          },
+        });
+      });
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const showButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Show changed files'),
+    );
+    expect(showButton).toBeDefined();
+    showButton?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(loadSpy).toHaveBeenCalledWith(reviewCommit);
+    const evidencePanel = compiled.querySelector(
+      '[aria-labelledby="evidence-title"]',
+    );
+    expect(evidencePanel?.textContent).toContain('button.component.html');
+    expect(evidencePanel?.textContent).toContain('button.component.ts');
+  });
+
   it('has no automated accessibility violations for a matched component', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

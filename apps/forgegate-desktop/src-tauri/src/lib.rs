@@ -359,6 +359,53 @@ fn read_git_status(path: String) -> Result<GitStatus, String> {
     })
 }
 
+/// A real 40-hex-character Git commit hash — the same shape
+/// `component-readiness.ts`'s `executionIsCurrent` already requires before
+/// treating a `commitOrFingerprint` as a real commit rather than an opaque
+/// fingerprint. Rejecting anything else here also closes the one real risk
+/// of shelling out with a caller-influenced string: a hex-only, fixed-length
+/// value can never be interpreted as a `git` flag (no leading `-`) or carry
+/// extra arguments.
+fn is_git_commit_hash(value: &str) -> bool {
+    value.len() == 40 && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Real file names changed between a manual review's recorded commit and
+/// the workspace's current `HEAD` — documentation/09-manual-review-and-evidence.md's
+/// "Stale approvals" example ("Changed files: button.component.html,
+/// button.component.ts"). Deliberately narrow: this names *what* changed,
+/// not *why* it invalidates the review (the doc's finer per-category
+/// invalidation model — component vs. token vs. markup — needs its own
+/// real design and is not fabricated here).
+#[tauri::command]
+fn read_commit_diff_files(path: String, from_commit: String) -> Result<Vec<String>, String> {
+    let workspace = resolve_workspace_path(&path)?;
+    if !is_git_repository(&workspace) {
+        return Err(format!("{} is not a Git repository", workspace.display()));
+    }
+    if !is_git_commit_hash(&from_commit) {
+        return Err(format!(
+            "\"{from_commit}\" is not a real Git commit hash"
+        ));
+    }
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&workspace)
+        .args(["diff", "--name-only", &from_commit, "HEAD"])
+        .output()
+        .map_err(|error| format!("Failed to run git: {error}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .collect())
+}
+
 #[tauri::command]
 fn read_workspace_scan(path: String) -> Result<WorkspaceScan, String> {
     let workspace = resolve_workspace_path(&path)?;
@@ -985,6 +1032,114 @@ mod tests {
     }
 
     #[test]
+    fn is_git_commit_hash_accepts_and_rejects_the_expected_shapes() {
+        assert!(is_git_commit_hash(&"a".repeat(40)));
+        assert!(is_git_commit_hash("95e7160868275025e94ff0ff0d3a397785a92868"));
+        assert!(!is_git_commit_hash("keyboard-and-screen-reader-review"));
+        assert!(!is_git_commit_hash(&"a".repeat(39)));
+        assert!(!is_git_commit_hash(&"a".repeat(41)));
+        assert!(!is_git_commit_hash("--upload-pack=evil"));
+        assert!(!is_git_commit_hash(""));
+    }
+
+    fn run_git_in(dir: &std::path::Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .output()
+            .expect("git should run");
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn reads_the_real_files_changed_between_two_real_commits() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-commit-diff-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp repo dir");
+        run_git_in(&dir, &["init"]);
+        run_git_in(&dir, &["config", "user.email", "test@example.com"]);
+        run_git_in(&dir, &["config", "user.name", "Test"]);
+        fs::write(dir.join("button.component.ts"), "v1").expect("should write file");
+        run_git_in(&dir, &["add", "."]);
+        run_git_in(&dir, &["commit", "-m", "initial"]);
+        let first_commit = run_git_in(&dir, &["rev-parse", "HEAD"]);
+
+        fs::write(dir.join("button.component.ts"), "v2").expect("should rewrite file");
+        fs::write(dir.join("button.component.html"), "<button></button>")
+            .expect("should write a second file");
+        run_git_in(&dir, &["add", "."]);
+        run_git_in(&dir, &["commit", "-m", "keyboard behavior change"]);
+
+        let mut changed = read_commit_diff_files(dir.display().to_string(), first_commit)
+            .expect("diff should succeed between two real commits");
+        changed.sort();
+
+        assert_eq!(
+            changed,
+            vec![
+                "button.component.html".to_string(),
+                "button.component.ts".to_string(),
+            ]
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reports_no_changed_files_when_the_reviewed_commit_is_still_current() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-commit-diff-current-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp repo dir");
+        run_git_in(&dir, &["init"]);
+        run_git_in(&dir, &["config", "user.email", "test@example.com"]);
+        run_git_in(&dir, &["config", "user.name", "Test"]);
+        fs::write(dir.join("button.component.ts"), "v1").expect("should write file");
+        run_git_in(&dir, &["add", "."]);
+        run_git_in(&dir, &["commit", "-m", "initial"]);
+        let commit = run_git_in(&dir, &["rev-parse", "HEAD"]);
+
+        let changed = read_commit_diff_files(dir.display().to_string(), commit)
+            .expect("diff should succeed when nothing has changed since");
+
+        assert!(changed.is_empty());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_diff_against_a_value_that_is_not_a_real_commit_hash() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-commit-diff-invalid-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp repo dir");
+        run_git_in(&dir, &["init"]);
+
+        let result = read_commit_diff_files(
+            dir.display().to_string(),
+            "keyboard-and-screen-reader-review".to_string(),
+        );
+
+        assert!(result.is_err());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn parses_modified_added_untracked_and_renamed_porcelain_lines() {
         let porcelain = " M apps/forgegate-desktop/src-tauri/src/lib.rs\nA  apps/new-file.ts\n?? apps/untracked.ts\nR  apps/old-name.ts -> apps/new-name.ts\n";
 
@@ -1367,6 +1522,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             select_workspace,
             read_git_status,
+            read_commit_diff_files,
             read_workspace_scan,
             read_repository_config_file,
             read_text_file,

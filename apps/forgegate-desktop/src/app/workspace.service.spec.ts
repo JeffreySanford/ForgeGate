@@ -1716,4 +1716,57 @@ describe('WorkspaceService', () => {
       expect(service.findings()).toEqual([]);
     });
   });
+
+  describe('loadStaleReviewChangedFiles', () => {
+    it('does nothing if no workspace is open', async () => {
+      await service.loadStaleReviewChangedFiles('a'.repeat(40));
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('loads the real changed files for a commit and caches by commit hash', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock.mockResolvedValueOnce([
+        'button.component.html',
+        'button.component.ts',
+      ]);
+
+      await service.loadStaleReviewChangedFiles('a'.repeat(40));
+
+      expect(invokeMock).toHaveBeenCalledWith('read_commit_diff_files', {
+        path: 'D:/repos/ForgeGate',
+        fromCommit: 'a'.repeat(40),
+      });
+      expect(service.staleReviewChangedFiles()).toEqual({
+        [`${'a'.repeat(40)}`]: {
+          files: ['button.component.html', 'button.component.ts'],
+          error: null,
+        },
+      });
+    });
+
+    it('does not refetch a commit whose diff is already cached', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock.mockResolvedValueOnce(['button.component.ts']);
+
+      await service.loadStaleReviewChangedFiles('a'.repeat(40));
+      await service.loadStaleReviewChangedFiles('a'.repeat(40));
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces a real failure per commit rather than throwing', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock.mockRejectedValueOnce('Failed to run git: not a repository');
+
+      await service.loadStaleReviewChangedFiles('a'.repeat(40));
+
+      expect(service.staleReviewChangedFiles()).toEqual({
+        [`${'a'.repeat(40)}`]: {
+          files: [],
+          error: 'Failed to run git: not a repository',
+        },
+      });
+    });
+  });
 });
