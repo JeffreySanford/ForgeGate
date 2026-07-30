@@ -1,0 +1,50 @@
+id: blueprint.button
+version: 1.0.0
+name: Button
+purpose: Trigger a primary or secondary application action.
+preferredNativeElement: button
+requiredStates:
+  - default
+  - hover
+  - focus-visible
+  - active
+  - disabled
+inspectorGroups:
+  - id: appearance
+    label: Appearance
+    fields:
+      - path: contract.properties.appearance
+        label: Appearance
+        control: segmented
+        options: [filled, outlined, subtle]
+        required: true
+      - path: contract.properties.tone
+        label: Tone
+        control: select
+        options: [brand, neutral, destructive]
+        required: true
+  - id: behavior
+    label: Behavior
+    fields:
+      - path: contract.properties.disabled
+        label: Disabled
+        control: toggle
+      - path: contract.properties.loading
+        label: Loading
+        control: toggle
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
+  - id: root.focusRing
+    label: Focus ring
+    types: [color]
+    required: true
+constraints:
+  - when: iconPlacement == icon-only
+    require: accessibleLabel

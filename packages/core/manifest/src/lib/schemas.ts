@@ -101,3 +101,69 @@ export const testRequirementSchema = {
   required: ['id', 'componentVersionId', 'gate', 'scope', 'required'],
   additionalProperties: false,
 } as const;
+
+const blueprintInspectorFieldSchema = {
+  type: 'object',
+  properties: {
+    path: { type: 'string', minLength: 1 },
+    label: { type: 'string', minLength: 1 },
+    control: { enum: ['segmented', 'select', 'text', 'toggle', 'number'] },
+    options: { type: 'array', items: { type: 'string' } },
+    required: { type: 'boolean' },
+    defaultValue: { type: 'string' },
+  },
+  required: ['path', 'label', 'control'],
+  additionalProperties: false,
+} as const;
+
+const blueprintInspectorGroupSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    label: { type: 'string', minLength: 1 },
+    fields: { type: 'array', items: blueprintInspectorFieldSchema },
+  },
+  required: ['id', 'label', 'fields'],
+  additionalProperties: false,
+} as const;
+
+const blueprintTokenSlotSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    label: { type: 'string', minLength: 1 },
+    types: { type: 'array', items: { type: 'string' } },
+    required: { type: 'boolean' },
+    visibleWhen: { type: 'string' },
+  },
+  required: ['id', 'label', 'types', 'required'],
+  additionalProperties: false,
+} as const;
+
+const blueprintConstraintSchema = {
+  type: 'object',
+  properties: {
+    when: { type: 'string', minLength: 1 },
+    require: { type: 'string', minLength: 1 },
+  },
+  required: ['when', 'require'],
+  additionalProperties: false,
+} as const;
+
+export const blueprintSchema = {
+  $id: 'https://forgegate.dev/schemas/blueprint.schema.json',
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    version: { type: 'string', minLength: 1 },
+    name: { type: 'string', minLength: 1 },
+    purpose: { type: 'string', minLength: 1 },
+    preferredNativeElement: { type: 'string' },
+    requiredStates: { type: 'array', items: { type: 'string', minLength: 1 } },
+    inspectorGroups: { type: 'array', items: blueprintInspectorGroupSchema },
+    tokenSlots: { type: 'array', items: blueprintTokenSlotSchema },
+    constraints: { type: 'array', items: blueprintConstraintSchema },
+  },
+  required: ['id', 'version', 'name', 'purpose', 'requiredStates', 'inspectorGroups', 'tokenSlots'],
+  additionalProperties: false,
+} as const;

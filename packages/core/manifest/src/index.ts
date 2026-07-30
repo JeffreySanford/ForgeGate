@@ -6,3 +6,5 @@ export * from './lib/schemas';
 export * from './lib/component-manifest';
 export * from './lib/component-manifest-schema';
 export * from './lib/component-manifest-yaml';
+export * from './lib/blueprint';
+export * from './lib/blueprint-yaml';
