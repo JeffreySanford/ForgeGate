@@ -1,6 +1,10 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import type { ResultStatus } from '@forgegate/core-domain';
-import type { ManualProcedure, ManualReview } from '@forgegate/core-evidence';
+import type {
+  ManualProcedure,
+  ManualReview,
+  ManualReviewStepResult,
+} from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { componentVersionId } from '../component-readiness';
 import { WorkspaceService } from '../workspace.service';
@@ -17,21 +21,46 @@ const RESULT_STATUS_OPTIONS: readonly ResultStatus[] = [
 ];
 
 /**
- * A real, narrow first slice of the documented guided manual-review flow
- * (documentation/09-manual-review-and-evidence.md, "Procedure model"): the
- * reviewer picks one of the component's own declared, connected procedures,
- * reads its ordered steps, confirms the environment they actually reviewed
- * in, records an overall result, and saves it as a real
- * `.forgegate/manual-reviews/<id>.json` file — the exact same file shape
- * `WorkspaceService.loadManualReviews` already reads back.
+ * Worst-first rank used to roll many real per-step results up into one
+ * overall `ManualReview.status` — lower is worse. A review is never more
+ * confident than its worst-recorded step: one `blocked` step makes the
+ * whole review `blocked`, no matter how many other steps passed.
+ */
+const STATUS_SEVERITY_RANK: Readonly<Record<ResultStatus, number>> = {
+  blocked: 0,
+  failed: 1,
+  warning: 2,
+  incomplete: 3,
+  unknown: 4,
+  skipped: 5,
+  'not-applicable': 6,
+  passed: 7,
+};
+
+function worstStatus(statuses: readonly ResultStatus[]): ResultStatus {
+  return statuses.reduce((worst, status) =>
+    STATUS_SEVERITY_RANK[status] < STATUS_SEVERITY_RANK[worst] ? status : worst,
+  );
+}
+
+/**
+ * The guided manual-review walkthrough (documentation/09-manual-review-and-evidence.md,
+ * "Procedure model"): the reviewer picks one of the component's own
+ * declared, connected procedures, records a real per-step result for each
+ * ordered step (not just one overall outcome), confirms the environment
+ * they actually reviewed in, and saves. `WorkspaceService.saveManualReview`
+ * writes the resulting `ManualReview` — with real `stepResults` — to
+ * `.forgegate/manual-reviews/<id>.json`, and derives a real `Finding` for
+ * every step recorded as `failed` or `blocked`
+ * (`findingsFromManualReviewStepResults`), per the doc's "A failed step
+ * should create or link to a finding."
  *
- * Deliberately not per-step result tracking yet (one overall `status`, from
- * the same real `ResultStatus` enum every other evidence record already
- * uses — not the documented per-step "Observation"/"Needs follow-up"
- * states, which nothing in the schema supports yet). The steps are shown so
- * the reviewer actually follows them, but only one recorded outcome comes
- * out the other end. Extending to real per-step results is a disclosed,
- * separate next step, not fabricated here.
+ * The overall `status` on the saved review is never chosen directly — it
+ * is always the real worst-of-steps rollup, so it can't silently disagree
+ * with what the per-step results actually say.
+ *
+ * Deliberately narrower than the full documented model still: no required
+ * attachments, no reviewer-role requirement, no re-review/expiration rule.
  */
 @Component({
   selector: 'app-manual-review-walkthrough',
@@ -60,14 +89,30 @@ export class ManualReviewWalkthrough {
       ) ?? null,
   );
 
+  /** Keyed by step index. A step not yet given a real result defaults to
+   * `'unknown'` rather than a silently assumed `'passed'` — the reviewer
+   * must explicitly record what happened. */
+  protected readonly stepStatuses = signal<Record<number, ResultStatus>>({});
+  protected readonly stepNotes = signal<Record<number, string>>({});
+
   protected readonly reviewerIdentity = signal('');
   protected readonly reviewerRole = signal('');
   protected readonly operatingSystem = signal('');
   protected readonly browser = signal('');
   protected readonly assistiveTechnology = signal('');
   protected readonly storyOrScenario = signal('');
-  protected readonly status = signal<ResultStatus>('passed');
   protected readonly notes = signal('');
+
+  protected readonly overallStatus = computed<ResultStatus>(() => {
+    const procedure = this.selectedProcedure();
+    if (!procedure || procedure.steps.length === 0) {
+      return 'unknown';
+    }
+    const statuses = this.stepStatuses();
+    return worstStatus(
+      procedure.steps.map((_, index) => statuses[index] ?? 'unknown'),
+    );
+  });
 
   protected readonly canSave = computed<boolean>(
     () =>
@@ -85,6 +130,27 @@ export class ManualReviewWalkthrough {
     this.assistiveTechnology.set(
       (procedure?.environment?.assistiveTechnology ?? []).join(', '),
     );
+    this.stepStatuses.set({});
+    this.stepNotes.set({});
+  }
+
+  protected setStepStatus(stepIndex: number, status: string): void {
+    this.stepStatuses.update((current) => ({
+      ...current,
+      [stepIndex]: status as ResultStatus,
+    }));
+  }
+
+  protected setStepNote(stepIndex: number, note: string): void {
+    this.stepNotes.update((current) => ({ ...current, [stepIndex]: note }));
+  }
+
+  protected stepStatus(stepIndex: number): ResultStatus {
+    return this.stepStatuses()[stepIndex] ?? 'unknown';
+  }
+
+  protected stepNote(stepIndex: number): string {
+    return this.stepNotes()[stepIndex] ?? '';
   }
 
   protected save(): void {
@@ -94,6 +160,17 @@ export class ManualReviewWalkthrough {
     }
     const manifest = this.manifest();
     const commit = this.workspace.gitStatus()?.commit ?? 'unknown';
+    const statuses = this.stepStatuses();
+    const notes = this.stepNotes();
+    const stepResults: ManualReviewStepResult[] = procedure.steps.map(
+      (step, index) => ({
+        stepIndex: index,
+        action: step.action,
+        expected: step.expected,
+        status: statuses[index] ?? 'unknown',
+        ...(notes[index]?.trim() ? { note: notes[index].trim() } : {}),
+      }),
+    );
     const review: ManualReview = {
       id: `${manifest.id}-${procedure.id}-${Date.now()}`,
       componentVersionId: componentVersionId(manifest),
@@ -112,10 +189,11 @@ export class ManualReviewWalkthrough {
       ...(this.storyOrScenario().trim()
         ? { storyOrScenario: this.storyOrScenario().trim() }
         : {}),
-      status: this.status(),
+      status: this.overallStatus(),
       ...(this.notes().trim() ? { notes: this.notes().trim() } : {}),
       commitOrFingerprint: commit,
+      stepResults,
     };
-    void this.workspace.saveManualReview(review);
+    void this.workspace.saveManualReview(review, manifest.id);
   }
 }

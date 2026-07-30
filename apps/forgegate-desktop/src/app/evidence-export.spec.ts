@@ -2,6 +2,7 @@ import { createComponentManifest } from '@forgegate/core-manifest';
 import type {
   AutomatedEvidenceArtifact,
   Exception,
+  Finding,
   ManualReview,
   TestExecution,
 } from '@forgegate/core-evidence';
@@ -57,6 +58,21 @@ function exception(overrides: Partial<Exception>): Exception {
     approvedBy: 'lead-reviewer@example.com',
     approvedAt: '2026-01-01T00:00:00.000Z',
     rationale: 'Risk accepted until next sprint.',
+    ...overrides,
+  };
+}
+
+function persistedFinding(overrides: Partial<Finding>): Finding {
+  return {
+    id: 'acme-button-keyboard-review-1-step-1',
+    componentId: 'acme.lib.button',
+    scenario: 'Activate using Space.',
+    description:
+      'Activate using Space. — expected: the action fires once. It fired twice.',
+    severity: 'serious',
+    sourceEvidenceId: 'acme-button-keyboard-review-1',
+    standardOrPolicyRef: 'keyboard-and-screen-reader-review',
+    status: 'open',
     ...overrides,
   };
 }
@@ -744,6 +760,47 @@ describe('buildEvidenceExport', () => {
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     expect(manifestJson.excludes['manual/']).toBe(
       'No manual review result is connected for this component yet.',
+    );
+  });
+
+  it('merges real persisted findings into findings/, scoped to this component and not duplicating blocking-reason ids', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      blockingReasons: ['No token mappings connected'],
+      persistedFindings: [
+        persistedFinding({ id: 'acme-button-keyboard-review-1-step-1' }),
+        persistedFinding({
+          id: 'other-component-step-finding',
+          componentId: 'acme.lib.card',
+        }),
+      ],
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files)).toContain(
+      'findings/acme.lib.button-blocking-0.json',
+    );
+    expect(Object.keys(result.files)).toContain(
+      'findings/acme-button-keyboard-review-1-step-1.json',
+    );
+    expect(Object.keys(result.files)).not.toContain(
+      'findings/other-component-step-finding.json',
+    );
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain(
+      'findings/acme-button-keyboard-review-1-step-1.json',
     );
   });
 

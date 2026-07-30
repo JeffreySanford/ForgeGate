@@ -704,6 +704,15 @@ describe('ComponentDetailPage', () => {
         rationale: 'Risk accepted until next sprint.',
       },
     ]);
+    workspaceService.findings.set([
+      {
+        id: 'acme-button-keyboard-review-1-step-1',
+        componentId: 'acme.design-system.acme-button',
+        description: 'Activate using Space. — expected once, fired twice.',
+        severity: 'serious',
+        status: 'open',
+      },
+    ]);
     const exportSpy = vi
       .spyOn(workspaceService, 'exportEvidencePackage')
       .mockResolvedValue();
@@ -738,6 +747,10 @@ describe('ComponentDetailPage', () => {
     expect(exportSpy.mock.calls[0]?.[5]).toHaveLength(1);
     expect(exportSpy.mock.calls[0]?.[5]?.[0]?.id).toBe(
       'acme-button-token-exception',
+    );
+    expect(exportSpy.mock.calls[0]?.[6]).toHaveLength(1);
+    expect(exportSpy.mock.calls[0]?.[6]?.[0]?.id).toBe(
+      'acme-button-keyboard-review-1-step-1',
     );
   });
 

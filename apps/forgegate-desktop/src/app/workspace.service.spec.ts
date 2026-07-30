@@ -1561,6 +1561,7 @@ describe('WorkspaceService', () => {
   });
 
   describe('saveManualReview', () => {
+    const componentId = 'acme.design-system.acme-button';
     const review = {
       id: 'acme.design-system.acme-button-keyboard-and-screen-reader-review-1',
       componentVersionId: 'acme.design-system.acme-button@0.1.0',
@@ -1574,7 +1575,7 @@ describe('WorkspaceService', () => {
     };
 
     it('does nothing if no workspace is open', async () => {
-      await service.saveManualReview(review);
+      await service.saveManualReview(review, componentId);
 
       expect(invokeMock).not.toHaveBeenCalled();
     });
@@ -1585,7 +1586,7 @@ describe('WorkspaceService', () => {
         'D:/repos/ForgeGate/.forgegate/manual-reviews/acme.design-system.acme-button-keyboard-and-screen-reader-review-1.json',
       );
 
-      await service.saveManualReview(review);
+      await service.saveManualReview(review, componentId);
 
       expect(invokeMock).toHaveBeenCalledWith('write_manual_review', {
         workspacePath: 'D:/repos/ForgeGate',
@@ -1603,7 +1604,7 @@ describe('WorkspaceService', () => {
       service.workspacePath.set('D:/repos/ForgeGate');
       invokeMock.mockRejectedValueOnce('Permission denied');
 
-      await service.saveManualReview(review);
+      await service.saveManualReview(review, componentId);
 
       expect(service.saveManualReviewError()).toBe('Permission denied');
       expect(service.saveManualReviewRunning()).toBe(false);
@@ -1614,9 +1615,105 @@ describe('WorkspaceService', () => {
       service.workspacePath.set('D:/repos/ForgeGate');
       service.saveManualReviewRunning.set(true);
 
-      await service.saveManualReview(review);
+      await service.saveManualReview(review, componentId);
 
       expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('writes no finding when every step passed', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock.mockResolvedValueOnce('D:/repos/ForgeGate/.forgegate/manual-reviews/x.json');
+
+      await service.saveManualReview(
+        {
+          ...review,
+          stepResults: [
+            {
+              stepIndex: 0,
+              action: 'Move focus using Tab.',
+              expected: 'Focus moves to the button.',
+              status: 'passed',
+            },
+          ],
+        },
+        componentId,
+      );
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        'write_finding',
+        expect.anything(),
+      );
+      expect(service.findings()).toEqual([]);
+    });
+
+    it('writes a real linked finding for each failed or blocked step and updates findings', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      const reviewWithFailure = {
+        ...review,
+        stepResults: [
+          {
+            stepIndex: 0,
+            action: 'Move focus using Tab.',
+            expected: 'Focus moves to the button.',
+            status: 'passed' as const,
+          },
+          {
+            stepIndex: 1,
+            action: 'Activate using Space.',
+            expected: 'The configured action occurs exactly once.',
+            status: 'failed' as const,
+            note: 'Activation fired twice.',
+          },
+        ],
+      };
+      invokeMock
+        .mockResolvedValueOnce('D:/repos/ForgeGate/.forgegate/manual-reviews/x.json')
+        .mockResolvedValueOnce(
+          `D:/repos/ForgeGate/.forgegate/findings/${review.id}-step-1.json`,
+        );
+
+      await service.saveManualReview(reviewWithFailure, componentId);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'write_finding', {
+        workspacePath: 'D:/repos/ForgeGate',
+        findingId: `${review.id}-step-1`,
+        content: expect.stringContaining('"status": "open"'),
+      });
+      expect(service.findings()).toHaveLength(1);
+      expect(service.findings()[0]).toMatchObject({
+        id: `${review.id}-step-1`,
+        componentId,
+        sourceEvidenceId: review.id,
+        standardOrPolicyRef: review.procedureId,
+        severity: 'serious',
+      });
+    });
+
+    it('surfaces a finding write failure without losing the already-saved review', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      invokeMock
+        .mockResolvedValueOnce('D:/repos/ForgeGate/.forgegate/manual-reviews/x.json')
+        .mockRejectedValueOnce('Permission denied');
+
+      await service.saveManualReview(
+        {
+          ...review,
+          stepResults: [
+            {
+              stepIndex: 0,
+              action: 'Activate using Space.',
+              expected: 'The configured action occurs exactly once.',
+              status: 'blocked',
+            },
+          ],
+        },
+        componentId,
+      );
+
+      expect(service.saveManualReviewError()).toBe('Permission denied');
+      expect(service.manualReviews()).toHaveLength(1);
+      expect(service.findings()).toEqual([]);
     });
   });
 });

@@ -5,6 +5,7 @@ import {
 } from '@forgegate/core-config';
 import {
   parseException,
+  parseFinding,
   parseManualProcedure,
   parseManualReview,
   parseTestEvidenceFile,
@@ -15,6 +16,7 @@ import {
   type ManualReview,
   type TestExecution,
 } from '@forgegate/core-evidence';
+import { findingsFromManualReviewStepResults } from './manual-review-findings';
 import {
   parseCustomElementsManifest,
   type CustomElementsManifest,
@@ -97,6 +99,7 @@ export interface WorkspaceScan {
   manualReviewFiles?: string[];
   exceptionFiles?: string[];
   procedureFiles?: string[];
+  findingFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -324,6 +327,10 @@ export class WorkspaceService {
    * human follows during a guided manual review. */
   readonly procedures = signal<readonly ManualProcedure[]>([]);
   readonly procedureError = signal<string | null>(null);
+  /** Every real `.forgegate/findings/*.json` record — today always written
+   * by ForgeGate itself, one per failed or blocked guided-review step. */
+  readonly findings = signal<readonly Finding[]>([]);
+  readonly findingError = signal<string | null>(null);
   readonly saveManualReviewRunning = signal(false);
   readonly saveManualReviewError = signal<string | null>(null);
   readonly saveManualReviewResult = signal<{ readonly path: string } | null>(
@@ -434,6 +441,7 @@ export class WorkspaceService {
     this.manualReviewError.set(null);
     this.exceptionError.set(null);
     this.procedureError.set(null);
+    this.findingError.set(null);
     this.storybookIndexError.set(null);
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
@@ -491,6 +499,7 @@ export class WorkspaceService {
       await this.loadManualReviews(path, scan);
       await this.loadExceptions(path, scan);
       await this.loadProcedures(path, scan);
+      await this.loadFindings(path, scan);
       await this.loadDesignTokens(path, scan);
       await this.loadAngularComponents(path, scan);
       this.setScanProgress(
@@ -525,6 +534,7 @@ export class WorkspaceService {
       this.manualReviews.set([]);
       this.exceptions.set([]);
       this.procedures.set([]);
+      this.findings.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.evidenceHistoryTrend.set(null);
@@ -854,6 +864,7 @@ export class WorkspaceService {
     approver?: EvidenceApprover | null,
     manualReviews: readonly ManualReview[] = [],
     exceptions: readonly Exception[] = [],
+    persistedFindings: readonly Finding[] = [],
   ): Promise<void> {
     if (this.evidenceExportRunning()) {
       return;
@@ -882,6 +893,7 @@ export class WorkspaceService {
             review.componentVersionId === componentVersionId(manifest),
         ),
         exceptions,
+        persistedFindings,
         starlightProjects: this.workspaceScan()?.starlightProjects ?? [],
         blockingReasons,
         approver,
@@ -1296,16 +1308,71 @@ export class WorkspaceService {
     this.procedureError.set(errors.length ? errors.join('\n') : null);
   }
 
+  private async loadFindings(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.findings.set([]);
+    const findings: Finding[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.findingFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        findings.push(parseFinding(text));
+        this.setAdapterDiagnostic({
+          id: `finding:${relativePath}`,
+          adapter: 'finding evidence',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `finding:${relativePath}`,
+          adapter: 'finding evidence',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.findings.set(findings);
+    this.findingError.set(errors.length ? errors.join('\n') : null);
+  }
+
   /**
    * Saves a real, already-completed guided manual review as
    * `.forgegate/manual-reviews/<review.id>.json` inside the open
    * workspace — a genuine write into the reviewed repository, so this is
    * only ever called from an explicit "Save manual review" action the
    * user takes after reviewing the constructed record, never
-   * automatically. Reloads `manualReviews` afterward so readiness reflects
+   * automatically. Updates `manualReviews` afterward so readiness reflects
    * it immediately, without requiring a full rescan.
+   *
+   * `componentId` is the manifest's bare id (not `review.componentVersionId`,
+   * which may carry a `@version` suffix) — `Finding.componentId` is
+   * always bare, matching `findingsFromBlockingReasons`' own convention,
+   * so this takes it directly from the caller rather than parsing it back
+   * out of the review.
+   *
+   * "A failed step should create or link to a finding"
+   * (documentation/09-manual-review-and-evidence.md): when
+   * `review.stepResults` includes a real failed or blocked step, this also
+   * writes one real `Finding` per such step to
+   * `.forgegate/findings/<finding.id>.json` and updates `findings` — the
+   * same explicit, user-initiated save, never a silent side effect.
    */
-  async saveManualReview(review: ManualReview): Promise<void> {
+  async saveManualReview(
+    review: ManualReview,
+    componentId: string,
+  ): Promise<void> {
     const path = this.workspacePath();
     if (!path || this.saveManualReviewRunning()) {
       return;
@@ -1321,6 +1388,22 @@ export class WorkspaceService {
       });
       this.saveManualReviewResult.set({ path: writtenPath });
       this.manualReviews.set([...this.manualReviews(), review]);
+
+      const newFindings = findingsFromManualReviewStepResults(
+        componentId,
+        review,
+        review.stepResults ?? [],
+      );
+      for (const finding of newFindings) {
+        await this.invoke<string>('write_finding', {
+          workspacePath: path,
+          findingId: finding.id,
+          content: JSON.stringify(finding, null, 2),
+        });
+      }
+      if (newFindings.length) {
+        this.findings.set([...this.findings(), ...newFindings]);
+      }
     } catch (error) {
       this.saveManualReviewError.set(String(error));
     } finally {

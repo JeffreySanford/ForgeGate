@@ -12,5 +12,31 @@
   "storyOrScenario": "default",
   "status": "passed",
   "notes": "Tab order, focus visibility, and activation announcement all verified.",
-  "commitOrFingerprint": "95e7160229bcb43c7b096ac8aabee9f14acbb0dc"
+  "commitOrFingerprint": "95e7160229bcb43c7b096ac8aabee9f14acbb0dc",
+  "stepResults": [
+    {
+      "stepIndex": 0,
+      "action": "Move focus to the button using Tab.",
+      "expected": "The accessible name and button role are announced.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 1,
+      "action": "Activate using Space.",
+      "expected": "The configured action occurs exactly once.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 2,
+      "action": "Activate using Enter.",
+      "expected": "The configured action occurs exactly once.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 3,
+      "action": "Review the disabled example.",
+      "expected": "The unavailable state is conveyed and activation does not occur.",
+      "status": "passed"
+    }
+  ]
 }

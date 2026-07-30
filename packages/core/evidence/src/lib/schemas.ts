@@ -64,6 +64,19 @@ export const findingSchema = {
   additionalProperties: false,
 } as const;
 
+const manualReviewStepResultSchema = {
+  type: 'object',
+  properties: {
+    stepIndex: { type: 'integer', minimum: 0 },
+    action: { type: 'string', minLength: 1 },
+    expected: { type: 'string', minLength: 1 },
+    status: { enum: RESULT_STATUS_ENUM },
+    note: { type: 'string' },
+  },
+  required: ['stepIndex', 'action', 'expected', 'status'],
+  additionalProperties: false,
+} as const;
+
 export const manualReviewSchema = {
   $id: 'https://forgegate.dev/schemas/manual-review.schema.json',
   type: 'object',
@@ -82,6 +95,7 @@ export const manualReviewSchema = {
     status: { enum: RESULT_STATUS_ENUM },
     notes: { type: 'string' },
     commitOrFingerprint: { type: 'string', minLength: 1 },
+    stepResults: { type: 'array', items: manualReviewStepResultSchema },
   },
   required: [
     'id',

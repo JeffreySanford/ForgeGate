@@ -106,6 +106,15 @@ export interface EvidenceExportInput {
   readonly automatedArtifacts?: readonly AutomatedEvidenceArtifact[];
   readonly manualReviews?: readonly ManualReview[];
   readonly exceptions?: readonly Exception[];
+  /**
+   * Real findings ForgeGate has already persisted for this component —
+   * today always one per failed/blocked guided-review step
+   * (`findingsFromManualReviewStepResults`), written to
+   * `.forgegate/findings/*.json` when the review was saved. Merged with
+   * the ephemeral blocking-reason findings below, not a replacement for
+   * them — the two are derived from genuinely different real sources.
+   */
+  readonly persistedFindings?: readonly Finding[];
   readonly starlightProjects: readonly string[];
   readonly blockingReasons?: readonly string[];
   /**
@@ -152,7 +161,19 @@ export async function buildEvidenceExport(
     ),
   }));
 
-  const findings = findingsFromBlockingReasons(manifest.id, blockingReasons);
+  const blockingReasonFindings = findingsFromBlockingReasons(
+    manifest.id,
+    blockingReasons,
+  );
+  const blockingReasonFindingIds = new Set(
+    blockingReasonFindings.map((finding) => finding.id),
+  );
+  const persistedFindings = (input.persistedFindings ?? []).filter(
+    (finding) =>
+      finding.componentId === manifest.id &&
+      !blockingReasonFindingIds.has(finding.id),
+  );
+  const findings = [...blockingReasonFindings, ...persistedFindings];
   const findingIds = new Set(findings.map((finding) => finding.id));
   const relevantExceptions = (input.exceptions ?? []).filter((exception) =>
     findingIds.has(exception.findingId),

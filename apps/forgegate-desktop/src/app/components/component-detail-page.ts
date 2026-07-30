@@ -572,6 +572,7 @@ export class ComponentDetailPage {
       undefined,
       this.manualReviews(),
       this.workspace.exceptions(),
+      this.workspace.findings(),
     );
   }
 

@@ -33,12 +33,42 @@
 
 .manual-review-walkthrough__steps li {
   display: grid;
-  gap: var(--fg-space-1);
+  gap: var(--fg-space-2);
+  padding-bottom: var(--fg-space-2);
+  border-bottom: 1px solid var(--fg-color-border);
+}
+
+.manual-review-walkthrough__steps li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .manual-review-walkthrough__steps span {
   color: var(--fg-color-text-muted);
   font-size: var(--fg-type-size-sm);
+}
+
+.manual-review-walkthrough__steps label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--fg-space-2);
+  max-width: 24rem;
+  font-size: var(--fg-type-size-sm);
+}
+
+.manual-review-walkthrough__steps select,
+.manual-review-walkthrough__steps input {
+  padding: var(--fg-space-1) var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  font: inherit;
+}
+
+.manual-review-walkthrough__overall {
+  font-weight: 600;
 }
 
 .manual-review-walkthrough__form {

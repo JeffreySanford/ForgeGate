@@ -159,16 +159,41 @@ fn is_safe_bare_filename(name: &str) -> bool {
     true
 }
 
+/// Shared by every command that writes a real, ForgeGate-authored evidence
+/// file directly into the target workspace under a fixed conventional
+/// subdirectory (`.forgegate/manual-reviews/`, `.forgegate/findings/`) —
+/// never a user-picked external destination like `write_evidence_package`,
+/// so every caller is deliberately narrow: one fixed subdirectory, a bare
+/// filename only, no arbitrary path.
+fn write_conventional_evidence_file(
+    workspace: &std::path::Path,
+    subdirectory: &str,
+    filename: &str,
+    content: &str,
+) -> Result<String, String> {
+    if !is_safe_bare_filename(filename) {
+        return Err(format!(
+            "Refusing to write unexpected {subdirectory} filename \"{filename}\""
+        ));
+    }
+
+    let directory = workspace.join(".forgegate").join(subdirectory);
+    fs::create_dir_all(&directory)
+        .map_err(|error| format!("Failed to create {}: {error}", directory.display()))?;
+
+    let path = directory.join(filename);
+    fs::write(&path, content)
+        .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
+
+    Ok(path.display().to_string())
+}
+
 /// Writes a real guided manual review the user just completed into
 /// `.forgegate/manual-reviews/<review_id>.json` inside the target
 /// workspace — the same convention `detect_manual_review_files` already
-/// reads back. Unlike `write_evidence_package` (writes to a destination the
-/// user picked outside the workspace), this genuinely modifies the
-/// reviewed repository, so it is deliberately narrow: it can only ever
-/// create a file directly inside `.forgegate/manual-reviews/`, never an
-/// arbitrary path, and the frontend only calls it from an explicit "Save
-/// manual review" action the user takes after reviewing the constructed
-/// record — never silently.
+/// reads back. This genuinely modifies the reviewed repository, so the
+/// frontend only calls it from an explicit "Save manual review" action the
+/// user takes after reviewing the constructed record — never silently.
 #[tauri::command]
 fn write_manual_review(
     workspace_path: String,
@@ -176,22 +201,33 @@ fn write_manual_review(
     content: String,
 ) -> Result<String, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
-    let filename = format!("{review_id}.json");
-    if !is_safe_bare_filename(&filename) {
-        return Err(format!(
-            "Refusing to write unexpected manual review filename \"{filename}\""
-        ));
-    }
+    write_conventional_evidence_file(
+        &workspace,
+        "manual-reviews",
+        &format!("{review_id}.json"),
+        &content,
+    )
+}
 
-    let directory = workspace.join(".forgegate").join("manual-reviews");
-    fs::create_dir_all(&directory)
-        .map_err(|error| format!("Failed to create {}: {error}", directory.display()))?;
-
-    let path = directory.join(&filename);
-    fs::write(&path, content)
-        .map_err(|error| format!("Failed to write {}: {error}", path.display()))?;
-
-    Ok(path.display().to_string())
+/// Writes one real `Finding` — derived from a failed or blocked guided
+/// review step, per `findingsFromManualReviewStepResults` — into
+/// `.forgegate/findings/<finding_id>.json`. Called once per finding
+/// alongside `write_manual_review` when the reviewer saves a review with
+/// at least one failed or blocked step; never called with a fabricated
+/// finding, and never silently.
+#[tauri::command]
+fn write_finding(
+    workspace_path: String,
+    finding_id: String,
+    content: String,
+) -> Result<String, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    write_conventional_evidence_file(
+        &workspace,
+        "findings",
+        &format!("{finding_id}.json"),
+        &content,
+    )
 }
 
 #[derive(Serialize, Debug)]
@@ -1253,6 +1289,63 @@ mod tests {
 
         fs::remove_dir_all(&dir).ok();
     }
+
+    #[test]
+    fn writes_a_real_finding_into_the_conventional_workspace_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-write-finding-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let result = write_finding(
+            dir.display().to_string(),
+            "acme-button-keyboard-review-1-step-1".to_string(),
+            "{\"status\":\"open\"}".to_string(),
+        )
+        .expect("write should succeed");
+
+        let result_path = PathBuf::from(&result);
+        assert_eq!(
+            result_path.file_name().and_then(|n| n.to_str()),
+            Some("acme-button-keyboard-review-1-step-1.json")
+        );
+        assert_eq!(
+            result_path
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str()),
+            Some("findings")
+        );
+        assert_eq!(
+            fs::read_to_string(&result).expect("file should be readable"),
+            "{\"status\":\"open\"}"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_write_a_finding_id_that_would_escape_the_conventional_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-write-finding-escape-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let result = write_finding(
+            dir.display().to_string(),
+            "../escape".to_string(),
+            "{}".to_string(),
+        );
+
+        assert!(result.is_err());
+        assert!(!dir.join(".forgegate").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1282,6 +1375,7 @@ pub fn run() {
             pick_export_directory,
             write_evidence_package,
             write_manual_review,
+            write_finding,
             read_workspace_source_files,
             read_persistence_status,
             read_evidence_history_trend,

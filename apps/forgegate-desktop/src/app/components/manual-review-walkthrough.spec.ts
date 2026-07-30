@@ -46,6 +46,26 @@ function manifestWithProcedure(): ComponentManifest {
   });
 }
 
+function selectProcedure(compiled: HTMLElement): void {
+  const select = compiled.querySelector('select') as HTMLSelectElement;
+  select.value = procedure.id;
+  select.dispatchEvent(new Event('change'));
+}
+
+function fillReviewerIdentity(compiled: HTMLElement, value: string): void {
+  const reviewerInput = compiled.querySelector(
+    '.manual-review-walkthrough__form input',
+  ) as HTMLInputElement;
+  reviewerInput.value = value;
+  reviewerInput.dispatchEvent(new Event('input'));
+}
+
+function stepStatusSelects(compiled: HTMLElement): HTMLSelectElement[] {
+  return Array.from(
+    compiled.querySelectorAll('.manual-review-walkthrough__steps select'),
+  ) as HTMLSelectElement[];
+}
+
 describe('ManualReviewWalkthrough', () => {
   let workspace: WorkspaceService;
   let fixture: ReturnType<typeof TestBed.createComponent<HostComponent>>;
@@ -86,9 +106,7 @@ describe('ManualReviewWalkthrough', () => {
     fixture.componentInstance.manifest = manifestWithProcedure();
     fixture.detectChanges();
 
-    const select = fixture.nativeElement.querySelector('select');
-    select.value = procedure.id;
-    select.dispatchEvent(new Event('change'));
+    selectProcedure(fixture.nativeElement);
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -96,10 +114,30 @@ describe('ManualReviewWalkthrough', () => {
     expect(compiled.textContent).toContain(
       'The accessible name and button role are announced.',
     );
-    const osInput = compiled.querySelectorAll('input')[2] as HTMLInputElement;
-    expect(osInput.value).toBe('Windows');
+    const formInputs = Array.from(
+      compiled.querySelectorAll('.manual-review-walkthrough__form input'),
+    ) as HTMLInputElement[];
+    // Form field order: reviewer identity, reviewer role, operating
+    // system, browser, assistive technology, story/scenario.
+    expect(formInputs[2]?.value).toBe('Windows');
+    expect(formInputs[4]?.value).toBe('JAWS, NVDA');
 
     await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('defaults every step to an honest "unknown" result rather than assuming a pass', () => {
+    workspace.procedures.set([procedure]);
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifest = manifestWithProcedure();
+    fixture.detectChanges();
+
+    selectProcedure(fixture.nativeElement);
+    fixture.detectChanges();
+
+    const selects = stepStatusSelects(fixture.nativeElement);
+    expect(selects).toHaveLength(2);
+    expect(selects.every((select) => select.value === 'unknown')).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('unknown');
   });
 
   it('disables saving until a reviewer identity and environment are entered', () => {
@@ -108,9 +146,7 @@ describe('ManualReviewWalkthrough', () => {
     fixture.componentInstance.manifest = manifestWithProcedure();
     fixture.detectChanges();
 
-    const select = fixture.nativeElement.querySelector('select');
-    select.value = procedure.id;
-    select.dispatchEvent(new Event('change'));
+    selectProcedure(fixture.nativeElement);
     fixture.detectChanges();
 
     const saveButton = Array.from(
@@ -121,7 +157,7 @@ describe('ManualReviewWalkthrough', () => {
     expect(saveButton.disabled).toBe(true);
   });
 
-  it('saves a real ManualReview built from the form through the real service method', () => {
+  it('rolls the overall status up to the worst real per-step result and saves real stepResults', () => {
     workspace.procedures.set([procedure]);
     workspace.gitStatus.set({
       branch: 'main',
@@ -138,15 +174,18 @@ describe('ManualReviewWalkthrough', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const select = compiled.querySelector('select') as HTMLSelectElement;
-    select.value = procedure.id;
-    select.dispatchEvent(new Event('change'));
+    selectProcedure(compiled);
+    fixture.detectChanges();
+    fillReviewerIdentity(compiled, 'reviewer@acme.example');
+
+    const [firstStepSelect, secondStepSelect] = stepStatusSelects(compiled);
+    firstStepSelect.value = 'passed';
+    firstStepSelect.dispatchEvent(new Event('change'));
+    secondStepSelect.value = 'failed';
+    secondStepSelect.dispatchEvent(new Event('change'));
     fixture.detectChanges();
 
-    const reviewerInput = compiled.querySelectorAll('input')[0] as HTMLInputElement;
-    reviewerInput.value = 'reviewer@acme.example';
-    reviewerInput.dispatchEvent(new Event('input'));
-    fixture.detectChanges();
+    expect(compiled.textContent).toContain('failed');
 
     const saveButton = Array.from(compiled.querySelectorAll('button')).find(
       (button: HTMLButtonElement) =>
@@ -156,7 +195,8 @@ describe('ManualReviewWalkthrough', () => {
     saveButton.click();
 
     expect(saveSpy).toHaveBeenCalledTimes(1);
-    const savedReview = saveSpy.mock.calls[0]?.[0];
+    const [savedReview, savedComponentId] = saveSpy.mock.calls[0] ?? [];
+    expect(savedComponentId).toBe('acme.design-system.acme-button');
     expect(savedReview?.componentVersionId).toBe(
       'acme.design-system.acme-button@0.1.0',
     );
@@ -164,6 +204,22 @@ describe('ManualReviewWalkthrough', () => {
     expect(savedReview?.reviewerIdentity).toBe('reviewer@acme.example');
     expect(savedReview?.operatingSystem).toBe('Windows');
     expect(savedReview?.commitOrFingerprint).toBe('a'.repeat(40));
-    expect(savedReview?.status).toBe('passed');
+    // One failed step makes the whole review's overall status 'failed',
+    // even though the other step passed.
+    expect(savedReview?.status).toBe('failed');
+    expect(savedReview?.stepResults).toEqual([
+      {
+        stepIndex: 0,
+        action: 'Move focus to the button using Tab.',
+        expected: 'The accessible name and button role are announced.',
+        status: 'passed',
+      },
+      {
+        stepIndex: 1,
+        action: 'Activate using Space.',
+        expected: 'The configured action occurs exactly once.',
+        status: 'failed',
+      },
+    ]);
   });
 });

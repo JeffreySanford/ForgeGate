@@ -55,6 +55,23 @@ export function createFinding(input: {
   return { ...input, status: 'open' };
 }
 
+/**
+ * One step's real, recorded outcome within a manual review, per
+ * documentation/09-manual-review-and-evidence.md ("Procedure model" /
+ * "Review result states"). `action` and `expected` are captured here too,
+ * not just referenced by index, so the record stays self-contained and
+ * readable even without the original `ManualProcedure` file to hand — a
+ * reviewer years later shouldn't need to go find the procedure that
+ * produced this evidence just to understand what was checked.
+ */
+export interface ManualReviewStepResult {
+  readonly stepIndex: number;
+  readonly action: string;
+  readonly expected: string;
+  readonly status: ResultStatus;
+  readonly note?: string;
+}
+
 /** One execution of a manual procedure in a specific environment, per documentation/07-compliance-testing.md ("Manual result model"). */
 export interface ManualReview {
   readonly id: string;
@@ -71,6 +88,11 @@ export interface ManualReview {
   readonly status: ResultStatus;
   readonly notes?: string;
   readonly commitOrFingerprint: string;
+  /** Real per-step results, when the procedure was followed step by step
+   * through the guided walkthrough. Optional because a hand-authored
+   * review (still a real, valid `ManualReview`) may only ever record one
+   * overall result. */
+  readonly stepResults?: readonly ManualReviewStepResult[];
 }
 
 /** An authorized decision attached to scope, evidence, and policy, per documentation/16-data-and-schema-model.md ("Approval"). */

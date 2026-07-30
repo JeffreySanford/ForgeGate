@@ -50,4 +50,39 @@ describe('parseManualReview', () => {
       parseManualReview(JSON.stringify(withoutReviewer)),
     ).toThrow('Manual review does not match the schema');
   });
+
+  it('parses real per-step results from a guided walkthrough', () => {
+    const withSteps = {
+      ...validReview,
+      stepResults: [
+        {
+          stepIndex: 0,
+          action: 'Move focus to the button using Tab.',
+          expected: 'The accessible name and button role are announced.',
+          status: 'passed',
+        },
+        {
+          stepIndex: 1,
+          action: 'Activate using Space.',
+          expected: 'The configured action occurs exactly once.',
+          status: 'failed',
+          note: 'Activation fired twice.',
+        },
+      ],
+    };
+    expect(parseManualReview(JSON.stringify(withSteps))).toEqual(withSteps);
+  });
+
+  it('rejects a step result missing its required status', () => {
+    expect(() =>
+      parseManualReview(
+        JSON.stringify({
+          ...validReview,
+          stepResults: [
+            { stepIndex: 0, action: 'Do a thing.', expected: 'It works.' },
+          ],
+        }),
+      ),
+    ).toThrow('Manual review does not match the schema');
+  });
 });

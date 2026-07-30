@@ -31,9 +31,35 @@
     <li>
       <strong>{{ step.action }}</strong>
       <span>Expected: {{ step.expected }}</span>
+      <label>
+        Result
+        <select
+          (change)="setStepStatus($index, $any($event.target).value)"
+        >
+          @for (option of resultStatusOptions; track option) {
+          <option [value]="option" [selected]="option === stepStatus($index)">
+            {{ option }}
+          </option>
+          }
+        </select>
+      </label>
+      <label>
+        Note
+        <input
+          type="text"
+          [value]="stepNote($index)"
+          (input)="setStepNote($index, $any($event.target).value)"
+          placeholder="What did you observe?"
+        />
+      </label>
     </li>
     }
   </ol>
+
+  <p class="manual-review-walkthrough__overall">
+    Overall result (derived from the worst step above):
+    <strong>{{ overallStatus() }}</strong>
+  </p>
 
   <div class="manual-review-walkthrough__form">
     <label>
@@ -85,17 +111,6 @@
         [value]="storyOrScenario()"
         (input)="storyOrScenario.set($any($event.target).value)"
       />
-    </label>
-    <label>
-      Result
-      <select
-        [value]="status()"
-        (change)="status.set($any($event.target).value)"
-      >
-        @for (option of resultStatusOptions; track option) {
-        <option [value]="option">{{ option }}</option>
-        }
-      </select>
     </label>
     <label>
       Notes
