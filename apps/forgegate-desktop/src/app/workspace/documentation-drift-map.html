@@ -32,6 +32,7 @@
           <th scope="col">Page</th>
           <th scope="col">Status</th>
           <th scope="col">Detail</th>
+          <th scope="col">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -44,6 +45,13 @@
             <td>{{ entry.target.pathOrPageId ?? 'Unknown location' }}</td>
             <td>{{ statusLabel(entry.result.status) }}</td>
             <td>{{ entry.result.detail }}</td>
+            <td>
+              @if (entry.result.status === 'drifted') {
+                <a [routerLink]="['/components', entry.componentId]" fragment="documentation-title">
+                  Regenerate documentation
+                </a>
+              }
+            </td>
           </tr>
         }
       </tbody>

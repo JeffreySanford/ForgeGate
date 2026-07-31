@@ -118,4 +118,49 @@ describe('DocumentationDriftMap', () => {
 
     await expectNoAccessibilityViolations(compiled);
   });
+
+  it('links a drifted row to the real publication action, but not a current row', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(twoComponentManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '1.0.0',
+        documentationTargets: [{ adapter: 'starlight', pathOrPageId: 'docs/button', publishedVersion: '1.0.0' }],
+      }),
+      createComponentManifest({
+        id: 'acme.design-system.acme-card',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '2.0.0',
+        documentationTargets: [{ adapter: 'starlight', pathOrPageId: 'docs/card', publishedVersion: '1.0.0' }],
+      }),
+    ]);
+
+    const fixture = TestBed.createComponent(DocumentationDriftMap);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const rows = Array.from(compiled.querySelectorAll('tbody tr'));
+    const cardRow = rows.find((row) => row.textContent?.includes('acme-card'));
+    const buttonRow = rows.find((row) => row.textContent?.includes('acme-button'));
+
+    const regenerateLink = Array.from(cardRow?.querySelectorAll('a') ?? []).find(
+      (a) => a.textContent?.includes('Regenerate documentation'),
+    );
+    expect(regenerateLink?.getAttribute('href')).toBe(
+      '/components/acme.design-system.acme-card#documentation-title',
+    );
+    expect(
+      Array.from(buttonRow?.querySelectorAll('a') ?? []).some((a) =>
+        a.textContent?.includes('Regenerate documentation'),
+      ),
+    ).toBe(false);
+  });
 });

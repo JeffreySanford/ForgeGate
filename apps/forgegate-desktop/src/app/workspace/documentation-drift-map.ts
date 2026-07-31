@@ -21,8 +21,11 @@ const STATUS_LABEL: Record<DocumentationDriftStatus, string> = {
  * A component contributing zero rows here (no documentation targets at
  * all) is honestly absent, not shown as a fabricated "not evaluated" —
  * there is nothing to compare. "Link to the generated diff or publication
- * action" from document 26 is not implemented: ForgeGate has no
- * documentation-generation feature to link to yet.
+ * action" from document 26: a drifted row now links to the component's
+ * own real publication action (`StarlightPageGenerator`, on
+ * `/components/:id#documentation-title`) rather than a raw file path the
+ * webview's CSP would refuse to open anyway — there still is no separate
+ * "generated diff" view outside that component record.
  */
 @Component({
   selector: 'app-documentation-drift-map',
