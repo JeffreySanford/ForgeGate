@@ -1,7 +1,10 @@
 import { Component, computed, inject } from '@angular/core';
 import type { ResultStatus } from '@forgegate/core-domain';
+import type { TestExecution } from '@forgegate/core-evidence';
 import { computeEvidenceTimeline } from '../evidence-timeline';
 import { WorkspaceService } from '../workspace.service';
+
+const COMMIT_HASH_PATTERN = /^[0-9a-f]{40}$/i;
 
 const STATUS_LABEL: Record<ResultStatus, string> = {
   passed: 'Passed',
@@ -20,9 +23,15 @@ const STATUS_LABEL: Record<ResultStatus, string> = {
  * `.forgegate/evidence/*.json` files with real `startedAt` timestamps;
  * this orders them chronologically as a semantic `<ol>` (the primary view
  * is itself the chronological structure, so there is no separate visual
- * representation to keep in sync). Invalidation, reruns as a distinct
- * event from creation, reviews, and decisions are not shown — ForgeGate
- * has no real data source for those event kinds yet.
+ * representation to keep in sync). Reruns as a distinct event from
+ * creation, reviews on the timeline itself, and release decisions are not
+ * shown — ForgeGate has no real data source for those event kinds yet.
+ *
+ * A stale entry's real causal event is explainable, not just flagged:
+ * "Show changed files" reuses the same `read_commit_diff_files` Rust
+ * command and `WorkspaceService.staleReviewChangedFiles` cache the
+ * manual-review freshness table already uses, diffing the entry's
+ * recorded commit against the workspace's current one.
  */
 @Component({
   selector: 'app-evidence-timeline-view',
@@ -42,5 +51,22 @@ export class EvidenceTimelineView {
 
   protected shortCommit(commitOrFingerprint: string): string {
     return commitOrFingerprint.slice(0, 7);
+  }
+
+  protected executionIsStale(execution: TestExecution): boolean {
+    if (!COMMIT_HASH_PATTERN.test(execution.commitOrFingerprint)) {
+      return false;
+    }
+    const commit = this.workspace.gitStatus()?.commit;
+    return (
+      !!commit &&
+      execution.commitOrFingerprint.toLowerCase() !== commit.toLowerCase()
+    );
+  }
+
+  protected showStaleChangedFiles(execution: TestExecution): void {
+    void this.workspace.loadStaleReviewChangedFiles(
+      execution.commitOrFingerprint,
+    );
   }
 }

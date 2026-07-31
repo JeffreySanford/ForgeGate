@@ -49,3 +49,19 @@
 .evidence-timeline-view__commit {
   color: var(--fg-color-text-subtle);
 }
+
+.evidence-timeline-view__list li button {
+  font-size: var(--fg-type-size-sm);
+  padding: var(--fg-space-1) var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  cursor: pointer;
+}
+
+.evidence-timeline-view__changed-files {
+  flex-basis: 100%;
+  margin: 0;
+  padding-left: var(--fg-space-4);
+}
