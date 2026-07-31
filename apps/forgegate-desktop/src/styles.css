@@ -73,16 +73,23 @@ button:focus-visible,
  * overlap), so app.ts clones the outgoing #main-content's DOM into this
  * class right before the router tears it down, layering it over the
  * incoming route while it fades out and the real content fades in
- * underneath via .fg-route-enter. The clone is marked `inert` and
- * `aria-hidden` by app.ts (it's full of duplicate interactive elements
- * that must never be reachable while fading out); `pointer-events: none`
- * here is a second, CSS-level guarantee of the same thing. Removed by
- * app.ts on its own `animationend`, so it inherits the
- * `prefers-reduced-motion` guarantee (a zeroed duration still fires
- * `animationend`) without any JS branching on motion preference. */
+ * underneath via .fg-route-enter. `position: fixed` with app.ts-supplied
+ * inline `top`/`left`/`width`/`height` (from a real `getBoundingClientRect()`
+ * of #main-content) deliberately avoids making #main-content itself a
+ * positioning context — a real regression a live CI screenshot check
+ * caught: #main-content has a real, unrelated `position: absolute`
+ * descendant (system-map.css's `.map-legend`), and giving #main-content
+ * `position: relative` silently changed which element that legend
+ * positions against, moving it on every page that renders the system
+ * map. The clone is marked `inert` and `aria-hidden` by app.ts (it's
+ * full of duplicate interactive elements that must never be reachable
+ * while fading out); `pointer-events: none` here is a second, CSS-level
+ * guarantee of the same thing. Removed by app.ts on its own
+ * `animationend`, so it inherits the `prefers-reduced-motion` guarantee
+ * (a zeroed duration still fires `animationend`) without any JS
+ * branching on motion preference. */
 .fg-route-leave {
-  position: absolute;
-  inset: 0;
+  position: fixed;
   pointer-events: none;
   animation: fg-route-leave var(--fg-motion-duration-md) var(--fg-motion-ease);
 }

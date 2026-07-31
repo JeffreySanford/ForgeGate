@@ -78,6 +78,15 @@ export class App {
    * any still-fading ghost from a previous navigation is dropped
    * immediately, and it is never itself included when cloning the
    * current content.
+   *
+   * The ghost is `position: fixed`, sized and placed with inline styles
+   * from a real `getBoundingClientRect()` of `#main-content` — not
+   * `position: absolute` with `#main-content` made a positioning context.
+   * A real CI screenshot regression caught why that would be wrong:
+   * `#main-content` has a real, unrelated `position: absolute` descendant
+   * (`system-map.css`'s `.map-legend`), and making `#main-content` itself
+   * a positioning context would have silently changed which element that
+   * legend positions against on every page rendering the system map.
    */
   private captureLeavingSnapshot(): void {
     const main = this.mainContent().nativeElement;
@@ -92,10 +101,15 @@ export class App {
     if (contentChildren.length === 0) {
       return;
     }
+    const rect = main.getBoundingClientRect();
     const ghost = document.createElement('div');
     ghost.className = 'fg-route-leave';
     ghost.setAttribute('aria-hidden', 'true');
     ghost.setAttribute('inert', '');
+    ghost.style.top = `${rect.top}px`;
+    ghost.style.left = `${rect.left}px`;
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
     for (const child of contentChildren) {
       ghost.appendChild(child.cloneNode(true));
     }
