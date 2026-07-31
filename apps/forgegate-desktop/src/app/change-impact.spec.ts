@@ -1,5 +1,5 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
-import type { TestExecution } from '@forgegate/core-evidence';
+import type { ManualReview, TestExecution } from '@forgegate/core-evidence';
 import { computeChangeImpact } from './change-impact';
 
 type ManifestInput = Parameters<typeof createComponentManifest>[0];
@@ -36,6 +36,21 @@ function execution(overrides: Partial<TestExecution>): TestExecution {
   };
 }
 
+function review(overrides: Partial<ManualReview>): ManualReview {
+  return {
+    id: 'review-1',
+    componentVersionId: 'acme.design-system.acme-button@1.0.0',
+    procedureId: 'keyboard-and-screen-reader-review',
+    procedureVersion: '1.0.0',
+    reviewerIdentity: 'reviewer@acme.example',
+    date: '2026-01-01T00:00:00.000Z',
+    operatingSystem: 'Windows',
+    status: 'passed',
+    commitOrFingerprint: 'a'.repeat(40),
+    ...overrides,
+  };
+}
+
 describe('computeChangeImpact', () => {
   it('returns an empty list when nothing changed', () => {
     expect(computeChangeImpact([], [])).toEqual([]);
@@ -50,6 +65,7 @@ describe('computeChangeImpact', () => {
         affectedComponentIds: [],
         affectedStoryIds: [],
         affectedTestExecutionIds: [],
+        affectedManualReviewIds: [],
         affectedDocumentationTargets: [],
       },
     ]);
@@ -123,6 +139,29 @@ describe('computeChangeImpact', () => {
     expect(result[0]?.affectedTestExecutionIds).toEqual(['run-unit', 'run-a11y']);
   });
 
+  it("cross-references a changed file to its component version's real manual reviews", () => {
+    const result = computeChangeImpact(
+      ['src/acme-button.ts'],
+      [
+        discovery('acme.design-system.acme-button', ['src/acme-button.ts'], {
+          componentVersion: '1.0.0',
+        }),
+      ],
+      [],
+      [
+        review({ id: 'review-keyboard' }),
+        review({ id: 'review-screen-reader' }),
+        // Belongs to a different component version — must not be attributed.
+        review({ id: 'review-other', componentVersionId: 'acme.design-system.acme-card@1.0.0' }),
+      ],
+    );
+
+    expect(result[0]?.affectedManualReviewIds).toEqual([
+      'review-keyboard',
+      'review-screen-reader',
+    ]);
+  });
+
   it("cross-references a changed file to its component's real documentation targets", () => {
     const result = computeChangeImpact(
       ['src/acme-button.ts'],
@@ -173,6 +212,7 @@ describe('computeChangeImpact', () => {
       affectedComponentIds: [],
       affectedStoryIds: [],
       affectedTestExecutionIds: [],
+      affectedManualReviewIds: [],
       affectedDocumentationTargets: [],
     });
   });

@@ -1,4 +1,4 @@
-import type { TestExecution } from '@forgegate/core-evidence';
+import type { ManualReview, TestExecution } from '@forgegate/core-evidence';
 import type { ComponentDiscovery } from './component-inventory.service';
 
 /**
@@ -6,7 +6,7 @@ import type { ComponentDiscovery } from './component-inventory.service';
  * workspace-root-relative) matched against each discovered component's own
  * `sourceFiles`, then cross-referenced through that component to the other
  * artifacts ForgeGate already knows about it — its stories, test
- * executions, and documentation targets.
+ * executions, manual reviews, and documentation targets.
  *
  * **The cross-reference is transitive through the component, and says so.**
  * ForgeGate does not have a direct file→story or file→test dependency
@@ -14,11 +14,17 @@ import type { ComponentDiscovery } from './component-inventory.service';
  * adapter does not possess" that P1.4 warns against. What it does have is
  * real and sufficient to be useful: a changed file belongs to a component
  * (via CEM `sourceFiles`), and that component has real `storyMappings`,
- * real `TestExecution` records keyed by its component version, and real
- * `documentationTargets`. So "this file changed, therefore these stories
- * and tests relate to it" is a real inference — it just runs through the
- * component rather than being observed directly, and the UI labels it that
- * way rather than implying a precise dependency edge.
+ * real `TestExecution` and `ManualReview` records keyed by its component
+ * version, and real `documentationTargets`. So "this file changed,
+ * therefore these stories, tests, and reviews relate to it" is a real
+ * inference — it just runs through the component rather than being
+ * observed directly, and the UI labels it that way rather than implying a
+ * precise dependency edge.
+ *
+ * Release-decision cross-referencing is still genuinely not implemented:
+ * a release decision is computed per component at export time rather than
+ * stored, so there is no persisted decision for a changed file to point
+ * at.
  *
  * A file with no matching component is reported as unmatched rather than
  * hidden.
@@ -30,6 +36,8 @@ export interface ChangeImpactEntry {
   readonly affectedStoryIds: readonly string[];
   /** Test execution ids, via each affected component's version id. */
   readonly affectedTestExecutionIds: readonly string[];
+  /** Manual review ids, via each affected component's version id. */
+  readonly affectedManualReviewIds: readonly string[];
   /** Documentation page ids/paths, via each component's `documentationTargets`. */
   readonly affectedDocumentationTargets: readonly string[];
 }
@@ -42,6 +50,7 @@ export function computeChangeImpact(
   changedFiles: readonly string[],
   discoveries: readonly Pick<ComponentDiscovery, 'manifest' | 'sourceFiles'>[],
   testExecutions: readonly TestExecution[] = [],
+  manualReviews: readonly ManualReview[] = [],
 ): readonly ChangeImpactEntry[] {
   // Every index below is built exactly once, so each changed file resolves
   // through O(1) lookups rather than re-scanning the component list —
@@ -84,6 +93,16 @@ export function computeChangeImpact(
     }
   }
 
+  const manualReviewIdsByVersionId = new Map<string, string[]>();
+  for (const review of manualReviews) {
+    const ids = manualReviewIdsByVersionId.get(review.componentVersionId);
+    if (ids) {
+      ids.push(review.id);
+    } else {
+      manualReviewIdsByVersionId.set(review.componentVersionId, [review.id]);
+    }
+  }
+
   return changedFiles.map((filePath) => {
     const affectedComponentIds = componentIdsByFilePath.get(filePath) ?? [];
     return {
@@ -96,6 +115,12 @@ export function computeChangeImpact(
         affectedComponentIds.flatMap((id) => {
           const versionId = versionIdByComponentId.get(id);
           return versionId ? (testExecutionIdsByVersionId.get(versionId) ?? []) : [];
+        }),
+      ),
+      affectedManualReviewIds: dedupe(
+        affectedComponentIds.flatMap((id) => {
+          const versionId = versionIdByComponentId.get(id);
+          return versionId ? (manualReviewIdsByVersionId.get(versionId) ?? []) : [];
         }),
       ),
       affectedDocumentationTargets: dedupe(

@@ -106,7 +106,7 @@ describe('ChangeImpactTable', () => {
     await expectNoAccessibilityViolations(compiled);
   });
 
-  it("cross-references a changed file to its component's real stories, test runs, and documentation", async () => {
+  it("cross-references a changed file to its component's real stories, test runs, manual reviews, and documentation", async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);
     workspaceService.customElementsManifest.set(oneComponentManifest);
@@ -134,6 +134,19 @@ describe('ChangeImpactTable', () => {
         commitOrFingerprint: 'a'.repeat(40),
       },
     ]);
+    workspaceService.manualReviews.set([
+      {
+        id: 'acme-button-keyboard-review',
+        componentVersionId: 'acme.design-system.acme-button@1.0.0',
+        procedureId: 'keyboard-and-screen-reader-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@acme.example',
+        date: '2026-01-01T00:00:00.000Z',
+        operatingSystem: 'Windows',
+        status: 'passed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+    ]);
     workspaceService.gitStatus.set({
       branch: 'main',
       commit: 'a'.repeat(40),
@@ -149,6 +162,7 @@ describe('ChangeImpactTable', () => {
     const row = compiled.querySelector('tbody tr');
     expect(row?.textContent).toContain('components-acmebutton--primary');
     expect(row?.textContent).toContain('acme-button-unit');
+    expect(row?.textContent).toContain('acme-button-keyboard-review');
     expect(row?.textContent).toContain('docs/button');
 
     // The transitive nature of the cross-reference is disclosed, not implied

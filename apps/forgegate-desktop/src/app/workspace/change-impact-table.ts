@@ -5,15 +5,17 @@ import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 
 /**
- * P1.4's narrow real slice: real changed files from `git status
- * --porcelain` (`WorkspaceService.gitStatus().changedFiles`) matched
- * against each discovered component's own `sourceFiles`
- * (`computeChangeImpact`). Deliberately narrow — components only, not
- * stories/tests/reviews/documentation/release decisions, which P1.4's
- * full title implies but ForgeGate has no real adapter data for yet. A
- * changed file with no matching component is shown as "No component
- * matched" rather than hidden, so the table never implies precision the
- * adapter does not possess.
+ * P1.4's real slice: real changed files from `git status --porcelain`
+ * (`WorkspaceService.gitStatus().changedFiles`) matched against each
+ * discovered component's own `sourceFiles`, then cross-referenced through
+ * that component to its real stories, test executions, manual reviews,
+ * and documentation targets (`computeChangeImpact`). Release-decision
+ * cross-referencing is still not implemented — a release decision is
+ * computed per component at export time rather than stored, so there is
+ * no persisted decision for a changed file to point at. A changed file
+ * with no matching component is shown as "No component matched" rather
+ * than hidden, so the table never implies precision the adapter does not
+ * possess.
  */
 @Component({
   selector: 'app-change-impact-table',
@@ -30,6 +32,7 @@ export class ChangeImpactTable {
       this.workspace.gitStatus()?.changedFiles ?? [],
       this.inventory.result().discoveries,
       this.workspace.testExecutions(),
+      this.workspace.manualReviews(),
     ),
   );
 

@@ -7,10 +7,11 @@
     <p class="fg-empty-state">Working tree is clean. Nothing to map yet.</p>
   } @else {
     <p class="change-impact-table__caveat">
-      Changed files are matched against each component's own source files. Stories, tests, and
-      documentation are then cross-referenced <em>through that component</em> — ForgeGate has no direct
-      file-to-story or file-to-test dependency graph, so these are related artifacts of an affected
-      component, not observed dependency edges. Reviews and release decisions are not cross-referenced.
+      Changed files are matched against each component's own source files. Stories, tests, manual
+      reviews, and documentation are then cross-referenced <em>through that component</em> — ForgeGate
+      has no direct file-to-story or file-to-test dependency graph, so these are related artifacts of an
+      affected component, not observed dependency edges. Release decisions are not cross-referenced —
+      ForgeGate does not persist them.
     </p>
     <table>
       <caption class="sr-only">Changed files and the components they affect</caption>
@@ -20,6 +21,7 @@
           <th scope="col">Affected components</th>
           <th scope="col">Related stories</th>
           <th scope="col">Related test runs</th>
+          <th scope="col">Related manual reviews</th>
           <th scope="col">Related documentation</th>
         </tr>
       </thead>
@@ -54,6 +56,17 @@
                 <ul class="change-impact-table__components">
                   @for (runId of entry.affectedTestExecutionIds; track runId) {
                     <li><code>{{ runId }}</code></li>
+                  }
+                </ul>
+              } @else {
+                <span class="change-impact-table__unmatched">None</span>
+              }
+            </td>
+            <td>
+              @if (entry.affectedManualReviewIds.length) {
+                <ul class="change-impact-table__components">
+                  @for (reviewId of entry.affectedManualReviewIds; track reviewId) {
+                    <li><code>{{ reviewId }}</code></li>
                   }
                 </ul>
               } @else {
