@@ -150,6 +150,56 @@ function storybookInteractionArtifact(
   };
 }
 
+function jestArtifact(
+  overrides: Partial<AutomatedEvidenceArtifact>,
+): AutomatedEvidenceArtifact {
+  return {
+    kind: 'jest-json',
+    id: 'jest-run-1',
+    componentVersionId: 'acme.lib.button@1.0.0',
+    gate: 'unit',
+    tool: 'jest',
+    toolVersion: '29.7.0',
+    adapterVersion: '0.1.0',
+    commitOrFingerprint: 'a'.repeat(40),
+    rawArtifactRef: '.forgegate/evidence/raw/jest-results.json',
+    report: {
+      success: true,
+      startTime: 1721838000000,
+      numFailedTests: 0,
+      numPassedTests: 3,
+      numPendingTests: 0,
+      testResults: [],
+    },
+    ...overrides,
+  };
+}
+
+function vitestArtifact(
+  overrides: Partial<AutomatedEvidenceArtifact>,
+): AutomatedEvidenceArtifact {
+  return {
+    kind: 'vitest-json',
+    id: 'vitest-run-1',
+    componentVersionId: 'acme.lib.button@1.0.0',
+    gate: 'unit',
+    tool: 'vitest',
+    toolVersion: '4.1.10',
+    adapterVersion: '0.1.0',
+    commitOrFingerprint: 'a'.repeat(40),
+    rawArtifactRef: '.forgegate/evidence/raw/vitest-results.json',
+    report: {
+      success: true,
+      startTime: 1721838000000,
+      numFailedTests: 0,
+      numPassedTests: 5,
+      numPendingTests: 0,
+      testResults: [],
+    },
+    ...overrides,
+  };
+}
+
 describe('componentVersionId', () => {
   it('combines id and componentVersion when a version is known', () => {
     const manifest = createComponentManifest({
@@ -684,6 +734,86 @@ describe('buildEvidenceExport', () => {
         'No axe-native result artifact is connected for this component yet.',
       'automated/playwright-results.json':
         'No Playwright result artifact is connected for this component yet.',
+    });
+  });
+
+  it('writes imported Jest reports as a first-class automated artifact, scoped to this component version', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+    const artifacts = [
+      jestArtifact({ id: 'matching-jest' }),
+      jestArtifact({ id: 'other-component-jest', componentVersionId: 'acme.lib.card@1.0.0' }),
+    ];
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      automatedArtifacts: artifacts,
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files)).toContain('automated/jest-results.json');
+    const jestResults = JSON.parse(requireFile(result, 'automated/jest-results.json'));
+    expect(jestResults).toHaveLength(1);
+    expect(jestResults[0]).toMatchObject({
+      kind: 'jest-json',
+      id: 'matching-jest',
+      componentVersionId: 'acme.lib.button@1.0.0',
+    });
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain('automated/jest-results.json');
+    expect(manifestJson.checksums).toHaveProperty('automated/jest-results.json');
+    expect(manifestJson.excludes).toMatchObject({
+      'automated/vitest-results.json':
+        'No Vitest result artifact is connected for this component yet.',
+    });
+  });
+
+  it('writes imported Vitest reports as a first-class automated artifact, scoped to this component version', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+    const artifacts = [
+      vitestArtifact({ id: 'matching-vitest' }),
+      vitestArtifact({ id: 'other-component-vitest', componentVersionId: 'acme.lib.card@1.0.0' }),
+    ];
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      automatedArtifacts: artifacts,
+      starlightProjects: [],
+    });
+
+    expect(Object.keys(result.files)).toContain('automated/vitest-results.json');
+    const vitestResults = JSON.parse(requireFile(result, 'automated/vitest-results.json'));
+    expect(vitestResults).toHaveLength(1);
+    expect(vitestResults[0]).toMatchObject({
+      kind: 'vitest-json',
+      id: 'matching-vitest',
+      componentVersionId: 'acme.lib.button@1.0.0',
+    });
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain('automated/vitest-results.json');
+    expect(manifestJson.checksums).toHaveProperty('automated/vitest-results.json');
+    expect(manifestJson.excludes).toMatchObject({
+      'automated/jest-results.json':
+        'No Jest result artifact is connected for this component yet.',
     });
   });
 

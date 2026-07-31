@@ -2100,5 +2100,11 @@ function testEvidenceAdapterLabel(
   if (adapter === 'Storybook interactions JSON') {
     return 'Storybook interactions JSON evidence adapter';
   }
+  if (adapter === 'Jest JSON') {
+    return 'Jest JSON evidence adapter';
+  }
+  if (adapter === 'Vitest JSON') {
+    return 'Vitest JSON evidence adapter';
+  }
   return 'test evidence adapter';
 }

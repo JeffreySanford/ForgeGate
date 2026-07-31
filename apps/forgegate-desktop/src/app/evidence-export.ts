@@ -203,10 +203,18 @@ export async function buildEvidenceExport(
   const interactionArtifacts = automatedArtifacts.filter(
     (artifact) => artifact.kind === 'storybook-interactions-json',
   );
+  const jestArtifacts = automatedArtifacts.filter(
+    (artifact) => artifact.kind === 'jest-json',
+  );
+  const vitestArtifacts = automatedArtifacts.filter(
+    (artifact) => artifact.kind === 'vitest-json',
+  );
   if (
     playwrightArtifacts.length ||
     axeArtifacts.length ||
-    interactionArtifacts.length
+    interactionArtifacts.length ||
+    jestArtifacts.length ||
+    vitestArtifacts.length
   ) {
     delete excludes['automated/'];
     if (axeArtifacts.length) {
@@ -238,6 +246,26 @@ export async function buildEvidenceExport(
     } else {
       excludes['automated/interaction-results.json'] =
         'No Storybook interaction result artifact is connected for this component yet.';
+    }
+    if (jestArtifacts.length) {
+      contentFiles['automated/jest-results.json'] = JSON.stringify(
+        jestArtifacts,
+        null,
+        2,
+      );
+    } else {
+      excludes['automated/jest-results.json'] =
+        'No Jest result artifact is connected for this component yet.';
+    }
+    if (vitestArtifacts.length) {
+      contentFiles['automated/vitest-results.json'] = JSON.stringify(
+        vitestArtifacts,
+        null,
+        2,
+      );
+    } else {
+      excludes['automated/vitest-results.json'] =
+        'No Vitest result artifact is connected for this component yet.';
     }
   }
   if (manualReviews.length) {

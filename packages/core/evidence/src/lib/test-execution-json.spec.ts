@@ -396,4 +396,138 @@ describe('parseTestEvidenceFile', () => {
       ),
     ).toThrow('Storybook evidence requires componentVersionId');
   });
+
+  it('normalizes a Jest JSON report envelope into commit-bound evidence', () => {
+    expect(
+      parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'jest-json',
+          id: 'acme-button-jest',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          toolVersion: '29.7.0',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/jest-results.json',
+          report: {
+            success: true,
+            startTime: 1721838000000,
+            numFailedTests: 0,
+            numPassedTests: 3,
+            numPendingTests: 0,
+            testResults: [{ endTime: 1721838000420 }],
+          },
+        }),
+      ),
+    ).toEqual({
+      adapter: 'Jest JSON',
+      executions: [
+        {
+          id: 'acme-button-jest',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          gate: 'unit',
+          tool: 'jest',
+          toolVersion: '29.7.0',
+          adapterVersion: '0.1.0',
+          status: 'passed',
+          startedAt: '2024-07-24T16:20:00.000Z',
+          durationMs: 420,
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/jest-results.json',
+        },
+      ],
+      automatedArtifacts: [
+        {
+          kind: 'jest-json',
+          id: 'acme-button-jest',
+          componentVersionId: 'acme.button-library.acme-button@0.1.0',
+          gate: 'unit',
+          tool: 'jest',
+          toolVersion: '29.7.0',
+          adapterVersion: '0.1.0',
+          commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+          rawArtifactRef: '.forgegate/evidence/raw/jest-results.json',
+          report: {
+            success: true,
+            startTime: 1721838000000,
+            numFailedTests: 0,
+            numPassedTests: 3,
+            numPendingTests: 0,
+            testResults: [{ endTime: 1721838000420 }],
+          },
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [{ numFailedTests: 1, numPassedTests: 2, numPendingTests: 0, success: false }, 'failed'],
+    [{ numFailedTests: 0, numPassedTests: 0, numPendingTests: 3, success: true }, 'skipped'],
+    [{ numFailedTests: 0, numPassedTests: 3, numPendingTests: 0, success: true }, 'passed'],
+  ] as const)('maps Jest stats %o to %s', (stats, expectedStatus) => {
+    const result = parseTestEvidenceFile(
+      JSON.stringify({
+        format: 'jest-json',
+        id: `jest-${expectedStatus}`,
+        componentVersionId: 'acme.button-library.acme-button@0.1.0',
+        toolVersion: '29.7.0',
+        commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+        report: { startTime: 1721838000000, ...stats },
+      }),
+    );
+
+    expect(result.executions[0]?.status).toBe(expectedStatus);
+  });
+
+  it('rejects Jest reports without explicit ForgeGate provenance', () => {
+    expect(() =>
+      parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'jest-json',
+          id: 'raw-jest',
+          toolVersion: '29.7.0',
+          report: { startTime: 1721838000000, success: true, numPassedTests: 1 },
+        }),
+      ),
+    ).toThrow('Jest evidence requires componentVersionId');
+  });
+
+  it('normalizes a Vitest JSON report envelope into commit-bound evidence using the same Jest-compatible shape', () => {
+    const result = parseTestEvidenceFile(
+      JSON.stringify({
+        format: 'vitest-json',
+        id: 'acme-button-vitest',
+        componentVersionId: 'acme.button-library.acme-button@0.1.0',
+        gate: 'unit',
+        toolVersion: '4.1.10',
+        commitOrFingerprint: '95e7160868275025e94ff0ff0d3a397785a92868',
+        report: {
+          success: true,
+          startTime: 1721838000000,
+          numFailedTests: 0,
+          numPassedTests: 5,
+          numPendingTests: 0,
+          testResults: [],
+        },
+      }),
+    );
+
+    expect(result.adapter).toBe('Vitest JSON');
+    expect(result.executions[0]).toMatchObject({
+      tool: 'vitest',
+      status: 'passed',
+    });
+    expect(result.automatedArtifacts[0]?.kind).toBe('vitest-json');
+  });
+
+  it('rejects Vitest reports without explicit ForgeGate provenance', () => {
+    expect(() =>
+      parseTestEvidenceFile(
+        JSON.stringify({
+          format: 'vitest-json',
+          id: 'raw-vitest',
+          toolVersion: '4.1.10',
+          report: { startTime: 1721838000000, success: true, numPassedTests: 1 },
+        }),
+      ),
+    ).toThrow('Vitest evidence requires componentVersionId');
+  });
 });

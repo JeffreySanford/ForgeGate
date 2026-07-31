@@ -6,23 +6,32 @@ const validate = createValidator<TestExecution>(testExecutionSchema);
 const PLAYWRIGHT_ADAPTER_VERSION = '0.1.0';
 const AXE_ADAPTER_VERSION = '0.1.0';
 const STORYBOOK_INTERACTIONS_ADAPTER_VERSION = '0.1.0';
+const JEST_ADAPTER_VERSION = '0.1.0';
+const VITEST_ADAPTER_VERSION = '0.1.0';
 
 export interface ParsedTestEvidence {
   readonly adapter:
     | 'ForgeGate test execution'
     | 'Playwright JSON'
     | 'Axe JSON'
-    | 'Storybook interactions JSON';
+    | 'Storybook interactions JSON'
+    | 'Jest JSON'
+    | 'Vitest JSON';
   readonly executions: readonly TestExecution[];
   readonly automatedArtifacts: readonly AutomatedEvidenceArtifact[];
 }
 
 export interface AutomatedEvidenceArtifact {
-  readonly kind: 'playwright-json' | 'axe-json' | 'storybook-interactions-json';
+  readonly kind:
+    | 'playwright-json'
+    | 'axe-json'
+    | 'storybook-interactions-json'
+    | 'jest-json'
+    | 'vitest-json';
   readonly id: string;
   readonly componentVersionId: string;
   readonly gate: string;
-  readonly tool: 'playwright' | 'axe-core' | 'storybook/test-runner';
+  readonly tool: 'playwright' | 'axe-core' | 'storybook/test-runner' | 'jest' | 'vitest';
   readonly toolVersion: string;
   readonly adapterVersion: string;
   readonly commitOrFingerprint: string;
@@ -87,6 +96,32 @@ export function parseTestEvidenceFile(jsonText: string): ParsedTestEvidence {
     const normalized = normalizeStorybookInteractionsJsonEvidence(parsed);
     return {
       adapter: 'Storybook interactions JSON',
+      executions: [normalized.execution],
+      automatedArtifacts: [normalized.artifact],
+    };
+  }
+
+  if (isRecord(parsed) && parsed['format'] === 'jest-json') {
+    const normalized = normalizeJestLikeJsonEvidence(
+      parsed,
+      'jest',
+      JEST_ADAPTER_VERSION,
+    );
+    return {
+      adapter: 'Jest JSON',
+      executions: [normalized.execution],
+      automatedArtifacts: [normalized.artifact],
+    };
+  }
+
+  if (isRecord(parsed) && parsed['format'] === 'vitest-json') {
+    const normalized = normalizeJestLikeJsonEvidence(
+      parsed,
+      'vitest',
+      VITEST_ADAPTER_VERSION,
+    );
+    return {
+      adapter: 'Vitest JSON',
       executions: [normalized.execution],
       automatedArtifacts: [normalized.artifact],
     };
@@ -319,6 +354,129 @@ function normalizeStorybookInteractionsJsonEvidence(
   };
 }
 
+/**
+ * Jest's `--json` output and Vitest's `--reporter=json` output share the
+ * same top-level shape (Vitest's JSON reporter is explicitly modeled on
+ * Jest's), so both are normalized through one function distinguished only
+ * by `tool` and the adapter version passed in.
+ */
+function normalizeJestLikeJsonEvidence(
+  envelope: Record<string, unknown>,
+  tool: 'jest' | 'vitest',
+  defaultAdapterVersion: string,
+): {
+  readonly execution: TestExecution;
+  readonly artifact: AutomatedEvidenceArtifact;
+} {
+  const evidenceType = tool === 'jest' ? 'Jest' : 'Vitest';
+  const report = requireRecord(envelope['report'], 'report', evidenceType);
+  const id = requireString(envelope['id'], 'id', evidenceType);
+  const componentVersionId = requireString(
+    envelope['componentVersionId'],
+    'componentVersionId',
+    evidenceType,
+  );
+  const gate = readString(envelope['gate']) ?? 'unit';
+  const toolVersion = requireString(
+    envelope['toolVersion'],
+    'toolVersion',
+    evidenceType,
+  );
+  const adapterVersion =
+    readString(envelope['adapterVersion']) ?? defaultAdapterVersion;
+  const commitOrFingerprint = requireString(
+    envelope['commitOrFingerprint'],
+    'commitOrFingerprint',
+    evidenceType,
+  );
+  const startTimeMs = readNumber(report['startTime']);
+  const startedAt =
+    readString(envelope['startedAt']) ??
+    (startTimeMs === undefined
+      ? requireString(report['startTime'], 'report.startTime', evidenceType)
+      : new Date(startTimeMs).toISOString());
+  const durationMs =
+    readNumber(envelope['durationMs']) ??
+    jestLikeDurationMs(report, startTimeMs);
+  const rawArtifactRef = readString(envelope['rawArtifactRef']);
+
+  const execution: TestExecution = {
+    id,
+    componentVersionId,
+    gate,
+    tool,
+    toolVersion,
+    adapterVersion,
+    status: jestLikeStatus(report),
+    startedAt,
+    ...(durationMs === undefined ? {} : { durationMs }),
+    commitOrFingerprint,
+    ...(rawArtifactRef === undefined ? {} : { rawArtifactRef }),
+  };
+
+  if (!validate(execution)) {
+    throw new Error(
+      `Normalized ${evidenceType} evidence does not match the TestExecution schema: ${describeErrors(validate)}`,
+    );
+  }
+
+  return {
+    execution,
+    artifact: {
+      kind: tool === 'jest' ? 'jest-json' : 'vitest-json',
+      id,
+      componentVersionId,
+      gate,
+      tool,
+      toolVersion,
+      adapterVersion,
+      commitOrFingerprint,
+      rawArtifactRef: rawArtifactRef ?? null,
+      report,
+    },
+  };
+}
+
+function jestLikeStatus(
+  report: Record<string, unknown>,
+): TestExecution['status'] {
+  const numFailedTests = readNumber(report['numFailedTests']) ?? 0;
+  const numPassedTests = readNumber(report['numPassedTests']) ?? 0;
+  const numPendingTests = readNumber(report['numPendingTests']) ?? 0;
+  const success = report['success'];
+
+  if (numFailedTests > 0 || success === false) {
+    return 'failed';
+  }
+  if (numPassedTests === 0 && numPendingTests > 0) {
+    return 'skipped';
+  }
+  if (numPassedTests > 0) {
+    return 'passed';
+  }
+  return 'unknown';
+}
+
+function jestLikeDurationMs(
+  report: Record<string, unknown>,
+  startTimeMs: number | undefined,
+): number | undefined {
+  if (startTimeMs === undefined) {
+    return undefined;
+  }
+  const testResults = readArray(report['testResults']);
+  if (testResults === undefined) {
+    return undefined;
+  }
+  const endTimes = testResults
+    .flatMap((result) => (isRecord(result) ? [readNumber(result['endTime'])] : []))
+    .filter((endTime): endTime is number => endTime !== undefined);
+  if (endTimes.length === 0) {
+    return undefined;
+  }
+  return Math.max(...endTimes) - startTimeMs;
+}
+
 function playwrightStatus(
   report: Record<string, unknown>,
   stats: Record<string, unknown>,
@@ -445,7 +603,7 @@ function readAxeTestEngineVersion(
 function requireRecord(
   value: unknown,
   label: string,
-  evidenceType: 'Playwright' | 'Axe' | 'Storybook',
+  evidenceType: 'Playwright' | 'Axe' | 'Storybook' | 'Jest' | 'Vitest',
 ): Record<string, unknown> {
   if (!isRecord(value)) {
     throw new Error(`${evidenceType} evidence requires ${label}`);
@@ -456,7 +614,7 @@ function requireRecord(
 function requireString(
   value: unknown,
   label: string,
-  evidenceType: 'Playwright' | 'Axe' | 'Storybook',
+  evidenceType: 'Playwright' | 'Axe' | 'Storybook' | 'Jest' | 'Vitest',
 ): string {
   const result = readString(value);
   if (result === undefined) {
