@@ -134,6 +134,10 @@ for a narrow, provenance-safe subset:
   provenance.
 - `storybook-interactions-json` envelopes that carry raw Storybook interaction
   result JSON plus the same ForgeGate provenance.
+- `jest-json` and `vitest-json` envelopes that carry a raw Jest `--json` (or
+  Vitest `--reporter=json`, which mirrors Jest's shape) report plus the same
+  ForgeGate provenance. Both share one normalizer, since Vitest's JSON
+  reporter is explicitly modeled on Jest's.
 
 These adapters normalize a single `TestExecution` and preserve the raw report
 for evidence export. ForgeGate still does not run target-repository commands
@@ -303,7 +307,11 @@ The initial orchestration milestone should normalize at least:
 
 It must preserve raw results and mark evidence stale after a relevant source change.
 
-Implementation status: imported Storybook interaction, axe, and Playwright
-results are normalized and raw reports are preserved. Native Jest/Vitest, lint,
-build, and ForgeGate-triggered target-repository command execution are still
-open, as is source-change stale-evidence invalidation.
+Implementation status: imported Storybook interaction, axe, Playwright, Jest,
+and Vitest results are all normalized and raw reports are preserved (one unit
+test runner and more). Lint, build, and ForgeGate-triggered target-repository
+command execution are still open. Source-change stale-evidence detection is
+real for a specific commit comparison (a stale `TestExecution`'s recorded
+commit against the workspace's current one, with a real "show changed files"
+explanation — see [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md)'s
+evidence freshness timeline), not yet for a general durable staleness store.

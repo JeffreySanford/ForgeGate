@@ -19,7 +19,9 @@ describe('computeTokenTopology', () => {
       framework: 'web-components',
       adapter: 'framework.web-components',
       packagePath: '.',
-      tokenMappings: [{ tokenPath: 'color.primary.500', category: 'color', required: true }],
+      tokenMappings: [
+        { tokenPath: 'color.primary.500', category: 'color', required: true },
+      ],
     });
 
     expect(computeTokenTopology([manifest])).toEqual([
@@ -39,14 +41,18 @@ describe('computeTokenTopology', () => {
       framework: 'web-components',
       adapter: 'framework.web-components',
       packagePath: '.',
-      tokenMappings: [{ tokenPath: 'color.primary.500', category: 'color', required: true }],
+      tokenMappings: [
+        { tokenPath: 'color.primary.500', category: 'color', required: true },
+      ],
     });
     const card = createComponentManifest({
       id: 'acme.lib.card',
       framework: 'web-components',
       adapter: 'framework.web-components',
       packagePath: '.',
-      tokenMappings: [{ tokenPath: 'color.primary.500', category: 'color', required: false }],
+      tokenMappings: [
+        { tokenPath: 'color.primary.500', category: 'color', required: false },
+      ],
     });
 
     const result = computeTokenTopology([button, card]);
@@ -89,12 +95,12 @@ describe('computeTokenTopology', () => {
 
     const result = computeTokenTopology([manifest]);
 
-    expect(result.find((entry) => entry.tokenPath === 'color.action-hover')?.usages).toEqual([
-      { componentId: 'acme.lib.button', stateName: 'hover' },
-    ]);
-    expect(result.find((entry) => entry.tokenPath === 'color.text-inverse')?.usages).toEqual([
-      { componentId: 'acme.lib.button', anatomyPartId: 'label' },
-    ]);
+    expect(
+      result.find((entry) => entry.tokenPath === 'color.action-hover')?.usages,
+    ).toEqual([{ componentId: 'acme.lib.button', stateName: 'hover' }]);
+    expect(
+      result.find((entry) => entry.tokenPath === 'color.text-inverse')?.usages,
+    ).toEqual([{ componentId: 'acme.lib.button', anatomyPartId: 'label' }]);
   });
 
   it('sorts entries alphabetically by token path for a stable, real ordering', () => {
@@ -111,6 +117,9 @@ describe('computeTokenTopology', () => {
 
     const result = computeTokenTopology([manifest]);
 
-    expect(result.map((entry) => entry.tokenPath)).toEqual(['color.primary.500', 'spacing.sm']);
+    expect(result.map((entry) => entry.tokenPath)).toEqual([
+      'color.primary.500',
+      'spacing.sm',
+    ]);
   });
 });

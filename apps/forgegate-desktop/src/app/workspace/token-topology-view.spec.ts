@@ -28,12 +28,26 @@ const twoComponentManifest: CustomElementsManifest = {
     {
       kind: 'javascript-module',
       path: 'src/acme-button.ts',
-      declarations: [{ kind: 'class', name: 'AcmeButton', customElement: true, tagName: 'acme-button' }],
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeButton',
+          customElement: true,
+          tagName: 'acme-button',
+        },
+      ],
     },
     {
       kind: 'javascript-module',
       path: 'src/acme-card.ts',
-      declarations: [{ kind: 'class', name: 'AcmeCard', customElement: true, tagName: 'acme-card' }],
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeCard',
+          customElement: true,
+          tagName: 'acme-card',
+        },
+      ],
     },
   ],
 };
@@ -55,7 +69,9 @@ describe('TokenTopologyView', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain('Open a workspace');
+    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain(
+      'Open a workspace',
+    );
     expect(compiled.querySelector('table')).toBeNull();
 
     await expectNoAccessibilityViolations(compiled);
@@ -71,13 +87,19 @@ describe('TokenTopologyView', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const emptyStates = Array.from(compiled.querySelectorAll('.fg-empty-state')).map(
-      (element) => element.textContent ?? '',
-    );
+    const emptyStates = Array.from(
+      compiled.querySelectorAll('.fg-empty-state'),
+    ).map((element) => element.textContent ?? '');
     // Two independent, separately-sourced empty states: no component token
     // mapping, and no DTCG token file. Neither implies the other.
-    expect(emptyStates.some((text) => text.includes('Nothing to show'))).toBe(true);
-    expect(emptyStates.some((text) => text.includes('No DTCG token file was detected'))).toBe(true);
+    expect(emptyStates.some((text) => text.includes('Nothing to show'))).toBe(
+      true,
+    );
+    expect(
+      emptyStates.some((text) =>
+        text.includes('No DTCG token file was detected'),
+      ),
+    ).toBe(true);
     expect(compiled.querySelector('table')).toBeNull();
 
     await expectNoAccessibilityViolations(compiled);
@@ -93,14 +115,22 @@ describe('TokenTopologyView', () => {
         framework: 'web-components',
         adapter: 'framework.web-components',
         packagePath: '.',
-        tokenMappings: [{ tokenPath: 'color.primary.500', category: 'color', required: true }],
+        tokenMappings: [
+          { tokenPath: 'color.primary.500', category: 'color', required: true },
+        ],
       }),
       createComponentManifest({
         id: 'acme.design-system.acme-card',
         framework: 'web-components',
         adapter: 'framework.web-components',
         packagePath: '.',
-        tokenMappings: [{ tokenPath: 'color.primary.500', category: 'color', required: false }],
+        tokenMappings: [
+          {
+            tokenPath: 'color.primary.500',
+            category: 'color',
+            required: false,
+          },
+        ],
       }),
     ]);
 
@@ -177,7 +207,9 @@ describe('TokenTopologyView', () => {
     expect(text).toContain('semantic.loop');
     expect(text).toContain('circular');
     // A resolved alias is not reported as broken.
-    expect(compiled.querySelector('caption')?.textContent).toContain('Broken token references');
+    expect(compiled.querySelector('caption')?.textContent).toContain(
+      'Broken token references',
+    );
 
     await expectNoAccessibilityViolations(compiled);
   });

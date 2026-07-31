@@ -622,11 +622,11 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 
 ## Astro Starlight adapter
 
-- [ ] Detect Starlight projects.
-- [ ] Configure documentation root.
-- [ ] Generate Markdown.
-- [ ] Generate MDX.
-- [ ] Generate frontmatter.
+- [X} Detect Starlight projects. `detect_starlight_projects` (Rust); see Phase 3 above.
+- [X} Configure documentation root. Real per-repository config (`.forgegate/config.yaml`'s `documentationMappings`) plus the detected Starlight project directory used to place generated pages under `src/content/docs/components/`.
+- [ ] Generate Markdown. Only MDX is generated today (Astro Starlight's native format); no plain-Markdown output path.
+- [X} Generate MDX. `generateStarlightComponentPage`/`generateDesignerStarlightComponentPage` (`apps/forgegate-desktop/src/app/starlight-page.ts`) — see TODO.md's P2 entry gates and "Evidence export remaining sections" for the full writeup.
+- [X} Generate frontmatter. Real `forgegate:` block (componentId, manifest path/schema version, version, lifecycle, evidenceCommit, audience, reportData path) plus title/description.
 - [x] Generate sidebar metadata where needed.
 - [x] Generate component status blocks.
 - [x] Generate manifest and evidence tables.
@@ -656,18 +656,18 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 
 ## Documentation drift
 
-- [ ] Compare manifest version with published documentation metadata.
-- [ ] Detect missing pages.
-- [ ] Detect stale pages.
+- [X} Compare manifest version with published documentation metadata. `computeDocumentationDriftState`/`DocumentationDriftMap` — compares a documentation target's `publishedVersion` against the component's current version.
+- [ ] Detect missing pages. Not implemented — drift detection compares versions on a *declared* target; it does not check whether the target's page actually exists on disk.
+- [X} Detect stale pages. Same version-comparison mechanism as above; a drifted row links to the real regeneration action (`StarlightPageGenerator`).
 - [ ] Detect removed stories still referenced in docs.
 - [ ] Detect undocumented public API changes.
 - [ ] Detect token mapping drift.
 
 ### Phase 9 exit criteria
 
-- [ ] ForgeGate generates a complete Starlight page for the button.
-- [ ] The page includes live example references, API, tokens, accessibility guidance, test status, and release state.
-- [ ] The generated documentation builds successfully.
+- [X} ForgeGate generates a complete Starlight page for the button. Real for the Acme fixture (`fixtures/acme-button-library`) and validated against a real external repository (`public-sector-federation`) — see TODO.md's P2 entry gates section.
+- [X} The page includes live example references, API, tokens, accessibility guidance, test status, and release state. All real, sourced from the manifest-backed report data — see TODO.md.
+- [X} The generated documentation builds successfully. `pnpm nx run starlight:fixture-build`; also validated with a real external Starlight app's own build command.
 
 ---
 

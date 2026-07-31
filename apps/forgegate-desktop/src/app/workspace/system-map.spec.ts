@@ -116,8 +116,22 @@ describe('SystemMap', () => {
     workspaceService.workspacePath.set('/repos/angular-app');
     workspaceService.workspaceScan.set(scanWithNothingDetected);
     workspaceService.angularComponents.set([
-      { className: 'HeaderComponent', selector: 'app-header', sourceFile: 'src/header.component.ts', inputs: [], outputs: [], confidence: 'confirmed' },
-      { className: 'SidebarComponent', selector: 'app-sidebar', sourceFile: 'src/sidebar.component.ts', inputs: [], outputs: [], confidence: 'confirmed' },
+      {
+        className: 'HeaderComponent',
+        selector: 'app-header',
+        sourceFile: 'src/header.component.ts',
+        inputs: [],
+        outputs: [],
+        confidence: 'confirmed',
+      },
+      {
+        className: 'SidebarComponent',
+        selector: 'app-sidebar',
+        sourceFile: 'src/sidebar.component.ts',
+        inputs: [],
+        outputs: [],
+        confidence: 'confirmed',
+      },
     ]);
 
     const fixture = TestBed.createComponent(SystemMap);

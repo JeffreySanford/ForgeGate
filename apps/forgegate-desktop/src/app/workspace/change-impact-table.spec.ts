@@ -28,7 +28,14 @@ const oneComponentManifest: CustomElementsManifest = {
     {
       kind: 'javascript-module',
       path: 'src/acme-button.ts',
-      declarations: [{ kind: 'class', name: 'AcmeButton', customElement: true, tagName: 'acme-button' }],
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeButton',
+          customElement: true,
+          tagName: 'acme-button',
+        },
+      ],
     },
   ],
 };
@@ -50,7 +57,9 @@ describe('ChangeImpactTable', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain('Open a workspace');
+    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain(
+      'Open a workspace',
+    );
     expect(compiled.querySelector('table')).toBeNull();
 
     await expectNoAccessibilityViolations(compiled);
@@ -70,7 +79,9 @@ describe('ChangeImpactTable', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain('clean');
+    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain(
+      'clean',
+    );
     expect(compiled.querySelector('table')).toBeNull();
 
     await expectNoAccessibilityViolations(compiled);
@@ -95,12 +106,16 @@ describe('ChangeImpactTable', () => {
     const rows = Array.from(compiled.querySelectorAll('tbody tr'));
     expect(rows).toHaveLength(2);
 
-    const buttonRow = rows.find((row) => row.textContent?.includes('src/acme-button.ts'));
+    const buttonRow = rows.find((row) =>
+      row.textContent?.includes('src/acme-button.ts'),
+    );
     expect(buttonRow?.querySelector('a')?.getAttribute('href')).toBe(
       '/components/acme.design-system.acme-button',
     );
 
-    const readmeRow = rows.find((row) => row.textContent?.includes('README.md'));
+    const readmeRow = rows.find((row) =>
+      row.textContent?.includes('README.md'),
+    );
     expect(readmeRow?.textContent).toContain('No component matched');
 
     await expectNoAccessibilityViolations(compiled);
@@ -118,7 +133,9 @@ describe('ChangeImpactTable', () => {
         packagePath: '.',
         componentVersion: '1.0.0',
         storyMappings: [{ storybookStoryId: 'components-acmebutton--primary' }],
-        documentationTargets: [{ adapter: 'starlight', pathOrPageId: 'docs/button' }],
+        documentationTargets: [
+          { adapter: 'starlight', pathOrPageId: 'docs/button' },
+        ],
       }),
     ]);
     workspaceService.testExecutions.set([

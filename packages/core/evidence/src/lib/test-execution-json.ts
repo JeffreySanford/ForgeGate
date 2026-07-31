@@ -31,7 +31,8 @@ export interface AutomatedEvidenceArtifact {
   readonly id: string;
   readonly componentVersionId: string;
   readonly gate: string;
-  readonly tool: 'playwright' | 'axe-core' | 'storybook/test-runner' | 'jest' | 'vitest';
+  readonly tool:
+    'playwright' | 'axe-core' | 'storybook/test-runner' | 'jest' | 'vitest';
   readonly toolVersion: string;
   readonly adapterVersion: string;
   readonly commitOrFingerprint: string;
@@ -469,7 +470,9 @@ function jestLikeDurationMs(
     return undefined;
   }
   const endTimes = testResults
-    .flatMap((result) => (isRecord(result) ? [readNumber(result['endTime'])] : []))
+    .flatMap((result) =>
+      isRecord(result) ? [readNumber(result['endTime'])] : [],
+    )
     .filter((endTime): endTime is number => endTime !== undefined);
   if (endTimes.length === 0) {
     return undefined;

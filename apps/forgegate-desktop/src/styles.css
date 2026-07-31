@@ -109,7 +109,8 @@ button:focus-visible,
  * `animationend`, so it can retrigger on every subsequent rescan rather
  * than only once. */
 .fg-rescan-refresh {
-  animation: fg-rescan-refresh var(--fg-motion-duration-md) var(--fg-motion-ease);
+  animation: fg-rescan-refresh var(--fg-motion-duration-md)
+    var(--fg-motion-ease);
 }
 
 @keyframes fg-rescan-refresh {

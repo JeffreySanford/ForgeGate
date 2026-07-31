@@ -1,41 +1,52 @@
-<section class="evidence-timeline-view fg-panel" aria-labelledby="evidence-timeline-title">
+<section
+  class="evidence-timeline-view fg-panel"
+  aria-labelledby="evidence-timeline-title"
+>
   <h2 id="evidence-timeline-title">Evidence timeline</h2>
 
   @if (!workspace.workspacePath()) {
-    <p class="fg-empty-state">Open a workspace to see when evidence was created.</p>
+  <p class="fg-empty-state">
+    Open a workspace to see when evidence was created.
+  </p>
   } @else if (entries().length === 0) {
-    <p class="fg-empty-state">No test evidence has been loaded yet.</p>
+  <p class="fg-empty-state">No test evidence has been loaded yet.</p>
   } @else {
-    <p class="evidence-timeline-view__caveat">
-      Shows evidence creation only, newest first. Reruns as a distinct event, reviews on this timeline,
-      and release decisions are not tracked yet.
-    </p>
-    <ol class="evidence-timeline-view__list">
-      @for (entry of entries(); track entry.id) {
-        <li [class]="'status-' + entry.status">
-          <time [attr.datetime]="entry.startedAt">{{ entry.startedAt }}</time>
-          <span class="evidence-timeline-view__gate">{{ entry.gate }}</span>
-          <span class="evidence-timeline-view__tool">{{ entry.tool }} {{ entry.toolVersion }}</span>
-          <span class="evidence-timeline-view__status">{{ statusLabel(entry.status) }}</span>
-          <code class="evidence-timeline-view__commit">{{ shortCommit(entry.commitOrFingerprint) }}</code>
-          @if (executionIsStale(entry)) {
-            <button type="button" (click)="showStaleChangedFiles(entry)">Show changed files</button>
-            @if (workspace.staleReviewChangedFiles()[entry.commitOrFingerprint]; as diff) {
-              @if (diff.error) {
-                <p role="alert">{{ diff.error }}</p>
-              } @else if (diff.files.length === 0) {
-                <p>No file differences were detected.</p>
-              } @else {
-                <ul class="evidence-timeline-view__changed-files">
-                  @for (file of diff.files; track file) {
-                    <li><code>{{ file }}</code></li>
-                  }
-                </ul>
-              }
-            }
-          }
-        </li>
-      }
-    </ol>
+  <p class="evidence-timeline-view__caveat">
+    Shows evidence creation only, newest first. Reruns as a distinct event,
+    reviews on this timeline, and release decisions are not tracked yet.
+  </p>
+  <ol class="evidence-timeline-view__list">
+    @for (entry of entries(); track entry.id) {
+    <li [class]="'status-' + entry.status">
+      <time [attr.datetime]="entry.startedAt">{{ entry.startedAt }}</time>
+      <span class="evidence-timeline-view__gate">{{ entry.gate }}</span>
+      <span class="evidence-timeline-view__tool"
+        >{{ entry.tool }} {{ entry.toolVersion }}</span
+      >
+      <span class="evidence-timeline-view__status"
+        >{{ statusLabel(entry.status) }}</span
+      >
+      <code class="evidence-timeline-view__commit"
+        >{{ shortCommit(entry.commitOrFingerprint) }}</code
+      >
+      @if (executionIsStale(entry)) {
+      <button type="button" (click)="showStaleChangedFiles(entry)">
+        Show changed files
+      </button>
+      @if (workspace.staleReviewChangedFiles()[entry.commitOrFingerprint]; as
+      diff) { @if (diff.error) {
+      <p role="alert">{{ diff.error }}</p>
+      } @else if (diff.files.length === 0) {
+      <p>No file differences were detected.</p>
+      } @else {
+      <ul class="evidence-timeline-view__changed-files">
+        @for (file of diff.files; track file) {
+        <li><code>{{ file }}</code></li>
+        }
+      </ul>
+      } } }
+    </li>
+    }
+  </ol>
   }
 </section>

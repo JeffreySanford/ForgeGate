@@ -156,6 +156,8 @@ The token schema referenced from [`16-data-and-schema-model.md`](16-data-and-sch
 - Associate tokens with component anatomy, variants, states, and Blueprint Studio proposals.
 - Preserve optional external design identities without making them the portable primary key.
 
+**Real today, for existing components**: `ManifestTokenMapping` carries optional `stateName` and `anatomyPartId` fields — a token mapped with `stateName: 'hover'` or `anatomyPartId: 'label'` (matching a real `ManifestState.name` or `ContractMember.name`) shows that link on the workspace token topology view, honestly absent for the (currently most) mappings that don't set it. Variant linkage and Blueprint Studio proposal-side linkage remain unbuilt — Blueprint Studio itself does not exist yet.
+
 ## Drift and evidence
 
 Token and design-reference drift are first-class evidence types, not cosmetic warnings.

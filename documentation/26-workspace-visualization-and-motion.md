@@ -487,6 +487,8 @@ Selecting the stale event should explain:
 - Why the evidence was invalidated.
 - What must be repeated.
 
+**Implementation status**: the shipped `EvidenceTimelineView` (`/workspace`) is a real, narrower slice — a chronological list of evidence _creation_ only (source commits, story/token updates, approvals, and documentation generation as distinct timeline events are not shown; there is one real event kind). The "why was this invalidated" half of the relationship explanation is real for a stale entry today: a "Show changed files" action reuses the same real `git diff` mechanism the manual-review freshness table already uses, naming the exact files that changed between the entry's recorded commit and the workspace's current one — not yet a causal line drawn to a specific dependent evidence item, since ForgeGate does not track file-to-evidence dependency edges that precisely.
+
 ### Animation
 
 When a new change arrives:
@@ -522,6 +524,8 @@ Examples:
 - Stale screen-reader review blocks candidate approval.
 
 This visualization becomes especially valuable once the reactive source streams and freshness engine are connected.
+
+**Implementation status**: the shipped `ChangeImpactTable` (`/workspace`) is a real, narrower slice of this — a table, not the staged funnel diagram above. A real changed file matches to its owning component (exact `sourceFiles` path only, no dependency inference), and each affected component's real stories, test executions, manual reviews, and documentation targets are cross-referenced through it — the "Button change invalidates keyboard and screen-reader reviews" example above is genuinely true today. Release-decision cross-referencing (the "blocked releases" stage) is not: a release decision is computed at export time, never persisted, so there is nothing yet for a changed file to point at.
 
 ## Visualization 7 — Token topology
 
@@ -560,6 +564,8 @@ Multiple mappings may form a small directed graph.
 
 Theme switching may interpolate non-status preview colors when safe, but token labels and values update immediately. Forced-colors and reduced-motion modes disable interpolation.
 
+**Implementation status**: the shipped `TokenTopologyView` (`/workspace`) is real but narrower than the layered primitive/semantic/component graph above — it shows which components consume which repository-authored token, plus real DTCG analysis (alias chains, unresolved/circular references, theme/mode coverage across sibling groups) parsed from the workspace's own token files. A token mapping can now link to a real state or anatomy part when a repository authors one (`ManifestTokenMapping.stateName`/`anatomyPartId`), shown inline next to each consumer. The primitive→semantic→component alias graph itself is not a separate visualization yet; alias resolution is real but surfaced as a broken-reference table, not the layered-columns diagram above.
+
 ## Visualization 8 — Documentation drift map
 
 ### Purpose
@@ -589,6 +595,8 @@ A compact visual diff summary may show which documentation sections are affected
 - Tokens.
 - Accessibility.
 - Assurance summary.
+
+**Implementation status**: the shipped `DocumentationDriftMap` (`/workspace`) is a real table, not the source-to-target multi-adapter comparison above — today it evaluates one adapter (Starlight) by comparing a documentation target's `publishedVersion` against the component's current version, not per-section diffing. A drifted row links to a real publication action: `StarlightPageGenerator` on the component's own detail page, which generates the page, shows a real diff, and only writes on explicit approval (see [`12-starlight-integration.md`](12-starlight-integration.md)) — not a raw file link, since the webview's CSP forbids local file navigation and there is no separate "generated diff" view outside that component record.
 
 ## Visualization 9 — Adapter and tool constellation
 
@@ -762,6 +770,29 @@ fg.motion.ease.emphasis
 ```
 
 Use restrained curves. Avoid spring or elastic motion in assurance and compliance surfaces.
+
+### Implementation status
+
+The shipped token set is narrower than the suggested scale above, by design — one shared duration for ordinary interaction, one for a real "something changed" moment, and one easing curve, rather than a five-tier scale nothing yet needs:
+
+```css
+--fg-motion-duration-sm: 120ms; /* app-wide default transition (styles.css) */
+--fg-motion-duration-md: 220ms; /* deliberate per-moment motion (below) */
+--fg-motion-ease: cubic-bezier(0.22, 0.75, 0.2, 1);
+```
+
+Both durations are zeroed under `prefers-reduced-motion: reduce` (`styles/tokens.css`), so every consumer inherits the reduced-motion guarantee for free rather than each needing its own check.
+
+Motion choreography — a deliberate, per-moment use of these tokens rather than one blanket rule — is real for six moments, each a narrow, independently-tested slice rather than a retrofit across every visualization above:
+
+- **Selection** — `ReadinessDistribution`'s lifecycle-bar selection state.
+- **Freshness** — the same component's lifecycle-bar fill width, which only moves because a real count changed.
+- **Discovery** — the filesystem-changes banner's entrance, which only exists because the watcher found a real change.
+- **Transition** (route arrival and leave) — every top-level routed page fades/slides in via Angular's native `animate.enter`; the outgoing page's own rendered DOM is cloned into an `inert`, `aria-hidden` ghost and cross-fades out underneath it, since the router itself destroys the outgoing view with no built-in overlap. `apps/forgegate-desktop/src/app/app.ts`.
+- **Rescan-triggered** — the workspace system map plays the same entrance language as "Discovery" specifically when an explicit rescan completes, not on the initial open. `WorkspaceService.justRescanned`.
+- **Causality, focus** — still open beyond the functional (non-motion) route-change focus move already in `app.ts`; not yet its own real, testable moment.
+
+See `TODO.md`'s P1.8 section for the full, current honest state of each moment, including two real bugs a live browser check caught before they shipped (a zero-duration animation not reliably firing `animationend` under reduced motion, and rapid navigations nesting one leave-ghost's clone inside another).
 
 ### Reduced motion
 

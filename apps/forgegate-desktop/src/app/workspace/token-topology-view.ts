@@ -1,7 +1,11 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { computeTokenTopology } from '../token-topology';
-import { computeGroupCoverage, resolveDtcgAliases, topLevelGroups } from '../dtcg-tokens';
+import {
+  computeGroupCoverage,
+  resolveDtcgAliases,
+  topLevelGroups,
+} from '../dtcg-tokens';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 
@@ -41,17 +45,24 @@ export class TokenTopologyView {
     const resolved = this.resolvedTokens();
     return {
       total: resolved.length,
-      literal: resolved.filter((token) => token.referenceStatus === 'literal').length,
-      resolved: resolved.filter((token) => token.referenceStatus === 'resolved').length,
-      unresolved: resolved.filter((token) => token.referenceStatus === 'unresolved').length,
-      circular: resolved.filter((token) => token.referenceStatus === 'circular').length,
+      literal: resolved.filter((token) => token.referenceStatus === 'literal')
+        .length,
+      resolved: resolved.filter((token) => token.referenceStatus === 'resolved')
+        .length,
+      unresolved: resolved.filter(
+        (token) => token.referenceStatus === 'unresolved',
+      ).length,
+      circular: resolved.filter((token) => token.referenceStatus === 'circular')
+        .length,
     };
   });
 
   /** Alias references that do not resolve — the actionable subset. */
   protected readonly brokenReferences = computed(() =>
     this.resolvedTokens().filter(
-      (token) => token.referenceStatus === 'unresolved' || token.referenceStatus === 'circular',
+      (token) =>
+        token.referenceStatus === 'unresolved' ||
+        token.referenceStatus === 'circular',
     ),
   );
 

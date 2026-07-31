@@ -57,7 +57,10 @@ describe('computeChangeImpact', () => {
   });
 
   it('reports a changed file as unmatched when no discovered component owns it', () => {
-    const result = computeChangeImpact(['apps/forgegate-desktop/src/app/app.css'], []);
+    const result = computeChangeImpact(
+      ['apps/forgegate-desktop/src/app/app.css'],
+      [],
+    );
 
     expect(result).toEqual([
       {
@@ -132,11 +135,17 @@ describe('computeChangeImpact', () => {
         execution({ id: 'run-unit' }),
         execution({ id: 'run-a11y' }),
         // Belongs to a different component version — must not be attributed.
-        execution({ id: 'run-other', componentVersionId: 'acme.design-system.acme-card@1.0.0' }),
+        execution({
+          id: 'run-other',
+          componentVersionId: 'acme.design-system.acme-card@1.0.0',
+        }),
       ],
     );
 
-    expect(result[0]?.affectedTestExecutionIds).toEqual(['run-unit', 'run-a11y']);
+    expect(result[0]?.affectedTestExecutionIds).toEqual([
+      'run-unit',
+      'run-a11y',
+    ]);
   });
 
   it("cross-references a changed file to its component version's real manual reviews", () => {
@@ -152,7 +161,10 @@ describe('computeChangeImpact', () => {
         review({ id: 'review-keyboard' }),
         review({ id: 'review-screen-reader' }),
         // Belongs to a different component version — must not be attributed.
-        review({ id: 'review-other', componentVersionId: 'acme.design-system.acme-card@1.0.0' }),
+        review({
+          id: 'review-other',
+          componentVersionId: 'acme.design-system.acme-card@1.0.0',
+        }),
       ],
     );
 
@@ -201,7 +213,9 @@ describe('computeChangeImpact', () => {
       [
         discovery('acme.design-system.acme-button', ['src/acme-button.ts'], {
           componentVersion: '1.0.0',
-          storyMappings: [{ storybookStoryId: 'components-acmebutton--primary' }],
+          storyMappings: [
+            { storybookStoryId: 'components-acmebutton--primary' },
+          ],
         }),
       ],
       [execution({ id: 'run-unit' })],

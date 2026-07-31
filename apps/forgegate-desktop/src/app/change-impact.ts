@@ -42,8 +42,13 @@ export interface ChangeImpactEntry {
   readonly affectedDocumentationTargets: readonly string[];
 }
 
-function componentVersionId(manifest: { id: string; componentVersion?: string }): string {
-  return manifest.componentVersion ? `${manifest.id}@${manifest.componentVersion}` : manifest.id;
+function componentVersionId(manifest: {
+  id: string;
+  componentVersion?: string;
+}): string {
+  return manifest.componentVersion
+    ? `${manifest.id}@${manifest.componentVersion}`
+    : manifest.id;
 }
 
 export function computeChangeImpact(
@@ -77,7 +82,8 @@ export function computeChangeImpact(
     documentationByComponentId.set(
       manifest.id,
       manifest.documentationTargets.map(
-        (target) => target.pathOrPageId ?? `${target.adapter} (unknown location)`,
+        (target) =>
+          target.pathOrPageId ?? `${target.adapter} (unknown location)`,
       ),
     );
     versionIdByComponentId.set(manifest.id, componentVersionId(manifest));
@@ -89,7 +95,9 @@ export function computeChangeImpact(
     if (ids) {
       ids.push(execution.id);
     } else {
-      testExecutionIdsByVersionId.set(execution.componentVersionId, [execution.id]);
+      testExecutionIdsByVersionId.set(execution.componentVersionId, [
+        execution.id,
+      ]);
     }
   }
 
@@ -109,22 +117,30 @@ export function computeChangeImpact(
       filePath,
       affectedComponentIds,
       affectedStoryIds: dedupe(
-        affectedComponentIds.flatMap((id) => storyIdsByComponentId.get(id) ?? []),
+        affectedComponentIds.flatMap(
+          (id) => storyIdsByComponentId.get(id) ?? [],
+        ),
       ),
       affectedTestExecutionIds: dedupe(
         affectedComponentIds.flatMap((id) => {
           const versionId = versionIdByComponentId.get(id);
-          return versionId ? (testExecutionIdsByVersionId.get(versionId) ?? []) : [];
+          return versionId
+            ? (testExecutionIdsByVersionId.get(versionId) ?? [])
+            : [];
         }),
       ),
       affectedManualReviewIds: dedupe(
         affectedComponentIds.flatMap((id) => {
           const versionId = versionIdByComponentId.get(id);
-          return versionId ? (manualReviewIdsByVersionId.get(versionId) ?? []) : [];
+          return versionId
+            ? (manualReviewIdsByVersionId.get(versionId) ?? [])
+            : [];
         }),
       ),
       affectedDocumentationTargets: dedupe(
-        affectedComponentIds.flatMap((id) => documentationByComponentId.get(id) ?? []),
+        affectedComponentIds.flatMap(
+          (id) => documentationByComponentId.get(id) ?? [],
+        ),
       ),
     };
   });

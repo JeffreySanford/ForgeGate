@@ -165,7 +165,8 @@ describe('StarlightPageGenerator', () => {
     });
     const write = {
       stagingId: 'stg-1',
-      relativePath: 'apps/starlight/src/content/docs/components/acme-button.mdx',
+      relativePath:
+        'apps/starlight/src/content/docs/components/acme-button.mdx',
       previousContent: null,
       newContent: '# Acme Button',
     };

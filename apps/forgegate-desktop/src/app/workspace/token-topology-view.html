@@ -1,124 +1,150 @@
-<section class="token-topology-view fg-panel" aria-labelledby="token-topology-title">
+<section
+  class="token-topology-view fg-panel"
+  aria-labelledby="token-topology-title"
+>
   <h2 id="token-topology-title">Token topology</h2>
 
   @if (!workspace.workspacePath()) {
-    <p class="fg-empty-state">Open a workspace to see which components consume which tokens.</p>
+  <p class="fg-empty-state">
+    Open a workspace to see which components consume which tokens.
+  </p>
+  } @else { @if (referenceCounts().total > 0) {
+  <h3>Token references</h3>
+  <ul class="token-topology-view__counts">
+    <li><strong>{{ referenceCounts().total }}</strong> tokens parsed</li>
+    <li><strong>{{ referenceCounts().literal }}</strong> literal</li>
+    <li><strong>{{ referenceCounts().resolved }}</strong> resolved aliases</li>
+    <li [class.token-topology-view__broken]="referenceCounts().unresolved > 0">
+      <strong>{{ referenceCounts().unresolved }}</strong> unresolved
+    </li>
+    <li [class.token-topology-view__broken]="referenceCounts().circular > 0">
+      <strong>{{ referenceCounts().circular }}</strong> circular
+    </li>
+  </ul>
+  @if (brokenReferences().length) {
+  <table>
+    <caption>
+      Broken token references
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Token</th>
+        <th scope="col">Problem</th>
+        <th scope="col">Reference chain</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (token of brokenReferences(); track token.path) {
+      <tr>
+        <th scope="row"><code>{{ token.path }}</code></th>
+        <td>{{ token.referenceStatus }}</td>
+        <td><code>{{ token.aliasChain.join(' → ') }}</code></td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  } } @else if (workspace.workspaceScan()?.tokenFiles?.length) {
+  <p class="fg-empty-state">
+    Token files were detected but no tokens could be parsed from them.
+  </p>
   } @else {
-
-  @if (referenceCounts().total > 0) {
-    <h3>Token references</h3>
-    <ul class="token-topology-view__counts">
-      <li><strong>{{ referenceCounts().total }}</strong> tokens parsed</li>
-      <li><strong>{{ referenceCounts().literal }}</strong> literal</li>
-      <li><strong>{{ referenceCounts().resolved }}</strong> resolved aliases</li>
-      <li [class.token-topology-view__broken]="referenceCounts().unresolved > 0">
-        <strong>{{ referenceCounts().unresolved }}</strong> unresolved
-      </li>
-      <li [class.token-topology-view__broken]="referenceCounts().circular > 0">
-        <strong>{{ referenceCounts().circular }}</strong> circular
-      </li>
-    </ul>
-    @if (brokenReferences().length) {
-      <table>
-        <caption>Broken token references</caption>
-        <thead>
-          <tr><th scope="col">Token</th><th scope="col">Problem</th><th scope="col">Reference chain</th></tr>
-        </thead>
-        <tbody>
-          @for (token of brokenReferences(); track token.path) {
-            <tr>
-              <th scope="row"><code>{{ token.path }}</code></th>
-              <td>{{ token.referenceStatus }}</td>
-              <td><code>{{ token.aliasChain.join(' → ') }}</code></td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    }
-  } @else if (workspace.workspaceScan()?.tokenFiles?.length) {
-    <p class="fg-empty-state">Token files were detected but no tokens could be parsed from them.</p>
+  <p class="fg-empty-state">
+    No DTCG token file was detected in this workspace.
+  </p>
+  } @if (workspace.designTokenError(); as tokenError) {
+  <p role="alert">Some token files could not be read: {{ tokenError }}</p>
+  } @for (coverage of groupCoverage(); track coverage.groupPath) {
+  <h3>Coverage across <code>{{ coverage.groupPath }}</code></h3>
+  <p class="token-topology-view__caveat">
+    Compares the {{ coverage.siblings.length }} sibling groups under
+    <code>{{ coverage.groupPath }}</code> structurally — DTCG does not
+    standardize themes or modes, so this deliberately does not rely on any
+    vendor extension. {{ coverage.incompleteRows.length }} of {{
+    coverage.rows.length }} token paths are not defined in every group.
+  </p>
+  @if (coverage.incompleteRows.length) {
+  <table>
+    <caption>
+      Token paths missing from at least one group
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Token path</th>
+        <th scope="col">Defined in</th>
+        <th scope="col">Missing from</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of coverage.incompleteRows; track row.relativePath) {
+      <tr>
+        <th scope="row"><code>{{ row.relativePath }}</code></th>
+        <td>{{ row.presentIn.join(', ') }}</td>
+        <td class="token-topology-view__broken">
+          {{ row.missingFrom.join(', ') }}
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
   } @else {
-    <p class="fg-empty-state">No DTCG token file was detected in this workspace.</p>
-  }
-
-  @if (workspace.designTokenError(); as tokenError) {
-    <p role="alert">Some token files could not be read: {{ tokenError }}</p>
-  }
-
-  @for (coverage of groupCoverage(); track coverage.groupPath) {
-    <h3>Coverage across <code>{{ coverage.groupPath }}</code></h3>
-    <p class="token-topology-view__caveat">
-      Compares the {{ coverage.siblings.length }} sibling groups under
-      <code>{{ coverage.groupPath }}</code> structurally — DTCG does not standardize themes or modes, so
-      this deliberately does not rely on any vendor extension.
-      {{ coverage.incompleteRows.length }} of {{ coverage.rows.length }} token paths are not defined in
-      every group.
-    </p>
-    @if (coverage.incompleteRows.length) {
-      <table>
-        <caption>Token paths missing from at least one group</caption>
-        <thead>
-          <tr><th scope="col">Token path</th><th scope="col">Defined in</th><th scope="col">Missing from</th></tr>
-        </thead>
-        <tbody>
-          @for (row of coverage.incompleteRows; track row.relativePath) {
-            <tr>
-              <th scope="row"><code>{{ row.relativePath }}</code></th>
-              <td>{{ row.presentIn.join(', ') }}</td>
-              <td class="token-topology-view__broken">{{ row.missingFrom.join(', ') }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    } @else {
-      <p>Every token path is defined in all {{ coverage.siblings.length }} groups.</p>
-    }
-  }
+  <p>
+    Every token path is defined in all {{ coverage.siblings.length }} groups.
+  </p>
+  } }
 
   <h3>Component token consumption</h3>
   @if (entries().length === 0) {
-    <p class="fg-empty-state">No component has a repository-authored token mapping yet. Nothing to show.</p>
+  <p class="fg-empty-state">
+    No component has a repository-authored token mapping yet. Nothing to show.
+  </p>
   } @else {
-    <p class="token-topology-view__caveat">
-      Which components consume which repository-authored token. Hard-coded implementation-value detection
-      and anatomy/state linkage are not implemented yet.
-    </p>
-    <table>
-      <caption class="sr-only">Tokens and the components that consume them</caption>
-      <thead>
-        <tr>
-          <th scope="col">Token</th>
-          <th scope="col">Category</th>
-          <th scope="col">Required</th>
-          <th scope="col">Consumed by</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (entry of entries(); track entry.tokenPath) {
-          <tr>
-            <th scope="row"><code>{{ entry.tokenPath }}</code></th>
-            <td>{{ entry.category }}</td>
-            <td>{{ entry.required ? 'Yes' : 'No' }}</td>
-            <td>
-              <ul class="token-topology-view__components">
-                @for (usage of entry.usages; track usage.componentId + (usage.stateName ?? '') + (usage.anatomyPartId ?? '')) {
-                  <li>
-                    <a [routerLink]="['/components', usage.componentId]">{{ componentName(usage.componentId) }}</a>
-                    @if (usage.stateName) {
-                      <span class="token-topology-view__link">state: {{ usage.stateName }}</span>
-                    }
-                    @if (usage.anatomyPartId) {
-                      <span class="token-topology-view__link">part: {{ usage.anatomyPartId }}</span>
-                    }
-                  </li>
-                }
-              </ul>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  }
-
-  }
+  <p class="token-topology-view__caveat">
+    Which components consume which repository-authored token. Hard-coded
+    implementation-value detection and anatomy/state linkage are not implemented
+    yet.
+  </p>
+  <table>
+    <caption class="sr-only">
+      Tokens and the components that consume them
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Token</th>
+        <th scope="col">Category</th>
+        <th scope="col">Required</th>
+        <th scope="col">Consumed by</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (entry of entries(); track entry.tokenPath) {
+      <tr>
+        <th scope="row"><code>{{ entry.tokenPath }}</code></th>
+        <td>{{ entry.category }}</td>
+        <td>{{ entry.required ? 'Yes' : 'No' }}</td>
+        <td>
+          <ul class="token-topology-view__components">
+            @for (usage of entry.usages; track usage.componentId +
+            (usage.stateName ?? '') + (usage.anatomyPartId ?? '')) {
+            <li>
+              <a [routerLink]="['/components', usage.componentId]"
+                >{{ componentName(usage.componentId) }}</a
+              >
+              @if (usage.stateName) {
+              <span class="token-topology-view__link"
+                >state: {{ usage.stateName }}</span
+              >
+              } @if (usage.anatomyPartId) {
+              <span class="token-topology-view__link"
+                >part: {{ usage.anatomyPartId }}</span
+              >
+              }
+            </li>
+            }
+          </ul>
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  } }
 </section>

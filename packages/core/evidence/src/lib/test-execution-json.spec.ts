@@ -459,9 +459,33 @@ describe('parseTestEvidenceFile', () => {
   });
 
   it.each([
-    [{ numFailedTests: 1, numPassedTests: 2, numPendingTests: 0, success: false }, 'failed'],
-    [{ numFailedTests: 0, numPassedTests: 0, numPendingTests: 3, success: true }, 'skipped'],
-    [{ numFailedTests: 0, numPassedTests: 3, numPendingTests: 0, success: true }, 'passed'],
+    [
+      {
+        numFailedTests: 1,
+        numPassedTests: 2,
+        numPendingTests: 0,
+        success: false,
+      },
+      'failed',
+    ],
+    [
+      {
+        numFailedTests: 0,
+        numPassedTests: 0,
+        numPendingTests: 3,
+        success: true,
+      },
+      'skipped',
+    ],
+    [
+      {
+        numFailedTests: 0,
+        numPassedTests: 3,
+        numPendingTests: 0,
+        success: true,
+      },
+      'passed',
+    ],
   ] as const)('maps Jest stats %o to %s', (stats, expectedStatus) => {
     const result = parseTestEvidenceFile(
       JSON.stringify({
@@ -484,7 +508,11 @@ describe('parseTestEvidenceFile', () => {
           format: 'jest-json',
           id: 'raw-jest',
           toolVersion: '29.7.0',
-          report: { startTime: 1721838000000, success: true, numPassedTests: 1 },
+          report: {
+            startTime: 1721838000000,
+            success: true,
+            numPassedTests: 1,
+          },
         }),
       ),
     ).toThrow('Jest evidence requires componentVersionId');
@@ -525,7 +553,11 @@ describe('parseTestEvidenceFile', () => {
           format: 'vitest-json',
           id: 'raw-vitest',
           toolVersion: '4.1.10',
-          report: { startTime: 1721838000000, success: true, numPassedTests: 1 },
+          report: {
+            startTime: 1721838000000,
+            success: true,
+            numPassedTests: 1,
+          },
         }),
       ),
     ).toThrow('Vitest evidence requires componentVersionId');

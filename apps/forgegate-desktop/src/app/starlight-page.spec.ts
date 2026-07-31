@@ -192,7 +192,11 @@ describe('generateDesignerStarlightComponentPage', () => {
       ],
       manualReviews: [
         manualReview,
-        { ...manualReview, id: 'review-other', componentVersionId: 'other@1.0.0' },
+        {
+          ...manualReview,
+          id: 'review-other',
+          componentVersionId: 'other@1.0.0',
+        },
       ],
       findings: [
         finding,

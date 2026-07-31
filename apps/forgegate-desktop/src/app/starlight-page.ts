@@ -32,13 +32,13 @@ export interface StarlightTemplateOption {
 }
 
 export type StarlightAudienceTier =
-  | 'designer-heavy'
-  | 'balanced'
-  | 'developer-heavy';
+  'designer-heavy' | 'balanced' | 'developer-heavy';
 
 export interface StarlightAudienceOverrideConfig {
   readonly defaultAudience?: StarlightAudienceTier;
-  readonly organizationAudiences: Readonly<Record<string, StarlightAudienceTier>>;
+  readonly organizationAudiences: Readonly<
+    Record<string, StarlightAudienceTier>
+  >;
   readonly libraryAudiences: Readonly<Record<string, StarlightAudienceTier>>;
   readonly packageAudiences: Readonly<Record<string, StarlightAudienceTier>>;
   readonly componentAudiences: Readonly<Record<string, StarlightAudienceTier>>;
@@ -217,7 +217,9 @@ export function starlightTemplateForManifest(
   );
 }
 
-function parseAudienceMap(value: unknown): Record<string, StarlightAudienceTier> {
+function parseAudienceMap(
+  value: unknown,
+): Record<string, StarlightAudienceTier> {
   if (!isRecord(value)) {
     return {};
   }
@@ -532,8 +534,12 @@ export function generateStarlightComponentPage(
   );
   lines.push('forgegate:');
   lines.push(`  componentId: ${escapeYamlString(manifest.id)}`);
-  lines.push(`  manifestPath: ${escapeYamlString(componentManifestPath(manifest.id))}`);
-  lines.push(`  manifestSchemaVersion: ${escapeYamlString(manifest.schemaVersion)}`);
+  lines.push(
+    `  manifestPath: ${escapeYamlString(componentManifestPath(manifest.id))}`,
+  );
+  lines.push(
+    `  manifestSchemaVersion: ${escapeYamlString(manifest.schemaVersion)}`,
+  );
   lines.push(`  version: ${escapeYamlString(version)}`);
   lines.push(`  lifecycle: ${escapeYamlString(manifest.lifecycle)}`);
   lines.push(`  evidenceCommit: ${escapeYamlString(evidenceCommit)}`);

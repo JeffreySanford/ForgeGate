@@ -50,9 +50,7 @@
   <div class="starlight-page-generator__staged" role="region">
     <p>
       Review the generated {{ staged.template }} output below, then approve to
-      write
-      {{ staged.writes.length || 1 }}
-      file(s), or discard to drop them.
+      write {{ staged.writes.length || 1 }} file(s), or discard to drop them.
     </p>
     @for (write of staged.writes.length ? staged.writes : [staged.write]; track
     write.stagingId) {

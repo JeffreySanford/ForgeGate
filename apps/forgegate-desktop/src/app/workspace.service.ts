@@ -1851,7 +1851,9 @@ export class WorkspaceService {
     this.starlightBuildSkipped.set(null);
     try {
       const writtenPaths: string[] = [];
-      for (const write of staged.writes.length ? staged.writes : [staged.write]) {
+      for (const write of staged.writes.length
+        ? staged.writes
+        : [staged.write]) {
         writtenPaths.push(
           await this.invoke<string>('approve_staged_relative_write', {
             workspacePath: path,
@@ -1946,7 +1948,9 @@ export class WorkspaceService {
       return;
     }
     try {
-      for (const write of staged.writes.length ? staged.writes : [staged.write]) {
+      for (const write of staged.writes.length
+        ? staged.writes
+        : [staged.write]) {
         await this.invoke<void>('discard_staged_evidence_write', {
           workspacePath: path,
           stagingId: write.stagingId,

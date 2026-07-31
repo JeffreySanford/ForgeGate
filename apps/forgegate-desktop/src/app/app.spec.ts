@@ -5,7 +5,12 @@ import { appRoutes } from './app.routes';
 import { expectNoAccessibilityViolations } from '../test-a11y';
 import { WorkspaceService, type GitStatus } from './workspace.service';
 
-const gitStatus: GitStatus = { branch: 'main', commit: 'abc1234', dirty: true, changedFiles: [] };
+const gitStatus: GitStatus = {
+  branch: 'main',
+  commit: 'abc1234',
+  dirty: true,
+  changedFiles: [],
+};
 
 describe('App shell', () => {
   let workspaceService: WorkspaceService;
@@ -49,7 +54,12 @@ describe('App shell', () => {
     const badges = Array.from(compiled.querySelectorAll('.app-nav__badge')).map(
       (el) => el.textContent?.trim(),
     );
-    expect(badges).toEqual(['Coming soon', 'Coming soon', 'Coming soon', 'Coming soon']);
+    expect(badges).toEqual([
+      'Coming soon',
+      'Coming soon',
+      'Coming soon',
+      'Coming soon',
+    ]);
   });
 
   it('shows an explicit empty state in the context bar when no workspace is open', async () => {
@@ -232,7 +242,9 @@ describe('App shell', () => {
     // Whatever ghost the last completed navigation created, there is
     // never more than one live at once — no accumulation across rapid
     // changes.
-    expect(compiled.querySelectorAll('.fg-route-leave').length).toBeLessThanOrEqual(1);
+    expect(
+      compiled.querySelectorAll('.fg-route-leave').length,
+    ).toBeLessThanOrEqual(1);
   });
 
   it('removes the route-leave ghost once its own animation finishes, and never blocks accessibility while present', async () => {

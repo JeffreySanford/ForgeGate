@@ -44,10 +44,8 @@ const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
     'No policy evaluation has run for this component yet.',
   'automated/':
     'No imported automated result artifact is connected for this component yet.',
-  'manual/':
-    'No manual review result is connected for this component yet.',
-  'exceptions/':
-    "No exception approves any of this export's findings yet.",
+  'manual/': 'No manual review result is connected for this component yet.',
+  'exceptions/': "No exception approves any of this export's findings yet.",
   'attachments/': 'No attachments have been captured yet.',
 };
 
@@ -496,9 +494,7 @@ function renderEvidenceReport(input: {
         )
         .join('')}</tbody>
     </table>`
-    : notConnected(
-        "No exception approves any of this export's findings.",
-      );
+    : notConnected("No exception approves any of this export's findings.");
 
   const releaseDecisionSection = releaseDecision
     ? `<dl>

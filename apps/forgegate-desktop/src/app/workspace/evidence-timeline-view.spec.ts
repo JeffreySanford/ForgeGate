@@ -36,7 +36,9 @@ describe('EvidenceTimelineView', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain('Open a workspace');
+    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain(
+      'Open a workspace',
+    );
     expect(compiled.querySelector('ol')).toBeNull();
 
     await expectNoAccessibilityViolations(compiled);
@@ -50,7 +52,9 @@ describe('EvidenceTimelineView', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain('No test evidence');
+    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain(
+      'No test evidence',
+    );
     expect(compiled.querySelector('ol')).toBeNull();
 
     await expectNoAccessibilityViolations(compiled);
@@ -59,8 +63,17 @@ describe('EvidenceTimelineView', () => {
   it('lists real evidence records newest-first with status and commit', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.testExecutions.set([
-      execution({ id: 'old', startedAt: '2026-01-01T00:00:00.000Z', status: 'passed' }),
-      execution({ id: 'new', startedAt: '2026-02-01T00:00:00.000Z', status: 'failed', gate: 'a11y' }),
+      execution({
+        id: 'old',
+        startedAt: '2026-01-01T00:00:00.000Z',
+        status: 'passed',
+      }),
+      execution({
+        id: 'new',
+        startedAt: '2026-02-01T00:00:00.000Z',
+        status: 'failed',
+        gate: 'a11y',
+      }),
     ]);
 
     const fixture = TestBed.createComponent(EvidenceTimelineView);
@@ -74,7 +87,9 @@ describe('EvidenceTimelineView', () => {
     expect(items[0]?.textContent).toContain('Failed');
     expect(items[0]?.className).toContain('status-failed');
     expect(items[1]?.textContent).toContain('Passed');
-    expect(items[1]?.querySelector('.evidence-timeline-view__commit')?.textContent).toBe('aaaaaaa');
+    expect(
+      items[1]?.querySelector('.evidence-timeline-view__commit')?.textContent,
+    ).toBe('aaaaaaa');
 
     await expectNoAccessibilityViolations(compiled);
   });
@@ -87,7 +102,9 @@ describe('EvidenceTimelineView', () => {
       dirty: false,
       changedFiles: [],
     });
-    workspaceService.testExecutions.set([execution({ commitOrFingerprint: 'a'.repeat(40) })]);
+    workspaceService.testExecutions.set([
+      execution({ commitOrFingerprint: 'a'.repeat(40) }),
+    ]);
 
     const fixture = TestBed.createComponent(EvidenceTimelineView);
     fixture.detectChanges();
@@ -107,7 +124,9 @@ describe('EvidenceTimelineView', () => {
       dirty: false,
       changedFiles: [],
     });
-    workspaceService.testExecutions.set([execution({ commitOrFingerprint: 'a'.repeat(40) })]);
+    workspaceService.testExecutions.set([
+      execution({ commitOrFingerprint: 'a'.repeat(40) }),
+    ]);
     const loadSpy = vi
       .spyOn(workspaceService, 'loadStaleReviewChangedFiles')
       .mockImplementation(async (fromCommit) => {

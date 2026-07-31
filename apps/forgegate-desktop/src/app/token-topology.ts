@@ -1,4 +1,7 @@
-import type { ComponentManifest, TokenCategory } from '@forgegate/core-manifest';
+import type {
+  ComponentManifest,
+  TokenCategory,
+} from '@forgegate/core-manifest';
 
 /**
  * P1.5's real data: repository-authored `.forgegate/components/*.yaml`

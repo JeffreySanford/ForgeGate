@@ -747,7 +747,10 @@ describe('buildEvidenceExport', () => {
     });
     const artifacts = [
       jestArtifact({ id: 'matching-jest' }),
-      jestArtifact({ id: 'other-component-jest', componentVersionId: 'acme.lib.card@1.0.0' }),
+      jestArtifact({
+        id: 'other-component-jest',
+        componentVersionId: 'acme.lib.card@1.0.0',
+      }),
     ];
 
     const result = await buildEvidenceExport({
@@ -760,7 +763,9 @@ describe('buildEvidenceExport', () => {
     });
 
     expect(Object.keys(result.files)).toContain('automated/jest-results.json');
-    const jestResults = JSON.parse(requireFile(result, 'automated/jest-results.json'));
+    const jestResults = JSON.parse(
+      requireFile(result, 'automated/jest-results.json'),
+    );
     expect(jestResults).toHaveLength(1);
     expect(jestResults[0]).toMatchObject({
       kind: 'jest-json',
@@ -770,7 +775,9 @@ describe('buildEvidenceExport', () => {
 
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     expect(manifestJson.contents).toContain('automated/jest-results.json');
-    expect(manifestJson.checksums).toHaveProperty('automated/jest-results.json');
+    expect(manifestJson.checksums).toHaveProperty(
+      'automated/jest-results.json',
+    );
     expect(manifestJson.excludes).toMatchObject({
       'automated/vitest-results.json':
         'No Vitest result artifact is connected for this component yet.',
@@ -787,7 +794,10 @@ describe('buildEvidenceExport', () => {
     });
     const artifacts = [
       vitestArtifact({ id: 'matching-vitest' }),
-      vitestArtifact({ id: 'other-component-vitest', componentVersionId: 'acme.lib.card@1.0.0' }),
+      vitestArtifact({
+        id: 'other-component-vitest',
+        componentVersionId: 'acme.lib.card@1.0.0',
+      }),
     ];
 
     const result = await buildEvidenceExport({
@@ -799,8 +809,12 @@ describe('buildEvidenceExport', () => {
       starlightProjects: [],
     });
 
-    expect(Object.keys(result.files)).toContain('automated/vitest-results.json');
-    const vitestResults = JSON.parse(requireFile(result, 'automated/vitest-results.json'));
+    expect(Object.keys(result.files)).toContain(
+      'automated/vitest-results.json',
+    );
+    const vitestResults = JSON.parse(
+      requireFile(result, 'automated/vitest-results.json'),
+    );
     expect(vitestResults).toHaveLength(1);
     expect(vitestResults[0]).toMatchObject({
       kind: 'vitest-json',
@@ -810,7 +824,9 @@ describe('buildEvidenceExport', () => {
 
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     expect(manifestJson.contents).toContain('automated/vitest-results.json');
-    expect(manifestJson.checksums).toHaveProperty('automated/vitest-results.json');
+    expect(manifestJson.checksums).toHaveProperty(
+      'automated/vitest-results.json',
+    );
     expect(manifestJson.excludes).toMatchObject({
       'automated/jest-results.json':
         'No Jest result artifact is connected for this component yet.',
@@ -880,13 +896,15 @@ describe('buildEvidenceExport', () => {
       exportedAt: '2026-01-01T00:00:00.000Z',
       manifest,
       testExecutions: [],
-      manualReviews: [manualReview({ componentVersionId: 'acme.lib.card@1.0.0' })],
+      manualReviews: [
+        manualReview({ componentVersionId: 'acme.lib.card@1.0.0' }),
+      ],
       starlightProjects: [],
     });
 
-    expect(Object.keys(result.files).some((name) => name.startsWith('manual/'))).toBe(
-      false,
-    );
+    expect(
+      Object.keys(result.files).some((name) => name.startsWith('manual/')),
+    ).toBe(false);
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     expect(manifestJson.excludes['manual/']).toBe(
       'No manual review result is connected for this component yet.',
@@ -934,7 +952,7 @@ describe('buildEvidenceExport', () => {
     );
   });
 
-  it('writes one real exceptions/<id>.json file when it approves one of this export\'s own findings', async () => {
+  it("writes one real exceptions/<id>.json file when it approves one of this export's own findings", async () => {
     const manifest = createComponentManifest({
       id: 'acme.lib.button',
       framework: 'web-components',
@@ -971,7 +989,7 @@ describe('buildEvidenceExport', () => {
     );
   });
 
-  it('leaves exceptions/ excluded when no exception approves any of this export\'s own findings', async () => {
+  it("leaves exceptions/ excluded when no exception approves any of this export's own findings", async () => {
     const manifest = createComponentManifest({
       id: 'acme.lib.button',
       framework: 'web-components',

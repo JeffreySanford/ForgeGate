@@ -13,7 +13,9 @@ describe('fg-route-enter (P1.8 route transition)', () => {
     const ruleMatch = stylesCss.match(/\.fg-route-enter\s*{([\s\S]*?)}/);
     expect(ruleMatch).not.toBeNull();
     const rule = ruleMatch?.[1] ?? '';
-    expect(rule).toMatch(/animation:\s*fg-route-enter\s+var\(--fg-motion-duration-md\)\s+var\(--fg-motion-ease\)/);
+    expect(rule).toMatch(
+      /animation:\s*fg-route-enter\s+var\(--fg-motion-duration-md\)\s+var\(--fg-motion-ease\)/,
+    );
   });
 
   it('defines the fg-route-enter keyframes it references', () => {
@@ -26,7 +28,9 @@ describe('fg-route-leave (P1.8 route transition leave half)', () => {
     const ruleMatch = stylesCss.match(/\.fg-route-leave\s*{([\s\S]*?)}/);
     expect(ruleMatch).not.toBeNull();
     const rule = ruleMatch?.[1] ?? '';
-    expect(rule).toMatch(/animation:\s*fg-route-leave\s+var\(--fg-motion-duration-md\)\s+var\(--fg-motion-ease\)/);
+    expect(rule).toMatch(
+      /animation:\s*fg-route-leave\s+var\(--fg-motion-duration-md\)\s+var\(--fg-motion-ease\)/,
+    );
   });
 
   it('defines the fg-route-leave keyframes it references', () => {
@@ -45,7 +49,9 @@ describe('fg-rescan-refresh (P1.8 rescan-triggered entrance)', () => {
     const ruleMatch = stylesCss.match(/\.fg-rescan-refresh\s*{([\s\S]*?)}/);
     expect(ruleMatch).not.toBeNull();
     const rule = ruleMatch?.[1] ?? '';
-    expect(rule).toMatch(/animation:\s*fg-rescan-refresh\s+var\(--fg-motion-duration-md\)\s+var\(--fg-motion-ease\)/);
+    expect(rule).toMatch(
+      /animation:\s*fg-rescan-refresh\s+var\(--fg-motion-duration-md\)\s+var\(--fg-motion-ease\)/,
+    );
   });
 
   it('defines the fg-rescan-refresh keyframes it references', () => {

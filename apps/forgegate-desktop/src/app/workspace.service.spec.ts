@@ -2216,7 +2216,11 @@ describe('WorkspaceService', () => {
         componentId: null,
         template: 'registry-index',
         write: registryWrite,
-        writes: [registryWrite, stagedRegistryReportDataWrite, stagedReportDataWrite],
+        writes: [
+          registryWrite,
+          stagedRegistryReportDataWrite,
+          stagedReportDataWrite,
+        ],
       });
     });
 
@@ -2279,18 +2283,26 @@ describe('WorkspaceService', () => {
 
       await service.approveStagedStarlightPage();
 
-      expect(invokeMock).toHaveBeenNthCalledWith(1, 'approve_staged_relative_write', {
-        workspacePath: 'D:/repos/ForgeGate',
-        stagingId: 'stg-1',
-        relativePath:
-          'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
-      });
-      expect(invokeMock).toHaveBeenNthCalledWith(2, 'approve_staged_relative_write', {
-        workspacePath: 'D:/repos/ForgeGate',
-        stagingId: 'stg-2',
-        relativePath:
-          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
-      });
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        1,
+        'approve_staged_relative_write',
+        {
+          workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-1',
+          relativePath:
+            'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+        },
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        2,
+        'approve_staged_relative_write',
+        {
+          workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-2',
+          relativePath:
+            'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        },
+      );
       expect(service.starlightPageResult()).toEqual({
         path: 'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
       });
@@ -2340,18 +2352,26 @@ describe('WorkspaceService', () => {
 
       await service.approveStagedStarlightPage();
 
-      expect(invokeMock).toHaveBeenNthCalledWith(1, 'approve_staged_relative_write', {
-        workspacePath: 'D:/repos/ForgeGate',
-        stagingId: 'stg-1',
-        relativePath:
-          'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
-      });
-      expect(invokeMock).toHaveBeenNthCalledWith(2, 'approve_staged_relative_write', {
-        workspacePath: 'D:/repos/ForgeGate',
-        stagingId: 'stg-2',
-        relativePath:
-          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
-      });
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        1,
+        'approve_staged_relative_write',
+        {
+          workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-1',
+          relativePath:
+            'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+        },
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        2,
+        'approve_staged_relative_write',
+        {
+          workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-2',
+          relativePath:
+            'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        },
+      );
       expect(invokeMock).toHaveBeenNthCalledWith(3, 'run_workspace_command', {
         workspacePath: 'D:/repos/ForgeGate',
         relativeCwd: '',
@@ -2492,7 +2512,7 @@ describe('WorkspaceService', () => {
         2,
         'discard_staged_evidence_write',
         {
-        workspacePath: 'D:/repos/ForgeGate',
+          workspacePath: 'D:/repos/ForgeGate',
           stagingId: 'stg-2',
         },
       );

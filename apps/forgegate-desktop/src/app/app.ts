@@ -1,6 +1,11 @@
 import { Component, ElementRef, inject, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, NavigationStart, Router, RouterModule } from '@angular/router';
+import {
+  NavigationEnd,
+  NavigationStart,
+  Router,
+  RouterModule,
+} from '@angular/router';
 import { filter } from 'rxjs';
 import { WorkspaceService } from './workspace.service';
 
@@ -14,7 +19,8 @@ export class App {
   protected readonly title = 'ForgeGate';
   protected readonly workspace = inject(WorkspaceService);
   private readonly router = inject(Router);
-  private readonly mainContent = viewChild.required<ElementRef<HTMLElement>>('mainContent');
+  private readonly mainContent =
+    viewChild.required<ElementRef<HTMLElement>>('mainContent');
 
   constructor() {
     // P1.8's route-transition "leave" half: capture the outgoing content
@@ -98,7 +104,8 @@ export class App {
     });
     main.appendChild(ghost);
 
-    const durationMs = parseFloat(getComputedStyle(ghost).animationDuration || '0') * 1000;
+    const durationMs =
+      parseFloat(getComputedStyle(ghost).animationDuration || '0') * 1000;
     setTimeout(() => ghost.remove(), durationMs + 50);
   }
 }

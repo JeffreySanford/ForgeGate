@@ -1,6 +1,9 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { computeWorkspaceDocumentationDrift, type DocumentationDriftStatus } from '../documentation-drift';
+import {
+  computeWorkspaceDocumentationDrift,
+  type DocumentationDriftStatus,
+} from '../documentation-drift';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 
@@ -47,9 +50,13 @@ export class DocumentationDriftMap {
   protected readonly counts = computed(() => {
     const entries = this.entries();
     return {
-      current: entries.filter((entry) => entry.result.status === 'current').length,
-      drifted: entries.filter((entry) => entry.result.status === 'drifted').length,
-      notEvaluated: entries.filter((entry) => entry.result.status === 'not-evaluated').length,
+      current: entries.filter((entry) => entry.result.status === 'current')
+        .length,
+      drifted: entries.filter((entry) => entry.result.status === 'drifted')
+        .length,
+      notEvaluated: entries.filter(
+        (entry) => entry.result.status === 'not-evaluated',
+      ).length,
     };
   });
 
