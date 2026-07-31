@@ -230,4 +230,26 @@ describe('SystemMap', () => {
 
     await expectNoAccessibilityViolations(fixture.nativeElement);
   });
+
+  it('plays the real P1.8 rescan entrance only while justRescanned is true, and resets it on animationend', async () => {
+    const fixture = TestBed.createComponent(SystemMap);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const panel = (fixture.nativeElement as HTMLElement).querySelector(
+      '.system-map-panel',
+    ) as HTMLElement;
+    expect(panel.classList.contains('fg-rescan-refresh')).toBe(false);
+
+    workspaceService.justRescanned.set(true);
+    fixture.detectChanges();
+
+    expect(panel.classList.contains('fg-rescan-refresh')).toBe(true);
+
+    panel.dispatchEvent(new Event('animationend'));
+    fixture.detectChanges();
+
+    expect(workspaceService.justRescanned()).toBe(false);
+    expect(panel.classList.contains('fg-rescan-refresh')).toBe(false);
+  });
 });

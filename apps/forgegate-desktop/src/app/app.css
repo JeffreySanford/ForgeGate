@@ -162,4 +162,8 @@
   flex: 1;
   min-width: 0;
   outline: none;
+  /* Positioning context for the P1.8 route-leave ghost overlay
+     (styles.css's .fg-route-leave), which is absolutely positioned to sit
+     directly over the incoming route's content while it fades out. */
+  position: relative;
 }

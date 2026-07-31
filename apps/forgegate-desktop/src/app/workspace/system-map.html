@@ -1,4 +1,9 @@
-<section class="system-map-panel" aria-labelledby="system-map-title">
+<section
+  class="system-map-panel"
+  aria-labelledby="system-map-title"
+  [class.fg-rescan-refresh]="justRescanned()"
+  (animationend)="onRescanAnimationEnd()"
+>
   <h2 id="system-map-title">Workspace system map</h2>
   <p class="system-map-panel__intro">Real detected relationships across the component delivery workflow.</p>
 

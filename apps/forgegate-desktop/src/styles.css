@@ -46,13 +46,12 @@ button:focus-visible,
   }
 }
 
-/* P1.8 "transition" moment (route arrival only — narrow first slice, no
- * `leave` half yet). Applied via Angular's native `animate.enter`
- * template binding on each top-level routed page's own root element, so
- * it fires exactly once per real navigation into that route, not on
- * every state change. Uses the shared motion tokens, so it's already
- * zeroed under `prefers-reduced-motion: reduce` (styles/tokens.css) —
- * same guarantee as every other motion in the app. */
+/* P1.8 "transition" moment: route arrival. Applied via Angular's native
+ * `animate.enter` template binding on each top-level routed page's own
+ * root element, so it fires exactly once per real navigation into that
+ * route, not on every state change. Uses the shared motion tokens, so
+ * it's already zeroed under `prefers-reduced-motion: reduce`
+ * (styles/tokens.css) — same guarantee as every other motion in the app. */
 .fg-route-enter {
   animation: fg-route-enter var(--fg-motion-duration-md) var(--fg-motion-ease);
 }
@@ -61,6 +60,62 @@ button:focus-visible,
   from {
     opacity: 0;
     transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* P1.8's route-transition "leave" half — a real overlapping crossfade,
+ * not just an arrival fade-in. Angular's router destroys the outgoing
+ * routed component the instant the new one activates (no built-in
+ * overlap), so app.ts clones the outgoing #main-content's DOM into this
+ * class right before the router tears it down, layering it over the
+ * incoming route while it fades out and the real content fades in
+ * underneath via .fg-route-enter. The clone is marked `inert` and
+ * `aria-hidden` by app.ts (it's full of duplicate interactive elements
+ * that must never be reachable while fading out); `pointer-events: none`
+ * here is a second, CSS-level guarantee of the same thing. Removed by
+ * app.ts on its own `animationend`, so it inherits the
+ * `prefers-reduced-motion` guarantee (a zeroed duration still fires
+ * `animationend`) without any JS branching on motion preference. */
+.fg-route-leave {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: fg-route-leave var(--fg-motion-duration-md) var(--fg-motion-ease);
+}
+
+@keyframes fg-route-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+/* P1.8's "rescan-triggered" moment. Same visual language as the
+ * "discovery" moment already used for the filesystem-changes banner's
+ * entrance (opacity/translateY) — a real, deliberately narrow choice, not
+ * a blanket retrofit: applied only to the workspace system map
+ * (`WorkspaceService.justRescanned`), the single most representative
+ * "here's what this rescan found" view, not to every panel a rescan
+ * happens to touch. Consumers add this class conditionally on the
+ * `justRescanned` signal and remove it again on the animation's own
+ * `animationend`, so it can retrigger on every subsequent rescan rather
+ * than only once. */
+.fg-rescan-refresh {
+  animation: fg-rescan-refresh var(--fg-motion-duration-md) var(--fg-motion-ease);
+}
+
+@keyframes fg-rescan-refresh {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
   }
   to {
     opacity: 1;

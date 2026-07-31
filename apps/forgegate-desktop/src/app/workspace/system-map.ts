@@ -82,6 +82,15 @@ export class SystemMap {
   private readonly workspace = inject(WorkspaceService);
   private readonly componentInventory = inject(ComponentInventoryService);
 
+  /** P1.8's rescan-triggered entrance — see `WorkspaceService.justRescanned`
+   * for why this is reset here (on the animation's own `animationend`)
+   * rather than by a timer. */
+  protected readonly justRescanned = this.workspace.justRescanned;
+
+  protected onRescanAnimationEnd(): void {
+    this.workspace.justRescanned.set(false);
+  }
+
   protected readonly nodes = computed<SystemMapNode[]>(() => {
     const workspaceOpen = this.workspace.workspacePath() !== null;
     const gitStatus = this.workspace.gitStatus();

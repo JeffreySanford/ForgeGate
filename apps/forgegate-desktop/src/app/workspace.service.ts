@@ -563,6 +563,19 @@ export class WorkspaceService {
     readonly paths: readonly string[];
     readonly truncated: boolean;
   } | null>(null);
+  /**
+   * P1.8's "rescan-triggered" motion moment: set `true` right after an
+   * explicit `rescanWorkspace()` call finishes, so a consuming view (the
+   * workspace system map) can play a real entrance signaling "this data
+   * just refreshed" — the same visual language P1.8's "discovery" moment
+   * already uses for the filesystem-changes banner. Deliberately not set
+   * by the initial `selectWorkspace()` open: there is nothing to
+   * "refresh" the very first time a workspace is scanned. The consuming
+   * view resets this back to `false` on its own animation's `animationend`
+   * (event-driven, like the route-leave ghost), not a timer, so it can
+   * retrigger on every subsequent rescan.
+   */
+  readonly justRescanned = signal(false);
   private workspaceChangedListenerReady = false;
   readonly error = signal<string | null>(null);
 
@@ -605,6 +618,9 @@ export class WorkspaceService {
     }
     this.filesystemChangesDetected.set(null);
     await this.scanWorkspace(path);
+    if (this.scanProgress()?.state !== 'failed') {
+      this.justRescanned.set(true);
+    }
   }
 
   private async scanWorkspace(path: string): Promise<void> {

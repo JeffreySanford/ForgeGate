@@ -1544,6 +1544,60 @@ describe('WorkspaceService', () => {
       expect(service.filesystemChangesDetected()).toBeNull();
     });
 
+    it('marks justRescanned true after a real rescan completes, for the P1.8 rescan-triggered entrance', async () => {
+      await selectWithScanFixture();
+      expect(service.justRescanned()).toBe(false);
+
+      invokeMock
+        .mockResolvedValueOnce(gitStatusFixture)
+        .mockResolvedValueOnce(scanFixture)
+        .mockResolvedValueOnce(null);
+
+      await service.rescanWorkspace();
+
+      expect(service.justRescanned()).toBe(true);
+    });
+
+    it('never sets justRescanned after the initial open — there is nothing to refresh yet', async () => {
+      await selectWithScanFixture();
+
+      expect(service.justRescanned()).toBe(false);
+    });
+
+    it('does not set justRescanned when a rescan fails', async () => {
+      await selectWithScanFixture();
+
+      invokeMock.mockRejectedValueOnce('Permission denied');
+
+      await service.rescanWorkspace();
+
+      expect(service.justRescanned()).toBe(false);
+    });
+
+    it('sets justRescanned true again for a second rapid rescan, once the consumer has reset it from the first', async () => {
+      await selectWithScanFixture();
+
+      invokeMock
+        .mockResolvedValueOnce(gitStatusFixture)
+        .mockResolvedValueOnce(scanFixture)
+        .mockResolvedValueOnce(null);
+      await service.rescanWorkspace();
+      expect(service.justRescanned()).toBe(true);
+
+      // The consuming view resets this on its own animation's
+      // animationend, the same way SystemMap does, before the next real
+      // rescan would realistically finish.
+      service.justRescanned.set(false);
+
+      invokeMock
+        .mockResolvedValueOnce(gitStatusFixture)
+        .mockResolvedValueOnce(scanFixture)
+        .mockResolvedValueOnce(null);
+      await service.rescanWorkspace();
+
+      expect(service.justRescanned()).toBe(true);
+    });
+
     it('clears the change notice without rescanning when dismissed', async () => {
       await selectWithScanFixture();
       service.filesystemChangesDetected.set({
