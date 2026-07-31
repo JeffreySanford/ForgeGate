@@ -1,0 +1,82 @@
+---
+interface Props {
+  component: string;
+  tier?: string;
+  report?: import('../lib/report').ForgeGateComponentReport;
+}
+
+const { component, tier = 'balanced', report } = Astro.props;
+const states = report?.states ?? [];
+const requiredCount = states.filter((state) => state.required).length;
+const storyCount = states.filter((state) => state.storybookStoryId).length;
+---
+
+<section class="forgegate-panel" data-forgegate-component={component} data-forgegate-tier={tier}>
+  <header class="forgegate-panel__header">
+    <div>
+      <p class="forgegate-eyebrow">Design review</p>
+      <h3>State matrix</h3>
+    </div>
+    <p>{requiredCount} required · {storyCount} story-backed</p>
+  </header>
+  {
+    states.length ? (
+      <table>
+        <thead>
+          <tr>
+            <th>State</th>
+            <th>Required</th>
+            <th>Story</th>
+          </tr>
+        </thead>
+        <tbody>
+          {states.map((state) => (
+            <tr>
+              <th scope="row">{state.name}</th>
+              <td>
+                <span class={state.required ? 'forgegate-chip' : 'forgegate-chip forgegate-chip--muted'}>
+                  {state.required ? 'Required' : 'Optional'}
+                </span>
+              </td>
+              <td>
+                {state.storybookStoryId ? (
+                  <code>{state.storybookStoryId}</code>
+                ) : (
+                  <span class="forgegate-chip forgegate-chip--warning">Not connected</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <p>Required visual and interaction states for <code>{component}</code> are not connected yet.</p>
+    )
+  }
+</section>
+
+<style>
+  .forgegate-panel__header {
+    display: flex;
+    gap: 1rem;
+    align-items: start;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+  }
+
+  .forgegate-panel__header h3,
+  .forgegate-panel__header p {
+    margin: 0;
+  }
+
+  .forgegate-panel__header > p {
+    color: var(--forgegate-report-muted);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-panel__header {
+      display: block;
+    }
+  }
+</style>

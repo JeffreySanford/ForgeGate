@@ -30,7 +30,8 @@
       ],
       "@forgegate/adapter-native-patterns": [
         "./packages/adapters/native-patterns/src/index.ts"
-      ]
+      ],
+      "@forgegate/starlight": ["./packages/starlight/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

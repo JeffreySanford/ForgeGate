@@ -1,0 +1,75 @@
+---
+interface Props {
+  component: string;
+  tier?: string;
+  report?: import('../lib/report').ForgeGateComponentReport;
+}
+
+const { component, tier = 'balanced', report } = Astro.props;
+const tokens = report?.tokens ?? [];
+const requiredCount = tokens.filter((token) => token.required).length;
+---
+
+<section class="forgegate-panel" data-forgegate-component={component} data-forgegate-tier={tier}>
+  <header class="forgegate-panel__header">
+    <div>
+      <p class="forgegate-eyebrow">Design system contract</p>
+      <h3>Design tokens</h3>
+    </div>
+    <p>{requiredCount} required mapping{requiredCount === 1 ? '' : 's'}</p>
+  </header>
+  {
+    tokens.length ? (
+      <table>
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>Category</th>
+            <th>Required</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tokens.map((token) => (
+            <tr>
+              <th scope="row">{token.tokenPath}</th>
+              <td><span class="forgegate-chip forgegate-chip--muted">{token.category}</span></td>
+              <td>
+                <span class={token.required ? 'forgegate-chip' : 'forgegate-chip forgegate-chip--muted'}>
+                  {token.required ? 'Required' : 'Optional'}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <p>No token mappings are connected for <code>{component}</code> yet.</p>
+    )
+  }
+</section>
+
+<style>
+  .forgegate-panel__header {
+    display: flex;
+    gap: 1rem;
+    align-items: start;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+  }
+
+  .forgegate-panel__header h3,
+  .forgegate-panel__header p {
+    margin: 0;
+  }
+
+  .forgegate-panel__header > p {
+    color: var(--forgegate-report-muted);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-panel__header {
+      display: block;
+    }
+  }
+</style>

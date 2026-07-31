@@ -1,0 +1,172 @@
+---
+interface Props {
+  report?: import('../lib/report').ForgeGateRegistryReport;
+}
+
+const { report } = Astro.props;
+const components = report?.components ?? [];
+const evidenceCommit = report?.evidenceCommit ?? 'unknown';
+---
+
+<section class="forgegate-panel" data-forgegate-registry>
+  <header class="forgegate-registry__header">
+    <div>
+      <p class="forgegate-eyebrow">ForgeGate registry</p>
+      <h2>Component registry</h2>
+      <p>
+        {components.length} component{components.length === 1 ? '' : 's'} generated from repository-owned manifests.
+      </p>
+    </div>
+    <dl>
+      <div>
+        <dt>Evidence</dt>
+        <dd><code>{evidenceCommit}</code></dd>
+      </div>
+    </dl>
+  </header>
+  {
+    components.length ? (
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Version</th>
+            <th>Lifecycle</th>
+            <th>Manifest</th>
+          </tr>
+        </thead>
+        <tbody>
+          {components.map((component) => (
+            <tr>
+              <th scope="row">{component.componentId}</th>
+              <td>{component.version}</td>
+              <td><span class="forgegate-chip">{component.lifecycle}</span></td>
+              <td>
+                {component.manifestPath ? (
+                  <code>{component.manifestPath}</code>
+                ) : (
+                  'Not connected'
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : null
+  }
+</section>
+
+<style is:global>
+  :root {
+    --forgegate-report-surface: #ffffff;
+    --forgegate-report-surface-muted: #f6f8fb;
+    --forgegate-report-border: #d9e0ea;
+    --forgegate-report-border-strong: #b8c3d4;
+    --forgegate-report-text: #172033;
+    --forgegate-report-muted: #5d6a7c;
+    --forgegate-report-accent-soft: #e2f3ee;
+    --forgegate-report-radius: 8px;
+    --forgegate-report-shadow: 0 18px 40px rgb(23 32 51 / 0.08);
+  }
+
+  :root[data-theme='dark'] {
+    --forgegate-report-surface: #101722;
+    --forgegate-report-surface-muted: #161f2d;
+    --forgegate-report-border: #2c3a4e;
+    --forgegate-report-border-strong: #43536a;
+    --forgegate-report-text: #edf2f8;
+    --forgegate-report-muted: #aab6c7;
+    --forgegate-report-accent-soft: #143b34;
+    --forgegate-report-shadow: none;
+  }
+
+  .forgegate-panel {
+    margin: 1.25rem 0;
+    border: 1px solid var(--forgegate-report-border);
+    border-radius: var(--forgegate-report-radius);
+    padding: 1.1rem;
+    background: var(--forgegate-report-surface);
+    color: var(--forgegate-report-text);
+    box-shadow: var(--forgegate-report-shadow);
+  }
+
+  .forgegate-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+
+  .forgegate-panel th,
+  .forgegate-panel td {
+    padding: 0.7rem 0.75rem;
+    border-bottom: 1px solid var(--forgegate-report-border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .forgegate-panel thead th {
+    color: var(--forgegate-report-muted);
+    background: var(--forgegate-report-surface-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .forgegate-eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--forgegate-report-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .forgegate-chip {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 1.65rem;
+    border: 1px solid var(--forgegate-report-border-strong);
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    background: var(--forgegate-report-accent-soft);
+    color: var(--forgegate-report-text);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+</style>
+
+<style>
+  .forgegate-registry__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 0.9rem;
+  }
+
+  .forgegate-registry__header h2,
+  .forgegate-registry__header p,
+  .forgegate-registry__header dl,
+  .forgegate-registry__header dd {
+    margin: 0;
+  }
+
+  .forgegate-registry__header p,
+  .forgegate-registry__header dt {
+    color: var(--forgegate-report-muted);
+  }
+
+  .forgegate-registry__header dt {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-registry__header {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

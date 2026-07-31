@@ -248,6 +248,70 @@ fn rollback_evidence_write(
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+struct StagedRelativeWriteDto {
+    staging_id: String,
+    relative_path: String,
+    previous_content: Option<String>,
+    new_content: String,
+}
+
+impl From<staged_write::StagedRelativeWrite> for StagedRelativeWriteDto {
+    fn from(staged: staged_write::StagedRelativeWrite) -> Self {
+        Self {
+            staging_id: staged.staging_id,
+            relative_path: staged.relative_path,
+            previous_content: staged.previous_content,
+            new_content: staged.new_content,
+        }
+    }
+}
+
+/// Stages a real generated Starlight component page
+/// (`generateDesignerStarlightComponentPage`) at its conventional path
+/// under a detected Starlight project, capturing any real page it would
+/// replace so the frontend can show a real diff. Nothing is written into
+/// the real Starlight project until a matching
+/// `approve_staged_relative_write` call — the same staged/approve/discard
+/// discipline `stage_manual_review` uses, generalized for a destination
+/// outside `.forgegate/`.
+#[tauri::command]
+fn stage_starlight_page(
+    workspace_path: String,
+    relative_path: String,
+    content: String,
+) -> Result<StagedRelativeWriteDto, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::stage_relative_write(&workspace, &relative_path, &content).map(Into::into)
+}
+
+/// Commits a previously staged relative-path write (today, a generated
+/// Starlight page) into the real workspace. Only ever called from an
+/// explicit "Approve" action.
+#[tauri::command]
+fn approve_staged_relative_write(
+    workspace_path: String,
+    staging_id: String,
+    relative_path: String,
+) -> Result<String, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::approve_staged_relative_write(&workspace, &staging_id, &relative_path)
+}
+
+/// Restores a real file at `relative_path` to its previous content (or
+/// removes it, if the committed write had created it), undoing a write
+/// `approve_staged_relative_write` already committed.
+#[tauri::command]
+fn rollback_relative_write(
+    workspace_path: String,
+    relative_path: String,
+    previous_content: Option<String>,
+) -> Result<(), String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::rollback_relative_write(&workspace, &relative_path, previous_content.as_deref())
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct SourceFileContents {
     path: String,
     contents: String,
@@ -1593,6 +1657,96 @@ mod tests {
 
         fs::remove_dir_all(&dir).ok();
     }
+
+    #[test]
+    fn stages_and_approves_a_real_starlight_page_at_its_nested_conventional_path() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-stage-starlight-page-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let staged = stage_starlight_page(
+            dir.display().to_string(),
+            "src/content/docs/components/button.mdx".to_string(),
+            "# Button".to_string(),
+        )
+        .expect("stage should succeed");
+        assert!(
+            !dir.join("src/content/docs/components/button.mdx")
+                .exists(),
+            "staging must not touch the real target"
+        );
+
+        let result_path = approve_staged_relative_write(
+            dir.display().to_string(),
+            staged.staging_id,
+            "src/content/docs/components/button.mdx".to_string(),
+        )
+        .expect("approve should succeed");
+
+        assert_eq!(fs::read_to_string(&result_path).unwrap(), "# Button");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_stage_a_starlight_page_path_that_would_escape_the_workspace() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-stage-starlight-page-escape-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let result = stage_starlight_page(
+            dir.display().to_string(),
+            "../escape.mdx".to_string(),
+            "x".to_string(),
+        );
+
+        assert!(result.is_err());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn rolls_back_a_committed_starlight_page_via_the_command() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-rollback-starlight-page-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let staged = stage_starlight_page(
+            dir.display().to_string(),
+            "src/content/docs/components/button.mdx".to_string(),
+            "# Button".to_string(),
+        )
+        .expect("stage should succeed");
+        approve_staged_relative_write(
+            dir.display().to_string(),
+            staged.staging_id,
+            "src/content/docs/components/button.mdx".to_string(),
+        )
+        .expect("approve should succeed");
+
+        rollback_relative_write(
+            dir.display().to_string(),
+            "src/content/docs/components/button.mdx".to_string(),
+            staged.previous_content,
+        )
+        .expect("rollback should succeed");
+
+        assert!(
+            !dir.join("src/content/docs/components/button.mdx")
+                .exists()
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1627,6 +1781,9 @@ pub fn run() {
             approve_staged_evidence_write,
             discard_staged_evidence_write,
             rollback_evidence_write,
+            stage_starlight_page,
+            approve_staged_relative_write,
+            rollback_relative_write,
             read_workspace_source_files,
             read_persistence_status,
             read_evidence_history_trend,

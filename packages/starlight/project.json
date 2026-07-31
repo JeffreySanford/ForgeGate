@@ -1,0 +1,41 @@
+{
+  "name": "starlight",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/starlight/src",
+  "projectType": "library",
+  "tags": ["scope:starlight"],
+  "// targets": "to see all targets run: nx show project starlight --web",
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.lib.json",
+        "cwd": "packages/starlight"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*",
+        "{projectRoot}/tsconfig*.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "outputs": []
+    },
+    "fixture-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "astro build --root fixtures/acme-button-library"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*",
+        "{workspaceRoot}/fixtures/acme-button-library/astro.config.mjs",
+        "{workspaceRoot}/fixtures/acme-button-library/src/content.config.ts",
+        "{workspaceRoot}/fixtures/acme-button-library/src/content/**/*",
+        "{workspaceRoot}/fixtures/acme-button-library/src/data/**/*",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/pnpm-lock.yaml"
+      ],
+      "outputs": ["{workspaceRoot}/fixtures/acme-button-library/dist"]
+    }
+  }
+}

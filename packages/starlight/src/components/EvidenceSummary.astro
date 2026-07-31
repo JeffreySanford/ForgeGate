@@ -1,0 +1,218 @@
+---
+interface Props {
+  component: string;
+  tier?: string;
+  report?: import('../lib/report').ForgeGateComponentReport;
+}
+
+import { contractMemberCount, openFindingCount } from '../lib/report';
+
+const { component, tier = 'balanced', report } = Astro.props;
+const evidenceCommit = report?.evidenceCommit ?? 'unknown';
+const stateCount = report?.states.length ?? 0;
+const tokenCount = report?.tokens.length ?? 0;
+const contractCount = contractMemberCount(report);
+const procedureCount = report?.manualProcedures.length ?? 0;
+const automatedCount = report?.evidence.automated.length ?? 0;
+const manualReviewCount = report?.evidence.manualReviews.length ?? 0;
+const findingCount = report?.evidence.findings.length ?? 0;
+const unresolvedFindingCount = openFindingCount(report);
+
+function statusClass(status: string): string {
+  if (status === 'passed' || status === 'resolved') {
+    return 'forgegate-chip forgegate-chip--success';
+  }
+  if (status === 'failed' || status === 'blocked' || status === 'open') {
+    return 'forgegate-chip forgegate-chip--warning';
+  }
+  return 'forgegate-chip forgegate-chip--muted';
+}
+
+function severityClass(severity: string): string {
+  return severity === 'serious' || severity === 'critical'
+    ? 'forgegate-chip forgegate-chip--warning'
+    : 'forgegate-chip forgegate-chip--muted';
+}
+---
+
+<section class="forgegate-panel" data-forgegate-component={component} data-forgegate-tier={tier}>
+  <header class="forgegate-panel__header">
+    <div>
+      <p class="forgegate-eyebrow">Evidence snapshot</p>
+      <h3>Assurance summary</h3>
+    </div>
+    <p>Commit <code>{evidenceCommit}</code></p>
+  </header>
+  <dl class="forgegate-metric-grid">
+    <div>
+      <dt>States</dt>
+      <dd>{stateCount}</dd>
+    </div>
+    <div>
+      <dt>Token mappings</dt>
+      <dd>{tokenCount}</dd>
+    </div>
+    <div>
+      <dt>Contract members</dt>
+      <dd>{contractCount}</dd>
+    </div>
+    <div>
+      <dt>Manual procedures</dt>
+      <dd>{procedureCount}</dd>
+    </div>
+    <div>
+      <dt>Automated evidence</dt>
+      <dd>{automatedCount}</dd>
+    </div>
+    <div>
+      <dt>Manual reviews</dt>
+      <dd>{manualReviewCount}</dd>
+    </div>
+    <div>
+      <dt>Findings</dt>
+      <dd>{findingCount}</dd>
+    </div>
+    <div>
+      <dt>Open findings</dt>
+      <dd>{unresolvedFindingCount}</dd>
+    </div>
+  </dl>
+  {
+    report?.evidence.automated.length ? (
+      <section class="forgegate-evidence-list">
+        <h4>Automated gates</h4>
+        <ul>
+          {report.evidence.automated.map((execution) => (
+            <li>
+              <span class={statusClass(execution.status)}>{execution.status}</span>
+              <span class="forgegate-evidence-list__title">{execution.gate}</span>
+              <span>{execution.tool}</span>
+              <code>{execution.commitOrFingerprint}</code>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+  }
+  {
+    report?.evidence.manualReviews.length ? (
+      <section class="forgegate-evidence-list">
+        <h4>Manual reviews</h4>
+        <ul>
+          {report.evidence.manualReviews.map((review) => (
+            <li>
+              <span class={statusClass(review.status)}>{review.status}</span>
+              <span class="forgegate-evidence-list__title">{review.procedureId}</span>
+              <span>{review.date}</span>
+              {review.reviewerRole ? <span>{review.reviewerRole}</span> : null}
+              <code>{review.commitOrFingerprint}</code>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+  }
+  {
+    report?.evidence.findings.length ? (
+      <section class="forgegate-evidence-list">
+        <h4>Findings</h4>
+        <ul>
+          {report.evidence.findings.map((finding) => (
+            <li>
+              <span class={statusClass(finding.status)}>{finding.status}</span>
+              <span class={severityClass(finding.severity)}>{finding.severity}</span>
+              <span class="forgegate-evidence-list__title">{finding.description}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+  }
+</section>
+
+<style>
+  .forgegate-panel__header {
+    display: flex;
+    gap: 1rem;
+    align-items: start;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+  }
+
+  .forgegate-panel__header h3,
+  .forgegate-panel__header p {
+    margin: 0;
+  }
+
+  .forgegate-panel__header > p {
+    color: var(--forgegate-report-muted);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-panel__header {
+      display: block;
+    }
+  }
+
+  .forgegate-evidence-list {
+    margin-top: 0.9rem;
+    border-top: 1px solid var(--forgegate-report-border);
+    padding-top: 0.9rem;
+  }
+
+  .forgegate-evidence-list h4 {
+    margin: 0 0 0.6rem;
+    font-size: 0.95rem;
+  }
+
+  .forgegate-evidence-list ul {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .forgegate-evidence-list li {
+    display: grid;
+    grid-template-columns: auto auto minmax(12rem, 1fr) auto auto;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .forgegate-evidence-list__title {
+    font-weight: 700;
+  }
+
+  .forgegate-chip--success {
+    border-color: #74b89b;
+    background: #e2f3ee;
+  }
+
+  .forgegate-chip--warning {
+    border-color: #d98d35;
+    background: #fff0d8;
+  }
+
+  :root[data-theme='dark'] .forgegate-chip--success {
+    border-color: #2d8f73;
+    background: #143b34;
+  }
+
+  :root[data-theme='dark'] .forgegate-chip--warning {
+    border-color: #b96d1f;
+    background: #3d3011;
+  }
+
+  .forgegate-chip--muted {
+    background: var(--forgegate-report-surface-muted);
+    color: var(--forgegate-report-muted);
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-evidence-list li {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

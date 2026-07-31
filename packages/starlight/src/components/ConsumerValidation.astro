@@ -1,0 +1,16 @@
+---
+interface Props {
+  component: string;
+}
+
+const { component } = Astro.props;
+---
+
+<section class="forgegate-panel" data-forgegate-component={component}>
+  <p class="forgegate-eyebrow">Adoption evidence</p>
+  <h3>Consumer validation</h3>
+  <p>
+    Consumer-facing checks for <code>{component}</code> are reported by
+    ForgeGate evidence when connected.
+  </p>
+</section>

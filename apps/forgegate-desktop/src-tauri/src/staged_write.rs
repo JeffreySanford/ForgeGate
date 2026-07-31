@@ -179,6 +179,139 @@ pub(crate) fn rollback_committed_write(
     Ok(())
 }
 
+/// A safe workspace-relative path for a file this module writes outside
+/// `.forgegate/` — e.g. a generated Starlight page under a detected
+/// project's `src/content/docs/...`. Unlike `is_safe_bare_filename` this
+/// allows nested directories (a real Starlight page path is several
+/// levels deep), but still rejects anything that could escape the
+/// workspace: no absolute path, no `..`, no backslash, no empty segment.
+pub(crate) fn is_safe_relative_workspace_path(path: &str) -> bool {
+    if path.is_empty()
+        || path.starts_with('/')
+        || path.contains('\\')
+        || path.contains("..")
+        || path.ends_with('/')
+    {
+        return false;
+    }
+    path.split('/').all(|segment| !segment.is_empty())
+}
+
+/// One write staged at an arbitrary workspace-relative path, mirroring
+/// `StagedEvidenceWrite` but for destinations outside the fixed
+/// `.forgegate/<subdirectory>/` convention.
+pub(crate) struct StagedRelativeWrite {
+    pub staging_id: String,
+    pub relative_path: String,
+    pub previous_content: Option<String>,
+    pub new_content: String,
+}
+
+/// Stages `content` at `relative_path` under a temporary staging
+/// directory, capturing any real file it would replace — the same
+/// temporary-output-first discipline as `stage_evidence_write`, for
+/// writes that land outside `.forgegate/` (a generated Starlight page,
+/// for example). The real workspace is never touched by this step.
+pub(crate) fn stage_relative_write(
+    workspace: &Path,
+    relative_path: &str,
+    content: &str,
+) -> Result<StagedRelativeWrite, String> {
+    if !is_safe_relative_workspace_path(relative_path) {
+        return Err(format!(
+            "Refusing to stage unexpected relative path \"{relative_path}\""
+        ));
+    }
+
+    let target_path = workspace.join(relative_path);
+    let previous_content = fs::read_to_string(&target_path).ok();
+
+    let staging_id = new_staging_id();
+    let staging_target = staging_root(workspace).join(&staging_id).join(relative_path);
+    if let Some(parent) = staging_target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create {}: {error}", parent.display()))?;
+    }
+    fs::write(&staging_target, content)
+        .map_err(|error| format!("Failed to write {}: {error}", staging_target.display()))?;
+
+    Ok(StagedRelativeWrite {
+        staging_id,
+        relative_path: relative_path.to_string(),
+        previous_content,
+        new_content: content.to_string(),
+    })
+}
+
+/// Commits a previously staged relative-path write into the real
+/// workspace, then removes its staging directory — the relative-path
+/// counterpart to `approve_staged_write`.
+pub(crate) fn approve_staged_relative_write(
+    workspace: &Path,
+    staging_id: &str,
+    relative_path: &str,
+) -> Result<String, String> {
+    if !is_safe_staging_id(staging_id) {
+        return Err(format!("\"{staging_id}\" is not a real staging id"));
+    }
+    if !is_safe_relative_workspace_path(relative_path) {
+        return Err(format!(
+            "Refusing to approve unexpected relative path \"{relative_path}\""
+        ));
+    }
+
+    let staged_path = staging_root(workspace).join(staging_id).join(relative_path);
+    let content = fs::read_to_string(&staged_path).map_err(|error| {
+        format!(
+            "No staged write found at {}: {error}",
+            staged_path.display()
+        )
+    })?;
+
+    let target_path = workspace.join(relative_path);
+    if let Some(parent) = target_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create {}: {error}", parent.display()))?;
+    }
+    fs::write(&target_path, &content)
+        .map_err(|error| format!("Failed to write {}: {error}", target_path.display()))?;
+
+    discard_staged_write(workspace, staging_id)?;
+
+    Ok(target_path.display().to_string())
+}
+
+/// Restores a real file at `relative_path` to `previous_content` (or
+/// removes it, if the committed write had created it) — the
+/// relative-path counterpart to `rollback_committed_write`.
+pub(crate) fn rollback_relative_write(
+    workspace: &Path,
+    relative_path: &str,
+    previous_content: Option<&str>,
+) -> Result<(), String> {
+    if !is_safe_relative_workspace_path(relative_path) {
+        return Err(format!(
+            "Refusing to roll back unexpected relative path \"{relative_path}\""
+        ));
+    }
+
+    let target_path = workspace.join(relative_path);
+    match previous_content {
+        Some(content) => {
+            fs::write(&target_path, content)
+                .map_err(|error| format!("Failed to write {}: {error}", target_path.display()))?;
+        }
+        None => {
+            if target_path.exists() {
+                fs::remove_file(&target_path).map_err(|error| {
+                    format!("Failed to remove {}: {error}", target_path.display())
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -352,6 +485,133 @@ mod tests {
             .expect("rollback should succeed");
 
         assert!(!dir.join(".forgegate/findings/finding.json").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn is_safe_relative_workspace_path_accepts_and_rejects_the_expected_shapes() {
+        assert!(is_safe_relative_workspace_path(
+            "src/content/docs/components/button.mdx"
+        ));
+        assert!(is_safe_relative_workspace_path("button.mdx"));
+        assert!(!is_safe_relative_workspace_path("../escape.mdx"));
+        assert!(!is_safe_relative_workspace_path("/absolute.mdx"));
+        assert!(!is_safe_relative_workspace_path("windows\\backslash.mdx"));
+        assert!(!is_safe_relative_workspace_path(""));
+        assert!(!is_safe_relative_workspace_path("trailing-slash/"));
+        assert!(!is_safe_relative_workspace_path("a//b.mdx"));
+    }
+
+    #[test]
+    fn stages_a_relative_write_without_touching_the_real_target() {
+        let dir = temp_workspace("relative-stage");
+
+        let staged = stage_relative_write(
+            &dir,
+            "src/content/docs/components/button.mdx",
+            "# Button",
+        )
+        .expect("stage should succeed");
+
+        assert!(!dir
+            .join("src/content/docs/components/button.mdx")
+            .exists());
+        assert_eq!(staged.previous_content, None);
+        assert_eq!(staged.new_content, "# Button");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn captures_real_previous_content_for_a_relative_write_diff() {
+        let dir = temp_workspace("relative-diff");
+        let target_dir = dir.join("src/content/docs/components");
+        fs::create_dir_all(&target_dir).unwrap();
+        fs::write(target_dir.join("button.mdx"), "# Old Button").unwrap();
+
+        let staged = stage_relative_write(
+            &dir,
+            "src/content/docs/components/button.mdx",
+            "# New Button",
+        )
+        .expect("stage should succeed");
+
+        assert_eq!(staged.previous_content.as_deref(), Some("# Old Button"));
+        assert_eq!(
+            fs::read_to_string(target_dir.join("button.mdx")).unwrap(),
+            "# Old Button"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_stage_a_relative_path_that_would_escape_the_workspace() {
+        let dir = temp_workspace("relative-escape");
+
+        let result = stage_relative_write(&dir, "../escape.mdx", "x");
+
+        assert!(result.is_err());
+        assert!(!dir.join(".forgegate").exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn approves_a_staged_relative_write_creating_nested_directories() {
+        let dir = temp_workspace("relative-approve");
+        let staged = stage_relative_write(
+            &dir,
+            "src/content/docs/components/button.mdx",
+            "# Button",
+        )
+        .expect("stage should succeed");
+
+        let result_path = approve_staged_relative_write(
+            &dir,
+            &staged.staging_id,
+            "src/content/docs/components/button.mdx",
+        )
+        .expect("approve should succeed");
+
+        assert_eq!(fs::read_to_string(&result_path).unwrap(), "# Button");
+        assert!(!staging_root(&dir).join(&staged.staging_id).exists());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn rolls_back_a_committed_relative_write_to_its_real_previous_content() {
+        let dir = temp_workspace("relative-rollback");
+        let target_dir = dir.join("src/content/docs/components");
+        fs::create_dir_all(&target_dir).unwrap();
+        fs::write(target_dir.join("button.mdx"), "# Old Button").unwrap();
+
+        let staged = stage_relative_write(
+            &dir,
+            "src/content/docs/components/button.mdx",
+            "# New Button",
+        )
+        .expect("stage should succeed");
+        approve_staged_relative_write(
+            &dir,
+            &staged.staging_id,
+            "src/content/docs/components/button.mdx",
+        )
+        .expect("approve should succeed");
+
+        rollback_relative_write(
+            &dir,
+            "src/content/docs/components/button.mdx",
+            staged.previous_content.as_deref(),
+        )
+        .expect("rollback should succeed");
+
+        assert_eq!(
+            fs::read_to_string(target_dir.join("button.mdx")).unwrap(),
+            "# Old Button"
+        );
 
         fs::remove_dir_all(&dir).ok();
     }

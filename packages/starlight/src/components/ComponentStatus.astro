@@ -1,0 +1,320 @@
+---
+interface Props {
+  component: string;
+  tier?: string;
+  report?: import('../lib/report').ForgeGateComponentReport;
+}
+
+const { component, tier = 'balanced', report } = Astro.props;
+const version = report?.version ?? 'unknown';
+const lifecycle = report?.lifecycle ?? 'unknown';
+const evidenceCommit = report?.evidenceCommit ?? 'unknown';
+const displayComponent = report?.componentId ?? component;
+const statusLabel = lifecycle.replace(/-/g, ' ');
+const manifestPath = report?.manifest?.path ?? 'not connected';
+const manifestSchemaVersion = report?.manifest?.schemaVersion ?? 'unknown';
+const framework = report?.manifest?.framework ?? 'unknown';
+---
+
+<aside
+  class="forgegate-status"
+  data-forgegate-component={component}
+  data-forgegate-tier={tier}
+>
+  <div>
+    <p class="forgegate-eyebrow">ForgeGate component report</p>
+    <strong>{displayComponent}</strong>
+  </div>
+  <dl class="forgegate-status__facts" aria-label="Component status">
+    <div>
+      <dt>Lifecycle</dt>
+      <dd><span class="forgegate-badge">{statusLabel}</span></dd>
+    </div>
+    <div>
+      <dt>Version</dt>
+      <dd>{version}</dd>
+    </div>
+    <div>
+      <dt>Evidence</dt>
+      <dd><code>{evidenceCommit}</code></dd>
+    </div>
+    <div>
+      <dt>Manifest</dt>
+      <dd><code>{manifestPath}</code></dd>
+    </div>
+    <div>
+      <dt>Schema</dt>
+      <dd>{manifestSchemaVersion}</dd>
+    </div>
+    <div>
+      <dt>Framework</dt>
+      <dd>{framework}</dd>
+    </div>
+  </dl>
+</aside>
+
+<style is:global>
+  :root {
+    --forgegate-report-surface: #ffffff;
+    --forgegate-report-surface-muted: #f6f8fb;
+    --forgegate-report-border: #d9e0ea;
+    --forgegate-report-border-strong: #b8c3d4;
+    --forgegate-report-text: #172033;
+    --forgegate-report-muted: #5d6a7c;
+    --forgegate-report-accent: #246b5d;
+    --forgegate-report-accent-soft: #e2f3ee;
+    --forgegate-report-warning-soft: #fff4d6;
+    --forgegate-report-radius: 8px;
+    --forgegate-report-shadow: 0 18px 40px rgb(23 32 51 / 0.08);
+  }
+
+  :root[data-theme='dark'] {
+    --forgegate-report-surface: #101722;
+    --forgegate-report-surface-muted: #161f2d;
+    --forgegate-report-border: #2c3a4e;
+    --forgegate-report-border-strong: #43536a;
+    --forgegate-report-text: #edf2f8;
+    --forgegate-report-muted: #aab6c7;
+    --forgegate-report-accent: #79d3bc;
+    --forgegate-report-accent-soft: #143b34;
+    --forgegate-report-warning-soft: #3d3011;
+    --forgegate-report-shadow: none;
+  }
+
+  .forgegate-status,
+  .forgegate-panel,
+  .forgegate-story-preview {
+    color: var(--forgegate-report-text);
+    border: 1px solid var(--forgegate-report-border);
+    border-radius: var(--forgegate-report-radius);
+    background: var(--forgegate-report-surface);
+    box-shadow: var(--forgegate-report-shadow);
+  }
+
+  .forgegate-panel,
+  .forgegate-story-preview {
+    margin: 1.25rem 0;
+    padding: 1.1rem;
+  }
+
+  .forgegate-panel h3,
+  .forgegate-story-preview figcaption {
+    margin: 0 0 0.8rem;
+    color: var(--forgegate-report-text);
+    font-size: 1rem;
+    letter-spacing: 0;
+  }
+
+  .forgegate-panel p,
+  .forgegate-story-preview p {
+    color: var(--forgegate-report-muted);
+  }
+
+  .forgegate-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+
+  .forgegate-panel th,
+  .forgegate-panel td {
+    padding: 0.7rem 0.75rem;
+    border-bottom: 1px solid var(--forgegate-report-border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .forgegate-panel thead th {
+    color: var(--forgegate-report-muted);
+    background: var(--forgegate-report-surface-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .forgegate-panel tbody tr:last-child th,
+  .forgegate-panel tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .forgegate-panel code,
+  .forgegate-status code {
+    border-radius: 5px;
+    background: var(--forgegate-report-surface-muted);
+    color: var(--forgegate-report-text);
+    font-size: 0.86em;
+    overflow-wrap: anywhere;
+  }
+
+  .forgegate-eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--forgegate-report-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .forgegate-badge,
+  .forgegate-chip {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 1.65rem;
+    border: 1px solid var(--forgegate-report-border-strong);
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    background: var(--forgegate-report-accent-soft);
+    color: var(--forgegate-report-text);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .forgegate-chip--muted {
+    background: var(--forgegate-report-surface-muted);
+    color: var(--forgegate-report-muted);
+  }
+
+  .forgegate-chip--warning {
+    background: var(--forgegate-report-warning-soft);
+  }
+
+  .forgegate-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0.75rem;
+    margin: 0;
+  }
+
+  .forgegate-metric-grid div {
+    border: 1px solid var(--forgegate-report-border);
+    border-radius: var(--forgegate-report-radius);
+    padding: 0.85rem;
+    background: var(--forgegate-report-surface-muted);
+  }
+
+  .forgegate-metric-grid dt {
+    margin: 0 0 0.35rem;
+    color: var(--forgegate-report-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .forgegate-metric-grid dd {
+    margin: 0;
+    color: var(--forgegate-report-text);
+    font-size: 1.35rem;
+    font-weight: 750;
+  }
+
+  @media (forced-colors: active) {
+    .forgegate-status,
+    .forgegate-panel,
+    .forgegate-story-preview,
+    .forgegate-badge,
+    .forgegate-chip,
+    .forgegate-metric-grid div {
+      border-color: CanvasText;
+      box-shadow: none;
+    }
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-panel table {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: normal;
+    }
+
+    .forgegate-panel thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    .forgegate-panel tbody,
+    .forgegate-panel tr,
+    .forgegate-panel th,
+    .forgegate-panel td {
+      display: block;
+      width: 100%;
+    }
+
+    .forgegate-panel tbody {
+      display: grid;
+      gap: 0.6rem;
+    }
+
+    .forgegate-panel tbody tr {
+      border: 1px solid var(--forgegate-report-border);
+      border-radius: var(--forgegate-report-radius);
+      padding: 0.65rem;
+      background: var(--forgegate-report-surface);
+    }
+
+    .forgegate-panel th,
+    .forgegate-panel td {
+      border-bottom: 0;
+      padding: 0.25rem 0;
+    }
+  }
+</style>
+
+<style>
+  .forgegate-status {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    margin: 1.25rem 0 1.5rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .forgegate-status strong {
+    display: block;
+    overflow-wrap: anywhere;
+    font-size: 1.1rem;
+    line-height: 1.25;
+  }
+
+  .forgegate-status__facts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    margin: 0;
+  }
+
+  .forgegate-status__facts div {
+    min-width: 5.5rem;
+  }
+
+  .forgegate-status__facts dt {
+    margin: 0 0 0.2rem;
+    color: var(--forgegate-report-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .forgegate-status__facts dd {
+    margin: 0;
+    font-weight: 650;
+  }
+
+  @media (max-width: 46rem) {
+    .forgegate-status {
+      grid-template-columns: 1fr;
+    }
+
+    .forgegate-status__facts {
+      justify-content: flex-start;
+    }
+  }
+</style>

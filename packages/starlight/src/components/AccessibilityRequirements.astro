@@ -1,0 +1,89 @@
+---
+interface Props {
+  component: string;
+  tier?: string;
+  report?: import('../lib/report').ForgeGateComponentReport;
+}
+
+const { component, tier = 'balanced', report } = Astro.props;
+const procedures = report?.manualProcedures ?? [];
+const requirementCount = procedures.reduce(
+  (count, procedure) => count + procedure.expected.length,
+  0,
+);
+---
+
+<section class="forgegate-panel" data-forgegate-component={component} data-forgegate-tier={tier}>
+  <header class="forgegate-panel__header">
+    <div>
+      <p class="forgegate-eyebrow">Manual assurance</p>
+      <h3>Accessibility requirements</h3>
+    </div>
+    <p>{requirementCount} expected result{requirementCount === 1 ? '' : 's'}</p>
+  </header>
+  {
+    procedures.length ? (
+      procedures.map((procedure) => (
+        <section class="forgegate-requirement-group">
+          <h4>{procedure.id}</h4>
+          <ul>
+            {procedure.expected.map((expected) => <li>{expected}</li>)}
+          </ul>
+        </section>
+      ))
+    ) : (
+      <p>No manual accessibility procedure is connected for <code>{component}</code> yet.</p>
+    )
+  }
+</section>
+
+<style>
+  .forgegate-panel__header {
+    display: flex;
+    gap: 1rem;
+    align-items: start;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+  }
+
+  .forgegate-panel__header h3,
+  .forgegate-panel__header p {
+    margin: 0;
+  }
+
+  .forgegate-panel__header > p {
+    color: var(--forgegate-report-muted);
+    font-size: 0.9rem;
+  }
+
+  .forgegate-requirement-group {
+    border: 1px solid var(--forgegate-report-border);
+    border-radius: var(--forgegate-report-radius);
+    padding: 0.9rem;
+    background: var(--forgegate-report-surface-muted);
+  }
+
+  .forgegate-requirement-group + .forgegate-requirement-group {
+    margin-top: 0.75rem;
+  }
+
+  .forgegate-requirement-group h4 {
+    margin: 0 0 0.6rem;
+    font-size: 0.95rem;
+  }
+
+  .forgegate-requirement-group ul {
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+
+  .forgegate-requirement-group li + li {
+    margin-top: 0.35rem;
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-panel__header {
+      display: block;
+    }
+  }
+</style>

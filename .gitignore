@@ -44,6 +44,7 @@ Thumbs.db
 .github/instructions/nx.instructions.md
 
 .angular
+.astro
 .claude/settings.local.json
 .claude/worktrees
 .playwright-mcp

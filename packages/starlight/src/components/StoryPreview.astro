@@ -1,0 +1,51 @@
+---
+interface Props {
+  storyId: string;
+}
+
+const { storyId } = Astro.props;
+---
+
+<figure class="forgegate-story-preview" data-forgegate-story={storyId}>
+  <figcaption>
+    <span>Storybook story</span>
+    <a href={`?path=/story/${storyId}`}>{storyId}</a>
+  </figcaption>
+  <div aria-hidden="true">
+    <span>Preview target</span>
+  </div>
+</figure>
+
+<style>
+  .forgegate-story-preview figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .forgegate-story-preview figcaption span {
+    color: var(--forgegate-report-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .forgegate-story-preview a {
+    overflow-wrap: anywhere;
+    font-weight: 700;
+  }
+
+  .forgegate-story-preview div {
+    display: grid;
+    min-height: 7rem;
+    place-items: center;
+    border: 1px dashed var(--forgegate-report-border-strong);
+    border-radius: var(--forgegate-report-radius);
+    background: var(--forgegate-report-surface-muted);
+    color: var(--forgegate-report-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+</style>

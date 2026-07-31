@@ -1,0 +1,89 @@
+---
+interface Props {
+  component: string;
+  tier?: string;
+  report?: import('../lib/report').ForgeGateComponentReport;
+}
+
+const { component, tier = 'balanced', report } = Astro.props;
+const groups = report
+  ? [
+      ['Inputs', report.contract.inputs],
+      ['Outputs', report.contract.outputs],
+      ['Content', report.contract.content],
+      ['Public methods', report.contract.publicMethods],
+      ['Style parts', report.contract.styleParts],
+    ] as const
+  : [];
+const rows = groups.flatMap(([label, members]) =>
+  members.map((member) => ({ label, member })),
+);
+---
+
+<section class="forgegate-panel" data-forgegate-component={component} data-forgegate-tier={tier}>
+  <header class="forgegate-panel__header">
+    <div>
+      <p class="forgegate-eyebrow">Public contract</p>
+      <h3>API</h3>
+    </div>
+    <p>{rows.length} member{rows.length === 1 ? '' : 's'}</p>
+  </header>
+  {
+    rows.length ? (
+      <table>
+        <thead>
+          <tr>
+            <th>Group</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ label, member }) => (
+            <tr>
+              <td><span class="forgegate-chip forgegate-chip--muted">{label}</span></td>
+              <th scope="row"><code>{member.name}</code></th>
+              <td>{member.type ?? 'Not recorded'}</td>
+              <td>
+                <span class={member.required ? 'forgegate-chip' : 'forgegate-chip forgegate-chip--muted'}>
+                  {member.required ? 'Required' : 'Optional'}
+                </span>
+              </td>
+              <td>{member.description ?? 'No description recorded yet.'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <p>No public API contract is connected for <code>{component}</code> yet.</p>
+    )
+  }
+</section>
+
+<style>
+  .forgegate-panel__header {
+    display: flex;
+    gap: 1rem;
+    align-items: start;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+  }
+
+  .forgegate-panel__header h3,
+  .forgegate-panel__header p {
+    margin: 0;
+  }
+
+  .forgegate-panel__header > p {
+    color: var(--forgegate-report-muted);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 42rem) {
+    .forgegate-panel__header {
+      display: block;
+    }
+  }
+</style>
