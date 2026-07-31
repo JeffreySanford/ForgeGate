@@ -18,6 +18,22 @@ import {
 } from '@forgegate/core-evidence';
 import { findingsFromManualReviewStepResults } from './manual-review-findings';
 import {
+  extractProtectedOverview,
+  generateStarlightComponentReportData,
+  generateStarlightComponentPage,
+  generateStarlightRegistryIndexPage,
+  generateStarlightRegistryReportData,
+  parseStarlightAudienceOverrideConfig,
+  type StarlightPageTemplate,
+  STARLIGHT_TEMPLATE_OPTIONS,
+  starlightComponentReportDataPath,
+  starlightComponentPagePath,
+  starlightTemplateForManifest,
+  starlightRegistryIndexPath,
+  starlightRegistryReportDataPath,
+} from './starlight-page';
+import { assertValidGeneratedStarlightMdx } from './starlight-page-validation';
+import {
   parseCustomElementsManifest,
   type CustomElementsManifest,
 } from '@forgegate/adapter-web-components';
@@ -81,6 +97,26 @@ export interface StagedManualReview {
     readonly finding: Finding;
     readonly write: StagedEvidenceWrite;
   }[];
+}
+
+/** A write staged at an arbitrary workspace-relative path, mirroring the
+ * Rust `StagedRelativeWriteDto` — used for destinations outside the
+ * fixed `.forgegate/<subdirectory>/` convention, e.g. a generated
+ * Starlight page. */
+export interface StagedRelativeWrite {
+  readonly stagingId: string;
+  readonly relativePath: string;
+  readonly previousContent: string | null;
+  readonly newContent: string;
+}
+
+/** A generated Starlight page staged but not yet committed, plus the
+ * component id it documents (for a human-readable diff header). */
+export interface StagedStarlightPage {
+  readonly componentId: string | null;
+  readonly template: StarlightPageTemplate;
+  readonly write: StagedRelativeWrite;
+  readonly writes: readonly StagedRelativeWrite[];
 }
 
 export interface ComponentPackageCandidate {
@@ -276,6 +312,8 @@ export interface CemGenerationPlan {
 
 const GENERATE_CEM_COMMAND = 'npx';
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
+const STARLIGHT_BUILD_COMMAND_MAPPING = 'starlightBuild';
+const STARLIGHT_BUILD_TIMEOUT_SECONDS = 180;
 const CEM_EXCLUDED_GLOBS = [
   'node_modules/**',
   'dist/**',
@@ -304,6 +342,68 @@ export function createCemGenerationPlan(
     commandText: `${GENERATE_CEM_COMMAND} ${args.map((arg) => (arg.includes('*') ? `"${arg}"` : arg)).join(' ')}`,
     excludedGlobs: [...CEM_EXCLUDED_GLOBS],
   };
+}
+
+export interface WorkspaceCommandPlan {
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly commandText: string;
+}
+
+export function parseWorkspaceCommandMapping(
+  commandText: string,
+): WorkspaceCommandPlan {
+  const tokens: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+  let escaping = false;
+
+  for (const char of commandText.trim()) {
+    if (escaping) {
+      current += char;
+      escaping = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaping = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      continue;
+    }
+    current += char;
+  }
+
+  if (escaping) {
+    current += '\\';
+  }
+  if (quote) {
+    throw new Error('Command mapping contains an unterminated quote.');
+  }
+  if (current) {
+    tokens.push(current);
+  }
+  const [command, ...args] = tokens;
+  if (!command) {
+    throw new Error('Command mapping must not be empty.');
+  }
+  return { command, args, commandText: commandText.trim() };
 }
 
 /**
@@ -370,6 +470,30 @@ export class WorkspaceService {
   readonly stagedManualReview = signal<StagedManualReview | null>(null);
   readonly approveManualReviewRunning = signal(false);
   readonly approveManualReviewError = signal<string | null>(null);
+  /** A generated Starlight documentation page staged but not yet
+   * committed — populated by `generateAndStageStarlightPage`, cleared by
+   * `approveStagedStarlightPage` or `discardStagedStarlightPage`. Real
+   * writes into a detected Starlight project follow the same
+   * staged/approved discipline as manual reviews (P2 entry gate 2). */
+  readonly stagedStarlightPage = signal<StagedStarlightPage | null>(null);
+  readonly starlightPageRunning = signal(false);
+  readonly starlightPageError = signal<string | null>(null);
+  readonly starlightPageResult = signal<{ readonly path: string } | null>(null);
+  readonly starlightBuildResult = signal<CommandResult | null>(null);
+  readonly starlightBuildError = signal<string | null>(null);
+  readonly starlightBuildSkipped = signal<string | null>(null);
+  readonly starlightTemplates = STARLIGHT_TEMPLATE_OPTIONS;
+
+  starlightDefaultTemplateFor(
+    manifest: ComponentManifest,
+  ): StarlightPageTemplate {
+    return starlightTemplateForManifest(
+      manifest,
+      parseStarlightAudienceOverrideConfig(
+        this.repositoryConfig()?.adapterConfiguration,
+      ),
+    );
+  }
   /**
    * Real files changed between a stale review's recorded commit and the
    * workspace's current commit (documentation/09-manual-review-and-evidence.md's
@@ -380,7 +504,12 @@ export class WorkspaceService {
    * distinct commit.
    */
   readonly staleReviewChangedFiles = signal<
-    Readonly<Record<string, { readonly files: readonly string[]; readonly error: string | null }>>
+    Readonly<
+      Record<
+        string,
+        { readonly files: readonly string[]; readonly error: string | null }
+      >
+    >
   >({});
   /** Every DTCG token parsed from the workspace's detected token files. */
   readonly designTokens = signal<readonly DtcgToken[]>([]);
@@ -1543,6 +1672,272 @@ export class WorkspaceService {
       }
     } finally {
       this.stagedManualReview.set(null);
+    }
+  }
+
+  /**
+   * Generates a real Starlight "designer-heavy" component page
+   * (`generateDesignerStarlightComponentPage`) for `manifest` and stages
+   * it at its conventional path under the first detected Starlight
+   * project — nothing is written into the real project until an explicit
+   * `approveStagedStarlightPage` call. If a page already exists at that
+   * path, its real `forgegate:user-content:start overview`
+   * section is read back and preserved in the regenerated page rather
+   * than being overwritten, per documentation/12-starlight-integration.md's
+   * "Protected content".
+   */
+  async generateAndStageStarlightPage(
+    manifest: ComponentManifest,
+    template: StarlightPageTemplate = 'designer',
+    registryManifests: readonly ComponentManifest[] = [manifest],
+  ): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.starlightPageRunning()) {
+      return;
+    }
+    const starlightProjects = this.workspaceScan()?.starlightProjects ?? [];
+    if (!starlightProjects.length) {
+      this.starlightPageError.set(
+        'No Starlight project detected in this workspace.',
+      );
+      return;
+    }
+    this.starlightPageRunning.set(true);
+    this.starlightPageError.set(null);
+    this.starlightPageResult.set(null);
+    this.starlightBuildResult.set(null);
+    this.starlightBuildError.set(null);
+    this.starlightBuildSkipped.set(null);
+    this.stagedStarlightPage.set(null);
+    try {
+      const starlightProject = starlightProjects[0] ?? '';
+      const relativePath =
+        template === 'registry-index'
+          ? starlightRegistryIndexPath(starlightProject)
+          : starlightComponentPagePath(starlightProject, manifest.id, template);
+      const reportDataPath =
+        template === 'registry-index'
+          ? starlightRegistryReportDataPath(starlightProject)
+          : starlightComponentReportDataPath(
+              starlightProject,
+              manifest.id,
+              template,
+            );
+      let existingOverview: string | null = null;
+      const evidenceCommit = this.gitStatus()?.commit ?? 'unknown';
+      if (template !== 'registry-index') {
+        try {
+          const existing = await this.invoke<string>('read_text_file', {
+            workspacePath: path,
+            relativePath,
+          });
+          existingOverview = extractProtectedOverview(existing);
+        } catch {
+          existingOverview = null;
+        }
+      }
+      const componentPageInput =
+        template === 'registry-index'
+          ? null
+          : {
+              manifest,
+              procedures: this.procedures(),
+              testExecutions: this.testExecutions(),
+              manualReviews: this.manualReviews(),
+              findings: this.findings(),
+              evidenceCommit,
+              existingOverview,
+              template,
+            };
+      const registryComponentPageInputs =
+        template === 'registry-index'
+          ? registryManifests.map((registryManifest) => ({
+              manifest: registryManifest,
+              procedures: this.procedures(),
+              testExecutions: this.testExecutions(),
+              manualReviews: this.manualReviews(),
+              findings: this.findings(),
+              evidenceCommit,
+              existingOverview: null,
+              template: 'designer' as const,
+            }))
+          : [];
+      const content = componentPageInput
+        ? generateStarlightComponentPage(componentPageInput)
+        : generateStarlightRegistryIndexPage({
+            manifests: registryManifests,
+            evidenceCommit,
+            componentReportTemplate: 'designer',
+          });
+      assertValidGeneratedStarlightMdx(content);
+      const write = await this.invoke<StagedRelativeWrite>(
+        'stage_starlight_page',
+        { workspacePath: path, relativePath, content },
+      );
+      const writes: StagedRelativeWrite[] = [write];
+      if (reportDataPath) {
+        writes.push(
+          await this.invoke<StagedRelativeWrite>('stage_starlight_page', {
+            workspacePath: path,
+            relativePath: reportDataPath,
+            content: componentPageInput
+              ? generateStarlightComponentReportData(componentPageInput)
+              : generateStarlightRegistryReportData({
+                  manifests: registryManifests,
+                  evidenceCommit,
+                }),
+          }),
+        );
+      }
+      for (const registryComponentPageInput of registryComponentPageInputs) {
+        writes.push(
+          await this.invoke<StagedRelativeWrite>('stage_starlight_page', {
+            workspacePath: path,
+            relativePath: starlightComponentReportDataPath(
+              starlightProject,
+              registryComponentPageInput.manifest.id,
+              'designer',
+            ),
+            content: generateStarlightComponentReportData(
+              registryComponentPageInput,
+            ),
+          }),
+        );
+      }
+      this.stagedStarlightPage.set({
+        componentId: template === 'registry-index' ? null : manifest.id,
+        template,
+        write,
+        writes,
+      });
+    } catch (error) {
+      this.starlightPageError.set(String(error));
+    } finally {
+      this.starlightPageRunning.set(false);
+    }
+  }
+
+  /**
+   * Commits a staged Starlight page into the real detected project, then
+   * clears the staged state. Only ever called from an explicit "Approve"
+   * action the reviewer takes after being shown the staged diff.
+   */
+  async approveStagedStarlightPage(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedStarlightPage();
+    if (!path || !staged || this.starlightPageRunning()) {
+      return;
+    }
+    this.starlightPageRunning.set(true);
+    this.starlightPageError.set(null);
+    this.starlightBuildResult.set(null);
+    this.starlightBuildError.set(null);
+    this.starlightBuildSkipped.set(null);
+    try {
+      const writtenPaths: string[] = [];
+      for (const write of staged.writes.length ? staged.writes : [staged.write]) {
+        writtenPaths.push(
+          await this.invoke<string>('approve_staged_relative_write', {
+            workspacePath: path,
+            stagingId: write.stagingId,
+            relativePath: write.relativePath,
+          }),
+        );
+      }
+      this.starlightPageResult.set({
+        path: writtenPaths[0] ?? staged.write.relativePath,
+      });
+      this.stagedStarlightPage.set(null);
+      await this.validateApprovedStarlightBuild(path);
+    } catch (error) {
+      this.starlightPageError.set(String(error));
+    } finally {
+      this.starlightPageRunning.set(false);
+    }
+  }
+
+  private async validateApprovedStarlightBuild(
+    workspacePath: string,
+  ): Promise<void> {
+    const commandText =
+      this.repositoryConfig()?.commandMappings[STARLIGHT_BUILD_COMMAND_MAPPING];
+    if (!commandText) {
+      this.starlightBuildSkipped.set(
+        `No ${STARLIGHT_BUILD_COMMAND_MAPPING} command is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+
+    let plan: WorkspaceCommandPlan;
+    try {
+      plan = parseWorkspaceCommandMapping(commandText);
+    } catch (error) {
+      this.starlightBuildError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'starlight-build-command',
+        adapter: 'Starlight build validation',
+        source: commandText,
+        status: 'failed',
+        rawOutput: null,
+        error: String(error),
+      });
+      return;
+    }
+
+    try {
+      const result = await this.invoke<CommandResult>('run_workspace_command', {
+        workspacePath,
+        relativeCwd: '',
+        command: plan.command,
+        args: [...plan.args],
+        timeoutSeconds: STARLIGHT_BUILD_TIMEOUT_SECONDS,
+      });
+      this.starlightBuildResult.set(result);
+      this.setAdapterDiagnostic({
+        id: 'starlight-build-command',
+        adapter: 'Starlight build validation',
+        source: plan.commandText,
+        status: result.exitCode === 0 ? 'loaded' : 'failed',
+        rawOutput: JSON.stringify(result, null, 2),
+        error:
+          result.exitCode === 0
+            ? null
+            : result.cancelled
+              ? 'Cancelled by user'
+              : result.stderr || 'Starlight build validation failed',
+      });
+    } catch (error) {
+      this.starlightBuildError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'starlight-build-command',
+        adapter: 'Starlight build validation',
+        source: plan.commandText,
+        status: 'failed',
+        rawOutput: null,
+        error: String(error),
+      });
+    }
+  }
+
+  /**
+   * Discards a staged Starlight page without ever committing it into the
+   * real detected project.
+   */
+  async discardStagedStarlightPage(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedStarlightPage();
+    if (!path || !staged) {
+      return;
+    }
+    try {
+      for (const write of staged.writes.length ? staged.writes : [staged.write]) {
+        await this.invoke<void>('discard_staged_evidence_write', {
+          workspacePath: path,
+          stagingId: write.stagingId,
+        });
+      }
+    } finally {
+      this.stagedStarlightPage.set(null);
     }
   }
 

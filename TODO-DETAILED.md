@@ -627,24 +627,24 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 - [ ] Generate Markdown.
 - [ ] Generate MDX.
 - [ ] Generate frontmatter.
-- [ ] Generate sidebar metadata where needed.
-- [ ] Generate component status blocks.
-- [ ] Generate manifest and evidence tables.
-- [ ] Generate Storybook embeds or links.
-- [ ] Generate token references.
-- [ ] Show Git diff before writing.
-- [ ] Preserve user-authored protected regions.
-- [ ] Validate Starlight build after generation.
+- [x] Generate sidebar metadata where needed.
+- [x] Generate component status blocks.
+- [x] Generate manifest and evidence tables.
+- [x] Generate Storybook embeds or links.
+- [x] Generate token references.
+- [x] Show Git diff before writing.
+- [x] Preserve user-authored protected regions.
+- [x] Validate Starlight build after generation.
 - [ ] Create a reusable Starlight plugin package.
 
 ## Audience-tier templates
 
-- [ ] Define the designer-heavy, balanced, and developer-heavy section compositions.
-- [ ] Add `audience` to generated frontmatter and manifest-linked policy.
-- [ ] Implement tier-aware rendering for each Starlight plugin component.
-- [ ] Support per-organization, per-library, and per-page tier overrides.
+- [x] Define the designer-heavy, balanced, and developer-heavy section compositions.
+- [x] Add `audience` to generated frontmatter and manifest-linked policy.
+- [x] Implement tier-aware rendering for each Starlight presentation component.
+- [x] Support per-organization, per-library, and per-page tier overrides.
 - [ ] Support optional dual-page publication with cross-linked companion pages.
-- [ ] Verify the same underlying evidence produces identical facts across tiers in tests.
+- [x] Verify the same underlying evidence produces identical facts across tiers in tests.
 
 ## Storybook documentation output
 

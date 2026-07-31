@@ -3,7 +3,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createComponentManifest } from '@forgegate/core-manifest';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
-import { WorkspaceService } from './workspace.service';
+import {
+  parseWorkspaceCommandMapping,
+  WorkspaceService,
+} from './workspace.service';
 
 const invokeMock = vi.fn();
 
@@ -81,6 +84,44 @@ const gitStatusFixture = {
 };
 
 const listenMock = vi.fn();
+
+describe('parseWorkspaceCommandMapping', () => {
+  it('splits a repository-configured command into executable and args', () => {
+    expect(
+      parseWorkspaceCommandMapping(
+        'pnpm nx run docs:build --configuration production',
+      ),
+    ).toEqual({
+      command: 'pnpm',
+      args: ['nx', 'run', 'docs:build', '--configuration', 'production'],
+      commandText: 'pnpm nx run docs:build --configuration production',
+    });
+  });
+
+  it('preserves quoted arguments without invoking a shell', () => {
+    expect(
+      parseWorkspaceCommandMapping(
+        'pnpm nx run "docs site:build" --flag="a b"',
+      ),
+    ).toEqual({
+      command: 'pnpm',
+      args: ['nx', 'run', 'docs site:build', '--flag=a b'],
+      commandText: 'pnpm nx run "docs site:build" --flag="a b"',
+    });
+  });
+
+  it('rejects an empty command mapping', () => {
+    expect(() => parseWorkspaceCommandMapping('   ')).toThrow(
+      'Command mapping must not be empty.',
+    );
+  });
+
+  it('rejects an unterminated quote', () => {
+    expect(() =>
+      parseWorkspaceCommandMapping('pnpm nx run "docs:build'),
+    ).toThrow('Command mapping contains an unterminated quote.');
+  });
+});
 
 describe('WorkspaceService', () => {
   let service: WorkspaceService;
@@ -1308,36 +1349,30 @@ describe('WorkspaceService', () => {
           '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
         );
 
-      await service.exportEvidencePackage(
-        manifest,
-        [],
-        [],
-        undefined,
-        [
-          {
-            id: 'acme-button-keyboard-review',
-            componentVersionId: 'acme.lib.button@1.0.0',
-            procedureId: 'keyboard-and-screen-reader-review',
-            procedureVersion: '1.0.0',
-            reviewerIdentity: 'reviewer@example.com',
-            date: '2026-01-01T00:00:00.000Z',
-            operatingSystem: 'macOS 15',
-            status: 'passed',
-            commitOrFingerprint: 'a'.repeat(40),
-          },
-          {
-            id: 'other-component-review',
-            componentVersionId: 'acme.lib.card@1.0.0',
-            procedureId: 'keyboard-and-screen-reader-review',
-            procedureVersion: '1.0.0',
-            reviewerIdentity: 'reviewer@example.com',
-            date: '2026-01-01T00:00:00.000Z',
-            operatingSystem: 'macOS 15',
-            status: 'passed',
-            commitOrFingerprint: 'a'.repeat(40),
-          },
-        ],
-      );
+      await service.exportEvidencePackage(manifest, [], [], undefined, [
+        {
+          id: 'acme-button-keyboard-review',
+          componentVersionId: 'acme.lib.button@1.0.0',
+          procedureId: 'keyboard-and-screen-reader-review',
+          procedureVersion: '1.0.0',
+          reviewerIdentity: 'reviewer@example.com',
+          date: '2026-01-01T00:00:00.000Z',
+          operatingSystem: 'macOS 15',
+          status: 'passed',
+          commitOrFingerprint: 'a'.repeat(40),
+        },
+        {
+          id: 'other-component-review',
+          componentVersionId: 'acme.lib.card@1.0.0',
+          procedureId: 'keyboard-and-screen-reader-review',
+          procedureVersion: '1.0.0',
+          reviewerIdentity: 'reviewer@example.com',
+          date: '2026-01-01T00:00:00.000Z',
+          operatingSystem: 'macOS 15',
+          status: 'passed',
+          commitOrFingerprint: 'a'.repeat(40),
+        },
+      ]);
 
       const [, secondCallArgs] = invokeMock.mock.calls[1] as [
         string,
@@ -1351,7 +1386,7 @@ describe('WorkspaceService', () => {
       );
     });
 
-    it('writes a real exceptions/<id>.json file for an exception approving one of this export\'s findings', async () => {
+    it("writes a real exceptions/<id>.json file for an exception approving one of this export's findings", async () => {
       invokeMock
         .mockResolvedValueOnce('/home/user/exports')
         .mockResolvedValueOnce(
@@ -1421,9 +1456,14 @@ describe('WorkspaceService', () => {
 
       await service.selectWorkspace();
 
-      const watchCall = invokeMock.mock.calls.find(([name]) => name === 'start_workspace_watch');
+      const watchCall = invokeMock.mock.calls.find(
+        ([name]) => name === 'start_workspace_watch',
+      );
       expect(watchCall).toBeDefined();
-      const [, args] = watchCall as [string, { workspacePath: string; directories: unknown[] }];
+      const [, args] = watchCall as [
+        string,
+        { workspacePath: string; directories: unknown[] },
+      ];
       expect(args.workspacePath).toBe('D:/repos/ForgeGate');
       expect(args.directories).toEqual([
         { path: '.', recursive: false },
@@ -1437,7 +1477,12 @@ describe('WorkspaceService', () => {
         .mockResolvedValueOnce(gitStatusFixture)
         .mockResolvedValueOnce(scanFixture)
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ configured: false, connected: false, snapshots: [], error: null })
+        .mockResolvedValueOnce({
+          configured: false,
+          connected: false,
+          snapshots: [],
+          error: null,
+        })
         .mockRejectedValueOnce('No real directory could be watched');
 
       await service.selectWorkspace();
@@ -1451,13 +1496,18 @@ describe('WorkspaceService', () => {
     });
 
     it('sets filesystemChangesDetected from a real workspace-changed event', async () => {
-      let emitChange!: (payload: { changedPaths: string[]; truncated: boolean }) => void;
-      listenMock.mockImplementation(async (eventName: string, handler: (event: unknown) => void) => {
-        if (eventName === 'workspace-changed') {
-          emitChange = (payload) => handler({ payload });
-        }
-        return vi.fn();
-      });
+      let emitChange!: (payload: {
+        changedPaths: string[];
+        truncated: boolean;
+      }) => void;
+      listenMock.mockImplementation(
+        async (eventName: string, handler: (event: unknown) => void) => {
+          if (eventName === 'workspace-changed') {
+            emitChange = (payload) => handler({ payload });
+          }
+          return vi.fn();
+        },
+      );
 
       await selectWithScanFixture();
 
@@ -1477,7 +1527,10 @@ describe('WorkspaceService', () => {
 
     it('rescans the already-open workspace with no folder dialog, and clears any pending change notice first', async () => {
       await selectWithScanFixture();
-      service.filesystemChangesDetected.set({ paths: ['x.ts'], truncated: false });
+      service.filesystemChangesDetected.set({
+        paths: ['x.ts'],
+        truncated: false,
+      });
 
       invokeMock
         .mockResolvedValueOnce(gitStatusFixture)
@@ -1493,7 +1546,10 @@ describe('WorkspaceService', () => {
 
     it('clears the change notice without rescanning when dismissed', async () => {
       await selectWithScanFixture();
-      service.filesystemChangesDetected.set({ paths: ['x.ts'], truncated: false });
+      service.filesystemChangesDetected.set({
+        paths: ['x.ts'],
+        truncated: false,
+      });
 
       service.dismissFilesystemChanges();
 
@@ -1538,10 +1594,13 @@ describe('WorkspaceService', () => {
 
       await service.loadComponentEvidenceEvents('acme.design-system.button');
 
-      expect(invokeMock).toHaveBeenCalledWith('read_component_evidence_events', {
-        path: 'D:/repos/ForgeGate',
-        componentId: 'acme.design-system.button',
-      });
+      expect(invokeMock).toHaveBeenCalledWith(
+        'read_component_evidence_events',
+        {
+          path: 'D:/repos/ForgeGate',
+          componentId: 'acme.design-system.button',
+        },
+      );
       expect(service.componentEvidenceEvents()).toEqual(events);
     });
 
@@ -1867,6 +1926,523 @@ describe('WorkspaceService', () => {
       await service.discardStagedManualReview();
 
       expect(invokeMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('generateAndStageStarlightPage / approveStagedStarlightPage / discardStagedStarlightPage', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.design-system.acme-button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      lifecycle: 'candidate',
+    });
+    const stagedPageWrite = {
+      stagingId: 'stg-1',
+      relativePath:
+        'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      previousContent: null,
+      newContent: '# Acme Button',
+    };
+    const stagedReportDataWrite = {
+      stagingId: 'stg-2',
+      relativePath:
+        'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+      previousContent: null,
+      newContent: '{"componentId":"acme.design-system.acme-button"}\n',
+    };
+    const stagedRegistryReportDataWrite = {
+      stagingId: 'stg-3',
+      relativePath: 'apps/starlight/src/data/forgegate/components/index.json',
+      previousContent: null,
+      newContent: '{"componentCount":1}\n',
+    };
+
+    it('does nothing if no workspace is open', async () => {
+      await service.generateAndStageStarlightPage(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('surfaces an honest error when no Starlight project was detected', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({ ...scanFixture, starlightProjects: [] });
+
+      await service.generateAndStageStarlightPage(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.starlightPageError()).toBe(
+        'No Starlight project detected in this workspace.',
+      );
+      expect(service.stagedStarlightPage()).toBeNull();
+    });
+
+    it("generates and stages a real page at the detected project's conventional path", async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({
+        ...scanFixture,
+        starlightProjects: ['apps/starlight'],
+      });
+      service.testExecutions.set([
+        {
+          id: 'axe-acme-button',
+          componentVersionId: 'acme.design-system.acme-button@1.0.0',
+          gate: 'accessibility',
+          tool: 'axe',
+          toolVersion: '4.9.0',
+          adapterVersion: '0.1.0',
+          status: 'passed',
+          startedAt: '2026-07-31T12:00:00.000Z',
+          commitOrFingerprint: 'abc123',
+        },
+      ]);
+      service.manualReviews.set([
+        {
+          id: 'review-acme-button',
+          componentVersionId: 'acme.design-system.acme-button@1.0.0',
+          procedureId: 'keyboard-and-screen-reader-review',
+          procedureVersion: '1.0.0',
+          reviewerIdentity: 'designer@example.test',
+          date: '2026-07-31',
+          operatingSystem: 'Windows 11',
+          status: 'passed',
+          commitOrFingerprint: 'abc123',
+        },
+      ]);
+      service.findings.set([
+        {
+          id: 'acme-button-focus-visible',
+          componentId: 'acme.design-system.acme-button',
+          description: 'Focus-visible treatment needs stronger contrast.',
+          severity: 'moderate',
+          status: 'open',
+        },
+      ]);
+      invokeMock
+        .mockRejectedValueOnce('not a file')
+        .mockResolvedValueOnce(stagedPageWrite)
+        .mockResolvedValueOnce(stagedReportDataWrite);
+
+      await service.generateAndStageStarlightPage(manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'read_text_file', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath:
+          'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath:
+          'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+        content: expect.stringContaining(
+          'componentId: "acme.design-system.acme-button"',
+        ),
+      });
+      expect(invokeMock.mock.calls[1]?.[1].content).toContain(
+        'import forgegateReport from "../../../data/forgegate/components/acme-button--for-designers.json";',
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(3, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath:
+          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        content: expect.stringContaining(
+          '"componentId": "acme.design-system.acme-button"',
+        ),
+      });
+      expect(invokeMock.mock.calls[2]?.[1].content).toContain(
+        '"id": "axe-acme-button"',
+      );
+      expect(invokeMock.mock.calls[2]?.[1].content).toContain(
+        '".forgegate/components/acme.design-system.acme-button.yaml"',
+      );
+      expect(invokeMock.mock.calls[2]?.[1].content).toContain(
+        '"id": "review-acme-button"',
+      );
+      expect(invokeMock.mock.calls[2]?.[1].content).toContain(
+        'Focus-visible treatment needs stronger contrast.',
+      );
+      expect(service.stagedStarlightPage()).toEqual({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite, stagedReportDataWrite],
+      });
+      expect(service.starlightPageRunning()).toBe(false);
+    });
+
+    it('derives the default Starlight template from repository adapter configuration', () => {
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {},
+        documentationMappings: {},
+        adapterConfiguration: {
+          starlight: {
+            defaultAudience: 'balanced',
+            packageAudiences: {
+              '.': 'developer-heavy',
+            },
+            componentAudiences: {
+              'acme.design-system.acme-button': 'designer-heavy',
+            },
+          },
+        },
+        ignorePatterns: [],
+        safeWriteLocations: ['apps/starlight/src/content/docs/**'],
+      });
+
+      expect(service.starlightDefaultTemplateFor(manifest)).toBe('designer');
+      expect(
+        service.starlightDefaultTemplateFor(
+          createComponentManifest({
+            id: 'acme.design-system.acme-card',
+            framework: 'web-components',
+            adapter: 'framework.web-components',
+            packagePath: '.',
+          }),
+        ),
+      ).toBe('developer');
+    });
+
+    it('generates and stages a registry index without reading a protected component overview', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({
+        ...scanFixture,
+        starlightProjects: ['apps/starlight'],
+      });
+      const registryWrite = {
+        ...stagedPageWrite,
+        relativePath: 'apps/starlight/src/content/docs/components/index.mdx',
+      };
+      invokeMock
+        .mockResolvedValueOnce(registryWrite)
+        .mockResolvedValueOnce(stagedRegistryReportDataWrite)
+        .mockResolvedValueOnce(stagedReportDataWrite);
+
+      await service.generateAndStageStarlightPage(manifest, 'registry-index', [
+        manifest,
+      ]);
+
+      expect(invokeMock).toHaveBeenCalledTimes(3);
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath: 'apps/starlight/src/content/docs/components/index.mdx',
+        content: expect.stringContaining(
+          '<ComponentRegistry report={forgegateRegistry} />',
+        ),
+      });
+      expect(invokeMock.mock.calls[0]?.[1].content).toContain(
+        'import forgegateRegistry from "../../../data/forgegate/components/index.json";',
+      );
+      expect(invokeMock.mock.calls[0]?.[1].content).toContain(
+        'import acmeButtonReport from "../../../data/forgegate/components/acme-button--for-designers.json";',
+      );
+      expect(invokeMock.mock.calls[0]?.[1].content).toContain(
+        'report={acmeButtonReport}',
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath: 'apps/starlight/src/data/forgegate/components/index.json',
+        content: expect.stringContaining('"componentCount": 1'),
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(3, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath:
+          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        content: expect.stringContaining(
+          '"componentId": "acme.design-system.acme-button"',
+        ),
+      });
+      expect(invokeMock.mock.calls[2]?.[1].content).toContain(
+        '".forgegate/components/acme.design-system.acme-button.yaml"',
+      );
+      expect(service.stagedStarlightPage()).toEqual({
+        componentId: null,
+        template: 'registry-index',
+        write: registryWrite,
+        writes: [registryWrite, stagedRegistryReportDataWrite, stagedReportDataWrite],
+      });
+    });
+
+    it('preserves a real prior overview section when regenerating over an existing page', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({
+        ...scanFixture,
+        starlightProjects: ['apps/starlight'],
+      });
+      const existingPage = [
+        '<!-- forgegate:user-content:start overview -->',
+        'A real, human-authored purpose.',
+        '<!-- forgegate:user-content:end overview -->',
+      ].join('\n');
+      invokeMock
+        .mockResolvedValueOnce(existingPage)
+        .mockResolvedValueOnce(stagedPageWrite)
+        .mockResolvedValueOnce(stagedReportDataWrite);
+
+      await service.generateAndStageStarlightPage(manifest);
+
+      const stageCall = invokeMock.mock.calls[1];
+      expect(stageCall?.[1].content).toContain(
+        'A real, human-authored purpose.',
+      );
+    });
+
+    it('surfaces a real staging failure without losing the running flag', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({
+        ...scanFixture,
+        starlightProjects: ['apps/starlight'],
+      });
+      invokeMock
+        .mockRejectedValueOnce('not a file')
+        .mockRejectedValueOnce('Permission denied');
+
+      await service.generateAndStageStarlightPage(manifest);
+
+      expect(service.starlightPageError()).toBe('Permission denied');
+      expect(service.starlightPageRunning()).toBe(false);
+      expect(service.stagedStarlightPage()).toBeNull();
+    });
+
+    it('approves a staged page, updates the result, and clears staged state', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.stagedStarlightPage.set({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite, stagedReportDataWrite],
+      });
+      invokeMock
+        .mockResolvedValueOnce(
+          'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+        )
+        .mockResolvedValueOnce(
+          'D:/repos/ForgeGate/apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        );
+
+      await service.approveStagedStarlightPage();
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'approve_staged_relative_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: 'stg-1',
+        relativePath:
+          'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'approve_staged_relative_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: 'stg-2',
+        relativePath:
+          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+      });
+      expect(service.starlightPageResult()).toEqual({
+        path: 'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      });
+      expect(service.starlightBuildSkipped()).toBe(
+        'No starlightBuild command is configured in .forgegate/config.yaml.',
+      );
+      expect(service.stagedStarlightPage()).toBeNull();
+    });
+
+    it('runs the configured Starlight build validation command after approval', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          starlightBuild: 'pnpm nx run docs:build --configuration production',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: ['apps/starlight/src/content/docs/**'],
+      });
+      service.stagedStarlightPage.set({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite, stagedReportDataWrite],
+      });
+      const buildResult = {
+        exitCode: 0,
+        stdout: 'built',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 1200,
+        artifactPath: 'C:/Temp/forgegate-artifacts/1.json',
+      };
+      invokeMock
+        .mockResolvedValueOnce(
+          'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+        )
+        .mockResolvedValueOnce(
+          'D:/repos/ForgeGate/apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        )
+        .mockResolvedValueOnce(buildResult);
+
+      await service.approveStagedStarlightPage();
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'approve_staged_relative_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: 'stg-1',
+        relativePath:
+          'apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'approve_staged_relative_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: 'stg-2',
+        relativePath:
+          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(3, 'run_workspace_command', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativeCwd: '',
+        command: 'pnpm',
+        args: ['nx', 'run', 'docs:build', '--configuration', 'production'],
+        timeoutSeconds: 180,
+      });
+      expect(service.starlightBuildResult()).toEqual(buildResult);
+      expect(service.starlightBuildSkipped()).toBeNull();
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'starlight-build-command'),
+      ).toMatchObject({
+        adapter: 'Starlight build validation',
+        source: 'pnpm nx run docs:build --configuration production',
+        status: 'loaded',
+        error: null,
+      });
+    });
+
+    it('records a configured Starlight build validation failure without undoing the approved page', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          starlightBuild: 'pnpm nx run docs:build',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: ['apps/starlight/src/content/docs/**'],
+      });
+      service.stagedStarlightPage.set({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite],
+      });
+      const buildResult = {
+        exitCode: 1,
+        stdout: '',
+        stderr: 'broken import',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 800,
+        artifactPath: null,
+      };
+      invokeMock
+        .mockResolvedValueOnce(
+          'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+        )
+        .mockResolvedValueOnce(buildResult);
+
+      await service.approveStagedStarlightPage();
+
+      expect(service.starlightPageResult()).toEqual({
+        path: 'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      });
+      expect(service.stagedStarlightPage()).toBeNull();
+      expect(service.starlightBuildResult()).toEqual(buildResult);
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'starlight-build-command'),
+      ).toMatchObject({
+        status: 'failed',
+        error: 'broken import',
+      });
+    });
+
+    it('reports an invalid configured Starlight build command without invoking it', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          starlightBuild: 'pnpm nx run "docs:build',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: ['apps/starlight/src/content/docs/**'],
+      });
+      service.stagedStarlightPage.set({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite],
+      });
+      invokeMock.mockResolvedValueOnce(
+        'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      );
+
+      await service.approveStagedStarlightPage();
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(service.starlightPageResult()).toEqual({
+        path: 'D:/repos/ForgeGate/apps/starlight/src/content/docs/components/acme-button--for-designers.mdx',
+      });
+      expect(service.starlightBuildError()).toBe(
+        'Error: Command mapping contains an unterminated quote.',
+      );
+    });
+
+    it('does nothing to approve when there is no staged page', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+
+      await service.approveStagedStarlightPage();
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('discards a staged page without ever committing it', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.stagedStarlightPage.set({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite, stagedReportDataWrite],
+      });
+      invokeMock.mockResolvedValue(undefined);
+
+      await service.discardStagedStarlightPage();
+
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        1,
+        'discard_staged_evidence_write',
+        {
+          workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-1',
+        },
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        2,
+        'discard_staged_evidence_write',
+        {
+        workspacePath: 'D:/repos/ForgeGate',
+          stagingId: 'stg-2',
+        },
+      );
+      expect(service.stagedStarlightPage()).toBeNull();
     });
   });
 

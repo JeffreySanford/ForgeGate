@@ -9,10 +9,18 @@ sourceFiles:
 lifecycle: candidate
 reviewers: []
 contract:
-  inputs: []
+  inputs:
+    - name: label
+      type: string
+      required: true
+      description: Visible action text.
   outputs: []
   content: []
-  publicMethods: []
+  publicMethods:
+    - name: focus
+      type: '() => void'
+      required: false
+      description: Moves keyboard focus to the rendered button element.
   styleParts: []
 states:
   - name: default
@@ -56,7 +64,8 @@ testRequirements:
   - gate: unit
     scope: component
     required: true
-manualReviewProcedureIds: []
+manualReviewProcedureIds:
+  - keyboard-and-screen-reader-review
 documentationTargets:
   - adapter: starlight
     pathOrPageId: src/content/docs/components/button.md

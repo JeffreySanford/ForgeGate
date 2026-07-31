@@ -265,21 +265,18 @@
           <td>{{ review.reviewerIdentity }}</td>
           <td>{{ review.date }}</td>
           <td>
-            {{ review.operatingSystem }}
-            @if (review.assistiveTechnology) { , {{ review.assistiveTechnology
-            }} }
+            {{ review.operatingSystem }} @if (review.assistiveTechnology) { , {{
+            review.assistiveTechnology }} }
           </td>
           <td>
-            {{ manualReviewFreshness(review) }}
-            @if (manualReviewIsStale(review)) {
-            <button
-              type="button"
-              (click)="showStaleReviewChangedFiles(review)"
-            >
+            {{ manualReviewFreshness(review) }} @if
+            (manualReviewIsStale(review)) {
+            <button type="button" (click)="showStaleReviewChangedFiles(review)">
               Show changed files
             </button>
-            @if (workspace.staleReviewChangedFiles()[review.commitOrFingerprint]; as diff) {
-            @if (diff.error) {
+            @if
+            (workspace.staleReviewChangedFiles()[review.commitOrFingerprint]; as
+            diff) { @if (diff.error) {
             <p role="alert">{{ diff.error }}</p>
             } @else if (diff.files.length === 0) {
             <p>No file differences were detected.</p>
@@ -317,18 +314,20 @@
     </p>
     } @else if (!workspace.componentEvidenceEvents()?.connected) {
     <p role="alert">{{ workspace.componentEvidenceEvents()?.error }}</p>
-    } @else if ((workspace.componentEvidenceEvents()?.events?.length ?? 0) === 0) {
+    } @else if ((workspace.componentEvidenceEvents()?.events?.length ?? 0) ===
+    0) {
     <p class="component-detail__unavailable">
-      No recorded readiness changes yet for this component. This fills in as
-      the workspace is rescanned over time.
+      No recorded readiness changes yet for this component. This fills in as the
+      workspace is rescanned over time.
     </p>
     } @else {
     <ul class="component-detail__evidence-events">
-      @for (event of workspace.componentEvidenceEvents()!.events; track $index) {
+      @for (event of workspace.componentEvidenceEvents()!.events; track $index)
+      {
       <li>
         <strong
-          >Readiness changed: {{ event.previousReadiness }} &rarr;
-          {{ event.nextReadiness }}</strong
+          >Readiness changed: {{ event.previousReadiness }} &rarr; {{
+          event.nextReadiness }}</strong
         >
         <span
           >{{ event.occurredAt }} &mdash; commit
@@ -494,6 +493,10 @@
     aria-labelledby="documentation-title"
   >
     <h2 id="documentation-title">Documentation</h2>
+    <app-starlight-page-generator
+      [manifest]="m"
+      [registryManifests]="registryManifests()"
+    />
     @if (m.documentationTargets.length === 0) {
     <p class="component-detail__unavailable">
       No documentation target connected for this component yet.

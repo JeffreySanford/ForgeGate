@@ -1,0 +1,96 @@
+---
+title: 'Acme Button'
+description: 'Designer-ready ForgeGate report for Acme Button.'
+forgegate:
+  componentId: 'acme.button-library.acme-button'
+  version: '0.1.0'
+  lifecycle: 'candidate'
+  evidenceCommit: 'fixture'
+  audience: 'designer-heavy'
+  reportData: 'src/data/forgegate/components/acme-button--for-designers.json'
+---
+
+import {
+  ComponentStatus,
+  StoryPreview,
+  StateMatrix,
+  TokenTable,
+  ApiTable,
+  AccessibilityRequirements,
+  EvidenceSummary,
+  ConsumerValidation,
+  ReleaseHistory,
+} from '@forgegate/starlight';
+import forgegateReport from '../../../data/forgegate/components/acme-button--for-designers.json';
+
+<ComponentStatus
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+## Overview
+
+{/* forgegate:user-content:start overview */}
+
+Acme Button triggers a primary action and exposes the states designers need to review.
+
+{/* forgegate:user-content:end overview */}
+
+## States
+
+<StateMatrix
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+### default
+
+<StoryPreview storyId="components-acmebutton--primary" />
+
+## Capabilities
+
+### Inputs
+
+- **label**: Visible action text.
+
+### Public methods
+
+- **focus**: Moves keyboard focus to the rendered button element.
+
+## Tokens
+
+<TokenTable
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+## Accessibility
+
+<AccessibilityRequirements
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+- The accessible name and button role are announced.
+
+## Assurance
+
+<ApiTable
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+<EvidenceSummary
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+<ConsumerValidation component="acme.button-library.acme-button" />
+
+<ReleaseHistory component="acme.button-library.acme-button" />

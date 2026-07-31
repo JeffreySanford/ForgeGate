@@ -1,5 +1,34 @@
-// Minimal deterministic Starlight marker for ForgeGate's workspace scanner.
-// The fixture is scan content, so it does not install or build Astro.
-export default {
-  integrations: ['starlight'],
-};
+import starlight from '@astrojs/starlight';
+import { defineConfig } from 'astro/config';
+import { fileURLToPath } from 'node:url';
+
+export default defineConfig({
+  site: 'https://fixture.forgegate.local',
+  integrations: [
+    starlight({
+      title: 'Acme Button Library',
+      // This fixture validates ForgeGate's generated report pages. Disabling
+      // Starlight's default 404 route keeps the build output warning-free so
+      // documentation validation noise does not mask real report failures.
+      disable404Route: true,
+      sidebar: [
+        {
+          label: 'Components',
+          items: [
+            { label: 'Registry', slug: 'components' },
+            { label: 'Button', slug: 'components/acme-button--for-designers' },
+          ],
+        },
+      ],
+    }),
+  ],
+  vite: {
+    resolve: {
+      alias: {
+        '@forgegate/starlight': fileURLToPath(
+          new URL('../../packages/starlight/src/index.ts', import.meta.url),
+        ),
+      },
+    },
+  },
+});

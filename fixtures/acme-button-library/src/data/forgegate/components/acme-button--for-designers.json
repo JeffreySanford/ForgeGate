@@ -1,0 +1,136 @@
+{
+  "componentId": "acme.button-library.acme-button",
+  "version": "0.1.0",
+  "lifecycle": "candidate",
+  "evidenceCommit": "fixture",
+  "packagePath": ".",
+  "tier": "designer-heavy",
+  "manifest": {
+    "schemaVersion": "0.2.0",
+    "path": ".forgegate/components/acme.button-library.acme-button.yaml",
+    "framework": "web-components",
+    "adapter": "framework.web-components",
+    "sourceFiles": ["src/acme-button.js"],
+    "documentationTargets": [
+      {
+        "adapter": "starlight",
+        "pathOrPageId": "src/content/docs/components/button.md",
+        "publishedVersion": "0.1.0"
+      }
+    ],
+    "policyId": "acme.baseline",
+    "policyVersion": "1.0.0"
+  },
+  "states": [
+    {
+      "name": "default",
+      "required": true,
+      "description": "Primary resting state.",
+      "storybookStoryId": "components-acmebutton--primary"
+    },
+    {
+      "name": "hover",
+      "required": true,
+      "description": "Pointer hover feedback."
+    },
+    {
+      "name": "focus-visible",
+      "required": true,
+      "description": "Keyboard focus indication."
+    },
+    {
+      "name": "active",
+      "required": true,
+      "description": "Pressed interaction feedback."
+    },
+    {
+      "name": "disabled",
+      "required": true,
+      "description": "Unavailable action state.",
+      "storybookStoryId": "components-acmebutton--disabled"
+    }
+  ],
+  "tokens": [
+    { "tokenPath": "color.action", "category": "color", "required": true },
+    {
+      "tokenPath": "color.action-hover",
+      "category": "color",
+      "required": true
+    },
+    {
+      "tokenPath": "color.text-inverse",
+      "category": "color",
+      "required": true
+    },
+    { "tokenPath": "radius.button", "category": "border", "required": true }
+  ],
+  "contract": {
+    "inputs": [
+      {
+        "name": "label",
+        "type": "string",
+        "required": true,
+        "description": "Visible action text."
+      }
+    ],
+    "outputs": [],
+    "content": [],
+    "publicMethods": [
+      {
+        "name": "focus",
+        "type": "() => void",
+        "required": false,
+        "description": "Moves keyboard focus to the rendered button element."
+      }
+    ],
+    "styleParts": []
+  },
+  "manualProcedures": [
+    {
+      "id": "keyboard-and-screen-reader-review",
+      "expected": [
+        "The accessible name and button role are announced.",
+        "The configured action occurs exactly once.",
+        "The configured action occurs exactly once.",
+        "The unavailable state is conveyed and activation does not occur."
+      ]
+    }
+  ],
+  "evidence": {
+    "automated": [
+      {
+        "id": "axe-acme-button",
+        "gate": "accessibility",
+        "tool": "axe",
+        "status": "passed",
+        "commitOrFingerprint": "fixture",
+        "rawArtifactRef": ".forgegate/evidence/axe-acme-button.json"
+      },
+      {
+        "id": "storybook-acme-button",
+        "gate": "interaction",
+        "tool": "Storybook interactions",
+        "status": "passed",
+        "commitOrFingerprint": "fixture"
+      }
+    ],
+    "manualReviews": [
+      {
+        "id": "acme-button-keyboard-review-1",
+        "procedureId": "keyboard-and-screen-reader-review",
+        "status": "failed",
+        "reviewerRole": "Design systems reviewer",
+        "date": "2026-07-31",
+        "commitOrFingerprint": "fixture"
+      }
+    ],
+    "findings": [
+      {
+        "id": "acme-button-keyboard-review-1-step-2",
+        "description": "Activation fires twice when Enter and pointer input are used in quick succession.",
+        "severity": "serious",
+        "status": "open"
+      }
+    ]
+  }
+}

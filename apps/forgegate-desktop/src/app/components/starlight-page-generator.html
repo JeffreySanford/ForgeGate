@@ -1,0 +1,83 @@
+@if (!workspace.workspaceScan()?.starlightProjects?.length) {
+<p class="starlight-page-generator__unavailable">
+  No Starlight project was detected in this workspace, so a documentation page
+  cannot be generated.
+</p>
+} @else {
+<div class="starlight-page-generator">
+  <fieldset class="starlight-page-generator__templates">
+    <legend>Documentation template</legend>
+    <div class="starlight-page-generator__template-list">
+      @for (option of templateOptions; track option.id) {
+      <button
+        type="button"
+        [class.is-selected]="selectedTemplate() === option.id"
+        [attr.aria-pressed]="selectedTemplate() === option.id"
+        (click)="selectedTemplate.set(option.id)"
+      >
+        {{ option.label }}
+      </button>
+      }
+    </div>
+    <p>{{ selectedTemplateDescription() }}</p>
+  </fieldset>
+
+  <button
+    type="button"
+    [disabled]="
+      workspace.starlightPageRunning() || !!workspace.stagedStarlightPage()
+    "
+    (click)="generate()"
+  >
+    {{ workspace.starlightPageRunning() ? 'Generating…' : 'Generate selected
+    Starlight page' }}
+  </button>
+
+  @if (workspace.starlightPageResult(); as result) {
+  <p role="status">Starlight page written to <code>{{ result.path }}</code></p>
+  } @if (workspace.starlightBuildResult(); as result) {
+  <p [attr.role]="result.exitCode === 0 ? 'status' : 'alert'">
+    Starlight build validation {{ result.exitCode === 0 ? 'passed' : 'failed' }}
+    <span>({{ result.durationMs }}ms)</span>.
+  </p>
+  } @if (workspace.starlightBuildSkipped(); as skipped) {
+  <p role="status">{{ skipped }}</p>
+  } @if (workspace.starlightBuildError(); as error) {
+  <p role="alert">Starlight build validation could not run: {{ error }}</p>
+  } @if (workspace.starlightPageError(); as error) {
+  <p role="alert">Failed to generate documentation page: {{ error }}</p>
+  } @if (workspace.stagedStarlightPage(); as staged) {
+  <div class="starlight-page-generator__staged" role="region">
+    <p>
+      Review the generated {{ staged.template }} output below, then approve to
+      write
+      {{ staged.writes.length || 1 }}
+      file(s), or discard to drop them.
+    </p>
+    @for (write of staged.writes.length ? staged.writes : [staged.write]; track
+    write.stagingId) {
+    <p>
+      Destination:
+      <code>{{ write.relativePath }}</code>
+    </p>
+    <pre class="starlight-page-generator__diff">
+{{
+      write.previousContent ?? '(new file)'
+    }}
+&#8594;
+{{ write.newContent }}</pre>
+    }
+    <div class="starlight-page-generator__staged-actions">
+      <button
+        type="button"
+        [disabled]="workspace.starlightPageRunning()"
+        (click)="approve()"
+      >
+        {{ workspace.starlightPageRunning() ? 'Approving…' : 'Approve' }}
+      </button>
+      <button type="button" (click)="discard()">Discard</button>
+    </div>
+  </div>
+  }
+</div>
+}

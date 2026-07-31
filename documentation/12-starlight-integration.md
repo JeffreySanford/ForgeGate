@@ -11,6 +11,7 @@ ForgeGate should work without Starlight, but Starlight provides the clearest def
 - Detect existing Starlight sites
 - Create a new documentation target only after explicit approval
 - Generate component pages from manifests and evidence
+- Produce polished, designer-level reports that a design-system team could publish without rewriting the generated structure
 - Preserve user-authored guidance
 - Embed or link Storybook examples
 - Show component release state and evidence freshness
@@ -50,20 +51,26 @@ title: Button
 description: Triggers an immediate action.
 forgegate:
   componentId: up-design-system.button
+  manifestPath: .forgegate/components/up-design-system.button.yaml
+  manifestSchemaVersion: 0.2.0
   version: 1.2.0
   lifecycle: candidate
   evidenceCommit: b91d20e
+  reportData: src/data/forgegate/components/button.json
 ---
 
 import { ComponentStatus, StoryPreview, TokenTable, EvidenceSummary } from '@forgegate/starlight';
+import forgegateReport from '../../../data/forgegate/components/button.json';
 
-<ComponentStatus component="up-design-system.button" />
+<ComponentStatus component="up-design-system.button" report={forgegateReport} />
 
 ## Overview
 
-<!-- forgegate:user-content:start overview -->
+{/* forgegate:user-content:start overview */}
+
 User-authored purpose and guidance.
-<!-- forgegate:user-content:end overview -->
+
+{/* forgegate:user-content:end overview */}
 
 ## Examples
 
@@ -71,20 +78,30 @@ User-authored purpose and guidance.
 
 ## API
 
-<!-- generated -->
+{/* generated */}
 
 ## Tokens
 
-<TokenTable component="up-design-system.button" />
+<TokenTable component="up-design-system.button" report={forgegateReport} />
 
 ## Accessibility
 
-<!-- generated requirements plus protected guidance -->
+{/* generated requirements plus protected guidance */}
 
 ## Assurance
 
-<EvidenceSummary component="up-design-system.button" />
+<EvidenceSummary component="up-design-system.button" report={forgegateReport} />
 ```
+
+The generated page is a view of the component manifest, not a replacement for
+it. The component manifest remains the source of truth for states, story
+mappings, token mappings, public contract, documentation targets, lifecycle,
+policy linkage, and required manual-review procedures. Generated report data
+therefore carries manifest provenance (`manifest.path`, `manifest.schemaVersion`,
+framework, adapter, source files, documentation targets, and policy id/version
+when present), and rendered Starlight components surface that provenance so a
+reviewer can trace a polished page back to the exact `.forgegate/components/*.yaml`
+record that produced it.
 
 ## Audience-tier output
 
@@ -111,9 +128,36 @@ Representative differences per tier:
 - **Balanced** — the current default page shape: overview, examples, API, tokens, accessibility, assurance, in the order already shown above.
 - **Developer-heavy** — leads with `ApiTable` and installation and import snippets, expands `EvidenceSummary` with raw gate detail and links to CI runs, includes full prop, event, and slot signatures, includes copyable code examples per state, and expands migration and changelog detail.
 
+Repository config can choose the starting tier without hardcoding a UI choice.
+ForgeGate reads Starlight-owned adapter configuration from
+`.forgegate/config.yaml` and applies overrides in this order: component id,
+library id (`organization.library`), organization id, package path, then
+repository default. Unknown values are ignored rather than converted into
+undocumented templates.
+
+```yaml
+adapterConfiguration:
+  starlight:
+    defaultAudience: designer-heavy
+    organizationAudiences:
+      acme: balanced
+    libraryAudiences:
+      acme.design-system: designer-heavy
+    packageAudiences:
+      packages/forms: developer-heavy
+    componentAudiences:
+      acme.design-system.acme-button: balanced
+```
+
 Sites may publish one tier per component, or publish two linked pages, for example `components/button.mdx` for the balanced default and `components/button--for-developers.mdx` for the developer-heavy companion, cross-linked in frontmatter. ForgeGate should never fork the underlying facts between linked pages; only presentation differs.
 
-The `@forgegate/starlight` plugin components (`ComponentStatus`, `StoryPreview`, `StateMatrix`, `TokenTable`, `ApiTable`, `AccessibilityRequirements`, `EvidenceSummary`, `ConsumerValidation`, `ReleaseHistory`, `DeprecationNotice`) each accept the active tier and adjust their own verbosity, so a tier change does not require different components, only different composition and props.
+The current `@forgegate/starlight` presentation components (`ComponentStatus`, `StoryPreview`, `StateMatrix`, `TokenTable`, `ApiTable`, `AccessibilityRequirements`, `EvidenceSummary`, `ConsumerValidation`, `ReleaseHistory`, and `ComponentRegistry`) accept the active tier where relevant. A future fuller plugin can add components such as `DeprecationNotice` and richer evidence-backed rendering without changing the generated page import path.
+
+## Report quality bar
+
+ForgeGate Starlight output should read as a finished design-system report, not as exported diagnostics. Generated pages should use concise frontmatter, clear section order, strong hierarchy, scannable summaries, status badges, well-spaced tables, and explicit not-connected states. The designer-heavy template should help designers understand states, token usage, accessibility expectations, and release confidence without reading raw schema fields.
+
+The report components should remain sober and publication-ready: no decorative one-off artwork, no marketing hero, no fabricated claims, and no hidden evidence gaps. If data is missing, the report should say so in the relevant section while preserving the overall page quality.
 
 ## Protected content
 
@@ -127,9 +171,25 @@ Possible strategies:
 - AST-aware MDX transforms
 - Template regions with deterministic IDs
 
-The preferred long-term approach is to keep frequently changing status and evidence in generated JSON consumed by stable Starlight components. Human guidance stays in MDX.
+The preferred long-term approach is to keep frequently changing status and evidence in generated JSON consumed by stable Starlight components. The current implementation stages that JSON under `src/data/forgegate/components/` and imports it into the generated MDX as `forgegateReport`. Human guidance stays in MDX.
 
-## ForgeGate Starlight plugin
+Generated MDX uses MDX comment markers (`{/* forgegate:user-content:start overview */}`) for protected regions. ForgeGate still reads legacy HTML comment markers during regeneration so older generated pages can preserve human-authored content.
+
+## ForgeGate Starlight package
+
+ForgeGate now includes a first local package at `packages/starlight`, imported as `@forgegate/starlight` by generated MDX. This is intentionally a narrow presentation package today: it exports Astro components matching the generated page contract and proves those imports in the buildable Acme fixture. Generated component pages import a manifest-backed `forgegateReport` object from `src/data/forgegate/components/`, and generated registry pages import `forgegateRegistry` plus the per-component report data needed for embedded summaries from the same data root. The components render real manifest provenance, status, state, token, API, accessibility, automated-evidence, manual-review, finding, and registry data from those objects with report-grade spacing, badges, metrics, and table styling. Page generation records each data path in frontmatter as `forgegate.reportData`, so future plugin consumption has a stable generated-data location while the current MDX stays buildable through ordinary Astro/Vite JSON imports.
+
+The package exports `FORGEGATE_REPORT_DATA_ROOT`, `forgeGateComponentReportDataPath()`, and `forgeGateRegistryReportDataPath()` as the current naming convention for future plugin discovery.
+
+Build validation currently runs through:
+
+```bash
+pnpm nx run starlight:fixture-build
+```
+
+That command builds `fixtures/acme-button-library` with Astro Starlight and a checked-in generated MDX page.
+
+## Future ForgeGate Starlight plugin
 
 A plugin could provide:
 
@@ -222,6 +282,21 @@ After writing, ForgeGate should run the configured Starlight build and report:
 - Invalid frontmatter
 - Missing Storybook targets
 - Plugin compatibility errors
+
+Current implementation: after a generated page is approved and committed,
+ForgeGate looks for `commandMappings.starlightBuild` in `.forgegate/config.yaml`.
+When present, the command is parsed into executable plus arguments and run through
+ForgeGate's existing no-shell workspace command runner from the repository root.
+The page remains written whether validation passes or fails; the validation result
+is reported separately. When the mapping is absent, ForgeGate reports validation
+as skipped rather than guessing a build command for an arbitrary repository.
+
+Example:
+
+```yaml
+commandMappings:
+  starlightBuild: pnpm nx run docs:build
+```
 
 ## MVP acceptance
 

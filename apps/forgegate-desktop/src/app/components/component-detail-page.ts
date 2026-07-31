@@ -14,6 +14,7 @@ import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '../storybook/storybook-index';
 import { computeDocumentationDriftState } from '../documentation-drift';
 import { ManualReviewWalkthrough } from './manual-review-walkthrough';
+import { StarlightPageGenerator } from './starlight-page-generator';
 
 export interface CoverageItem {
   readonly label: string;
@@ -67,7 +68,7 @@ const LOCAL_STORYBOOK_ORIGIN = 'http://localhost:6006';
  */
 @Component({
   selector: 'app-component-detail-page',
-  imports: [RouterLink, ManualReviewWalkthrough],
+  imports: [RouterLink, ManualReviewWalkthrough, StarlightPageGenerator],
   templateUrl: './component-detail-page.html',
   styleUrl: './component-detail-page.css',
 })
@@ -109,6 +110,10 @@ export class ComponentDetailPage {
     const id = this.id();
     return this.inventory.result().manifests.find((m) => m.id === id) ?? null;
   });
+
+  protected readonly registryManifests = computed<readonly ComponentManifest[]>(
+    () => this.inventory.result().manifests,
+  );
 
   protected readonly authoredManifestPath = computed<string | null>(() => {
     const id = this.manifest()?.id;
@@ -567,9 +572,7 @@ export class ComponentDetailPage {
   }
 
   protected showStaleReviewChangedFiles(review: ManualReview): void {
-    void this.workspace.loadStaleReviewChangedFiles(
-      review.commitOrFingerprint,
-    );
+    void this.workspace.loadStaleReviewChangedFiles(review.commitOrFingerprint);
   }
 
   protected componentName(id: string): string {

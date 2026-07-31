@@ -1,0 +1,37 @@
+---
+title: 'Component registry'
+description: 'Generated ForgeGate component registry overview.'
+forgegate:
+  page: 'component-registry'
+  evidenceCommit: 'fixture'
+  componentCount: 1
+  reportData: 'src/data/forgegate/components/index.json'
+---
+
+import {
+  ComponentRegistry,
+  ComponentStatus,
+  EvidenceSummary,
+} from '@forgegate/starlight';
+import forgegateRegistry from '../../../data/forgegate/components/index.json';
+import acmeButtonReport from '../../../data/forgegate/components/acme-button--for-designers.json';
+
+# Component registry
+
+<ComponentRegistry report={forgegateRegistry} />
+
+## Components
+
+### Acme Button
+
+<ComponentStatus
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={acmeButtonReport}
+/>
+
+<EvidenceSummary
+  component="acme.button-library.acme-button"
+  tier="designer-heavy"
+  report={acmeButtonReport}
+/>
