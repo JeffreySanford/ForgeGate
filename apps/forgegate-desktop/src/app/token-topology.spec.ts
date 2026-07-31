@@ -28,6 +28,7 @@ describe('computeTokenTopology', () => {
         category: 'color',
         required: true,
         componentIds: ['acme.lib.button'],
+        usages: [{ componentId: 'acme.lib.button' }],
       },
     ]);
   });
@@ -56,7 +57,43 @@ describe('computeTokenTopology', () => {
         category: 'color',
         required: true,
         componentIds: ['acme.lib.button', 'acme.lib.card'],
+        usages: [
+          { componentId: 'acme.lib.button' },
+          { componentId: 'acme.lib.card' },
+        ],
       },
+    ]);
+  });
+
+  it('carries a real per-mapping state and anatomy-part link when a repository authors one', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      tokenMappings: [
+        {
+          tokenPath: 'color.action-hover',
+          category: 'color',
+          required: true,
+          stateName: 'hover',
+        },
+        {
+          tokenPath: 'color.text-inverse',
+          category: 'color',
+          required: true,
+          anatomyPartId: 'label',
+        },
+      ],
+    });
+
+    const result = computeTokenTopology([manifest]);
+
+    expect(result.find((entry) => entry.tokenPath === 'color.action-hover')?.usages).toEqual([
+      { componentId: 'acme.lib.button', stateName: 'hover' },
+    ]);
+    expect(result.find((entry) => entry.tokenPath === 'color.text-inverse')?.usages).toEqual([
+      { componentId: 'acme.lib.button', anatomyPartId: 'label' },
     ]);
   });
 

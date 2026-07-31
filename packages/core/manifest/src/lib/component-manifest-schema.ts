@@ -100,6 +100,8 @@ export const componentManifestSchema = {
             ],
           },
           required: { type: 'boolean' },
+          stateName: { type: 'string', minLength: 1 },
+          anatomyPartId: { type: 'string', minLength: 1 },
         },
         required: ['tokenPath', 'category', 'required'],
         additionalProperties: false,

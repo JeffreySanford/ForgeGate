@@ -34,6 +34,17 @@
   gap: var(--fg-space-2);
 }
 
+.token-topology-view__components li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fg-space-1);
+}
+
+.token-topology-view__link {
+  color: var(--fg-color-text-subtle);
+  font-size: var(--fg-type-size-sm);
+}
+
 .token-topology-view h3 {
   font-size: var(--fg-type-size-md);
   margin: var(--fg-space-5) 0 var(--fg-space-2);

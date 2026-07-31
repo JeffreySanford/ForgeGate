@@ -123,6 +123,38 @@ describe('TokenTopologyView', () => {
     await expectNoAccessibilityViolations(compiled);
   });
 
+  it('shows a real state or anatomy-part link when a repository authors one on a token mapping', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(twoComponentManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        tokenMappings: [
+          {
+            tokenPath: 'color.action-hover',
+            category: 'color',
+            required: true,
+            stateName: 'hover',
+          },
+        ],
+      }),
+    ]);
+
+    const fixture = TestBed.createComponent(TokenTopologyView);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('color.action-hover');
+    expect(compiled.textContent).toContain('state: hover');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
   it('surfaces real broken token references from the parsed DTCG tokens', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

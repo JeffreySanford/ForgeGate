@@ -12,10 +12,12 @@ import { WorkspaceService } from '../workspace.service';
  * coverage across sibling groups.
  *
  * Coverage is computed structurally rather than from a vendor extension;
- * see `computeGroupCoverage`. Hard-coded implementation-value detection and
- * anatomy/state linkage are still not shown: the first needs to compare
- * tokens against component source, and the second needs a per-state field
- * `ManifestTokenMapping` does not have.
+ * see `computeGroupCoverage`. Hard-coded implementation-value detection is
+ * still not shown — it needs comparing tokens against component source,
+ * a different capability from parsing the token file. Anatomy/state
+ * linkage is shown when a repository authors it (`ManifestTokenMapping`'s
+ * optional `stateName`/`anatomyPartId`), and honestly absent otherwise —
+ * most existing mappings still won't have it, since it's new.
  */
 @Component({
   selector: 'app-token-topology-view',

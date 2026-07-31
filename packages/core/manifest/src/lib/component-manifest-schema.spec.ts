@@ -28,6 +28,44 @@ describe('componentManifestSchema', () => {
     expect(validate(manifest)).toBe(true);
   });
 
+  it('accepts a token mapping with a real state or anatomy-part link, and rejects an unknown property', () => {
+    const manifest = createComponentManifest({
+      id: 'up.design-system.button',
+      framework: 'web-components',
+      adapter: 'framework.lit',
+      packagePath: 'x',
+      tokenMappings: [
+        {
+          tokenPath: 'color.action-hover',
+          category: 'color',
+          required: true,
+          stateName: 'hover',
+        },
+        {
+          tokenPath: 'color.text-inverse',
+          category: 'color',
+          required: true,
+          anatomyPartId: 'label',
+        },
+      ],
+    });
+    expect(validate(manifest)).toBe(true);
+
+    expect(
+      validate({
+        ...manifest,
+        tokenMappings: [
+          {
+            tokenPath: 'color.action-hover',
+            category: 'color',
+            required: true,
+            unknownField: 'nope',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
   it('rejects an unknown lifecycle value', () => {
     expect(
       validate({

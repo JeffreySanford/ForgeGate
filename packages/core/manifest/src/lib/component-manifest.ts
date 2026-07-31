@@ -34,6 +34,15 @@ export interface ManifestTokenMapping {
   readonly tokenPath: string;
   readonly category: TokenCategory;
   readonly required: boolean;
+  /** The state (matching a `ManifestState.name`) this token applies to,
+   * e.g. `color.action-hover` mapped with `stateName: 'hover'`. Absent
+   * means the token applies regardless of state. */
+  readonly stateName?: string;
+  /** The anatomy part (a `ContractMember.name` from `contract.content` or
+   * `contract.styleParts`) this token styles, e.g. `color.text-inverse`
+   * mapped with `anatomyPartId: 'label'`. Absent means the token is not
+   * tied to a specific anatomy part. */
+  readonly anatomyPartId?: string;
 }
 
 export interface ManifestTestRequirement {

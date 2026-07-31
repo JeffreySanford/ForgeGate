@@ -13,14 +13,25 @@ import type { ComponentManifest, TokenCategory } from '@forgegate/core-manifest'
  * implementation values all require actually parsing the DTCG token
  * files `workspace_scan` only *detects* by filename/content today —
  * ForgeGate has no real DTCG parser yet, so none of that is fabricated
- * here. Anatomy-part/state linkage is also not shown: `ManifestTokenMapping`
- * has no per-state field to link from.
+ * here.
+ *
+ * Anatomy-part/state linkage is real when a repository authors it:
+ * `ManifestTokenMapping.stateName`/`anatomyPartId` are optional, so an
+ * unlinked mapping (most of them, today) still aggregates honestly with
+ * neither field set, rather than a fabricated guess.
  */
+export interface TokenUsage {
+  readonly componentId: string;
+  readonly stateName?: string;
+  readonly anatomyPartId?: string;
+}
+
 export interface TokenUsageEntry {
   readonly tokenPath: string;
   readonly category: TokenCategory;
   readonly required: boolean;
   readonly componentIds: readonly string[];
+  readonly usages: readonly TokenUsage[];
 }
 
 export function computeTokenTopology(
@@ -28,7 +39,12 @@ export function computeTokenTopology(
 ): readonly TokenUsageEntry[] {
   const groups = new Map<
     string,
-    { category: TokenCategory; required: boolean; componentIds: string[] }
+    {
+      category: TokenCategory;
+      required: boolean;
+      componentIds: string[];
+      usages: TokenUsage[];
+    }
   >();
 
   for (const manifest of manifests) {
@@ -37,9 +53,17 @@ export function computeTokenTopology(
         category: mapping.category,
         required: false,
         componentIds: [],
+        usages: [],
       };
       group.required = group.required || mapping.required;
       group.componentIds.push(manifest.id);
+      group.usages.push({
+        componentId: manifest.id,
+        ...(mapping.stateName ? { stateName: mapping.stateName } : {}),
+        ...(mapping.anatomyPartId
+          ? { anatomyPartId: mapping.anatomyPartId }
+          : {}),
+      });
       groups.set(mapping.tokenPath, group);
     }
   }
@@ -50,6 +74,7 @@ export function computeTokenTopology(
       category: group.category,
       required: group.required,
       componentIds: group.componentIds,
+      usages: group.usages,
     }))
     .sort((a, b) => a.tokenPath.localeCompare(b.tokenPath));
 }
