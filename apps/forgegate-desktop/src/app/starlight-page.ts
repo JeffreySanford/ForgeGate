@@ -341,7 +341,10 @@ export function buildStarlightComponentReport(
       .filter((procedure) => declaredIds.has(procedure.id))
       .map((procedure) => ({
         id: procedure.id,
-        expected: procedure.steps.map((step) => step.expected),
+        steps: procedure.steps.map((step) => ({
+          action: step.action,
+          expected: step.expected,
+        })),
       })),
     evidence: {
       automated: automatedEvidence.map((execution) => ({
@@ -450,7 +453,9 @@ function accessibilityBehaviorLines(
   for (const procedure of connected) {
     lines.push(`### ${escapeMdxText(procedure.id)}`, '');
     for (const step of procedure.steps) {
-      lines.push(`- ${escapeMdxText(step.expected)}`);
+      lines.push(
+        `- **${escapeMdxText(step.action)}** ${escapeMdxText(step.expected)}`,
+      );
     }
     lines.push('');
   }
@@ -633,8 +638,15 @@ export function generateStarlightComponentPage(
       `<AccessibilityRequirements component="${escapedComponentId}" tier="${audience}" report={forgegateReport} />`,
     );
     lines.push('');
+  } else {
+    // The designer template has no <AccessibilityRequirements> component
+    // on the page (it leads with StateMatrix/TokenTable instead, per
+    // documentation/12-starlight-integration.md's "designer-heavy" tier),
+    // so its plain-language behavior bullets are the only place this
+    // shows — balanced/developer get it once, from the component above,
+    // not duplicated here too.
+    lines.push(...accessibilityBehaviorLines(manifest, procedures));
   }
-  lines.push(...accessibilityBehaviorLines(manifest, procedures));
   if (template === 'developer') {
     lines.push('## Consumer validation');
     lines.push('');

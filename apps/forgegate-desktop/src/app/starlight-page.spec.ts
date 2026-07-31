@@ -339,7 +339,7 @@ describe('generateDesignerStarlightComponentPage', () => {
     });
 
     expect(page).toContain(
-      '- The accessible name and button role are announced.',
+      '- **Move focus using Tab.** The accessible name and button role are announced.',
     );
   });
 

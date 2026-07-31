@@ -18,9 +18,14 @@ export interface ForgeGateTokenReport {
   readonly required: boolean;
 }
 
+export interface ForgeGateManualProcedureStepReport {
+  readonly action: string;
+  readonly expected: string;
+}
+
 export interface ForgeGateManualProcedureReport {
   readonly id: string;
-  readonly expected: readonly string[];
+  readonly steps: readonly ForgeGateManualProcedureStepReport[];
 }
 
 export interface ForgeGateAutomatedEvidenceReport {

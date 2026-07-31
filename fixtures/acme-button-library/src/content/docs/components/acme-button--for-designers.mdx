@@ -69,28 +69,17 @@ Acme Button triggers a primary action and exposes the states designers need to r
 
 ## Accessibility
 
-<AccessibilityRequirements
-  component="acme.button-library.acme-button"
-  tier="designer-heavy"
-  report={forgegateReport}
-/>
+### keyboard-and-screen-reader-review
 
-- The accessible name and button role are announced.
+- **Move focus to the button using Tab.** The accessible name and button role are announced.
+- **Activate using Space.** The configured action occurs exactly once.
+- **Activate using Enter.** The configured action occurs exactly once.
+- **Review the disabled example.** The unavailable state is conveyed and activation does not occur.
 
 ## Assurance
-
-<ApiTable
-  component="acme.button-library.acme-button"
-  tier="designer-heavy"
-  report={forgegateReport}
-/>
 
 <EvidenceSummary
   component="acme.button-library.acme-button"
   tier="designer-heavy"
   report={forgegateReport}
 />
-
-<ConsumerValidation component="acme.button-library.acme-button" />
-
-<ReleaseHistory component="acme.button-library.acme-button" />

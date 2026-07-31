@@ -8,7 +8,7 @@ interface Props {
 const { component, tier = 'balanced', report } = Astro.props;
 const procedures = report?.manualProcedures ?? [];
 const requirementCount = procedures.reduce(
-  (count, procedure) => count + procedure.expected.length,
+  (count, procedure) => count + procedure.steps.length,
   0,
 );
 ---
@@ -27,7 +27,12 @@ const requirementCount = procedures.reduce(
         <section class="forgegate-requirement-group">
           <h4>{procedure.id}</h4>
           <ul>
-            {procedure.expected.map((expected) => <li>{expected}</li>)}
+            {procedure.steps.map((step) => (
+              <li>
+                <span class="forgegate-requirement-action">{step.action}</span>
+                <span class="forgegate-requirement-expected">{step.expected}</span>
+              </li>
+            ))}
           </ul>
         </section>
       ))
@@ -78,7 +83,22 @@ const requirementCount = procedures.reduce(
   }
 
   .forgegate-requirement-group li + li {
-    margin-top: 0.35rem;
+    margin-top: 0.5rem;
+  }
+
+  .forgegate-requirement-group li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .forgegate-requirement-action {
+    color: var(--forgegate-report-muted);
+    font-size: 0.85rem;
+  }
+
+  .forgegate-requirement-expected {
+    font-weight: 500;
   }
 
   @media (max-width: 42rem) {
