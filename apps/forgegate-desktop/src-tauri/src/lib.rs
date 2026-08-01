@@ -21,6 +21,8 @@ use workspace_watch::{WatchDirectory, WorkspaceWatcherState};
 
 mod staged_write;
 
+mod storybook;
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GitStatus {
@@ -588,6 +590,20 @@ fn read_text_file(workspace_path: String, relative_path: String) -> Result<Strin
     }
     fs::read_to_string(&resolved)
         .map_err(|error| format!("Failed to read {relative_path}: {error}"))
+}
+
+/// Queries a real, running local Storybook server's own `/index.json` —
+/// the Storybook adapter's "live server query" capability
+/// (`describeStorybookAdapterCapabilities` in
+/// `@forgegate/adapter-storybook`), distinct from reading a
+/// `storybook-static/index.json` file already on disk via
+/// `read_text_file`. Done from Rust rather than the webview so the CSP's
+/// `connect-src` never has to be widened beyond `'self'` — see
+/// `storybook::fetch_storybook_index` for why, and for the real
+/// `localhost`-only restriction.
+#[tauri::command]
+fn fetch_live_storybook_index(origin: String) -> Result<String, String> {
+    storybook::fetch_storybook_index(&origin)
 }
 
 /// Tracks the currently running `run_workspace_command` invocation, if
@@ -1784,6 +1800,7 @@ pub fn run() {
             stage_starlight_page,
             approve_staged_relative_write,
             rollback_relative_write,
+            fetch_live_storybook_index,
             read_workspace_source_files,
             read_persistence_status,
             read_evidence_history_trend,

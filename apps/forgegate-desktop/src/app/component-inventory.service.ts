@@ -16,7 +16,7 @@ import type {
   AngularComponentDeclaration,
   AngularMember,
 } from './angular-components';
-import { createStoryIndexLookup } from './storybook/storybook-index';
+import { createStoryIndexLookup } from '@forgegate/adapter-storybook';
 import { WorkspaceService } from './workspace.service';
 import {
   componentVersionId,

@@ -55,6 +55,8 @@ Where supported, ForgeGate should read Storybook’s story index and capture:
 
 ForgeGate must handle version differences through capability detection rather than assuming one endpoint shape forever.
 
+**Implementation status.** `@forgegate/adapter-storybook`'s `parseStorybookIndex` reads exactly this shape (id, name, title, import path, tags, and story/docs type) from either a locally built `storybook-static/index.json` (read automatically once Storybook is detected) or, as of this pass, a real running local Storybook server's own `/index.json` — an explicit, user-triggered "Check live Storybook" action on the component detail page, done through a Rust-mediated fetch rather than a direct webview request so the app's CSP never has to widen. `describeStorybookAdapterCapabilities` declares this honestly: static and live index reads, plus story-to-component mapping, are real; interaction tests, accessibility checks, visual review, and starting Storybook are not.
+
 ## Story-to-component mapping
 
 Automatic mapping may use:

@@ -2520,6 +2520,62 @@ describe('WorkspaceService', () => {
     });
   });
 
+  describe('queryLiveStorybookIndex', () => {
+    it('fetches a real live index via the Rust-mediated command and replaces storybookIndex', async () => {
+      const liveIndexJson = JSON.stringify({
+        v: 5,
+        entries: {
+          'components-acmebutton--primary': {
+            type: 'story',
+            id: 'components-acmebutton--primary',
+            name: 'Primary',
+            title: 'Components/AcmeButton',
+            importPath: './src/acme-button.stories.js',
+          },
+        },
+      });
+      invokeMock.mockResolvedValueOnce(liveIndexJson);
+
+      await service.queryLiveStorybookIndex('http://localhost:6006');
+
+      expect(invokeMock).toHaveBeenCalledWith('fetch_live_storybook_index', {
+        origin: 'http://localhost:6006',
+      });
+      expect(
+        service.storybookIndex()?.entries['components-acmebutton--primary'],
+      ).toBeDefined();
+      expect(service.liveStorybookQueryResult()).toEqual({
+        origin: 'http://localhost:6006',
+        storyCount: 1,
+      });
+      expect(service.liveStorybookQueryError()).toBeNull();
+      expect(service.liveStorybookQueryRunning()).toBe(false);
+    });
+
+    it('surfaces a real connection failure without touching the existing storybookIndex', async () => {
+      invokeMock.mockRejectedValueOnce(
+        'Could not connect to http://localhost:6006: connection refused',
+      );
+
+      await service.queryLiveStorybookIndex('http://localhost:6006');
+
+      expect(service.liveStorybookQueryError()).toBe(
+        'Could not connect to http://localhost:6006: connection refused',
+      );
+      expect(service.liveStorybookQueryResult()).toBeNull();
+      expect(service.storybookIndex()).toBeNull();
+      expect(service.liveStorybookQueryRunning()).toBe(false);
+    });
+
+    it('does nothing if a query is already running', async () => {
+      service.liveStorybookQueryRunning.set(true);
+
+      await service.queryLiveStorybookIndex('http://localhost:6006');
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('loadStaleReviewChangedFiles', () => {
     it('does nothing if no workspace is open', async () => {
       await service.loadStaleReviewChangedFiles('a'.repeat(40));

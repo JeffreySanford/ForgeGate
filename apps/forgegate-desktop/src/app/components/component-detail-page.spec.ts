@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
 import { ComponentDetailPage } from './component-detail-page';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
 import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
-import { parseStorybookIndex } from '../storybook/storybook-index';
+import { parseStorybookIndex } from '@forgegate/adapter-storybook';
 
 const fixtureRoot = [
   resolve(process.cwd(), 'fixtures/acme-button-library'),
@@ -343,6 +343,55 @@ describe('ComponentDetailPage', () => {
     );
     expect(openStorybook?.getAttribute('target')).toBe('_blank');
     expect(openStorybook?.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('clicking "Check live Storybook" queries the live index and shows the real result', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set({
+      ...scan,
+      storybookProjects: ['.storybook'],
+    });
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.storybookIndex.set({
+      v: 5,
+      entries: {
+        'components-acmebutton--primary': {
+          type: 'story',
+          id: 'components-acmebutton--primary',
+          name: 'Primary',
+          title: 'Components/AcmeButton',
+          importPath: './src/acme-button.stories.ts',
+        },
+      },
+    });
+    const querySpy = vi
+      .spyOn(workspaceService, 'queryLiveStorybookIndex')
+      .mockImplementation(async () => {
+        workspaceService.liveStorybookQueryResult.set({
+          origin: 'http://localhost:6006',
+          storyCount: 3,
+        });
+      });
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const checkButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Check live Storybook'),
+    ) as HTMLButtonElement;
+    expect(checkButton).toBeDefined();
+    checkButton.click();
+    fixture.detectChanges();
+
+    expect(querySpy).toHaveBeenCalledWith('http://localhost:6006');
+    expect(compiled.textContent).toContain(
+      'Verified — live server responded with 3 real indexed entries.',
+    );
   });
 
   it('connects the checked-in fixture Button manifest to its real Storybook index', async () => {

@@ -48,7 +48,7 @@ import {
 import {
   parseStorybookIndex,
   type StorybookIndex,
-} from './storybook/storybook-index';
+} from '@forgegate/adapter-storybook';
 import { buildEvidenceExport } from './evidence-export';
 import { parseDtcgTokens, type DtcgToken } from './dtcg-tokens';
 import { computeWorkspaceWatchDirectories } from './workspace-watch-directories';
@@ -521,6 +521,20 @@ export class WorkspaceService {
   readonly angularComponentsError = signal<string | null>(null);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
+  /** The Storybook adapter's "live server query" capability
+   * (`describeStorybookAdapterCapabilities` in `@forgegate/adapter-storybook`):
+   * an explicit, user-triggered fetch of a real running local Storybook's
+   * own `/index.json`, distinct from the static `storybook-static/index.json`
+   * file `loadStorybookIndex` reads automatically on every scan. Never
+   * queried automatically — matches documentation/06's "Running Storybook"
+   * principle of requiring explicit confirmation before ForgeGate touches
+   * a local server. */
+  readonly liveStorybookQueryRunning = signal(false);
+  readonly liveStorybookQueryError = signal<string | null>(null);
+  readonly liveStorybookQueryResult = signal<{
+    readonly origin: string;
+    readonly storyCount: number;
+  } | null>(null);
   readonly nativeComponentSignals = signal<readonly NativeComponentSignal[]>(
     [],
   );
@@ -2053,6 +2067,55 @@ export class WorkspaceService {
         rawOutput: text,
         error: String(error),
       });
+    }
+  }
+
+  /**
+   * Explicitly queries a real running local Storybook server's own
+   * `/index.json` (not the static build file) via the Rust-mediated
+   * `fetch_live_storybook_index` command — done from Rust rather than a
+   * webview `fetch()` so the CSP's `connect-src` never has to widen
+   * beyond `'self'`. On success, replaces `storybookIndex` with the live
+   * result, so the Preview panel's story matching reflects what the
+   * server is actually serving right now rather than a potentially-stale
+   * static build.
+   */
+  async queryLiveStorybookIndex(origin: string): Promise<void> {
+    if (this.liveStorybookQueryRunning()) {
+      return;
+    }
+    this.liveStorybookQueryRunning.set(true);
+    this.liveStorybookQueryError.set(null);
+    try {
+      const text = await this.invoke<string>('fetch_live_storybook_index', {
+        origin,
+      });
+      const index = parseStorybookIndex(text);
+      this.storybookIndex.set(index);
+      this.liveStorybookQueryResult.set({
+        origin,
+        storyCount: Object.keys(index.entries).length,
+      });
+      this.setAdapterDiagnostic({
+        id: 'storybook-live-index',
+        adapter: 'Storybook adapter',
+        source: `${origin}/index.json`,
+        status: 'loaded',
+        rawOutput: text,
+        error: null,
+      });
+    } catch (error) {
+      this.liveStorybookQueryError.set(String(error));
+      this.setAdapterDiagnostic({
+        id: 'storybook-live-index',
+        adapter: 'Storybook adapter',
+        source: `${origin}/index.json`,
+        status: 'failed',
+        rawOutput: null,
+        error: String(error),
+      });
+    } finally {
+      this.liveStorybookQueryRunning.set(false);
     }
   }
 

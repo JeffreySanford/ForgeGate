@@ -73,11 +73,30 @@
       <dt>Story source</dt>
       <dd>{{ story.importPath }}</dd>
       <dt>Index source</dt>
-      <dd>storybook-static/index.json</dd>
+      <dd>
+        {{ workspace.liveStorybookQueryResult() ?
+        workspace.liveStorybookQueryResult()!.origin + '/index.json (live)' :
+        'storybook-static/index.json' }}
+      </dd>
       <dt>Preview origin</dt>
       <dd>{{ previewHref() }}</dd>
       <dt>Runtime status</dt>
-      <dd>Story mapped; local server availability not verified</dd>
+      <dd>
+        @if (workspace.liveStorybookQueryResult(); as result) { Verified — live
+        server responded with {{ result.storyCount }} real indexed entr{{
+        result.storyCount === 1 ? 'y' : 'ies' }}. } @else if
+        (workspace.liveStorybookQueryError(); as error) { Not verified — {{
+        error }} } @else { Story mapped; local server availability not verified.
+        }
+        <button
+          type="button"
+          [disabled]="workspace.liveStorybookQueryRunning()"
+          (click)="queryLiveStorybook()"
+        >
+          {{ workspace.liveStorybookQueryRunning() ? 'Checking…' : 'Check live
+          Storybook' }}
+        </button>
+      </dd>
     </dl>
     <p>
       <a [href]="previewHref()" target="_blank" rel="noopener noreferrer"

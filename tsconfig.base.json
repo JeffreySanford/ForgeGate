@@ -31,6 +31,9 @@
       "@forgegate/adapter-native-patterns": [
         "./packages/adapters/native-patterns/src/index.ts"
       ],
+      "@forgegate/adapter-storybook": [
+        "./packages/adapters/storybook/src/index.ts"
+      ],
       "@forgegate/starlight": ["./packages/starlight/src/index.ts"]
     }
   },

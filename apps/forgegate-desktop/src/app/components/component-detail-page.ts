@@ -11,7 +11,7 @@ import {
 } from '@forgegate/core-manifest';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
-import type { StorybookIndexEntry } from '../storybook/storybook-index';
+import type { StorybookIndexEntry } from '@forgegate/adapter-storybook';
 import { computeDocumentationDriftState } from '../documentation-drift';
 import { ManualReviewWalkthrough } from './manual-review-walkthrough';
 import { StarlightPageGenerator } from './starlight-page-generator';
@@ -578,6 +578,10 @@ export class ComponentDetailPage {
   protected componentName(id: string): string {
     const parts = id.split('.');
     return parts[parts.length - 1] ?? id;
+  }
+
+  protected queryLiveStorybook(): void {
+    void this.workspace.queryLiveStorybookIndex(LOCAL_STORYBOOK_ORIGIN);
   }
 
   protected exportEvidencePackage(): void {

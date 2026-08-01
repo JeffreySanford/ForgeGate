@@ -6,7 +6,7 @@ import type {
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { findingsFromBlockingReasons } from './evidence-export';
 import { computeDocumentationDriftState } from './documentation-drift';
-import type { StorybookIndex } from './storybook/storybook-index';
+import type { StorybookIndex } from '@forgegate/adapter-storybook';
 
 export type ComponentSnapshotReadiness =
   'blocked' | 'warning' | 'stale' | 'clear' | 'unknown';
