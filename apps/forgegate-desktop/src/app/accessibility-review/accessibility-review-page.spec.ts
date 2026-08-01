@@ -177,6 +177,98 @@ describe('AccessibilityReviewPage', () => {
     expect(savedReview?.status).toBe('unknown');
   });
 
+  it('shows no self-review recorded when a workspace is open but none exists yet', () => {
+    workspace.workspacePath.set('/repos/ForgeGate');
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'No self-review has been recorded',
+    );
+  });
+
+  it('shows the latest self-review as Current when its commit matches the real current commit', () => {
+    workspace.workspacePath.set('/repos/ForgeGate');
+    workspace.gitStatus.set({
+      branch: 'main',
+      commit: 'a'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    workspace.manualReviews.set([
+      {
+        id: 'r1',
+        componentVersionId: 'forgegate.desktop.shell',
+        procedureId: 'forgegate-shell-accessibility-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: '2026-01-01T00:00:00.000Z',
+        operatingSystem: 'Windows 11',
+        status: 'passed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+    ]);
+
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.textContent).toContain('Last recorded self-review');
+    expect(compiled.textContent).toContain('Current');
+    expect(
+      compiled
+        .querySelector('.accessibility-review-page__freshness')
+        ?.classList.contains('accessibility-review-page__freshness--stale'),
+    ).toBe(false);
+  });
+
+  it('shows the latest self-review as Stale, and picks the most recent when several exist', () => {
+    workspace.workspacePath.set('/repos/ForgeGate');
+    workspace.gitStatus.set({
+      branch: 'main',
+      commit: 'b'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    workspace.manualReviews.set([
+      {
+        id: 'older',
+        componentVersionId: 'forgegate.desktop.shell',
+        procedureId: 'forgegate-shell-accessibility-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: '2026-01-01T00:00:00.000Z',
+        operatingSystem: 'Windows 11',
+        status: 'passed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+      {
+        id: 'newer',
+        componentVersionId: 'forgegate.desktop.shell',
+        procedureId: 'forgegate-shell-accessibility-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: '2026-02-01T00:00:00.000Z',
+        operatingSystem: 'Windows 11',
+        status: 'failed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+    ]);
+
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // The newer record's status ('failed'), not the older one's ('passed').
+    expect(compiled.textContent).toContain('failed');
+    expect(compiled.textContent).toContain('Stale');
+    expect(
+      compiled
+        .querySelector('.accessibility-review-page__freshness')
+        ?.classList.contains('accessibility-review-page__freshness--stale'),
+    ).toBe(true);
+  });
+
   it('routes Approve/Discard on a staged self-review to the workspace service', () => {
     fixture = TestBed.createComponent(AccessibilityReviewPage);
     fixture.detectChanges();

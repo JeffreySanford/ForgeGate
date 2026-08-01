@@ -22,6 +22,16 @@
   margin: 0;
 }
 
+.accessibility-review-page__freshness {
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border-left: 3px solid var(--fg-color-status-passed);
+  margin: 0;
+}
+
+.accessibility-review-page__freshness--stale {
+  border-left-color: var(--fg-color-status-warning);
+}
+
 .accessibility-review-page__areas-nav ol {
   display: flex;
   flex-wrap: wrap;

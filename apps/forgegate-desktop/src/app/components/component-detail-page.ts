@@ -10,6 +10,11 @@ import {
   type ManifestDocumentationTarget,
 } from '@forgegate/core-manifest';
 import { ComponentInventoryService } from '../component-inventory.service';
+import {
+  freshnessLabel,
+  isCurrentAgainstCommit,
+  isStaleAgainstCommit,
+} from '../evidence-freshness';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '@forgegate/adapter-storybook';
 import { computeDocumentationDriftState } from '../documentation-drift';
@@ -532,42 +537,30 @@ export class ComponentDetailPage {
     );
 
   protected executionFreshness(execution: TestExecution): string {
-    if (!/^[0-9a-f]{40}$/i.test(execution.commitOrFingerprint)) {
-      return 'Not evaluated — evidence uses a source fingerprint rather than a Git commit';
-    }
-    return this.executionIsCurrent(execution)
-      ? 'Current'
-      : `Stale — recorded at ${execution.commitOrFingerprint.slice(0, 8)}`;
+    return freshnessLabel(
+      execution.commitOrFingerprint,
+      this.workspace.gitStatus()?.commit,
+    );
   }
 
   private executionIsCurrent(execution: TestExecution): boolean {
-    const commit = this.workspace.gitStatus()?.commit;
-    return (
-      !!commit &&
-      /^[0-9a-f]{40}$/i.test(execution.commitOrFingerprint) &&
-      execution.commitOrFingerprint.toLowerCase() === commit.toLowerCase()
+    return isCurrentAgainstCommit(
+      execution.commitOrFingerprint,
+      this.workspace.gitStatus()?.commit,
     );
   }
 
   protected manualReviewFreshness(review: ManualReview): string {
-    if (!/^[0-9a-f]{40}$/i.test(review.commitOrFingerprint)) {
-      return 'Not evaluated — evidence uses a source fingerprint rather than a Git commit';
-    }
-    const commit = this.workspace.gitStatus()?.commit;
-    return commit &&
-      review.commitOrFingerprint.toLowerCase() === commit.toLowerCase()
-      ? 'Current'
-      : `Stale — recorded at ${review.commitOrFingerprint.slice(0, 8)}`;
+    return freshnessLabel(
+      review.commitOrFingerprint,
+      this.workspace.gitStatus()?.commit,
+    );
   }
 
   protected manualReviewIsStale(review: ManualReview): boolean {
-    if (!/^[0-9a-f]{40}$/i.test(review.commitOrFingerprint)) {
-      return false;
-    }
-    const commit = this.workspace.gitStatus()?.commit;
-    return (
-      !!commit &&
-      review.commitOrFingerprint.toLowerCase() !== commit.toLowerCase()
+    return isStaleAgainstCommit(
+      review.commitOrFingerprint,
+      this.workspace.gitStatus()?.commit,
     );
   }
 

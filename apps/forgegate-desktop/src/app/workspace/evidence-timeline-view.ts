@@ -2,10 +2,9 @@ import { Component, computed, inject } from '@angular/core';
 import type { ResultStatus } from '@forgegate/core-domain';
 import type { TestExecution } from '@forgegate/core-evidence';
 import { computeEvidenceTimeline } from '../evidence-timeline';
+import { isStaleAgainstCommit } from '../evidence-freshness';
 import { FocusOnRevealDirective } from '../focus-on-reveal.directive';
 import { WorkspaceService } from '../workspace.service';
-
-const COMMIT_HASH_PATTERN = /^[0-9a-f]{40}$/i;
 
 const STATUS_LABEL: Record<ResultStatus, string> = {
   passed: 'Passed',
@@ -62,13 +61,9 @@ export class EvidenceTimelineView {
   }
 
   protected executionIsStale(execution: TestExecution): boolean {
-    if (!COMMIT_HASH_PATTERN.test(execution.commitOrFingerprint)) {
-      return false;
-    }
-    const commit = this.workspace.gitStatus()?.commit;
-    return (
-      !!commit &&
-      execution.commitOrFingerprint.toLowerCase() !== commit.toLowerCase()
+    return isStaleAgainstCommit(
+      execution.commitOrFingerprint,
+      this.workspace.gitStatus()?.commit,
     );
   }
 

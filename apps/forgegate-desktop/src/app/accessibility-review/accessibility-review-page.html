@@ -25,6 +25,20 @@
     No workspace open. You can still walk through the areas below, but saving
     needs a workspace open — use "Open workspace…" above.
   </p>
+  } @if (latestSelfReview(); as review) {
+  <p
+    class="accessibility-review-page__freshness"
+    [class.accessibility-review-page__freshness--stale]="
+      latestSelfReviewFreshness()?.startsWith('Stale')
+    "
+  >
+    Last recorded self-review: {{ review.date }}, status
+    <strong>{{ review.status }}</strong> — {{ latestSelfReviewFreshness() }}
+  </p>
+  } @else if (workspace.workspacePath()) {
+  <p class="fg-empty-state">
+    No self-review has been recorded for this workspace yet.
+  </p>
   }
 
   <nav class="accessibility-review-page__areas-nav" aria-label="Review areas">

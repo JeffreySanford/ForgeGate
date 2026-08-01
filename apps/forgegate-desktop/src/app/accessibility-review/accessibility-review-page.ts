@@ -4,6 +4,7 @@ import type {
   ManualReviewStepResult,
 } from '@forgegate/core-evidence';
 import type { ResultStatus } from '@forgegate/core-domain';
+import { freshnessLabel } from '../evidence-freshness';
 import { RESULT_STATUS_OPTIONS, worstStatus } from '../manual-review-status';
 import {
   FORGEGATE_SHELL_COMPONENT_ID,
@@ -50,6 +51,36 @@ export class AccessibilityReviewPage {
   protected readonly currentArea = computed(
     () => this.areas[this.currentAreaIndex()],
   );
+
+  /**
+   * The dogfooding "evidence freshness" axis (TODO.md's "Dogfooding
+   * ForgeGate on itself"): once a real self-review has been approved, show
+   * whether it's still current for the workspace's real commit, reusing
+   * the exact same commit comparison every other piece of evidence in the
+   * app uses (`evidence-freshness.ts`) rather than a bespoke check here.
+   */
+  protected readonly latestSelfReview = computed<ManualReview | null>(() => {
+    const reviews = this.workspace
+      .manualReviews()
+      .filter(
+        (review) => review.componentVersionId === FORGEGATE_SHELL_COMPONENT_ID,
+      );
+    if (reviews.length === 0) {
+      return null;
+    }
+    return [...reviews].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  });
+
+  protected readonly latestSelfReviewFreshness = computed<string | null>(() => {
+    const review = this.latestSelfReview();
+    if (!review) {
+      return null;
+    }
+    return freshnessLabel(
+      review.commitOrFingerprint,
+      this.workspace.gitStatus()?.commit,
+    );
+  });
 
   /** Keyed by the step's global index across every area, not per-area —
    * matches `flatSteps`' order, so a saved review's `stepResults` line up
