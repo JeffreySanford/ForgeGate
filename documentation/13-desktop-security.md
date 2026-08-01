@@ -58,6 +58,8 @@ Requirements:
 - Show diffs before writes.
 - Back up files before migrations or complex transforms.
 
+**Implementation status — writes outside `.forgegate/`.** Two real, distinct write mechanisms exist in `staged_write.rs`. `stage_evidence_write`/`approve_staged_evidence_write` are structurally confined to `.forgegate/<subdirectory>/<bare-filename>` — the subdirectory is a hardcoded caller-supplied string (`"manual-reviews"`, `"findings"`) and the filename must pass `is_safe_bare_filename` (no `/`, no `..`), so this family cannot reach outside `.forgegate/` regardless of input. `stage_relative_write`/`approve_staged_relative_write` are the one mechanism that writes outside `.forgegate/` on purpose — used today only for generated Starlight documentation pages, which must land at a real, buildable path the target site's own build picks up. Its path validation (`is_safe_relative_workspace_path`) blocks traversal (absolute paths, `..`, backslashes) but was not otherwise restricted to any subdirectory, meaning nothing at the Rust layer stopped a future caller (or a bug in one) from targeting a file like `package.json`. Hardened with an explicit denylist (`is_sensitive_manifest_path`): a relative write to `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or `yarn.lock`, matched by filename regardless of directory, is refused outright. This was defense in depth, not a fix for an existing bug — nothing in ForgeGate has ever staged a write to a reviewed developer's own package manifest or lockfile; this closes the door on the class of mistake before it could happen.
+
 ## Process execution
 
 ForgeGate should execute only configured and user-approved commands.

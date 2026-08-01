@@ -179,18 +179,46 @@ pub(crate) fn rollback_committed_write(
     Ok(())
 }
 
+/// Package-manager manifests and lockfiles this module refuses to write to
+/// or replace, matched by filename regardless of which directory they sit
+/// in. Nothing calls `stage_relative_write` with a path like this today —
+/// the one real caller (Starlight page generation) only ever stages
+/// conventional documentation paths — but the path itself isn't otherwise
+/// restricted to any subdirectory, so this is defense in depth: a future
+/// caller (or a bug in one) can't turn this into a way to edit a reviewed
+/// developer's own `package.json` or lockfile, which ForgeGate has no
+/// business touching regardless of what generated it.
+const SENSITIVE_MANIFEST_FILENAMES: &[&str] = &[
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "yarn.lock",
+];
+
+fn is_sensitive_manifest_path(path: &str) -> bool {
+    let filename = path.rsplit('/').next().unwrap_or(path);
+    SENSITIVE_MANIFEST_FILENAMES
+        .iter()
+        .any(|candidate| candidate.eq_ignore_ascii_case(filename))
+}
+
 /// A safe workspace-relative path for a file this module writes outside
 /// `.forgegate/` — e.g. a generated Starlight page under a detected
 /// project's `src/content/docs/...`. Unlike `is_safe_bare_filename` this
 /// allows nested directories (a real Starlight page path is several
 /// levels deep), but still rejects anything that could escape the
-/// workspace: no absolute path, no `..`, no backslash, no empty segment.
+/// workspace (no absolute path, no `..`, no backslash, no empty segment)
+/// or land on a package-manager manifest or lockfile
+/// (`is_sensitive_manifest_path`).
 pub(crate) fn is_safe_relative_workspace_path(path: &str) -> bool {
     if path.is_empty()
         || path.starts_with('/')
         || path.contains('\\')
         || path.contains("..")
         || path.ends_with('/')
+        || is_sensitive_manifest_path(path)
     {
         return false;
     }
@@ -504,6 +532,24 @@ mod tests {
     }
 
     #[test]
+    fn refuses_a_relative_write_to_a_package_manager_manifest_or_lockfile() {
+        assert!(!is_safe_relative_workspace_path("package.json"));
+        assert!(!is_safe_relative_workspace_path("apps/portal/package.json"));
+        assert!(!is_safe_relative_workspace_path("package-lock.json"));
+        assert!(!is_safe_relative_workspace_path("npm-shrinkwrap.json"));
+        assert!(!is_safe_relative_workspace_path("pnpm-lock.yaml"));
+        assert!(!is_safe_relative_workspace_path("pnpm-workspace.yaml"));
+        assert!(!is_safe_relative_workspace_path("yarn.lock"));
+        // Case-insensitive on the filename itself, still path-shape safe otherwise.
+        assert!(!is_safe_relative_workspace_path("PACKAGE.JSON"));
+        // A real Starlight page is never named after one of these, so this
+        // never rejects the one thing this mechanism actually stages today.
+        assert!(is_safe_relative_workspace_path(
+            "src/content/docs/components/package-comparison.mdx"
+        ));
+    }
+
+    #[test]
     fn stages_a_relative_write_without_touching_the_real_target() {
         let dir = temp_workspace("relative-stage");
 
@@ -519,6 +565,22 @@ mod tests {
             .exists());
         assert_eq!(staged.previous_content, None);
         assert_eq!(staged.new_content, "# Button");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_stage_a_write_targeting_a_real_package_json() {
+        let dir = temp_workspace("relative-stage-refuses-package-json");
+        fs::write(dir.join("package.json"), "{\"name\":\"real-project\"}").unwrap();
+
+        let result = stage_relative_write(&dir, "package.json", "{\"tampered\":true}");
+
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(dir.join("package.json")).unwrap(),
+            "{\"name\":\"real-project\"}"
+        );
 
         fs::remove_dir_all(&dir).ok();
     }
