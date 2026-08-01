@@ -792,7 +792,7 @@ Motion choreography — a deliberate, per-moment use of these tokens rather than
 - **Rescan-triggered** — the workspace system map plays the same entrance language as "Discovery" specifically when an explicit rescan completes, not on the initial open. `WorkspaceService.justRescanned`.
 - **Causality, focus** — still open beyond the functional (non-motion) route-change focus move already in `app.ts`; not yet its own real, testable moment.
 
-See `TODO.md`'s P1.8 section for the full, current honest state of each moment, including two real bugs a live browser check caught before they shipped (a zero-duration animation not reliably firing `animationend` under reduced motion, and rapid navigations nesting one leave-ghost's clone inside another).
+See `TODO.md`'s P1.8 section for the full, current honest state of each moment, including three real bugs found and fixed (a zero-duration animation not reliably firing `animationend` under reduced motion; rapid navigations nesting one leave-ghost's clone inside another; and a CI-only visual regression — caught by Playwright, not local unit tests — where making the route container a positioning context silently repositioned an unrelated, pre-existing `position: absolute` element elsewhere on the page).
 
 ### Reduced motion
 
