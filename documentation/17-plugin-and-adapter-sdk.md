@@ -91,6 +91,8 @@ interface AdapterCapabilities {
 
 The runtime compares requested capabilities with user and organization policy.
 
+**Implementation status.** No adapter conforms to the `ForgeGateAdapter` runtime contract above yet — there is no adapter registry, no `detect`/`diagnose` lifecycle, and no structured `AdapterCapabilities` object with the exact shape shown here. Three real adapter packages exist today (`packages/adapters/web-components`, `packages/adapters/native-patterns`, `packages/adapters/storybook`), each a plain TypeScript library of pure functions the desktop app imports directly, not a pluggable unit the runtime discovers or installs. Two narrower, purpose-specific capability declarations exist as real precursors to this doc's general `AdapterCapabilities`: `AdapterGenerationCapabilityDeclaration` (`@forgegate/adapter-sdk`, for Blueprint Studio's authoring/generation questions — see documentation/27's "Adapter capability contract") and `StorybookAdapterCapabilities` (`@forgegate/adapter-storybook`, for what that one adapter can discover). Neither is structured the way this doc's `AdapterCapabilities` interface is (no `filesystem`/`processExecution`/`networkOrigins`/`credentialKeys` fields), since neither adapter runs arbitrary code or touches the network beyond one narrow, hardcoded, already-reviewed operation.
+
 ## Adapter isolation
 
 Possible maturity stages:

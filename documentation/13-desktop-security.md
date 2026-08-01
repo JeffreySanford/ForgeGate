@@ -42,6 +42,8 @@ The application should define separate capabilities for:
 
 Remote preview webviews must receive no privileged commands.
 
+**Implementation status — network requests to configured origins.** One real command exists: `fetch_live_storybook_index` (`apps/forgegate-desktop/src-tauri/src/storybook.rs`), which queries a running local Storybook server's own `/index.json`. Its origin is restricted at the Rust level, not merely by convention — `is_safe_local_storybook_origin` accepts only a real `http://localhost:<port>` or `http://127.0.0.1:<port>` origin, rejecting any remote host, path, query string, or non-HTTP scheme before a connection is even attempted. Done specifically so the webview's own CSP (`connect-src 'self' ipc: http://ipc.localhost`) never has to widen to allow arbitrary localhost ports — the frontend never makes this request directly. No credentials are attached, and the response is returned to the frontend as plain JSON text, never rendered as a webview (that distinction matters: this is a data fetch, not a "remote preview" in this doc's sense).
+
 ## Filesystem access
 
 Requirements:
