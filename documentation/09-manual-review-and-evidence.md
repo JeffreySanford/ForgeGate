@@ -43,6 +43,10 @@ steps:
     expected: The unavailable state is conveyed and activation does not occur.
 ```
 
+**Implementation status.** The guided walkthrough described above (`ManualReviewWalkthrough`) is real for target-repository components: it reads a procedure's real `.forgegate/procedures/*.yaml` file and steps a reviewer through it. Preconditions, starting state, and required attachments are not implemented yet — the walkthrough is narrower than this section's full model.
+
+There is also a second, purpose-built guided flow that does not fit this section's component-centric model: `AccessibilityReviewPage` (`/accessibility-review`) reviews ForgeGate's own shell rather than a component discovered in some workspace, since ForgeGate has no manifest or procedure file representing its own UI. Its content (`self-review-content.ts`) is a fixed, hand-authored set of areas and steps, not loaded from a `.forgegate/procedures/*.yaml` file, and its resulting `ManualReview` records a disclosed synthetic `componentVersionId` (`forgegate.desktop.shell`) rather than a real discovered component's identity. It still stages, diffs, and approves through the exact same `WorkspaceService.stageManualReview`/`approveStagedManualReview` mechanism as the component-centric walkthrough — same evidence shape, same `.forgegate/manual-reviews/` directory, same worst-of-steps rollup — so it is a different entry point onto the same real evidence model, not a separate one.
+
 ## Review result states
 
 - Passed

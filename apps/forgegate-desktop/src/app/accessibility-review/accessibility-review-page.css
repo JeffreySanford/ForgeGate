@@ -1,0 +1,211 @@
+.accessibility-review-page {
+  display: grid;
+  gap: var(--fg-space-4);
+  max-width: 48rem;
+}
+
+.accessibility-review-page h1 {
+  font-size: var(--fg-type-size-xl);
+  margin: 0;
+}
+
+.accessibility-review-page__reminder {
+  padding: var(--fg-space-3) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface-subtle);
+}
+
+.accessibility-review-page__caveat {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  margin: 0;
+}
+
+.accessibility-review-page__areas-nav ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fg-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accessibility-review-page__areas-nav button {
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  cursor: pointer;
+}
+
+.accessibility-review-page__area-button--current {
+  border-color: var(--fg-color-border-strong);
+  background: var(--fg-color-action);
+  color: var(--fg-color-text-inverse);
+}
+
+.accessibility-review-page__area {
+  display: grid;
+  gap: var(--fg-space-3);
+  padding: var(--fg-space-4);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+}
+
+.accessibility-review-page__area-summary {
+  color: var(--fg-color-text-muted);
+  margin: 0;
+}
+
+.accessibility-review-page__steps {
+  display: grid;
+  gap: var(--fg-space-2);
+  margin: 0;
+  padding: var(--fg-space-3) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface-subtle);
+}
+
+.accessibility-review-page__steps li {
+  display: grid;
+  gap: var(--fg-space-2);
+  padding-bottom: var(--fg-space-2);
+  border-bottom: 1px solid var(--fg-color-border);
+}
+
+.accessibility-review-page__steps li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.accessibility-review-page__steps span {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+}
+
+.accessibility-review-page__steps label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--fg-space-2);
+  max-width: 24rem;
+  font-size: var(--fg-type-size-sm);
+}
+
+.accessibility-review-page__steps select,
+.accessibility-review-page__steps input {
+  padding: var(--fg-space-1) var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  font: inherit;
+}
+
+.accessibility-review-page__area-nav {
+  display: flex;
+  gap: var(--fg-space-2);
+}
+
+.accessibility-review-page__area-nav button {
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border: 1px solid var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  cursor: pointer;
+}
+
+.accessibility-review-page__area-nav button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.accessibility-review-page__overall {
+  font-weight: 600;
+}
+
+.accessibility-review-page__form {
+  display: grid;
+  gap: var(--fg-space-3);
+  max-width: 28rem;
+}
+
+.accessibility-review-page__form label {
+  display: grid;
+  gap: var(--fg-space-1);
+}
+
+.accessibility-review-page__form input,
+.accessibility-review-page__form textarea {
+  padding: var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  font: inherit;
+}
+
+.accessibility-review-page__form textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+
+.accessibility-review-page__form button {
+  justify-self: start;
+  padding: var(--fg-space-2) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-action);
+  color: var(--fg-color-text-inverse);
+  cursor: pointer;
+}
+
+.accessibility-review-page__form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.accessibility-review-page__staged {
+  display: grid;
+  gap: var(--fg-space-2);
+  padding: var(--fg-space-3) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface-subtle);
+}
+
+.accessibility-review-page__diff {
+  margin: 0;
+  padding: var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  white-space: pre-wrap;
+  font-size: var(--fg-type-size-sm);
+}
+
+.accessibility-review-page__staged-actions {
+  display: flex;
+  gap: var(--fg-space-2);
+}
+
+.accessibility-review-page__staged-actions button {
+  padding: var(--fg-space-2) var(--fg-space-4);
+  border: 1px solid var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-sm);
+  cursor: pointer;
+}
+
+.accessibility-review-page__staged-actions button:first-child {
+  background: var(--fg-color-action);
+  color: var(--fg-color-text-inverse);
+}
+
+.accessibility-review-page__staged-actions button:last-child {
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+}

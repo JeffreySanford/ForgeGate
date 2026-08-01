@@ -7,41 +7,8 @@ import type {
 } from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { componentVersionId } from '../component-readiness';
+import { RESULT_STATUS_OPTIONS, worstStatus } from '../manual-review-status';
 import { WorkspaceService } from '../workspace.service';
-
-const RESULT_STATUS_OPTIONS: readonly ResultStatus[] = [
-  'passed',
-  'failed',
-  'warning',
-  'blocked',
-  'skipped',
-  'incomplete',
-  'not-applicable',
-  'unknown',
-];
-
-/**
- * Worst-first rank used to roll many real per-step results up into one
- * overall `ManualReview.status` — lower is worse. A review is never more
- * confident than its worst-recorded step: one `blocked` step makes the
- * whole review `blocked`, no matter how many other steps passed.
- */
-const STATUS_SEVERITY_RANK: Readonly<Record<ResultStatus, number>> = {
-  blocked: 0,
-  failed: 1,
-  warning: 2,
-  incomplete: 3,
-  unknown: 4,
-  skipped: 5,
-  'not-applicable': 6,
-  passed: 7,
-};
-
-function worstStatus(statuses: readonly ResultStatus[]): ResultStatus {
-  return statuses.reduce((worst, status) =>
-    STATUS_SEVERITY_RANK[status] < STATUS_SEVERITY_RANK[worst] ? status : worst,
-  );
-}
 
 /**
  * The guided manual-review walkthrough (documentation/09-manual-review-and-evidence.md,
@@ -82,14 +49,14 @@ export class ManualReviewWalkthrough {
   readonly manifest = input.required<ComponentManifest>();
   protected readonly resultStatusOptions = RESULT_STATUS_OPTIONS;
 
-  protected readonly availableProcedures = computed<
-    readonly ManualProcedure[]
-  >(() => {
-    const declaredIds = new Set(this.manifest().manualReviewProcedureIds);
-    return this.workspace
-      .procedures()
-      .filter((procedure) => declaredIds.has(procedure.id));
-  });
+  protected readonly availableProcedures = computed<readonly ManualProcedure[]>(
+    () => {
+      const declaredIds = new Set(this.manifest().manualReviewProcedureIds);
+      return this.workspace
+        .procedures()
+        .filter((procedure) => declaredIds.has(procedure.id));
+    },
+  );
 
   protected readonly selectedProcedureId = signal<string | null>(null);
   protected readonly selectedProcedure = computed<ManualProcedure | null>(
@@ -129,9 +96,7 @@ export class ManualReviewWalkthrough {
     if (!required) {
       return false;
     }
-    return (
-      this.reviewerRole().trim().toLowerCase() !== required.toLowerCase()
-    );
+    return this.reviewerRole().trim().toLowerCase() !== required.toLowerCase();
   });
 
   protected readonly canSave = computed<boolean>(

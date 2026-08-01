@@ -40,6 +40,7 @@ describe('App shell', () => {
       '/components',
       '/tests',
       '/reviews',
+      '/accessibility-review',
       '/documentation',
       '/releases',
     ]);

@@ -1,0 +1,224 @@
+<div class="accessibility-review-page" animate.enter="fg-route-enter">
+  <h1>ForgeGate accessibility self-review</h1>
+
+  <p class="accessibility-review-page__reminder" role="note">
+    Before you start: turn on your screen reader and keep it running for the
+    whole review.
+    <a
+      href="https://www.nvaccess.org/download/"
+      target="_blank"
+      rel="noopener noreferrer"
+      >NVDA</a
+    >
+    is free and works well for this. JAWS and VoiceOver work too.
+  </p>
+
+  <p class="accessibility-review-page__caveat">
+    This walks through ForgeGate's own real shell, not a target repository's
+    component. Save requires a workspace to be open — open ForgeGate's own
+    repository as the workspace to record this review into ForgeGate's own
+    <code>.forgegate/</code> history.
+  </p>
+
+  @if (!workspace.workspacePath()) {
+  <p class="fg-empty-state">
+    No workspace open. You can still walk through the areas below, but saving
+    needs a workspace open — use "Open workspace…" above.
+  </p>
+  }
+
+  <nav class="accessibility-review-page__areas-nav" aria-label="Review areas">
+    <ol>
+      @for (area of areas; track area.id; let i = $index) {
+      <li>
+        <button
+          type="button"
+          [attr.aria-current]="i === currentAreaIndex() ? 'step' : null"
+          [class.accessibility-review-page__area-button--current]="
+            i === currentAreaIndex()
+          "
+          (click)="goToArea(i)"
+        >
+          {{ area.title }}
+        </button>
+      </li>
+      }
+    </ol>
+  </nav>
+
+  @if (currentArea(); as area) {
+  <section
+    class="accessibility-review-page__area"
+    [attr.aria-labelledby]="'area-title-' + area.id"
+  >
+    <h2 [id]="'area-title-' + area.id">{{ area.title }}</h2>
+    <p class="accessibility-review-page__area-summary">{{ area.summary }}</p>
+
+    <ol class="accessibility-review-page__steps">
+      @for (step of area.steps; track $index; let localIndex = $index) {
+      <li>
+        <strong>{{ step.action }}</strong>
+        <span>Expected: {{ step.expected }}</span>
+        <label>
+          Result
+          <select
+            (change)="
+              setStepStatus(
+                globalStepIndex(currentAreaIndex(), localIndex),
+                $any($event.target).value
+              )
+            "
+          >
+            @for (option of resultStatusOptions; track option) {
+            <option
+              [value]="option"
+              [selected]="
+                option ===
+                stepStatus(globalStepIndex(currentAreaIndex(), localIndex))
+              "
+            >
+              {{ option }}
+            </option>
+            }
+          </select>
+        </label>
+        <label>
+          Note
+          <input
+            type="text"
+            [value]="
+              stepNote(globalStepIndex(currentAreaIndex(), localIndex))
+            "
+            (input)="
+              setStepNote(
+                globalStepIndex(currentAreaIndex(), localIndex),
+                $any($event.target).value
+              )
+            "
+            placeholder="What did you observe?"
+          />
+        </label>
+      </li>
+      }
+    </ol>
+
+    <div class="accessibility-review-page__area-nav">
+      <button
+        type="button"
+        [disabled]="currentAreaIndex() === 0"
+        (click)="previousArea()"
+      >
+        Previous area
+      </button>
+      <button
+        type="button"
+        [disabled]="currentAreaIndex() === areas.length - 1"
+        (click)="nextArea()"
+      >
+        Next area
+      </button>
+    </div>
+  </section>
+  }
+
+  <p class="accessibility-review-page__overall">
+    Overall result (derived from the worst step across every area):
+    <strong>{{ overallStatus() }}</strong>
+  </p>
+
+  <div class="accessibility-review-page__form">
+    <label>
+      Reviewer identity
+      <input
+        type="text"
+        [value]="reviewerIdentity()"
+        (input)="reviewerIdentity.set($any($event.target).value)"
+        placeholder="name@example.com"
+      />
+    </label>
+    <label>
+      Reviewer role
+      <input
+        type="text"
+        [value]="reviewerRole()"
+        (input)="reviewerRole.set($any($event.target).value)"
+        placeholder="accessibility-reviewer"
+      />
+    </label>
+    <label>
+      Operating system
+      <input
+        type="text"
+        [value]="operatingSystem()"
+        (input)="operatingSystem.set($any($event.target).value)"
+        placeholder="Windows 11"
+      />
+    </label>
+    <label>
+      Assistive technology
+      <input
+        type="text"
+        [value]="assistiveTechnology()"
+        (input)="assistiveTechnology.set($any($event.target).value)"
+        placeholder="NVDA 2025.3"
+      />
+    </label>
+    <label>
+      Notes
+      <textarea
+        [value]="notes()"
+        (input)="notes.set($any($event.target).value)"
+      ></textarea>
+    </label>
+
+    <button
+      type="button"
+      [disabled]="!canSave() || !!workspace.stagedManualReview()"
+      (click)="save()"
+    >
+      {{ workspace.saveManualReviewRunning() ? 'Staging…' : 'Save self-review'
+      }}
+    </button>
+
+    @if (workspace.saveManualReviewResult(); as result) {
+    <p role="status">Self-review saved to <code>{{ result.path }}</code></p>
+    } @if (workspace.saveManualReviewError(); as error) {
+    <p role="alert">Failed to stage self-review: {{ error }}</p>
+    }
+  </div>
+
+  @if (workspace.stagedManualReview(); as staged) {
+  <div class="accessibility-review-page__staged" role="region">
+    <p>
+      Review the real diff below, then approve to write it into
+      <code>.forgegate/</code>, or discard to drop it.
+    </p>
+    <h3>Self-review</h3>
+    <pre class="accessibility-review-page__diff">
+{{
+      staged.reviewWrite.previousContent ?? '(new file)'
+    }}
+&#8594;
+{{ staged.reviewWrite.newContent }}</pre>
+    @if (staged.findingWrites.length) {
+    <h3>{{ staged.findingWrites.length }} derived finding(s)</h3>
+    @for (item of staged.findingWrites; track item.finding.id) {
+    <pre class="accessibility-review-page__diff">
+{{ item.finding.description }} ({{ item.finding.severity }})</pre>
+    } }
+    <div class="accessibility-review-page__staged-actions">
+      <button
+        type="button"
+        [disabled]="workspace.approveManualReviewRunning()"
+        (click)="approve()"
+      >
+        {{ workspace.approveManualReviewRunning() ? 'Approving…' : 'Approve' }}
+      </button>
+      <button type="button" (click)="discard()">Discard</button>
+    </div>
+    @if (workspace.approveManualReviewError(); as error) {
+    <p role="alert">Failed to approve self-review: {{ error }}</p>
+    }
+  </div>
+  }
+</div>

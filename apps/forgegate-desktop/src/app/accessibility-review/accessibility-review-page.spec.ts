@@ -1,0 +1,223 @@
+import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
+import { AccessibilityReviewPage } from './accessibility-review-page';
+import { expectNoAccessibilityViolations } from '../../test-a11y';
+import { SELF_REVIEW_AREAS } from '../self-review-content';
+import { WorkspaceService } from '../workspace.service';
+
+function areaButtons(compiled: HTMLElement): HTMLButtonElement[] {
+  return Array.from(
+    compiled.querySelectorAll('.accessibility-review-page__areas-nav button'),
+  ) as HTMLButtonElement[];
+}
+
+function stepStatusSelects(compiled: HTMLElement): HTMLSelectElement[] {
+  return Array.from(
+    compiled.querySelectorAll('.accessibility-review-page__steps select'),
+  ) as HTMLSelectElement[];
+}
+
+function fillFormField(
+  compiled: HTMLElement,
+  index: number,
+  value: string,
+): void {
+  const input = Array.from(
+    compiled.querySelectorAll('.accessibility-review-page__form input'),
+  )[index] as HTMLInputElement;
+  input.value = value;
+  input.dispatchEvent(new Event('input'));
+}
+
+function findButton(compiled: HTMLElement, text: string): HTMLButtonElement {
+  return Array.from(compiled.querySelectorAll('button')).find((button) =>
+    (button as HTMLButtonElement).textContent?.includes(text),
+  ) as HTMLButtonElement;
+}
+
+describe('AccessibilityReviewPage', () => {
+  let workspace: WorkspaceService;
+  let fixture: ReturnType<
+    typeof TestBed.createComponent<AccessibilityReviewPage>
+  >;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [AccessibilityReviewPage] });
+    workspace = TestBed.inject(WorkspaceService);
+  });
+
+  it('names every real review area and reminds the reviewer to turn on a screen reader', async () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('screen reader');
+    for (const area of SELF_REVIEW_AREAS) {
+      expect(compiled.textContent).toContain(area.title);
+    }
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it("shows only the current area's steps, and lets the reviewer jump between areas", () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain(
+      SELF_REVIEW_AREAS[0]?.steps[0]?.action,
+    );
+    expect(compiled.textContent).not.toContain(
+      SELF_REVIEW_AREAS[1]?.steps[0]?.action,
+    );
+
+    areaButtons(compiled)[1]?.click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain(
+      SELF_REVIEW_AREAS[1]?.steps[0]?.action,
+    );
+    expect(compiled.textContent).not.toContain(
+      SELF_REVIEW_AREAS[0]?.steps[0]?.action,
+    );
+  });
+
+  it('defaults every step to an honest "unknown" result rather than assuming a pass', () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+
+    const selects = stepStatusSelects(fixture.nativeElement);
+    expect(selects.length).toBeGreaterThan(0);
+    expect(selects.every((select) => select.value === 'unknown')).toBe(true);
+  });
+
+  it("remembers a step's result when navigating away to another area and back", () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const [firstSelect] = stepStatusSelects(compiled);
+    firstSelect.value = 'passed';
+    firstSelect.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    areaButtons(compiled)[1]?.click();
+    fixture.detectChanges();
+    areaButtons(compiled)[0]?.click();
+    fixture.detectChanges();
+
+    expect(stepStatusSelects(compiled)[0]?.value).toBe('passed');
+  });
+
+  it('disables saving until a workspace is open and reviewer identity/environment are entered', () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const saveButton = findButton(compiled, 'Save self-review');
+    expect(saveButton.disabled).toBe(true);
+
+    workspace.workspacePath.set('/repos/ForgeGate');
+    fillFormField(compiled, 0, 'reviewer@example.com');
+    fillFormField(compiled, 2, 'Windows 11');
+    fillFormField(compiled, 3, 'NVDA 2025.3');
+    fixture.detectChanges();
+
+    expect(findButton(compiled, 'Save self-review').disabled).toBe(false);
+  });
+
+  it('saves a real ManualReview with a disclosed synthetic component id and every flattened step', () => {
+    workspace.workspacePath.set('/repos/ForgeGate');
+    workspace.gitStatus.set({
+      branch: 'main',
+      commit: 'a'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    const saveSpy = vi
+      .spyOn(workspace, 'stageManualReview')
+      .mockResolvedValue();
+
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    fillFormField(compiled, 0, 'reviewer@example.com');
+    fillFormField(compiled, 2, 'Windows 11');
+    fillFormField(compiled, 3, 'NVDA 2025.3');
+    fixture.detectChanges();
+
+    const [firstSelect] = stepStatusSelects(compiled);
+    firstSelect.value = 'passed';
+    firstSelect.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    findButton(compiled, 'Save self-review').click();
+
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    const [savedReview, savedComponentId] = saveSpy.mock.calls[0] ?? [];
+    expect(savedComponentId).toBe('forgegate.desktop.shell');
+    expect(savedReview?.componentVersionId).toBe('forgegate.desktop.shell');
+    expect(savedReview?.procedureId).toBe(
+      'forgegate-shell-accessibility-review',
+    );
+    expect(savedReview?.reviewerIdentity).toBe('reviewer@example.com');
+    expect(savedReview?.commitOrFingerprint).toBe('a'.repeat(40));
+    const totalSteps = SELF_REVIEW_AREAS.reduce(
+      (sum, area) => sum + area.steps.length,
+      0,
+    );
+    expect(savedReview?.stepResults).toHaveLength(totalSteps);
+    expect(savedReview?.stepResults?.[0]?.status).toBe('passed');
+    expect(savedReview?.stepResults?.[0]?.action).toContain(
+      `[${SELF_REVIEW_AREAS[0]?.title}]`,
+    );
+    // Every other step is left an honest 'unknown' rather than assumed
+    // passed, so the overall rollup is 'unknown', not 'passed'.
+    expect(savedReview?.status).toBe('unknown');
+  });
+
+  it('routes Approve/Discard on a staged self-review to the workspace service', () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    workspace.stagedManualReview.set({
+      review: {
+        id: 'r1',
+        componentVersionId: 'forgegate.desktop.shell',
+        procedureId: 'forgegate-shell-accessibility-review',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: new Date().toISOString(),
+        operatingSystem: 'Windows 11',
+        status: 'unknown',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+      componentId: 'forgegate.desktop.shell',
+      reviewWrite: {
+        stagingId: 'stg-1',
+        subdirectory: 'manual-reviews',
+        filename: 'r1.json',
+        previousContent: null,
+        newContent: '{"status":"unknown"}',
+      },
+      findingWrites: [],
+    });
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('{"status":"unknown"}');
+
+    const approveSpy = vi
+      .spyOn(workspace, 'approveStagedManualReview')
+      .mockResolvedValue();
+    const discardSpy = vi
+      .spyOn(workspace, 'discardStagedManualReview')
+      .mockResolvedValue();
+
+    findButton(compiled, 'Approve').click();
+    expect(approveSpy).toHaveBeenCalledTimes(1);
+    findButton(compiled, 'Discard').click();
+    expect(discardSpy).toHaveBeenCalledTimes(1);
+  });
+});
