@@ -873,6 +873,90 @@ describe('ComponentDetailPage', () => {
     );
   });
 
+  it('clicking "Run unit tests" runs the real configured gate for this exact component', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    const gateSpy = vi
+      .spyOn(workspaceService, 'runUnitTestGate')
+      .mockResolvedValue();
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const runButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Run unit tests'),
+    );
+    expect(runButton).toBeDefined();
+    runButton?.click();
+
+    expect(gateSpy).toHaveBeenCalledTimes(1);
+    expect(gateSpy.mock.calls[0]?.[0]?.id).toBe(
+      'acme.design-system.acme-button',
+    );
+  });
+
+  it('shows a staged unit-test result as a real diff and routes Approve/Discard to the workspace service', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.stagedTestExecution.set({
+      execution: {
+        id: 'acme.design-system.acme-button-unit-test-1',
+        componentVersionId: 'acme.design-system.acme-button@0.1.0',
+        gate: 'unit',
+        tool: 'npm',
+        toolVersion: 'unknown',
+        adapterVersion: '1.0.0',
+        status: 'failed',
+        startedAt: '2026-01-01T00:00:00.000Z',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+      componentId: 'acme.design-system.acme-button',
+      write: {
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'acme.design-system.acme-button-unit-test-1.json',
+        previousContent: null,
+        newContent: '{"status":"failed"}',
+      },
+    });
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('{"status":"failed"}');
+
+    const approveSpy = vi
+      .spyOn(workspaceService, 'approveStagedTestExecution')
+      .mockResolvedValue();
+    const discardSpy = vi
+      .spyOn(workspaceService, 'discardStagedTestExecution')
+      .mockResolvedValue();
+
+    const approveButton = Array.from(
+      compiled.querySelectorAll('.component-detail__staged-actions button'),
+    ).find((button) => button.textContent?.includes('Approve'));
+    approveButton?.click();
+    expect(approveSpy).toHaveBeenCalledTimes(1);
+
+    const discardButton = Array.from(
+      compiled.querySelectorAll('.component-detail__staged-actions button'),
+    ).find((button) => button.textContent?.includes('Discard'));
+    discardButton?.click();
+    expect(discardSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the real saved directory path after a successful export', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

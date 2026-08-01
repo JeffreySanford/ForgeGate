@@ -255,6 +255,68 @@
     </table>
     }
 
+    <h3 id="unit-test-gate-title">Run unit tests</h3>
+    <p class="component-detail__caveat">
+      Actually runs this package's own configured
+      <code>unitTest</code> command (from <code>.forgegate/config.yaml</code>) —
+      not evidence the repository already produced. Records only the real
+      pass/fail exit code, not per-test detail.
+    </p>
+    <button
+      type="button"
+      [disabled]="
+        workspace.unitTestGateRunning() || !!workspace.stagedTestExecution()
+      "
+      (click)="runUnitTests()"
+    >
+      {{ workspace.unitTestGateRunning() ? 'Running?' : 'Run unit tests' }}
+    </button>
+    @if (workspace.unitTestGateSkipped(); as skipped) {
+    <p role="status">{{ skipped }}</p>
+    } @if (workspace.unitTestGateLiveOutput()) {
+    <details open>
+      <summary>Live output</summary>
+      <pre class="component-detail__live-output">
+{{
+        workspace.unitTestGateLiveOutput()
+      }}</pre>
+    </details>
+    } @if (workspace.unitTestGateError(); as gateError) {
+    <p role="alert">{{ gateError }}</p>
+    } @if (workspace.stageTestExecutionError(); as stageError) {
+    <p role="alert">Failed to stage the test result: {{ stageError }}</p>
+    } @if (workspace.stagedTestExecution(); as staged) {
+    <div class="component-detail__staged" role="region">
+      <p>
+        Real result: <strong>{{ staged.execution.status }}</strong>. Review the
+        diff below, then approve to write it into
+        <code>.forgegate/evidence/</code>, or discard to drop it.
+      </p>
+      <pre class="component-detail__diff">
+{{ staged.write.previousContent ?? '(new file)' }}
+&#8594;
+{{ staged.write.newContent }}</pre>
+      <div class="component-detail__staged-actions">
+        <button
+          type="button"
+          [disabled]="workspace.approveTestExecutionRunning()"
+          (click)="approveTestExecution()"
+        >
+          {{ workspace.approveTestExecutionRunning() ? 'Approving?' : 'Approve'
+          }}
+        </button>
+        <button type="button" (click)="discardTestExecution()">Discard</button>
+      </div>
+      @if (workspace.approveTestExecutionError(); as approveError) {
+      <p role="alert">Failed to approve: {{ approveError }}</p>
+      }
+    </div>
+    } @if (workspace.saveTestExecutionResult(); as savedResult) {
+    <p role="status">
+      Test result saved to <code>{{ savedResult.path }}</code>
+    </p>
+    }
+
     <h3 id="manual-reviews-title">Manual reviews</h3>
     @if (workspace.manualReviewError(); as reviewError) {
     <p role="alert">

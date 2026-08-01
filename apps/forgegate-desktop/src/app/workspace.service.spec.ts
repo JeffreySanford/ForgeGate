@@ -2520,6 +2520,223 @@ describe('WorkspaceService', () => {
     });
   });
 
+  describe('runUnitTestGate / approveStagedTestExecution / discardStagedTestExecution', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.design-system.acme-button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: 'packages/acme-button',
+      componentVersion: '1.0.0',
+      lifecycle: 'candidate',
+    });
+
+    it('skips honestly when no unitTest command is configured', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {},
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runUnitTestGate(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.unitTestGateSkipped()).toBe(
+        'No unitTest command is configured in .forgegate/config.yaml.',
+      );
+    });
+
+    it('runs the configured command scoped to the component package and stages a real passing result', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.gitStatus.set({
+        branch: 'main',
+        commit: 'a'.repeat(40),
+        dirty: false,
+        changedFiles: [],
+      });
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { unitTest: 'npm test' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: 'ok',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 500,
+        artifactPath: 'C:/Temp/forgegate-artifacts/1.json',
+      };
+      const stagedWrite = {
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      };
+      invokeMock
+        .mockResolvedValueOnce(runResult)
+        .mockResolvedValueOnce(stagedWrite);
+
+      await service.runUnitTestGate(manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativeCwd: 'packages/acme-button',
+        command: 'npm',
+        args: ['test'],
+        timeoutSeconds: 300,
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        2,
+        'stage_test_execution',
+        expect.objectContaining({ workspacePath: 'D:/repos/ForgeGate' }),
+      );
+      expect(service.unitTestGateResult()).toEqual(runResult);
+      expect(service.unitTestGateSkipped()).toBeNull();
+      const staged = service.stagedTestExecution();
+      expect(staged?.componentId).toBe(manifest.id);
+      expect(staged?.execution.status).toBe('passed');
+      expect(staged?.execution.componentVersionId).toBe(
+        'acme.design-system.acme-button@1.0.0',
+      );
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'unit-test-gate-command'),
+      ).toMatchObject({ status: 'loaded', error: null });
+    });
+
+    it('stages a real failing result honestly rather than hiding it', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { unitTest: 'npm test' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 1,
+        stdout: '',
+        stderr: '3 tests failed',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 500,
+        artifactPath: null,
+      };
+      invokeMock.mockResolvedValueOnce(runResult).mockResolvedValueOnce({
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      });
+
+      await service.runUnitTestGate(manifest);
+
+      expect(service.stagedTestExecution()?.execution.status).toBe('failed');
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'unit-test-gate-command'),
+      ).toMatchObject({ status: 'failed', error: '3 tests failed' });
+    });
+
+    it('approves a staged test execution into the real evidence directory', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      const execution = {
+        id: 'acme.design-system.acme-button-unit-test-1',
+        componentVersionId: 'acme.design-system.acme-button@1.0.0',
+        gate: 'unit',
+        tool: 'npm',
+        toolVersion: 'unknown',
+        adapterVersion: '1.0.0',
+        status: 'passed' as const,
+        startedAt: '2026-01-01T00:00:00.000Z',
+        durationMs: 500,
+        commitOrFingerprint: 'a'.repeat(40),
+      };
+      service.stagedTestExecution.set({
+        execution,
+        componentId: manifest.id,
+        write: {
+          stagingId: 'stg-1',
+          subdirectory: 'evidence',
+          filename: `${execution.id}.json`,
+          previousContent: null,
+          newContent: JSON.stringify(execution),
+        },
+      });
+      invokeMock.mockResolvedValueOnce(
+        `D:/repos/ForgeGate/.forgegate/evidence/${execution.id}.json`,
+      );
+
+      await service.approveStagedTestExecution();
+
+      expect(invokeMock).toHaveBeenCalledWith('approve_staged_evidence_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: `${execution.id}.json`,
+      });
+      expect(service.testExecutions()).toContainEqual(execution);
+      expect(service.stagedTestExecution()).toBeNull();
+      expect(service.saveTestExecutionResult()).toEqual({
+        path: `D:/repos/ForgeGate/.forgegate/evidence/${execution.id}.json`,
+      });
+    });
+
+    it('discards a staged test execution without writing real evidence', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.stagedTestExecution.set({
+        execution: {
+          id: 'x',
+          componentVersionId: 'acme.design-system.acme-button@1.0.0',
+          gate: 'unit',
+          tool: 'npm',
+          toolVersion: 'unknown',
+          adapterVersion: '1.0.0',
+          status: 'passed',
+          startedAt: '2026-01-01T00:00:00.000Z',
+          commitOrFingerprint: 'a'.repeat(40),
+        },
+        componentId: manifest.id,
+        write: {
+          stagingId: 'stg-1',
+          subdirectory: 'evidence',
+          filename: 'x.json',
+          previousContent: null,
+          newContent: '{}',
+        },
+      });
+      invokeMock.mockResolvedValueOnce(undefined);
+
+      await service.discardStagedTestExecution();
+
+      expect(invokeMock).toHaveBeenCalledWith('discard_staged_evidence_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: 'stg-1',
+      });
+      expect(service.stagedTestExecution()).toBeNull();
+      expect(service.testExecutions()).toEqual([]);
+    });
+  });
+
   describe('queryLiveStorybookIndex', () => {
     it('fetches a real live index via the Rust-mediated command and replaces storybookIndex', async () => {
       const liveIndexJson = JSON.stringify({

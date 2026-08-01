@@ -89,6 +89,8 @@ commands:
 
 The desktop UI should display the resolved command, arguments, and working directory before execution.
 
+**Implementation status.** The real configuration shape is narrower than the structured example above: `.forgegate/config.yaml`'s real `commandMappings` is a flat `Record<string, string>` (mapping name → a raw shell-style command string, parsed by `parseWorkspaceCommandMapping`), not a per-gate object with its own `cwd`/`timeoutSeconds`. One real mapping name exists today for actually _running_ a gate — `commandMappings.unitTest` — wired to `WorkspaceService.runUnitTestGate`, invoked from a component's own assurance record ("Run unit tests" on `ComponentDetailPage`), scoped to that component's real `packagePath` as the working directory. `storybookTest`/`playwright`/etc. from the example are aspirational; only `unitTest` and `starlightBuild` (a Starlight-specific validation step, not a gate) are real mapping names anywhere in the codebase. The desktop UI does display the resolved command before running, per the requirement above — the "Run unit tests" caveat text names the exact config key it reads.
+
 ## Command lifecycle
 
 ```text
@@ -140,8 +142,12 @@ for a narrow, provenance-safe subset:
   reporter is explicitly modeled on Jest's.
 
 These adapters normalize a single `TestExecution` and preserve the raw report
-for evidence export. ForgeGate still does not run target-repository commands
-itself; command orchestration remains a separate milestone from result import.
+for evidence export. ForgeGate now runs one target-repository command itself
+— `commandMappings.unitTest` (see "Safe command configuration" above and the
+"Acceptance requirements" implementation-status note below) — but that path
+reads only a real process exit code, not any of the structured report
+formats these import-based adapters parse; the two are complementary, not
+overlapping.
 
 ## Normalized evidence
 
@@ -309,9 +315,18 @@ It must preserve raw results and mark evidence stale after a relevant source cha
 
 Implementation status: imported Storybook interaction, axe, Playwright, Jest,
 and Vitest results are all normalized and raw reports are preserved (one unit
-test runner and more). Lint, build, and ForgeGate-triggered target-repository
-command execution are still open. Source-change stale-evidence detection is
-real for a specific commit comparison (a stale `TestExecution`'s recorded
-commit against the workspace's current one, with a real "show changed files"
-explanation — see [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md)'s
+test runner and more). ForgeGate-triggered target-repository command
+execution is now real for exactly one gate: `WorkspaceService.runUnitTestGate`
+actually runs a repository's own configured `commandMappings.unitTest`
+command, scoped to a component's package, and turns the real exit code into
+a staged/approved `TestExecution` (`unit-test-gate.ts`). It reads only the
+process exit code, not any structured report format, so it produces the same
+`TestExecution` shape the imported adapters above do, but with no per-test
+detail and an honest `toolVersion: 'unknown'`. Storybook, axe, Playwright,
+lint, and build gates are still not ForgeGate-triggered — only ingested when
+a target repository already produced the evidence file itself. Source-change
+stale-evidence detection is real for a specific commit comparison (a stale
+`TestExecution`'s recorded commit against the workspace's current one, with a
+real "show changed files" explanation — see
+[`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md)'s
 evidence freshness timeline), not yet for a general durable staleness store.

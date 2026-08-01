@@ -17,6 +17,7 @@ import {
   type TestExecution,
 } from '@forgegate/core-evidence';
 import { findingsFromManualReviewStepResults } from './manual-review-findings';
+import { buildUnitTestExecution } from './unit-test-gate';
 import {
   extractProtectedOverview,
   generateStarlightComponentReportData,
@@ -314,6 +315,8 @@ const GENERATE_CEM_COMMAND = 'npx';
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
 const STARLIGHT_BUILD_COMMAND_MAPPING = 'starlightBuild';
 const STARLIGHT_BUILD_TIMEOUT_SECONDS = 180;
+const UNIT_TEST_GATE_COMMAND_MAPPING = 'unitTest';
+const UNIT_TEST_GATE_TIMEOUT_SECONDS = 300;
 const CEM_EXCLUDED_GLOBS = [
   'node_modules/**',
   'dist/**',
@@ -483,6 +486,36 @@ export class WorkspaceService {
   readonly starlightBuildError = signal<string | null>(null);
   readonly starlightBuildSkipped = signal<string | null>(null);
   readonly starlightTemplates = STARLIGHT_TEMPLATE_OPTIONS;
+
+  /**
+   * ForgeGate actually running a target repository's own configured
+   * `commandMappings.unitTest` command (`unit-test-gate.ts`), scoped to one
+   * component's own package directory — not ingesting a
+   * `.forgegate/evidence/*.json` file the repository already produced.
+   * `unitTestGateSkipped` is set (never silently ignored) when no
+   * `unitTest` mapping is configured. On a real completed run — pass or
+   * fail — the resulting `TestExecution` is staged automatically
+   * (`stagedTestExecution`); nothing is written into `.forgegate/evidence/`
+   * until an explicit "Approve" call, the same P2 entry gate 2 discipline
+   * every other evidence write follows.
+   */
+  readonly unitTestGateRunning = signal(false);
+  readonly unitTestGateLiveOutput = signal('');
+  readonly unitTestGateResult = signal<CommandResult | null>(null);
+  readonly unitTestGateError = signal<string | null>(null);
+  readonly unitTestGateSkipped = signal<string | null>(null);
+
+  readonly stagedTestExecution = signal<{
+    readonly execution: TestExecution;
+    readonly componentId: string;
+    readonly write: StagedEvidenceWrite;
+  } | null>(null);
+  readonly stageTestExecutionError = signal<string | null>(null);
+  readonly approveTestExecutionRunning = signal(false);
+  readonly approveTestExecutionError = signal<string | null>(null);
+  readonly saveTestExecutionResult = signal<{ readonly path: string } | null>(
+    null,
+  );
 
   starlightDefaultTemplateFor(
     manifest: ComponentManifest,
@@ -1959,6 +1992,171 @@ export class WorkspaceService {
         rawOutput: null,
         error: String(error),
       });
+    }
+  }
+
+  /**
+   * Actually runs the given component's package through the workspace's
+   * own configured `commandMappings.unitTest` command
+   * (`run_workspace_command`, scoped to `manifest.packagePath` as the
+   * working directory) — not ingesting a pre-existing evidence file. Skips
+   * honestly (`unitTestGateSkipped`) rather than silently doing nothing
+   * when no `unitTest` mapping is configured. On a real completed run, the
+   * resulting `TestExecution` (`buildUnitTestExecution`) is staged
+   * automatically — pass or fail, since a real failure is exactly the
+   * evidence this exists to produce — but nothing is written into
+   * `.forgegate/evidence/` until an explicit `approveStagedTestExecution`.
+   */
+  async runUnitTestGate(manifest: ComponentManifest): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.unitTestGateRunning()) {
+      return;
+    }
+    const commandText =
+      this.repositoryConfig()?.commandMappings[UNIT_TEST_GATE_COMMAND_MAPPING];
+    if (!commandText) {
+      this.unitTestGateSkipped.set(
+        `No ${UNIT_TEST_GATE_COMMAND_MAPPING} command is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+
+    let plan: WorkspaceCommandPlan;
+    try {
+      plan = parseWorkspaceCommandMapping(commandText);
+    } catch (error) {
+      this.unitTestGateError.set(String(error));
+      return;
+    }
+
+    this.unitTestGateRunning.set(true);
+    this.unitTestGateError.set(null);
+    this.unitTestGateResult.set(null);
+    this.unitTestGateLiveOutput.set('');
+    this.unitTestGateSkipped.set(null);
+    const startedAt = new Date().toISOString();
+    const unlisten = await this.listen<CommandOutputLine>(
+      'workspace-command-output',
+      (event) => {
+        this.unitTestGateLiveOutput.update(
+          (current) => current + event.payload.line + '\n',
+        );
+      },
+    );
+    try {
+      const result = await this.invoke<CommandResult>('run_workspace_command', {
+        workspacePath: path,
+        relativeCwd: manifest.packagePath,
+        command: plan.command,
+        args: [...plan.args],
+        timeoutSeconds: UNIT_TEST_GATE_TIMEOUT_SECONDS,
+      });
+      this.unitTestGateResult.set(result);
+      this.setAdapterDiagnostic({
+        id: 'unit-test-gate-command',
+        adapter: 'Unit test gate',
+        source: `${manifest.packagePath}: ${plan.commandText}`,
+        status: result.exitCode === 0 ? 'loaded' : 'failed',
+        rawOutput: JSON.stringify(result, null, 2),
+        error:
+          result.exitCode === 0
+            ? null
+            : result.cancelled
+              ? 'Cancelled by user'
+              : result.stderr || 'Unit test command failed',
+      });
+      const execution = buildUnitTestExecution(
+        manifest,
+        plan,
+        result,
+        startedAt,
+        this.gitStatus()?.commit ?? 'unknown',
+      );
+      await this.stageTestExecution(execution, manifest.id);
+    } catch (error) {
+      this.unitTestGateError.set(String(error));
+    } finally {
+      unlisten();
+      this.unitTestGateRunning.set(false);
+    }
+  }
+
+  private async stageTestExecution(
+    execution: TestExecution,
+    componentId: string,
+  ): Promise<void> {
+    const path = this.workspacePath();
+    if (!path) {
+      return;
+    }
+    this.stageTestExecutionError.set(null);
+    this.saveTestExecutionResult.set(null);
+    this.stagedTestExecution.set(null);
+    try {
+      const write = await this.invoke<StagedEvidenceWrite>(
+        'stage_test_execution',
+        {
+          workspacePath: path,
+          executionId: execution.id,
+          content: JSON.stringify(execution, null, 2),
+        },
+      );
+      this.stagedTestExecution.set({ execution, componentId, write });
+    } catch (error) {
+      this.stageTestExecutionError.set(String(error));
+    }
+  }
+
+  /**
+   * Commits a staged unit-test-gate result into the real workspace. Only
+   * ever called from an explicit "Approve" action after the reviewer sees
+   * the staged diff.
+   */
+  async approveStagedTestExecution(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedTestExecution();
+    if (!path || !staged || this.approveTestExecutionRunning()) {
+      return;
+    }
+    this.approveTestExecutionRunning.set(true);
+    this.approveTestExecutionError.set(null);
+    try {
+      const writtenPath = await this.invoke<string>(
+        'approve_staged_evidence_write',
+        {
+          workspacePath: path,
+          stagingId: staged.write.stagingId,
+          subdirectory: staged.write.subdirectory,
+          filename: staged.write.filename,
+        },
+      );
+      this.saveTestExecutionResult.set({ path: writtenPath });
+      this.testExecutions.set([...this.testExecutions(), staged.execution]);
+      this.stagedTestExecution.set(null);
+    } catch (error) {
+      this.approveTestExecutionError.set(String(error));
+    } finally {
+      this.approveTestExecutionRunning.set(false);
+    }
+  }
+
+  /**
+   * Discards a staged unit-test-gate result without ever committing it
+   * into `.forgegate/evidence/`.
+   */
+  async discardStagedTestExecution(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedTestExecution();
+    if (!path || !staged) {
+      return;
+    }
+    try {
+      await this.invoke<void>('discard_staged_evidence_write', {
+        workspacePath: path,
+        stagingId: staged.write.stagingId,
+      });
+    } finally {
+      this.stagedTestExecution.set(null);
     }
   }
 

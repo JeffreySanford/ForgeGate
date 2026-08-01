@@ -204,6 +204,24 @@ fn stage_finding(
         .map(Into::into)
 }
 
+/// Stages one real `TestExecution` — the result of ForgeGate actually
+/// running a repository's own configured unit-test command
+/// (`commandMappings.unitTest`), not evidence ingested from a file the
+/// target repo already produced. Same `.forgegate/evidence/` destination
+/// `detect_test_evidence_files` already reads, same staged/approve
+/// discipline every other evidence write uses — nothing lands until a
+/// matching `approve_staged_evidence_write` call.
+#[tauri::command]
+fn stage_test_execution(
+    workspace_path: String,
+    execution_id: String,
+    content: String,
+) -> Result<StagedEvidenceWriteDto, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::stage_evidence_write(&workspace, "evidence", &format!("{execution_id}.json"), &content)
+        .map(Into::into)
+}
+
 /// Commits a previously staged evidence write into the real conventional
 /// evidence directory. Only ever called from an explicit "Approve" action
 /// the reviewer takes after being shown the staged diff — never silently
@@ -1591,6 +1609,46 @@ mod tests {
     }
 
     #[test]
+    fn stages_and_approves_a_real_test_execution_into_the_conventional_evidence_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-stage-test-execution-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let staged = stage_test_execution(
+            dir.display().to_string(),
+            "acme.button-1-unit-test-1".to_string(),
+            "{\"status\":\"passed\"}".to_string(),
+        )
+        .expect("stage should succeed");
+
+        let result = approve_staged_evidence_write(
+            dir.display().to_string(),
+            staged.staging_id,
+            "evidence".to_string(),
+            "acme.button-1-unit-test-1.json".to_string(),
+        )
+        .expect("approve should succeed");
+
+        let result_path = PathBuf::from(&result);
+        assert_eq!(
+            result_path
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str()),
+            Some("evidence")
+        );
+        assert_eq!(
+            fs::read_to_string(&result).expect("file should be readable"),
+            "{\"status\":\"passed\"}"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn refuses_to_stage_a_finding_id_that_would_escape_the_conventional_directory() {
         let dir = std::env::temp_dir().join(format!(
             "forgegate-stage-finding-escape-{}-{}",
@@ -1794,6 +1852,7 @@ pub fn run() {
             write_evidence_package,
             stage_manual_review,
             stage_finding,
+            stage_test_execution,
             approve_staged_evidence_write,
             discard_staged_evidence_write,
             rollback_evidence_write,

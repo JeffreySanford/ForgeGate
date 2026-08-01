@@ -593,6 +593,22 @@ export class ComponentDetailPage {
     );
   }
 
+  protected runUnitTests(): void {
+    const manifest = this.manifest();
+    if (!manifest) {
+      return;
+    }
+    void this.workspace.runUnitTestGate(manifest);
+  }
+
+  protected approveTestExecution(): void {
+    void this.workspace.approveStagedTestExecution();
+  }
+
+  protected discardTestExecution(): void {
+    void this.workspace.discardStagedTestExecution();
+  }
+
   private manifestSource(manifest: ComponentManifest): string {
     return this.authoredManifestPath() ?? componentManifestPath(manifest.id);
   }
