@@ -690,6 +690,8 @@ Show:
 - User-authored regions that will be preserved.
 - Proposed diff before write.
 
+**Implementation status.** Real for the Starlight target only (Storybook MDX and Zeroheight generation do not exist): `StarlightPageGenerator` on the component detail page generates a designer/balanced/developer/registry page from the real manifest, procedures, and evidence, shows the real staged diff (including any real protected overview content it would preserve, not overwrite), and only writes on explicit approval. The generated page's frontmatter carries the real `evidenceCommit`. Current/missing/stale state is shown separately, on the workspace documentation drift map (P1.6), which links a drifted row to this same generator.
+
 ## Visual language
 
 ### Character
