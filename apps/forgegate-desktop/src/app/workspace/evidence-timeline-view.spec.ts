@@ -149,6 +149,11 @@ describe('EvidenceTimelineView', () => {
 
     expect(loadSpy).toHaveBeenCalledWith('a'.repeat(40));
     expect(compiled.textContent).toContain('src/acme-button.ts');
+    // P1.8 "causality, focus": the click caused this content to appear, so
+    // focus moves into it — not just a visual entrance.
+    const reveal = compiled.querySelector('.evidence-timeline-view__reveal');
+    expect(reveal).not.toBeNull();
+    expect(document.activeElement).toBe(reveal);
 
     await expectNoAccessibilityViolations(compiled);
   });

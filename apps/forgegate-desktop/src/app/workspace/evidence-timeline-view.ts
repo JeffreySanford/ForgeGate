@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import type { ResultStatus } from '@forgegate/core-domain';
 import type { TestExecution } from '@forgegate/core-evidence';
 import { computeEvidenceTimeline } from '../evidence-timeline';
+import { FocusOnRevealDirective } from '../focus-on-reveal.directive';
 import { WorkspaceService } from '../workspace.service';
 
 const COMMIT_HASH_PATTERN = /^[0-9a-f]{40}$/i;
@@ -32,9 +33,16 @@ const STATUS_LABEL: Record<ResultStatus, string> = {
  * command and `WorkspaceService.staleReviewChangedFiles` cache the
  * manual-review freshness table already uses, diffing the entry's
  * recorded commit against the workspace's current one.
+ *
+ * P1.8 "causality, focus": the revealed result plays a real entrance
+ * (`animate.enter="fg-changed-files-reveal"`, freshly inserted each time
+ * since it only exists inside the `@if`) and keyboard focus moves into it
+ * (`FocusOnRevealDirective`) — the click caused this content, and both a
+ * sighted and a screen-reader user should be able to tell.
  */
 @Component({
   selector: 'app-evidence-timeline-view',
+  imports: [FocusOnRevealDirective],
   templateUrl: './evidence-timeline-view.html',
   styleUrl: './evidence-timeline-view.css',
 })

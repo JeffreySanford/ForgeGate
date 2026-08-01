@@ -34,17 +34,28 @@
         Show changed files
       </button>
       @if (workspace.staleReviewChangedFiles()[entry.commitOrFingerprint]; as
-      diff) { @if (diff.error) {
-      <p role="alert">{{ diff.error }}</p>
-      } @else if (diff.files.length === 0) {
-      <p>No file differences were detected.</p>
-      } @else {
-      <ul class="evidence-timeline-view__changed-files">
-        @for (file of diff.files; track file) {
-        <li><code>{{ file }}</code></li>
+      diff) {
+      <div
+        class="evidence-timeline-view__reveal"
+        role="region"
+        aria-label="Changed files"
+        tabindex="-1"
+        appFocusOnReveal
+        animate.enter="fg-changed-files-reveal"
+      >
+        @if (diff.error) {
+        <p role="alert">{{ diff.error }}</p>
+        } @else if (diff.files.length === 0) {
+        <p>No file differences were detected.</p>
+        } @else {
+        <ul class="evidence-timeline-view__changed-files">
+          @for (file of diff.files; track file) {
+          <li><code>{{ file }}</code></li>
+          }
+        </ul>
         }
-      </ul>
-      } } }
+      </div>
+      } }
     </li>
     }
   </ol>

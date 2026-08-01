@@ -60,8 +60,31 @@
   cursor: pointer;
 }
 
-.evidence-timeline-view__changed-files {
+.evidence-timeline-view__reveal {
   flex-basis: 100%;
+  /* P1.8 "causality, focus" moment: this element is freshly inserted only
+   * because the user clicked "Show changed files", so its entrance is the
+   * signal that the click caused it. Uses the shared duration token, which
+   * is zeroed under `prefers-reduced-motion: reduce` (styles/tokens.css). */
+  animation: fg-changed-files-reveal var(--fg-motion-duration-sm)
+    var(--fg-motion-ease);
+}
+
+.evidence-timeline-view__reveal:focus {
+  outline: 2px solid var(--fg-color-action);
+  outline-offset: 2px;
+}
+
+@keyframes fg-changed-files-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.evidence-timeline-view__changed-files {
   margin: 0;
   padding-left: var(--fg-space-4);
 }
