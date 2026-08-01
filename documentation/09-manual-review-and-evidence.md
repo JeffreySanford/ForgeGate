@@ -185,6 +185,8 @@ Required action:
 - Repeat screen-reader and keyboard procedures.
 ```
 
+**Implementation status.** The commit-level half of this is real: `ComponentDetailPage.manualReviewIsStale`/`manualReviewFreshness` compare a review's recorded commit against the workspace's real current commit, and a stale row's "Show changed files" action reuses the same real `git diff` mechanism P1.3's evidence timeline does, naming the exact files that changed. The per-category invalidation model above (component vs. token vs. keyboard-logic vs. markup/ARIA change) is not implemented — ForgeGate reports _that_ a review is stale and _which files_ changed, not _why_ that specific change invalidates _this specific_ procedure. Policy change, procedure change, and expiration-date invalidation are also not implemented.
+
 ## Evidence package structure
 
 > **Implementation status.** ForgeGate now exports a real package against this
@@ -192,14 +194,16 @@ Required action:
 > the "Export evidence package" button on a component's detail page). Implemented
 > today: `manifest.json` (including the real repository commit and a
 > `checksums` map), `test-summary.json`, `documentation-status.json`,
-> `automated/` for imported Playwright, axe, and Storybook interaction reports,
-> `findings/`, `release-decision.json`, `report.html`, and `checksums.sha256`.
+> `automated/` for imported Playwright, axe, Storybook interaction, Jest, and
+> Vitest reports, `manual/` (one real file per connected `ManualReview`),
+> `findings/`, `exceptions/` (scoped to findings this export actually includes),
+> `release-decision.json`, `report.html`, and `checksums.sha256`.
 > Not yet implemented, and named explicitly in `manifest.json`'s `excludes` map
 > and in the report's "Not connected" section rather than silently omitted:
-> `policy-snapshot.json`, `manual/`, `exceptions/`, and `attachments/`. See
-> TODO.md's "Evidence export remaining sections" for what each one is blocked
-> on. ForgeGate still imports externally produced automated evidence; it does
-> not yet orchestrate target-repository commands itself.
+> `policy-snapshot.json` and `attachments/`. See TODO.md's "Evidence export
+> remaining sections" for what each one is blocked on. ForgeGate still imports
+> externally produced automated evidence; it does not yet orchestrate
+> target-repository commands itself.
 >
 > **`release-decision.json` and approvals.** A `blocked` outcome requires no
 > approver, so it is produced from real data today whenever the repository has
@@ -240,11 +244,13 @@ forgegate-evidence/
 > **Implementation status.** `renderEvidenceReport` emits this as a
 > self-contained `report.html`. Covered today from real data: component and
 > version, repository commit, methods used and test environments (as recorded on
-> each real `TestExecution`), automated results, findings, and documentation
-> status. Not yet covered, and listed by name in the report's own "Not connected"
-> section so their absence cannot be mistaken for a pass: scope, applicable
-> policy and compliance profiles, manual results, exceptions, consumer
-> validation, release decision, and approvers.
+> each real `TestExecution`), automated results, findings, manual results (a
+> real "Manual reviews" table), exceptions, documentation status, and release
+> decision (including the approver, when one exists, or an honest "None — a
+> blocked outcome requires no approver" otherwise). Not yet covered, and listed
+> by name in the report's own "Not connected" section so their absence cannot be
+> mistaken for a pass: scope, applicable policy and compliance profiles, and
+> consumer validation.
 
 A human-readable report should explain:
 
