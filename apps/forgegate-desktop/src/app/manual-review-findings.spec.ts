@@ -6,7 +6,9 @@ const review = {
   procedureId: 'keyboard-and-screen-reader-review',
 };
 
-function step(overrides: Partial<ManualReviewStepResult>): ManualReviewStepResult {
+function step(
+  overrides: Partial<ManualReviewStepResult>,
+): ManualReviewStepResult {
   return {
     stepIndex: 0,
     action: 'Activate using Space.',
@@ -32,7 +34,11 @@ describe('findingsFromManualReviewStepResults', () => {
       review,
       [
         step({ stepIndex: 0, status: 'passed' }),
-        step({ stepIndex: 1, status: 'failed', note: 'Activation fired twice.' }),
+        step({
+          stepIndex: 1,
+          status: 'failed',
+          note: 'Activation fired twice.',
+        }),
         step({ stepIndex: 2, status: 'blocked' }),
         step({ stepIndex: 3, status: 'not-applicable' }),
       ],
@@ -63,6 +69,31 @@ describe('findingsFromManualReviewStepResults', () => {
     expect(findings[0]?.description).toBe(
       'Activate using Space. — expected: The configured action occurs exactly once., but the review recorded failed.',
     );
+  });
+
+  it("attributes a step's finding to its own componentId when set, not the review's default", () => {
+    const findings = findingsFromManualReviewStepResults(
+      'forgegate.desktop.shell',
+      review,
+      [
+        step({
+          status: 'failed',
+          componentId: 'acme.design-system.acme-button',
+        }),
+      ],
+    );
+
+    expect(findings[0]?.componentId).toBe('acme.design-system.acme-button');
+  });
+
+  it('falls back to the review-level componentId when a step has none', () => {
+    const findings = findingsFromManualReviewStepResults(
+      'forgegate.desktop.shell',
+      review,
+      [step({ status: 'failed' })],
+    );
+
+    expect(findings[0]?.componentId).toBe('forgegate.desktop.shell');
   });
 
   it('produces stable, deterministic ids so re-deriving the same review never duplicates findings', () => {

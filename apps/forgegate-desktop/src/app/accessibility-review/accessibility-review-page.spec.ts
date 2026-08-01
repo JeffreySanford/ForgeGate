@@ -1,9 +1,60 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { vi } from 'vitest';
+import type { CustomElementsManifest } from '@forgegate/adapter-web-components';
 import { AccessibilityReviewPage } from './accessibility-review-page';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
-import { SELF_REVIEW_AREAS } from '../self-review-content';
-import { WorkspaceService } from '../workspace.service';
+import {
+  COMPONENT_RECORD_CHECK_TEMPLATES,
+  SELF_REVIEW_AREAS,
+} from '../self-review-content';
+import { WorkspaceService, type WorkspaceScan } from '../workspace.service';
+
+const scan: WorkspaceScan = {
+  packageName: '@acme/design-system',
+  packageManager: 'pnpm',
+  workspaceManager: 'nx',
+  storybookProjects: [],
+  starlightProjects: [],
+  hasZeroheight: false,
+  tokenFiles: [],
+  testRunners: [],
+  visualRegressionProviders: [],
+  ciProviders: [],
+  customElementsManifests: ['custom-elements.json'],
+  uiTechnologies: [],
+  componentPackages: [],
+};
+
+const twoComponentManifest: CustomElementsManifest = {
+  schemaVersion: '1.0.0',
+  modules: [
+    {
+      kind: 'javascript-module',
+      path: 'src/acme-button.ts',
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeButton',
+          customElement: true,
+          tagName: 'acme-button',
+        },
+      ],
+    },
+    {
+      kind: 'javascript-module',
+      path: 'src/acme-card.ts',
+      declarations: [
+        {
+          kind: 'class',
+          name: 'AcmeCard',
+          customElement: true,
+          tagName: 'acme-card',
+        },
+      ],
+    },
+  ],
+};
 
 function areaButtons(compiled: HTMLElement): HTMLButtonElement[] {
   return Array.from(
@@ -42,7 +93,10 @@ describe('AccessibilityReviewPage', () => {
   >;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [AccessibilityReviewPage] });
+    TestBed.configureTestingModule({
+      imports: [AccessibilityReviewPage],
+      providers: [provideRouter([])],
+    });
     workspace = TestBed.inject(WorkspaceService);
   });
 
@@ -354,5 +408,135 @@ describe('AccessibilityReviewPage', () => {
     expect(approveSpy).toHaveBeenCalledTimes(1);
     findButton(compiled, 'Discard').click();
     expect(discardSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an explicit empty state for the component-record area when no components are discovered', () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    areaButtons(compiled)[3]?.click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain(
+      'Open a workspace with real discovered components',
+    );
+  });
+
+  it('lists every real discovered component with its own real checks, not one fixed example', async () => {
+    workspace.workspaceScan.set(scan);
+    workspace.customElementsManifest.set(twoComponentManifest);
+
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    areaButtons(compiled)[3]?.click();
+    fixture.detectChanges();
+
+    const groups = compiled.querySelectorAll(
+      '.accessibility-review-page__component-group',
+    );
+    expect(groups).toHaveLength(2);
+    expect(compiled.textContent).toContain('acme-button');
+    expect(compiled.textContent).toContain('acme-card');
+    expect(compiled.textContent).toContain('0 of 2 components reviewed');
+    // Neither has a real ManualReview yet, so both are marked as needing attention.
+    const badges = compiled.querySelectorAll(
+      '.accessibility-review-page__badge--attention',
+    );
+    expect(badges).toHaveLength(2);
+    expect(compiled.textContent).toContain('Not yet reviewed');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('sorts a component with a fresh, passed real review after one with no review at all', () => {
+    workspace.workspaceScan.set(scan);
+    workspace.customElementsManifest.set(twoComponentManifest);
+    workspace.gitStatus.set({
+      branch: 'main',
+      commit: 'a'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    // acme-card already has a fresh, passed review; acme-button has none.
+    workspace.manualReviews.set([
+      {
+        id: 'r1',
+        componentVersionId: 'acme.design-system.acme-card',
+        procedureId: 'some-procedure',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: '2026-01-01T00:00:00.000Z',
+        operatingSystem: 'Windows 11',
+        status: 'passed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+    ]);
+
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    areaButtons(compiled)[3]?.click();
+    fixture.detectChanges();
+
+    const headings = Array.from(
+      compiled.querySelectorAll(
+        '.accessibility-review-page__component-group h3',
+      ),
+    ).map((h) => h.textContent ?? '');
+    expect(headings[0]).toContain('acme-button');
+    expect(headings[1]).toContain('acme-card');
+    expect(headings[1]).toContain('Reviewed');
+    expect(headings[0]).toContain('Not yet reviewed');
+  });
+
+  it('attributes a failed component-record step to the real component it checked, not the shell', () => {
+    workspace.workspaceScan.set(scan);
+    workspace.customElementsManifest.set(twoComponentManifest);
+    workspace.workspacePath.set('/repos/ForgeGate');
+    workspace.gitStatus.set({
+      branch: 'main',
+      commit: 'a'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    const saveSpy = vi
+      .spyOn(workspace, 'stageManualReview')
+      .mockResolvedValue();
+
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    fillFormField(compiled, 0, 'reviewer@example.com');
+    fillFormField(compiled, 2, 'Windows 11');
+    fillFormField(compiled, 3, 'NVDA 2025.3');
+    fixture.detectChanges();
+
+    areaButtons(compiled)[3]?.click();
+    fixture.detectChanges();
+
+    const [firstComponentSelect] = stepStatusSelects(compiled);
+    firstComponentSelect.value = 'failed';
+    firstComponentSelect.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    findButton(compiled, 'Save self-review').click();
+
+    const [savedReview] = saveSpy.mock.calls[0] ?? [];
+    const fixedStepCount = SELF_REVIEW_AREAS.reduce(
+      (sum, area) => sum + area.steps.length,
+      0,
+    );
+    expect(savedReview?.stepResults).toHaveLength(
+      fixedStepCount + COMPONENT_RECORD_CHECK_TEMPLATES.length * 2,
+    );
+    const firstComponentStep = savedReview?.stepResults?.[fixedStepCount];
+    expect(firstComponentStep?.status).toBe('failed');
+    expect(firstComponentStep?.componentId).toBeDefined();
+    expect(firstComponentStep?.componentId).not.toBe('forgegate.desktop.shell');
   });
 });

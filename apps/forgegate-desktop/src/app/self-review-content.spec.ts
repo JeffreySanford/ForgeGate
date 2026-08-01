@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  COMPONENT_RECORD_CHECK_TEMPLATES,
   SELF_REVIEW_AREAS,
+  buildComponentRecordSteps,
   flattenSelfReviewSteps,
 } from './self-review-content';
 
@@ -41,5 +43,53 @@ describe('flattenSelfReviewSteps', () => {
 
   it('returns an empty list for an empty input', () => {
     expect(flattenSelfReviewSteps([])).toEqual([]);
+  });
+
+  it('preserves extra fields (e.g. componentId) on each flattened step', () => {
+    const flat = flattenSelfReviewSteps([
+      {
+        id: 'a',
+        title: 'Area A',
+        summary: '',
+        steps: [{ action: 'do it', expected: 'works', componentId: 'x' }],
+      },
+    ]);
+    expect(flat[0]?.componentId).toBe('x');
+  });
+});
+
+describe('buildComponentRecordSteps', () => {
+  it('returns nothing when there are no real discovered components', () => {
+    expect(buildComponentRecordSteps([])).toEqual([]);
+  });
+
+  it('generates one step per check template per component, substituting the real component name', () => {
+    const steps = buildComponentRecordSteps([
+      { id: 'acme.button', name: 'Button' },
+    ]);
+    expect(steps).toHaveLength(COMPONENT_RECORD_CHECK_TEMPLATES.length);
+    for (const step of steps) {
+      expect(step.componentId).toBe('acme.button');
+      expect(step.componentName).toBe('Button');
+      expect(step.action).not.toContain('{component}');
+      expect(step.action).toContain('Button');
+    }
+  });
+
+  it('orders steps component-major: every check for component 1, then every check for component 2', () => {
+    const steps = buildComponentRecordSteps([
+      { id: 'a', name: 'Alpha' },
+      { id: 'b', name: 'Beta' },
+    ]);
+    const checksPerComponent = COMPONENT_RECORD_CHECK_TEMPLATES.length;
+    expect(steps).toHaveLength(checksPerComponent * 2);
+    expect(
+      steps
+        .slice(0, checksPerComponent)
+        .every((step) => step.componentId === 'a'),
+    ).toBe(true);
+    expect(
+      steps.slice(checksPerComponent).every((step) => step.componentId === 'b'),
+    ).toBe(true);
   });
 });

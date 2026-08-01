@@ -43,7 +43,7 @@
 
   <nav class="accessibility-review-page__areas-nav" aria-label="Review areas">
     <ol>
-      @for (area of areas; track area.id; let i = $index) {
+      @for (area of areas(); track area.id; let i = $index) {
       <li>
         <button
           type="button"
@@ -68,6 +68,86 @@
     <h2 [id]="'area-title-' + area.id">{{ area.title }}</h2>
     <p class="accessibility-review-page__area-summary">{{ area.summary }}</p>
 
+    @if (area.id === componentRecordAreaId) {
+    <!-- Repo-specific: real discovered components, not fixed content. -->
+    @if (componentReviewStatuses().length === 0) {
+    <p class="fg-empty-state">
+      Open a workspace with real discovered components to review their assurance
+      records.
+    </p>
+    } @else { @if (componentReviewCoverage(); as coverage) {
+    <p class="accessibility-review-page__coverage">
+      {{ coverage.reviewed }} of {{ coverage.total }} components reviewed so
+      far.
+    </p>
+    } @for (component of componentReviewStatuses(); track component.id; let
+    componentIndex = $index) {
+    <div class="accessibility-review-page__component-group">
+      <h3>
+        <a [routerLink]="['/components', component.id]">{{ component.name }}</a>
+        @if (component.needsAttention) {
+        <span
+          class="accessibility-review-page__badge accessibility-review-page__badge--attention"
+        >
+          {{ component.latestReviewStatus ? 'Stale review' : 'Not yet reviewed'
+          }}
+        </span>
+        } @else {
+        <span class="accessibility-review-page__badge">Reviewed</span>
+        }
+      </h3>
+      <ol class="accessibility-review-page__steps">
+        @for (checkIndex of checkIndexRange; track checkIndex) { @if
+        (componentStep(componentIndex, checkIndex); as step) {
+        <li>
+          <strong>{{ step.action }}</strong>
+          <span>Expected: {{ step.expected }}</span>
+          <label>
+            Result
+            <select
+              (change)="
+                setStepStatus(
+                  componentGlobalStepIndex(componentIndex, checkIndex),
+                  $any($event.target).value
+                )
+              "
+            >
+              @for (option of resultStatusOptions; track option) {
+              <option
+                [value]="option"
+                [selected]="
+                  option ===
+                  stepStatus(
+                    componentGlobalStepIndex(componentIndex, checkIndex)
+                  )
+                "
+              >
+                {{ option }}
+              </option>
+              }
+            </select>
+          </label>
+          <label>
+            Note
+            <input
+              type="text"
+              [value]="
+                stepNote(componentGlobalStepIndex(componentIndex, checkIndex))
+              "
+              (input)="
+                setStepNote(
+                  componentGlobalStepIndex(componentIndex, checkIndex),
+                  $any($event.target).value
+                )
+              "
+              placeholder="What did you observe?"
+            />
+          </label>
+        </li>
+        } }
+      </ol>
+    </div>
+    } } } @else {
     <ol class="accessibility-review-page__steps">
       @for (step of area.steps; track $index; let localIndex = $index) {
       <li>
@@ -115,6 +195,7 @@
       </li>
       }
     </ol>
+    }
 
     <div class="accessibility-review-page__area-nav">
       <button
@@ -126,7 +207,7 @@
       </button>
       <button
         type="button"
-        [disabled]="currentAreaIndex() === areas.length - 1"
+        [disabled]="currentAreaIndex() === areas().length - 1"
         (click)="nextArea()"
       >
         Next area

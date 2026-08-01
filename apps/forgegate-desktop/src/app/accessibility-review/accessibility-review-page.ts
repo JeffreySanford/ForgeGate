@@ -1,36 +1,65 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import type {
   ManualReview,
   ManualReviewStepResult,
 } from '@forgegate/core-evidence';
 import type { ResultStatus } from '@forgegate/core-domain';
-import { freshnessLabel } from '../evidence-freshness';
+import { ComponentInventoryService } from '../component-inventory.service';
+import { componentVersionId } from '../component-readiness';
+import { freshnessLabel, isStaleAgainstCommit } from '../evidence-freshness';
 import { FocusOnRevealDirective } from '../focus-on-reveal.directive';
 import { RESULT_STATUS_OPTIONS, worstStatus } from '../manual-review-status';
 import {
+  buildComponentRecordSteps,
+  COMPONENT_RECORD_AREA_ID,
+  COMPONENT_RECORD_AREA_SUMMARY,
+  COMPONENT_RECORD_AREA_TITLE,
+  COMPONENT_RECORD_CHECK_TEMPLATES,
   FORGEGATE_SHELL_COMPONENT_ID,
   FORGEGATE_SHELL_PROCEDURE_ID,
   FORGEGATE_SHELL_PROCEDURE_VERSION,
   SELF_REVIEW_AREAS,
   flattenSelfReviewSteps,
+  type SelfReviewArea,
 } from '../self-review-content';
 import { WorkspaceService } from '../workspace.service';
+
+/** A discovered component annotated with whether it still needs a human look. */
+interface ComponentReviewStatus {
+  readonly id: string;
+  readonly name: string;
+  readonly needsAttention: boolean;
+  readonly latestReviewStatus: ResultStatus | null;
+}
+
+const CHECKS_PER_COMPONENT = COMPONENT_RECORD_CHECK_TEMPLATES.length;
 
 /**
  * A guided self-review of ForgeGate's own shell — the one manual
  * accessibility gate (TODO.md P0.7) no agent can complete. Walks a
- * reviewer (designer or accessibility specialist) through
- * `SELF_REVIEW_AREAS` one real area at a time with NVDA/JAWS/VoiceOver
- * running, records a real per-step result for each, and stages/diffs/
- * approves the resulting `ManualReview` through the exact same
- * `WorkspaceService.stageManualReview`/`approveStagedManualReview`
+ * reviewer (designer or accessibility specialist) through the fixed
+ * `SELF_REVIEW_AREAS` (shell, workspace, inventory — identical regardless
+ * of which repository is open) plus a fourth, repo-specific area built from
+ * whatever the currently open workspace actually discovered
+ * (`buildComponentRecordSteps`), records a real per-step result for each,
+ * and stages/diffs/approves the resulting `ManualReview` through the exact
+ * same `WorkspaceService.stageManualReview`/`approveStagedManualReview`
  * mechanism `ManualReviewWalkthrough` uses for a target repo's component —
  * this is not a separate, bespoke persistence path.
  *
- * Because this reviews ForgeGate's own shell rather than a component
- * discovered in some workspace's inventory, it records a synthetic, real,
- * disclosed `componentVersionId` (`FORGEGATE_SHELL_COMPONENT_ID`) rather
- * than fabricating a component that doesn't exist. Saving still requires a
+ * The fourth area's component list is sorted so components with no real
+ * `ManualReview` yet, or a stale one, sort first — a component with a
+ * fresh, passed review doesn't need another human look right now, so the
+ * reviewer's limited time is spent where it's actually missing. Nothing is
+ * hidden, only reordered: a large repo still shows every component.
+ *
+ * Because reviewing ForgeGate's own shell itself isn't about any one
+ * component, the overall review records a synthetic, real, disclosed
+ * `componentVersionId` (`FORGEGATE_SHELL_COMPONENT_ID`) — but each
+ * component-record step carries its own real `componentId`, so a failed
+ * check is attributed to the actual component reviewed, not lumped onto
+ * the shell (`manual-review-findings.ts`). Saving still requires a
  * workspace to be open, since staging writes into `.forgegate/` under
  * whatever workspace path is current — the intended flow is to open
  * ForgeGate's own repository as that workspace, so the resulting evidence
@@ -39,19 +68,84 @@ import { WorkspaceService } from '../workspace.service';
  */
 @Component({
   selector: 'app-accessibility-review-page',
-  imports: [FocusOnRevealDirective],
+  imports: [FocusOnRevealDirective, RouterLink],
   templateUrl: './accessibility-review-page.html',
   styleUrl: './accessibility-review-page.css',
 })
 export class AccessibilityReviewPage {
   protected readonly workspace = inject(WorkspaceService);
-  protected readonly areas = SELF_REVIEW_AREAS;
+  private readonly inventory = inject(ComponentInventoryService);
   protected readonly resultStatusOptions = RESULT_STATUS_OPTIONS;
-  private readonly flatSteps = flattenSelfReviewSteps(SELF_REVIEW_AREAS);
+  protected readonly checksPerComponent = CHECKS_PER_COMPONENT;
+  protected readonly checkIndexRange = Array.from(
+    { length: CHECKS_PER_COMPONENT },
+    (_, i) => i,
+  );
+  protected readonly componentRecordAreaId = COMPONENT_RECORD_AREA_ID;
+
+  /**
+   * Every real discovered component, annotated with whether it still needs
+   * a human look (no `ManualReview` yet, or the most recent one is stale
+   * against the current commit), sorted so those come first.
+   */
+  protected readonly componentReviewStatuses = computed<
+    readonly ComponentReviewStatus[]
+  >(() => {
+    const manifests = this.inventory.result().manifests;
+    const reviews = this.workspace.manualReviews();
+    const commit = this.workspace.gitStatus()?.commit;
+    const withStatus = manifests.map((manifest) => {
+      const versionId = componentVersionId(manifest);
+      const matching = reviews.filter(
+        (review) => review.componentVersionId === versionId,
+      );
+      const latest =
+        matching.length > 0
+          ? [...matching].sort((a, b) => b.date.localeCompare(a.date))[0]
+          : null;
+      const needsAttention =
+        !latest ||
+        isStaleAgainstCommit(latest.commitOrFingerprint, commit) ||
+        latest.status !== 'passed';
+      return {
+        id: manifest.id,
+        name: this.componentName(manifest.id),
+        needsAttention,
+        latestReviewStatus: latest?.status ?? null,
+      };
+    });
+    return [...withStatus].sort(
+      (a, b) => Number(b.needsAttention) - Number(a.needsAttention),
+    );
+  });
+
+  protected readonly componentRecordSteps = computed(() =>
+    buildComponentRecordSteps(this.componentReviewStatuses()),
+  );
+
+  private readonly componentRecordArea = computed<SelfReviewArea>(() => ({
+    id: COMPONENT_RECORD_AREA_ID,
+    title: COMPONENT_RECORD_AREA_TITLE,
+    summary: COMPONENT_RECORD_AREA_SUMMARY,
+    steps: this.componentRecordSteps(),
+  }));
+
+  protected readonly areas = computed<readonly SelfReviewArea[]>(() => [
+    ...SELF_REVIEW_AREAS,
+    this.componentRecordArea(),
+  ]);
+
+  protected readonly componentRecordAreaIndex = computed(
+    () => this.areas().length - 1,
+  );
+
+  private readonly flatSteps = computed(() =>
+    flattenSelfReviewSteps(this.areas()),
+  );
 
   protected readonly currentAreaIndex = signal(0);
   protected readonly currentArea = computed(
-    () => this.areas[this.currentAreaIndex()],
+    () => this.areas()[this.currentAreaIndex()],
   );
 
   /**
@@ -99,8 +193,40 @@ export class AccessibilityReviewPage {
   protected readonly overallStatus = computed<ResultStatus>(() => {
     const statuses = this.stepStatuses();
     return worstStatus(
-      this.flatSteps.map((_, index) => statuses[index] ?? 'unknown'),
+      this.flatSteps().map((_, index) => statuses[index] ?? 'unknown'),
     );
+  });
+
+  /** How many of the real discovered components have had every one of
+   * their steps recorded (not left at the default "unknown"). Disclosed,
+   * not enforced — saving is never blocked on full coverage. */
+  protected readonly componentReviewCoverage = computed<{
+    readonly reviewed: number;
+    readonly total: number;
+  } | null>(() => {
+    const components = this.componentReviewStatuses();
+    if (components.length === 0) {
+      return null;
+    }
+    const statuses = this.stepStatuses();
+    const areaIndex = this.componentRecordAreaIndex();
+    let reviewed = 0;
+    components.forEach((_, componentIndex) => {
+      const allRecorded = Array.from(
+        { length: CHECKS_PER_COMPONENT },
+        (_, checkIndex) =>
+          this.globalStepIndex(
+            areaIndex,
+            componentIndex * CHECKS_PER_COMPONENT + checkIndex,
+          ),
+      ).every(
+        (globalIndex) => (statuses[globalIndex] ?? 'unknown') !== 'unknown',
+      );
+      if (allRecorded) {
+        reviewed++;
+      }
+    });
+    return { reviewed, total: components.length };
   });
 
   protected readonly canSave = computed<boolean>(
@@ -139,15 +265,16 @@ export class AccessibilityReviewPage {
 
   /** The global step index a given area's local step index maps to. */
   protected globalStepIndex(areaIndex: number, localStepIndex: number): number {
+    const areas = this.areas();
     let offset = 0;
     for (let i = 0; i < areaIndex; i++) {
-      offset += this.areas[i]?.steps.length ?? 0;
+      offset += areas[i]?.steps.length ?? 0;
     }
     return offset + localStepIndex;
   }
 
   protected goToArea(index: number): void {
-    if (index >= 0 && index < this.areas.length) {
+    if (index >= 0 && index < this.areas().length) {
       this.currentAreaIndex.set(index);
     }
   }
@@ -179,6 +306,27 @@ export class AccessibilityReviewPage {
     return this.stepNotes()[globalIndex] ?? '';
   }
 
+  protected componentName(id: string): string {
+    const parts = id.split('.');
+    return parts[parts.length - 1] ?? id;
+  }
+
+  protected componentStep(componentIndex: number, checkIndex: number) {
+    return this.componentRecordSteps()[
+      componentIndex * CHECKS_PER_COMPONENT + checkIndex
+    ];
+  }
+
+  protected componentGlobalStepIndex(
+    componentIndex: number,
+    checkIndex: number,
+  ): number {
+    return this.globalStepIndex(
+      this.componentRecordAreaIndex(),
+      componentIndex * CHECKS_PER_COMPONENT + checkIndex,
+    );
+  }
+
   protected save(): void {
     this.saveAttempted.set(true);
     if (!this.canSave()) {
@@ -187,13 +335,14 @@ export class AccessibilityReviewPage {
     const commit = this.workspace.gitStatus()?.commit ?? 'unknown';
     const statuses = this.stepStatuses();
     const notes = this.stepNotes();
-    const stepResults: ManualReviewStepResult[] = this.flatSteps.map(
+    const stepResults: ManualReviewStepResult[] = this.flatSteps().map(
       (step, index) => ({
         stepIndex: index,
         action: step.action,
         expected: step.expected,
         status: statuses[index] ?? 'unknown',
         ...(notes[index]?.trim() ? { note: notes[index].trim() } : {}),
+        ...(step.componentId ? { componentId: step.componentId } : {}),
       }),
     );
     const review: ManualReview = {

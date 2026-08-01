@@ -1,16 +1,24 @@
 /**
- * Fixed, hand-authored content for a guided self-review of ForgeGate's own
- * shell — the one manual accessibility gate (TODO.md P0.7) that genuinely
- * cannot be completed by an agent. This is not discovered or scanned data;
- * it names ForgeGate's own real, shipped surfaces and the concrete keyboard
- * and screen-reader checks each one needs, so a reviewer (designer or
- * accessibility specialist) can walk through them with NVDA/JAWS/VoiceOver
- * running rather than inventing a checklist from scratch.
+ * Content for a guided self-review of ForgeGate's own shell — the one
+ * manual accessibility gate (TODO.md P0.7) that genuinely cannot be
+ * completed by an agent.
+ *
+ * Three areas below (`SELF_REVIEW_AREAS`) are fixed, hand-authored content:
+ * they name ForgeGate's own real, shipped shell surfaces (nav, workspace
+ * command center, inventory), which are identical regardless of which
+ * repository is open, so a static checklist is honest here. The fourth
+ * area — "Component assurance records" — is deliberately NOT fixed
+ * content: which components exist, and how many, is entirely repo-specific,
+ * so `buildComponentRecordSteps` generates real per-component checks from
+ * whatever the currently open workspace actually discovered, rather than
+ * naming one example component as a stand-in for all of them.
  */
 
 export interface SelfReviewStep {
   readonly action: string;
   readonly expected: string;
+  /** Set only for a component-record step — which real component it checks. */
+  readonly componentId?: string;
 }
 
 export interface SelfReviewArea {
@@ -102,30 +110,6 @@ export const SELF_REVIEW_AREAS: readonly SelfReviewArea[] = [
       },
     ],
   },
-  {
-    id: 'component-record',
-    title: 'A component assurance record',
-    summary: "One real component's full record — for example, the Button.",
-    steps: [
-      {
-        action:
-          "Open a real component's assurance record (for example, the Button) and tab through its readiness rail, states, anatomy, and contract sections.",
-        expected:
-          'Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.',
-      },
-      {
-        action: 'Tab into and then back out of the embedded Storybook preview.',
-        expected:
-          'Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.',
-      },
-      {
-        action:
-          'Fill out and save a manual review using only the keyboard and screen reader.',
-        expected:
-          'Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.',
-      },
-    ],
-  },
 ];
 
 /**
@@ -133,14 +117,80 @@ export const SELF_REVIEW_AREAS: readonly SelfReviewArea[] = [
  * area's title so the resulting flat `ManualReview.stepResults` stays
  * self-describing even when read outside the app (plain JSON has no
  * separate "area" field, so the grouping lives in the action text itself).
+ * Generic over the step type so extra fields (e.g. a component-record
+ * step's `componentId`) survive the flatten rather than being dropped.
  */
-export function flattenSelfReviewSteps(
-  areas: readonly SelfReviewArea[],
-): readonly SelfReviewStep[] {
+export function flattenSelfReviewSteps<T extends SelfReviewStep>(
+  areas: readonly (Omit<SelfReviewArea, 'steps'> & { steps: readonly T[] })[],
+): readonly T[] {
   return areas.flatMap((area) =>
     area.steps.map((step) => ({
+      ...step,
       action: `[${area.title}] ${step.action}`,
-      expected: step.expected,
+    })),
+  );
+}
+
+export const COMPONENT_RECORD_AREA_ID = 'component-record';
+export const COMPONENT_RECORD_AREA_TITLE = 'Component assurance records';
+export const COMPONENT_RECORD_AREA_SUMMARY =
+  'Every real component this workspace discovered — not one example standing in for the rest.';
+
+export interface ComponentRecordCheckTemplate {
+  /** Contains the literal placeholder `{component}`, substituted with each real component's own display name. */
+  readonly action: string;
+  readonly expected: string;
+}
+
+export const COMPONENT_RECORD_CHECK_TEMPLATES: readonly ComponentRecordCheckTemplate[] =
+  [
+    {
+      action:
+        "Open {component}'s assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      expected:
+        'Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.',
+    },
+    {
+      action:
+        "Tab into and then back out of the embedded Storybook preview on {component}'s record.",
+      expected:
+        'Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.',
+    },
+    {
+      action:
+        'Fill out and save a manual review for {component} using only the keyboard and screen reader.',
+      expected:
+        'Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.',
+    },
+  ];
+
+export interface DiscoveredComponentRef {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface ComponentRecordStep extends SelfReviewStep {
+  readonly componentId: string;
+  readonly componentName: string;
+}
+
+/**
+ * Generates real, repo-specific review steps: `COMPONENT_RECORD_CHECK_TEMPLATES`
+ * repeated once per real discovered component, each with `{component}`
+ * substituted for that component's own name. Order is component-major
+ * (every check for component 1, then every check for component 2, ...),
+ * which `AccessibilityReviewPage` relies on to group the rendered list and
+ * compute per-component review coverage.
+ */
+export function buildComponentRecordSteps(
+  components: readonly DiscoveredComponentRef[],
+): readonly ComponentRecordStep[] {
+  return components.flatMap((component) =>
+    COMPONENT_RECORD_CHECK_TEMPLATES.map((template) => ({
+      componentId: component.id,
+      componentName: component.name,
+      action: template.action.replace('{component}', component.name),
+      expected: template.expected,
     })),
   );
 }

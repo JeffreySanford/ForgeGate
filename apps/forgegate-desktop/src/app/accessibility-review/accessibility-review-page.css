@@ -69,6 +69,37 @@
   margin: 0;
 }
 
+.accessibility-review-page__coverage {
+  font-weight: 600;
+  margin: 0;
+}
+
+.accessibility-review-page__component-group {
+  display: grid;
+  gap: var(--fg-space-2);
+}
+
+.accessibility-review-page__component-group h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--fg-space-2);
+  font-size: var(--fg-type-size-md);
+  margin: 0;
+}
+
+.accessibility-review-page__badge {
+  padding: 0 var(--fg-space-2);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-status-passed);
+  color: var(--fg-color-text-inverse);
+  font-size: var(--fg-type-size-sm);
+  font-weight: 600;
+}
+
+.accessibility-review-page__badge--attention {
+  background: var(--fg-color-status-warning);
+}
+
 .accessibility-review-page__steps {
   display: grid;
   gap: var(--fg-space-2);

@@ -70,6 +70,14 @@ export interface ManualReviewStepResult {
   readonly expected: string;
   readonly status: ResultStatus;
   readonly note?: string;
+  /**
+   * The specific real component this step actually reviewed, when a review
+   * covers more than one component (e.g. a self-review walking every
+   * discovered component's own assurance record). Optional and honestly
+   * absent for a review scoped to a single subject throughout — most
+   * `ManualReview`s still won't set this.
+   */
+  readonly componentId?: string;
 }
 
 /** One execution of a manual procedure in a specific environment, per documentation/07-compliance-testing.md ("Manual result model"). */
