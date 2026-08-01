@@ -825,6 +825,8 @@ authoring:
       require: accessibleLabel
 ```
 
+**Implementation status.** A real, versioned `Blueprint` type, JSON Schema, and YAML parser exist (`packages/core/manifest/src/lib/blueprint.ts`/`schemas.ts`/`blueprint-yaml.ts`), matching this example's shape directly: `inspectorGroups` (with `path`/`label`/`control`/`options`/`required`), `tokenSlots` (`id`/`label`/`types`/`required`/`visibleWhen`), and `constraints` (`when`/`require`). `id`/`version` are the blueprint's own identity, independent of any proposal. A real example (`fixtures/acme-button-library/.forgegate/blueprints/blueprint.button.yaml`) parses and validates. Deliberately narrower than the full list above: no `contract`/`anatomy`/`fixtures`/`coverage`/`generation` sections (those belong to the _proposal_ document above, a separate type that does not exist yet), and no workspace discovery or Studio UI wiring — this is the type/schema/parser only.
+
 ## Adapter capability contract
 
 Framework adapters must advertise authoring support honestly.
@@ -856,6 +858,8 @@ Each capability includes:
 - Fixture coverage
 
 Blueprint Studio hides or disables unsupported actions and explains why. It must never imply that visual authoring guarantees complete framework output.
+
+**Implementation status.** The contract itself is real: `AdapterGenerationCapabilityDeclaration` (`packages/adapters/sdk/src/lib/generation-capability.ts`) defines exactly these 11 capabilities plus `unsupported`/`experimental`/`partial`/`supported` support levels, with `createUnsupportedGenerationCapabilityDeclaration` as a reusable honest default. The Web Components adapter's concrete declaration reports every one of them `unsupported`, which is the truth today — it only detects and parses existing components, with no generation pipeline at all. Not yet wired into any UI, since Blueprint Studio itself does not exist yet to consume it, and not yet declared by any other adapter (there is currently only the one).
 
 ## Figma and design-tool relationship
 
