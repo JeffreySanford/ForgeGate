@@ -169,7 +169,7 @@ Mitigation:
 - Build accessibility into the desktop UI.
 - Add automated and manual testing.
 - Support keyboard, screen readers, forced colors, zoom, and reduced motion.
-- Dogfood ForgeGate.
+- Dogfood ForgeGate. **Real as of the accessibility axis**: `/accessibility-review` guides and records a real manual screen-reader pass against ForgeGate's own shell (see documentation/01 principle 16, documentation/09). The pass itself still has not been performed by anyone — the mechanism exists, the evidence does not yet.
 
 ## Federal and regulated-buyer risks
 
@@ -255,7 +255,7 @@ These are real open questions but are explicitly not required to start Phase 1 a
 
 - Final pricing
 - Open-source versus proprietary license text (direction is recorded; exact terms are not)
-- React versus Web Components as the *second* adapter after the first two are settled
+- React versus Web Components as the _second_ adapter after the first two are settled
 - Evidence signing
 - Zeroheight write capabilities
 - Cloud collaboration

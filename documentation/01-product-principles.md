@@ -128,3 +128,5 @@ Generation should use temporary output, deterministic templates, protected exten
 ## 16. ForgeGate must dogfood its own standards
 
 ForgeGate’s desktop UI and component library should be governed through ForgeGate as soon as the product can support that workflow. The product should demonstrate its own accessibility, evidence freshness, documentation, and release gates.
+
+**Implementation status.** The first real slice is accessibility: `AccessibilityReviewPage` (`/accessibility-review`) guides a reviewer through ForgeGate's own shell, workspace, inventory, and component-record surfaces with NVDA/JAWS/VoiceOver, then stages/approves the result as a real `ManualReview` into ForgeGate's own `.forgegate/` history through the same mechanism used for any target-repo component (documentation/09's "Implementation status" under "Procedure model" has the full writeup). Evidence freshness, documentation, and release gates applied to ForgeGate's own shell are not started — this principle is not yet demonstrated end-to-end, only on its first, narrowest axis.
