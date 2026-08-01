@@ -862,16 +862,16 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 
 ## Generation workflow
 
-- [ ] Generate into temporary workspace.
-- [ ] Show file-by-file changes.
-- [ ] Show unified diff.
-- [ ] Detect existing files.
-- [ ] Prevent accidental overwrite.
-- [ ] Support protected user-authored regions where appropriate.
-- [ ] Support dry run.
-- [ ] Support rollback.
+- [X} Generate into temporary workspace. `staged_write.rs`'s `stage_evidence_write`/`stage_relative_write` write into `.forgegate/.staging/<staging-id>/...`, never the real target, until an explicit approval.
+- [X} Show file-by-file changes. Each staged write shows its own real previous-vs-new content in the approval UI (`ManualReviewWalkthrough`, `StarlightPageGenerator`), one panel per file for a multi-file registry generation.
+- [ ] Show unified diff. Not implemented as a real unified-diff format (`+`/`-` line markers) — today's UI shows full previous and new content side by side, not a computed line-level diff.
+- [X} Detect existing files. `stage_evidence_write`/`stage_relative_write` read the real target path and capture its content (or `None`) before staging.
+- [ ] Prevent accidental overwrite. No conflict detection — nothing flags if the real target changed between staging and approval.
+- [X} Support protected user-authored regions where appropriate. Real for Starlight generation: a regenerated page's `{/* forgegate:user-content:start/end overview */}` section is read back and preserved rather than overwritten.
+- [X} Support dry run. Staging itself is a real dry run — nothing is written to the real target until an explicit "Approve" action; "Discard" drops the staged write entirely.
+- [X} Support rollback. `rollback_committed_write`/`rollback_relative_write` restore a real file's previous content (or remove it, if the write had created it), undoing an already-approved write. Tested but not yet wired to a frontend "undo after approval" button.
 - [ ] Run formatter after user approval.
-- [ ] Run targeted tests after writing.
+- [ ] Run targeted tests after writing. Starlight generation runs a real post-approval build validation (`commandMappings.starlightBuild`) when configured, but that's build validation, not targeted test execution.
 - [ ] Report partial failures.
 
 ## Generated artifacts
