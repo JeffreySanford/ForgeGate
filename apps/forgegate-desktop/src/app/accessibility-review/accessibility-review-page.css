@@ -179,6 +179,33 @@
   cursor: not-allowed;
 }
 
+.accessibility-review-page__required-hint {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  margin: 0;
+}
+
+.accessibility-review-page__form input[aria-invalid='true'] {
+  border-color: var(--fg-color-status-failed);
+}
+
+.accessibility-review-page__missing {
+  padding: var(--fg-space-3);
+  border: 1px solid var(--fg-color-status-failed);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface-subtle);
+}
+
+.accessibility-review-page__missing p {
+  margin: 0 0 var(--fg-space-1);
+  font-weight: 600;
+}
+
+.accessibility-review-page__missing ul {
+  margin: 0;
+  padding-left: var(--fg-space-4);
+}
+
 .accessibility-review-page__staged {
   display: grid;
   gap: var(--fg-space-2);

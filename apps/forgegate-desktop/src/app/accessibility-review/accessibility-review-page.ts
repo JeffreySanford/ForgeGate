@@ -5,6 +5,7 @@ import type {
 } from '@forgegate/core-evidence';
 import type { ResultStatus } from '@forgegate/core-domain';
 import { freshnessLabel } from '../evidence-freshness';
+import { FocusOnRevealDirective } from '../focus-on-reveal.directive';
 import { RESULT_STATUS_OPTIONS, worstStatus } from '../manual-review-status';
 import {
   FORGEGATE_SHELL_COMPONENT_ID,
@@ -38,6 +39,7 @@ import { WorkspaceService } from '../workspace.service';
  */
 @Component({
   selector: 'app-accessibility-review-page',
+  imports: [FocusOnRevealDirective],
   templateUrl: './accessibility-review-page.html',
   styleUrl: './accessibility-review-page.css',
 })
@@ -109,6 +111,32 @@ export class AccessibilityReviewPage {
       this.assistiveTechnology().trim().length > 0,
   );
 
+  /**
+   * What's stopping Save from succeeding right now, in plain language. A
+   * disabled button with no explanation tells a keyboard/screen-reader user
+   * nothing — the whole point of this page is to catch exactly that kind of
+   * failure, so it can't ship one itself. Shown only after a real attempt
+   * (`saveAttempted`), not proactively on every keystroke.
+   */
+  protected readonly missingRequirements = computed<readonly string[]>(() => {
+    const missing: string[] = [];
+    if (!this.workspace.workspacePath()) {
+      missing.push('Open a workspace (use "Open workspace…" above).');
+    }
+    if (!this.reviewerIdentity().trim()) {
+      missing.push('Enter your reviewer identity.');
+    }
+    if (!this.operatingSystem().trim()) {
+      missing.push('Enter the operating system.');
+    }
+    if (!this.assistiveTechnology().trim()) {
+      missing.push('Enter the assistive technology you used.');
+    }
+    return missing;
+  });
+
+  protected readonly saveAttempted = signal(false);
+
   /** The global step index a given area's local step index maps to. */
   protected globalStepIndex(areaIndex: number, localStepIndex: number): number {
     let offset = 0;
@@ -152,6 +180,7 @@ export class AccessibilityReviewPage {
   }
 
   protected save(): void {
+    this.saveAttempted.set(true);
     if (!this.canSave()) {
       return;
     }

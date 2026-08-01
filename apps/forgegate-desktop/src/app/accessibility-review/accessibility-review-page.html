@@ -141,10 +141,18 @@
   </p>
 
   <div class="accessibility-review-page__form">
+    <p class="accessibility-review-page__required-hint">
+      <span aria-hidden="true">*</span> Required
+    </p>
     <label>
-      Reviewer identity
+      Reviewer identity <span aria-hidden="true">*</span
+      ><span class="sr-only"> (required)</span>
       <input
         type="text"
+        required
+        [attr.aria-invalid]="
+          saveAttempted() && !reviewerIdentity().trim() ? 'true' : null
+        "
         [value]="reviewerIdentity()"
         (input)="reviewerIdentity.set($any($event.target).value)"
         placeholder="name@example.com"
@@ -160,18 +168,28 @@
       />
     </label>
     <label>
-      Operating system
+      Operating system <span aria-hidden="true">*</span
+      ><span class="sr-only"> (required)</span>
       <input
         type="text"
+        required
+        [attr.aria-invalid]="
+          saveAttempted() && !operatingSystem().trim() ? 'true' : null
+        "
         [value]="operatingSystem()"
         (input)="operatingSystem.set($any($event.target).value)"
         placeholder="Windows 11"
       />
     </label>
     <label>
-      Assistive technology
+      Assistive technology <span aria-hidden="true">*</span
+      ><span class="sr-only"> (required)</span>
       <input
         type="text"
+        required
+        [attr.aria-invalid]="
+          saveAttempted() && !assistiveTechnology().trim() ? 'true' : null
+        "
         [value]="assistiveTechnology()"
         (input)="assistiveTechnology.set($any($event.target).value)"
         placeholder="NVDA 2025.3"
@@ -187,14 +205,28 @@
 
     <button
       type="button"
-      [disabled]="!canSave() || !!workspace.stagedManualReview()"
+      [disabled]="workspace.saveManualReviewRunning() || !!workspace.stagedManualReview()"
       (click)="save()"
     >
       {{ workspace.saveManualReviewRunning() ? 'Staging…' : 'Save self-review'
       }}
     </button>
 
-    @if (workspace.saveManualReviewResult(); as result) {
+    @if (saveAttempted() && missingRequirements().length) {
+    <div
+      class="accessibility-review-page__missing"
+      role="alert"
+      tabindex="-1"
+      appFocusOnReveal
+    >
+      <p>Before you can save, please:</p>
+      <ul>
+        @for (requirement of missingRequirements(); track requirement) {
+        <li>{{ requirement }}</li>
+        }
+      </ul>
+    </div>
+    } @if (workspace.saveManualReviewResult(); as result) {
     <p role="status">Self-review saved to <code>{{ result.path }}</code></p>
     } @if (workspace.saveManualReviewError(); as error) {
     <p role="alert">Failed to stage self-review: {{ error }}</p>

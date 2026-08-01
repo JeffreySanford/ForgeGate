@@ -109,13 +109,54 @@ describe('AccessibilityReviewPage', () => {
     expect(stepStatusSelects(compiled)[0]?.value).toBe('passed');
   });
 
-  it('disables saving until a workspace is open and reviewer identity/environment are entered', () => {
+  it('marks every required field with a visible and screen-reader-readable indicator', () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const requiredInputs = compiled.querySelectorAll(
+      '.accessibility-review-page__form input[required]',
+    );
+    expect(requiredInputs).toHaveLength(3);
+    expect(compiled.textContent).toContain('Required');
+  });
+
+  it('the Save button stays clickable when fields are missing, and clicking it explains exactly what to fix', () => {
     fixture = TestBed.createComponent(AccessibilityReviewPage);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
     const saveButton = findButton(compiled, 'Save self-review');
-    expect(saveButton.disabled).toBe(true);
+    expect(saveButton.disabled).toBe(false);
+    expect(compiled.querySelector('[role="alert"]')).toBeNull();
+
+    saveButton.click();
+    fixture.detectChanges();
+
+    const alert = compiled.querySelector(
+      '.accessibility-review-page__missing[role="alert"]',
+    );
+    expect(alert).not.toBeNull();
+    expect(alert?.textContent).toContain('Open a workspace');
+    expect(alert?.textContent).toContain('Enter your reviewer identity');
+    expect(alert?.textContent).toContain('Enter the operating system');
+    expect(alert?.textContent).toContain(
+      'Enter the assistive technology you used',
+    );
+    // Nothing was staged — the workspace service was never asked to save.
+    expect(workspace.stagedManualReview()).toBeNull();
+  });
+
+  it('the missing-requirements list shrinks as each real field is filled in, and disappears once everything is', () => {
+    fixture = TestBed.createComponent(AccessibilityReviewPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    findButton(compiled, 'Save self-review').click();
+    fixture.detectChanges();
+    expect(
+      compiled.querySelector('.accessibility-review-page__missing'),
+    ).not.toBeNull();
 
     workspace.workspacePath.set('/repos/ForgeGate');
     fillFormField(compiled, 0, 'reviewer@example.com');
@@ -123,7 +164,9 @@ describe('AccessibilityReviewPage', () => {
     fillFormField(compiled, 3, 'NVDA 2025.3');
     fixture.detectChanges();
 
-    expect(findButton(compiled, 'Save self-review').disabled).toBe(false);
+    expect(
+      compiled.querySelector('.accessibility-review-page__missing'),
+    ).toBeNull();
   });
 
   it('saves a real ManualReview with a disclosed synthetic component id and every flattened step', () => {
