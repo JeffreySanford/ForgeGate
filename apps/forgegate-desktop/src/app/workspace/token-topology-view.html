@@ -90,7 +90,37 @@
   <p>
     Every token path is defined in all {{ coverage.siblings.length }} groups.
   </p>
-  } }
+  } } @if (hardCodedValues().length) {
+  <h3>Hard-coded implementation values</h3>
+  <p class="token-topology-view__caveat">
+    A real token's exact literal value found written directly in Angular
+    component source instead of referenced. Scoped to Angular source-scanned
+    components today — Web Components read no source text, only a Custom
+    Elements Manifest.
+  </p>
+  <table>
+    <caption class="sr-only">
+      Token literal values found hard-coded in component source
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Token</th>
+        <th scope="col">Value</th>
+        <th scope="col">Found in</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (finding of hardCodedValues(); track finding.tokenPath +
+      finding.sourceFile) {
+      <tr>
+        <th scope="row"><code>{{ finding.tokenPath }}</code></th>
+        <td><code>{{ finding.resolvedValue }}</code></td>
+        <td><code>{{ finding.sourceFile }}</code></td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  }
 
   <h3>Component token consumption</h3>
   @if (entries().length === 0) {
@@ -99,9 +129,8 @@
   </p>
   } @else {
   <p class="token-topology-view__caveat">
-    Which components consume which repository-authored token. Hard-coded
-    implementation-value detection and anatomy/state linkage are not implemented
-    yet.
+    Which components consume which repository-authored token. Anatomy/state
+    linkage is shown when a repository authors it.
   </p>
   <table>
     <caption class="sr-only">

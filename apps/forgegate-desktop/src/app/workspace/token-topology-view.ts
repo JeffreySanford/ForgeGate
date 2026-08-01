@@ -6,6 +6,7 @@ import {
   resolveDtcgAliases,
   topLevelGroups,
 } from '../dtcg-tokens';
+import { findHardCodedTokenValues } from '../hard-coded-token-values';
 import { ComponentInventoryService } from '../component-inventory.service';
 import { WorkspaceService } from '../workspace.service';
 
@@ -16,9 +17,12 @@ import { WorkspaceService } from '../workspace.service';
  * coverage across sibling groups.
  *
  * Coverage is computed structurally rather than from a vendor extension;
- * see `computeGroupCoverage`. Hard-coded implementation-value detection is
- * still not shown — it needs comparing tokens against component source,
- * a different capability from parsing the token file. Anatomy/state
+ * see `computeGroupCoverage`. Hard-coded implementation-value detection
+ * (`findHardCodedTokenValues`) scans real Angular component source text
+ * already read for component discovery — it is honestly scoped to Angular
+ * source-scanned components only, since that is the only source text this
+ * app retains today; CEM-backed Web Components read no source text at all
+ * (see `WorkspaceService.angularComponentSourceFiles`). Anatomy/state
  * linkage is shown when a repository authors it (`ManifestTokenMapping`'s
  * optional `stateName`/`anatomyPartId`), and honestly absent otherwise —
  * most existing mappings still won't have it, since it's new.
@@ -77,6 +81,18 @@ export class TokenTopologyView {
       .map((group) => computeGroupCoverage(tokens, group))
       .filter((coverage) => coverage.siblings.length > 1);
   });
+
+  /**
+   * Hard-coded implementation values: real token literals found written
+   * directly into Angular component source rather than referenced. See the
+   * class doc comment for why this is scoped to Angular source only.
+   */
+  protected readonly hardCodedValues = computed(() =>
+    findHardCodedTokenValues(
+      this.resolvedTokens(),
+      this.workspace.angularComponentSourceFiles(),
+    ),
+  );
 
   protected componentName(id: string): string {
     const parts = id.split('.');

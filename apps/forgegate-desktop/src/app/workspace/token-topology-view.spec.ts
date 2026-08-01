@@ -214,6 +214,55 @@ describe('TokenTopologyView', () => {
     await expectNoAccessibilityViolations(compiled);
   });
 
+  it('reports a real hard-coded token value found in Angular component source', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.designTokens.set([
+      { path: 'color.action', type: 'color', value: '#3366cc' },
+    ]);
+    workspaceService.angularComponentSourceFiles.set([
+      {
+        path: 'src/acme-button.component.ts',
+        contents: `styles = { color: '#3366cc' };`,
+      },
+    ]);
+
+    const fixture = TestBed.createComponent(TokenTopologyView);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('Hard-coded implementation values');
+    expect(text).toContain('color.action');
+    expect(text).toContain('#3366cc');
+    expect(text).toContain('src/acme-button.component.ts');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('does not show the hard-coded-values section when no source matches a token literal', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.designTokens.set([
+      { path: 'color.action', type: 'color', value: '#3366cc' },
+    ]);
+    workspaceService.angularComponentSourceFiles.set([
+      { path: 'src/acme-button.component.ts', contents: `color: '#ffffff'` },
+    ]);
+
+    const fixture = TestBed.createComponent(TokenTopologyView);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).not.toContain(
+      'Hard-coded implementation values',
+    );
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
   it('reports real theme coverage gaps between sibling groups', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

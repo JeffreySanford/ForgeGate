@@ -519,6 +519,15 @@ export class WorkspaceService {
     [],
   );
   readonly angularComponentsError = signal<string | null>(null);
+  /**
+   * The raw TypeScript source text read to discover Angular components,
+   * retained (not just parsed and discarded) so hard-coded token-value
+   * detection can scan real component source without a second batched read.
+   * Empty when no Angular source files exist in the workspace.
+   */
+  readonly angularComponentSourceFiles = signal<
+    readonly { readonly path: string; readonly contents: string }[]
+  >([]);
   readonly storybookIndex = signal<StorybookIndex | null>(null);
   readonly storybookIndexError = signal<string | null>(null);
   /** The Storybook adapter's "live server query" capability
@@ -1273,6 +1282,7 @@ export class WorkspaceService {
     scan: WorkspaceScan,
   ): Promise<void> {
     this.angularComponents.set([]);
+    this.angularComponentSourceFiles.set([]);
     const typescriptFiles = (scan.uiSourceFiles ?? []).filter((path) =>
       path.endsWith('.ts'),
     );
@@ -1287,6 +1297,7 @@ export class WorkspaceService {
       const { declarations, scannedFileCount } =
         discoverAngularComponents(files);
       this.angularComponents.set(declarations);
+      this.angularComponentSourceFiles.set(files);
       this.setAdapterDiagnostic({
         id: 'angular-components',
         adapter: 'Angular adapter',
