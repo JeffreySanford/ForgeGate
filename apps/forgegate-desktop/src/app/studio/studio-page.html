@@ -1,0 +1,104 @@
+<div class="studio-page" animate.enter="fg-route-enter">
+  <h1>Blueprint Studio</h1>
+
+  <p class="studio-page__caveat">
+    Choose a blueprint to see what a complete component of that pattern
+    requires. This is the first real step of Blueprint Studio — defining
+    purpose, contract, states, anatomy, and tokens from a selected blueprint is
+    not built yet.
+  </p>
+
+  @if (!workspace.workspacePath()) {
+  <p class="fg-empty-state">
+    No workspace open yet. Use "Open workspace…" above to select a repository.
+  </p>
+  } @else if (workspace.blueprintError(); as error) {
+  <p role="alert">Some blueprints could not be read: {{ error }}</p>
+  } @if (workspace.workspacePath() && workspace.blueprints().length === 0) {
+  <p class="fg-empty-state">
+    No blueprint is authored in this workspace yet. Add a
+    <code>.forgegate/blueprints/&lt;id&gt;.yaml</code> file to define one.
+  </p>
+  } @else if (workspace.blueprints().length > 0) {
+  <section aria-labelledby="blueprint-catalog-title">
+    <h2 id="blueprint-catalog-title">Blueprint catalog</h2>
+    <ul class="studio-page__catalog">
+      @for (blueprint of workspace.blueprints(); track blueprint.id) {
+      <li>
+        <button
+          type="button"
+          [attr.aria-pressed]="selectedBlueprintId() === blueprint.id"
+          [class.studio-page__blueprint-button--selected]="
+            selectedBlueprintId() === blueprint.id
+          "
+          (click)="selectBlueprint(blueprint.id)"
+        >
+          <strong>{{ blueprint.name }}</strong>
+          <span>{{ blueprint.purpose }}</span>
+        </button>
+      </li>
+      }
+    </ul>
+  </section>
+  } @if (selectedBlueprint(); as blueprint) {
+  <section
+    class="studio-page__detail fg-panel"
+    aria-labelledby="selected-blueprint-title"
+  >
+    <h2 id="selected-blueprint-title">
+      {{ blueprint.name }}
+      <span class="studio-page__version">v{{ blueprint.version }}</span>
+    </h2>
+    <p>{{ blueprint.purpose }}</p>
+    <dl>
+      <dt>Blueprint id</dt>
+      <dd><code>{{ blueprint.id }}</code></dd>
+      @if (blueprint.preferredNativeElement) {
+      <dt>Preferred native element</dt>
+      <dd><code>{{ blueprint.preferredNativeElement }}</code></dd>
+      }
+      <dt>Required states</dt>
+      <dd>
+        @if (blueprint.requiredStates.length) {
+        <ul class="studio-page__inline-list">
+          @for (state of blueprint.requiredStates; track state) {
+          <li><code>{{ state }}</code></li>
+          }
+        </ul>
+        } @else { None declared }
+      </dd>
+      <dt>Token slots</dt>
+      <dd>
+        @if (blueprint.tokenSlots.length) {
+        <ul class="studio-page__inline-list">
+          @for (slot of blueprint.tokenSlots; track slot.id) {
+          <li>
+            {{ slot.label }} ({{ slot.types.join(', ') }}){{ slot.required ? ' —
+            required' : '' }}
+          </li>
+          }
+        </ul>
+        } @else { None declared }
+      </dd>
+      <dt>Inspector groups</dt>
+      <dd>
+        @if (blueprint.inspectorGroups.length) {
+        <ul class="studio-page__inline-list">
+          @for (group of blueprint.inspectorGroups; track group.id) {
+          <li>{{ group.label }} ({{ group.fields.length }} field(s))</li>
+          }
+        </ul>
+        } @else { None declared }
+      </dd>
+    </dl>
+    <p class="studio-page__next-steps" role="status">
+      Blueprint selected. Defining purpose and native semantics, configuring the
+      contract, composing variants and states, and everything after is not built
+      yet — this page stops here honestly rather than pretending to continue.
+    </p>
+    <button type="button" (click)="clearSelection()">
+      Choose a different blueprint
+    </button>
+  </section>
+  }
+</div>

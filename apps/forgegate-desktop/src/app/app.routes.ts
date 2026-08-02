@@ -27,6 +27,11 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'studio',
+    loadComponent: () =>
+      import('./studio/studio-page').then((m) => m.StudioPage),
+  },
+  {
     path: 'tests',
     loadComponent: () =>
       import('./coming-soon-page').then((m) => m.ComingSoonPage),

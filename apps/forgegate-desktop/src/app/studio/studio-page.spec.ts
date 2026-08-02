@@ -1,0 +1,147 @@
+import { TestBed } from '@angular/core/testing';
+import type { Blueprint } from '@forgegate/core-manifest';
+import { StudioPage } from './studio-page';
+import { expectNoAccessibilityViolations } from '../../test-a11y';
+import { WorkspaceService } from '../workspace.service';
+
+const buttonBlueprint: Blueprint = {
+  id: 'blueprint.button',
+  version: '1.0.0',
+  name: 'Button',
+  purpose: 'Trigger a primary or secondary application action.',
+  preferredNativeElement: 'button',
+  requiredStates: ['default', 'hover', 'focus-visible', 'active', 'disabled'],
+  inspectorGroups: [
+    {
+      id: 'appearance',
+      label: 'Appearance',
+      fields: [
+        {
+          path: 'contract.properties.appearance',
+          label: 'Appearance',
+          control: 'segmented',
+          options: ['filled', 'outlined', 'subtle'],
+          required: true,
+        },
+      ],
+    },
+  ],
+  tokenSlots: [
+    {
+      id: 'root.background',
+      label: 'Background',
+      types: ['color'],
+      required: true,
+    },
+  ],
+};
+
+describe('StudioPage', () => {
+  let workspace: WorkspaceService;
+  let fixture: ReturnType<typeof TestBed.createComponent<StudioPage>>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [StudioPage] });
+    workspace = TestBed.inject(WorkspaceService);
+  });
+
+  it('shows an explicit empty state when no workspace is open', async () => {
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.fg-empty-state')?.textContent).toContain(
+      'No workspace open yet',
+    );
+    expect(compiled.querySelector('.studio-page__catalog')).toBeNull();
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('shows a distinct empty state when a workspace is open but no blueprint is authored', async () => {
+    workspace.workspacePath.set('/repos/example');
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('No blueprint is authored');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('lists every real discovered blueprint by name and purpose', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Button');
+    expect(compiled.textContent).toContain(
+      'Trigger a primary or secondary application action.',
+    );
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('selecting a blueprint shows its real authored metadata', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const button = compiled.querySelector(
+      '.studio-page__catalog button',
+    ) as HTMLButtonElement;
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    button.click();
+    fixture.detectChanges();
+
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(compiled.textContent).toContain('blueprint.button');
+    expect(compiled.textContent).toContain('button'); // preferred native element
+    expect(compiled.textContent).toContain('default');
+    expect(compiled.textContent).toContain('hover');
+    expect(compiled.textContent).toContain('Background (color) — required');
+    expect(compiled.textContent).toContain('Blueprint selected');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('"Choose a different blueprint" clears the selection', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    expect(compiled.querySelector('.studio-page__detail')).not.toBeNull();
+
+    const clearButton = Array.from(compiled.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Choose a different blueprint'),
+    ) as HTMLButtonElement;
+    clearButton.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.studio-page__detail')).toBeNull();
+  });
+
+  it('shows a real error when a blueprint file failed to parse', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprintError.set('.forgegate/blueprints/broken.yaml: bad YAML');
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      'broken.yaml',
+    );
+  });
+});

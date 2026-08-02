@@ -38,6 +38,7 @@ describe('App shell', () => {
     expect(links).toEqual([
       '/workspace',
       '/components',
+      '/studio',
       '/tests',
       '/reviews',
       '/accessibility-review',
