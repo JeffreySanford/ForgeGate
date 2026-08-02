@@ -9,10 +9,11 @@
  *
  * Deliberately still a narrow slice of that workstream's full illustrative
  * shape — covering "choose a blueprint", "define purpose and native
- * semantics", and "configure the portable public contract" (the first
- * three items of P2's first-slice checklist), not the entire eventual
- * variant/anatomy/token/fixture/coverage/finding/exception/generation-plan/
- * revision model. Those remain real, named gaps, not fabricated here.
+ * semantics", "configure the portable public contract", and "compose
+ * variants and required states" (the first four items of P2's first-slice
+ * checklist), not the entire eventual anatomy/token/fixture/coverage/
+ * finding/exception/generation-plan/revision model. Those remain real,
+ * named gaps, not fabricated here.
  */
 
 import type { ContractMember } from './contract';
@@ -56,6 +57,17 @@ export interface ProposalContractDraft {
   readonly styleParts: readonly ContractMember[];
 }
 
+/**
+ * The designer's chosen value for one of the blueprint's own inspector
+ * fields (`BlueprintInspectorField.path`) — e.g. an `appearance` field's
+ * segmented control set to `outlined`. Portable and independent of any
+ * particular framework's variant/property implementation.
+ */
+export interface ProposalVariantSelection {
+  readonly fieldPath: string;
+  readonly value: string;
+}
+
 export interface ComponentProposal {
   readonly identity: ProposalIdentity;
   readonly blueprint: BlueprintReference;
@@ -70,4 +82,22 @@ export interface ComponentProposal {
    * never silently assumed `true`. */
   readonly nativeSemanticConfirmed: boolean;
   readonly contract: ProposalContractDraft;
+  /**
+   * The interaction/appearance states this proposal commits to supporting
+   * — starts as the blueprint's own `requiredStates`, but is a real,
+   * independent, editable decision (a designer may add an
+   * organization-required state the blueprint doesn't name, or — for now,
+   * without validation preventing it — remove one). "Required states" per
+   * P2's first-slice checklist.
+   */
+  readonly requiredStates: readonly string[];
+  /**
+   * The designer's chosen value for each blueprint inspector field they've
+   * set — the "compose variants" half of P2's first-slice checklist item.
+   * Deliberately just a flat portable list, not yet Workstream 5's full
+   * variant×state coverage matrix (blueprint/organization/designer
+   * indicators, unsupported-combination exclusion rationale, per-cell
+   * story/test/preview/documentation markers).
+   */
+  readonly variantSelections: readonly ProposalVariantSelection[];
 }

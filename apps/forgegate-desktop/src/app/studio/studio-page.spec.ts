@@ -141,6 +141,76 @@ describe('StudioPage', () => {
     );
   });
 
+  it('pre-selects the blueprint required states and allows toggling and adding custom ones', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const stateCheckboxes = Array.from(
+      compiled.querySelectorAll('.studio-page__state-toggle input'),
+    ) as HTMLInputElement[];
+    expect(stateCheckboxes.every((cb) => cb.checked)).toBe(true);
+    expect(stateCheckboxes.length).toBe(5);
+
+    stateCheckboxes[0].click();
+    fixture.detectChanges();
+    expect(
+      (
+        compiled.querySelectorAll(
+          '.studio-page__state-toggle input',
+        ) as NodeListOf<HTMLInputElement>
+      )[0].checked,
+    ).toBe(false);
+
+    const customStateInput = compiled.querySelector(
+      '#proposal-custom-state',
+    ) as HTMLInputElement;
+    customStateInput.value = 'org-required-state';
+    customStateInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    (
+      Array.from(compiled.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Add state'),
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('org-required-state (custom)');
+  });
+
+  it('sets a variant selection from a blueprint inspector field', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const variantInput = compiled.querySelector(
+      '#variant-contract\\.properties\\.appearance',
+    ) as HTMLInputElement;
+    expect(variantInput).not.toBeNull();
+    variantInput.value = 'outlined';
+    variantInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(variantInput.value).toBe('outlined');
+  });
+
   it('adds and removes a contract member from a category', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);

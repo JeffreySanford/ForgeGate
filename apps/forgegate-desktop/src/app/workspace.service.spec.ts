@@ -631,6 +631,8 @@ describe('WorkspaceService', () => {
       '  content: []',
       '  publicMethods: []',
       '  styleParts: []',
+      'requiredStates: [default, hover]',
+      'variantSelections: []',
     ].join('\n');
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
@@ -668,6 +670,8 @@ describe('WorkspaceService', () => {
           publicMethods: [],
           styleParts: [],
         },
+        requiredStates: ['default', 'hover'],
+        variantSelections: [],
       },
     ]);
     expect(service.proposalError()).toContain(

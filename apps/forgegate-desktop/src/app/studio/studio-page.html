@@ -3,9 +3,9 @@
 
   <p class="studio-page__caveat">
     Choose a blueprint to see what a complete component of that pattern
-    requires. This is the first real step of Blueprint Studio — defining
-    purpose, contract, states, anatomy, and tokens from a selected blueprint is
-    not built yet.
+    requires, then define its purpose, native semantics, portable contract, and
+    variant/state selections. Anatomy and token mapping from a selected
+    blueprint are not built yet.
   </p>
 
   @if (!workspace.workspacePath()) {
@@ -98,9 +98,9 @@
     >
       <h3 id="proposal-form-title">Define purpose and native semantics</h3>
       <p>
-        <span aria-hidden="true">*</span> Required. Configuring the contract,
-        composing variants and states, and everything after is not built yet —
-        this form stops here honestly rather than pretending to continue.
+        <span aria-hidden="true">*</span> Required. Anatomy, token mapping, and
+        everything after is not built yet — this form stops there honestly
+        rather than pretending to continue.
       </p>
       <div class="studio-page__field">
         <label for="proposal-component-name"
@@ -168,8 +168,7 @@
       <h3>Configure the portable public contract</h3>
       <p>
         Real, portable contract members — the same shape a generated component's
-        own contract would use. Configuring variants, states, anatomy, and
-        tokens against these members is not built yet.
+        own contract would use. Anatomy and token mapping are not built yet.
       </p>
       @for (category of contractCategories; track category.key) {
       <fieldset class="studio-page__contract-category">
@@ -233,6 +232,73 @@
         <button type="button" (click)="addContractMember(category.key)">
           {{ category.addLabel }}
         </button>
+      </fieldset>
+      }
+
+      <h3>Compose variants and required states</h3>
+      <p>
+        Choose which states this proposal commits to supporting — starting from
+        the blueprint's own required states — and a value for each
+        blueprint-defined variant field. This is not yet a full variant-by-state
+        coverage matrix.
+      </p>
+      <fieldset class="studio-page__states">
+        <legend>Required states</legend>
+        @for (state of blueprint.requiredStates; track state) {
+        <label class="studio-page__state-toggle">
+          <input
+            type="checkbox"
+            [checked]="requiredStatesInput().includes(state)"
+            (change)="toggleRequiredState(state)"
+          />
+          {{ state }}
+        </label>
+        } @for (state of requiredStatesInput(); track state) { @if
+        (!blueprint.requiredStates.includes(state)) {
+        <label class="studio-page__state-toggle">
+          <input
+            type="checkbox"
+            [checked]="true"
+            (change)="toggleRequiredState(state)"
+          />
+          {{ state }} (custom)
+        </label>
+        } }
+        <div class="studio-page__field">
+          <label for="proposal-custom-state">Add a custom state</label>
+          <input
+            id="proposal-custom-state"
+            type="text"
+            [value]="customStateInput()"
+            (input)="customStateInput.set($any($event.target).value)"
+          />
+          <button type="button" (click)="addCustomRequiredState()">
+            Add state
+          </button>
+        </div>
+      </fieldset>
+
+      @if (blueprint.inspectorGroups.length) {
+      <fieldset class="studio-page__variants">
+        <legend>Variant selections</legend>
+        @for (group of blueprint.inspectorGroups; track group.id) {
+        <p class="studio-page__variant-group-label">{{ group.label }}</p>
+        @for (field of group.fields; track field.path) {
+        <div class="studio-page__field">
+          <label [attr.for]="'variant-' + field.path"
+            >{{ field.label }} @if (field.options?.length) { ({{
+            field.options?.join(', ') }}) }</label
+          >
+          <input
+            [id]="'variant-' + field.path"
+            type="text"
+            [value]="variantSelectionValue(field.path)"
+            (input)="
+              setVariantSelection(field.path, $any($event.target).value)
+            "
+          />
+        </div>
+        } }
       </fieldset>
       }
 

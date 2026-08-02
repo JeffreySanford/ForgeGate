@@ -158,3 +158,31 @@
   color: var(--fg-color-text);
   font: inherit;
 }
+
+.studio-page__states,
+.studio-page__variants {
+  display: grid;
+  gap: var(--fg-space-2);
+  margin: var(--fg-space-3) 0;
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+}
+
+.studio-page__states legend,
+.studio-page__variants legend {
+  font-weight: 600;
+  padding: 0 var(--fg-space-1);
+}
+
+.studio-page__state-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fg-space-1);
+  margin-right: var(--fg-space-3);
+}
+
+.studio-page__variant-group-label {
+  font-weight: 600;
+  margin: var(--fg-space-2) 0 0;
+}

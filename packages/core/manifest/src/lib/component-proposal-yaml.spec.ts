@@ -25,6 +25,10 @@ contract:
   content: []
   publicMethods: []
   styleParts: []
+requiredStates: [default, hover, disabled]
+variantSelections:
+  - fieldPath: contract.properties.appearance
+    value: outlined
 `;
 
 describe('parseComponentProposal', () => {
@@ -48,10 +52,21 @@ describe('parseComponentProposal', () => {
       },
     ]);
     expect(proposal.contract.outputs).toEqual([]);
+    expect(proposal.requiredStates).toEqual(['default', 'hover', 'disabled']);
+    expect(proposal.variantSelections).toEqual([
+      { fieldPath: 'contract.properties.appearance', value: 'outlined' },
+    ]);
   });
 
   it('rejects a proposal missing the required contract field', () => {
     const invalid = validYaml.replace(/contract:[\s\S]*$/, '');
+    expect(() => parseComponentProposal(invalid)).toThrow(
+      'does not match the schema',
+    );
+  });
+
+  it('rejects a proposal missing the required requiredStates field', () => {
+    const invalid = validYaml.replace(/requiredStates:.*\n/, '');
     expect(() => parseComponentProposal(invalid)).toThrow(
       'does not match the schema',
     );

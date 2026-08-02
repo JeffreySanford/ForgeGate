@@ -243,6 +243,16 @@ const proposalContractDraftSchema = {
   additionalProperties: false,
 } as const;
 
+const proposalVariantSelectionSchema = {
+  type: 'object',
+  properties: {
+    fieldPath: { type: 'string', minLength: 1 },
+    value: { type: 'string' },
+  },
+  required: ['fieldPath', 'value'],
+  additionalProperties: false,
+} as const;
+
 export const componentProposalSchema = {
   $id: 'https://forgegate.dev/schemas/component-proposal.schema.json',
   type: 'object',
@@ -253,6 +263,11 @@ export const componentProposalSchema = {
     purpose: { type: 'string', minLength: 1 },
     nativeSemanticConfirmed: { type: 'boolean' },
     contract: proposalContractDraftSchema,
+    requiredStates: { type: 'array', items: { type: 'string', minLength: 1 } },
+    variantSelections: {
+      type: 'array',
+      items: proposalVariantSelectionSchema,
+    },
   },
   required: [
     'identity',
@@ -261,6 +276,8 @@ export const componentProposalSchema = {
     'purpose',
     'nativeSemanticConfirmed',
     'contract',
+    'requiredStates',
+    'variantSelections',
   ],
   additionalProperties: false,
 } as const;

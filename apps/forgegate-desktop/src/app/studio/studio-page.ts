@@ -4,6 +4,7 @@ import type {
   ComponentProposal,
   ContractMember,
   ProposalContractDraft,
+  ProposalVariantSelection,
 } from '@forgegate/core-manifest';
 import { WorkspaceService } from '../workspace.service';
 
@@ -37,22 +38,24 @@ function emptyContractDraft(): ProposalContractDraft {
 }
 
 /**
- * P2 first slice, items 1 through 3: "Choose the Button blueprint", "Define
- * purpose and native semantics", and "Configure the portable public
- * contract" (`documentation/28-blueprint-studio-implementation-plan.md`'s
- * Workstream 3 "Studio navigation and shell", Workstream 1 "Portable
- * proposal domain", and Workstream 4 "Button contract editor", Release A
- * "Proposal Studio").
+ * P2 first slice, items 1 through 4: "Choose the Button blueprint", "Define
+ * purpose and native semantics", "Configure the portable public contract",
+ * and "Compose variants and required states"
+ * (`documentation/28-blueprint-studio-implementation-plan.md`'s Workstream
+ * 3 "Studio navigation and shell", Workstream 1 "Portable proposal
+ * domain", Workstream 4 "Button contract editor", and Workstream 5 "State
+ * and variant matrix", Release A "Proposal Studio").
  *
  * Deliberately narrow and honest about what it is not: choosing a
- * blueprint, drafting purpose and native semantic confirmation, and
- * editing a portable public contract (inputs/outputs/content/public
- * methods/style parts) is real and staged/approved through the same P2
- * entry gate 2 discipline every other domain write uses. This is not yet
- * Workstream 4's full inspector-driven contract editor (friendly labels,
- * organization-policy inheritance, invalid-combination explanations) —
- * just a real, generic, portable member list. Composing variants and
- * states, anatomy, tokens, and everything after remains unbuilt and the
+ * blueprint, drafting purpose and native semantic confirmation, editing a
+ * portable public contract, and choosing required states plus a value per
+ * blueprint inspector field is real and staged/approved through the same
+ * P2 entry gate 2 discipline every other domain write uses. This is not
+ * yet Workstream 4's full inspector-driven contract editor or Workstream
+ * 5's full variant×state coverage matrix (blueprint/organization/designer
+ * indicators, unsupported-combination exclusion rationale, per-cell
+ * story/test/preview/documentation markers) — just real, generic, portable
+ * lists. Anatomy, tokens, and everything after remains unbuilt and the
  * page says so explicitly.
  */
 @Component({
@@ -80,6 +83,11 @@ export class StudioPage {
   protected readonly contractDraft =
     signal<ProposalContractDraft>(emptyContractDraft());
   protected readonly contractCategories = CONTRACT_MEMBER_CATEGORIES;
+  protected readonly requiredStatesInput = signal<readonly string[]>([]);
+  protected readonly customStateInput = signal('');
+  protected readonly variantSelectionsInput = signal<
+    readonly ProposalVariantSelection[]
+  >([]);
 
   protected readonly canCreateProposal = computed(
     () =>
@@ -98,10 +106,47 @@ export class StudioPage {
     this.adapterInput.set('');
     this.nativeSemanticConfirmedInput.set(false);
     this.contractDraft.set(emptyContractDraft());
+    this.requiredStatesInput.set(blueprint?.requiredStates ?? []);
+    this.customStateInput.set('');
+    this.variantSelectionsInput.set([]);
   }
 
   protected clearSelection(): void {
     this.selectedBlueprintId.set(null);
+  }
+
+  protected toggleRequiredState(state: string): void {
+    this.requiredStatesInput.update((states) =>
+      states.includes(state)
+        ? states.filter((s) => s !== state)
+        : [...states, state],
+    );
+  }
+
+  protected addCustomRequiredState(): void {
+    const state = this.customStateInput().trim();
+    if (!state || this.requiredStatesInput().includes(state)) {
+      return;
+    }
+    this.requiredStatesInput.update((states) => [...states, state]);
+    this.customStateInput.set('');
+  }
+
+  protected setVariantSelection(fieldPath: string, value: string): void {
+    this.variantSelectionsInput.update((selections) => {
+      const withoutField = selections.filter(
+        (selection) => selection.fieldPath !== fieldPath,
+      );
+      return value ? [...withoutField, { fieldPath, value }] : withoutField;
+    });
+  }
+
+  protected variantSelectionValue(fieldPath: string): string {
+    return (
+      this.variantSelectionsInput().find(
+        (selection) => selection.fieldPath === fieldPath,
+      )?.value ?? ''
+    );
   }
 
   protected addContractMember(category: ContractMemberCategory): void {
@@ -162,6 +207,8 @@ export class StudioPage {
       purpose: this.purposeInput().trim(),
       nativeSemanticConfirmed: this.nativeSemanticConfirmedInput(),
       contract: this.contractDraft(),
+      requiredStates: this.requiredStatesInput(),
+      variantSelections: this.variantSelectionsInput(),
     };
     await this.workspace.stageProposal(proposal);
   }
