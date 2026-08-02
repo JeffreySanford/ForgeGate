@@ -1,0 +1,39 @@
+---
+title: 'Acme Button for developers'
+description: 'Generated ForgeGate developer-heavy report for Acme Button.'
+forgegate:
+  componentId: 'acme.button-library.acme-button'
+  version: '0.1.0'
+  evidenceCommit: 'fixture'
+  template: 'developer'
+  reportData: 'src/data/forgegate/components/acme-button--for-developers.json'
+---
+
+import {
+  ComponentStatus,
+  EvidenceSummary,
+  ApiTable,
+  AccessibilityRequirements,
+} from '@forgegate/starlight';
+import forgegateReport from '../../../data/forgegate/components/acme-button--for-developers.json';
+
+# Acme Button for developers
+
+<ComponentStatus
+  component="acme.button-library.acme-button"
+  tier="developer-heavy"
+  report={forgegateReport}
+/>
+
+<ApiTable component="acme.button-library.acme-button" report={forgegateReport} />
+
+<AccessibilityRequirements
+  component="acme.button-library.acme-button"
+  report={forgegateReport}
+/>
+
+<EvidenceSummary
+  component="acme.button-library.acme-button"
+  tier="developer-heavy"
+  report={forgegateReport}
+/>

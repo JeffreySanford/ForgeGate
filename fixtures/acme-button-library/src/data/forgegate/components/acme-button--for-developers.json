@@ -1,0 +1,127 @@
+{
+  "componentId": "acme.button-library.acme-button",
+  "version": "0.1.0",
+  "lifecycle": "candidate",
+  "evidenceCommit": "fixture",
+  "packagePath": ".",
+  "tier": "developer-heavy",
+  "manifest": {
+    "schemaVersion": "0.2.0",
+    "path": ".forgegate/components/acme.button-library.acme-button.yaml",
+    "framework": "web-components",
+    "adapter": "framework.web-components",
+    "sourceFiles": ["src/acme-button.js"],
+    "documentationTargets": [
+      {
+        "adapter": "starlight",
+        "pathOrPageId": "src/content/docs/components/button.md",
+        "publishedVersion": "0.1.0"
+      }
+    ],
+    "policyId": "acme.baseline",
+    "policyVersion": "1.0.0"
+  },
+  "states": [
+    {
+      "name": "default",
+      "required": true,
+      "description": "Primary resting state.",
+      "storybookStoryId": "components-acmebutton--primary"
+    },
+    {
+      "name": "disabled",
+      "required": true,
+      "description": "Unavailable action state.",
+      "storybookStoryId": "components-acmebutton--disabled"
+    }
+  ],
+  "tokens": [
+    { "tokenPath": "color.action", "category": "color", "required": true },
+    {
+      "tokenPath": "color.text-inverse",
+      "category": "color",
+      "required": true
+    }
+  ],
+  "contract": {
+    "inputs": [
+      {
+        "name": "label",
+        "type": "string",
+        "required": true,
+        "description": "Visible action text."
+      }
+    ],
+    "outputs": [],
+    "content": [],
+    "publicMethods": [
+      {
+        "name": "focus",
+        "type": "() => void",
+        "description": "Moves keyboard focus to the button control."
+      }
+    ],
+    "styleParts": [
+      {
+        "name": "control",
+        "description": "Main clickable button surface."
+      }
+    ]
+  },
+  "manualProcedures": [
+    {
+      "id": "keyboard-and-screen-reader-review",
+      "steps": [
+        {
+          "action": "Tab to the button.",
+          "expected": "The focus ring is visible and the accessible name matches the label."
+        }
+      ]
+    }
+  ],
+  "evidence": {
+    "automated": [
+      {
+        "id": "unit-acme-button",
+        "gate": "unit",
+        "tool": "node:test",
+        "status": "passed",
+        "commitOrFingerprint": "fixture"
+      }
+    ],
+    "manualReviews": [],
+    "findings": [],
+    "redaction": {
+      "status": "planning-only",
+      "detail": "Developer report keeps raw artifacts out of the generated page until the redaction policy allows copied content."
+    },
+    "releaseDecision": {
+      "status": "not-connected",
+      "blockingFindingIds": [],
+      "evidenceIds": ["unit-acme-button"],
+      "commit": "fixture"
+    },
+    "policySnapshot": {
+      "policyId": "acme.baseline",
+      "policyVersion": "1.0.0",
+      "source": "component-manifest",
+      "manifestPath": ".forgegate/components/acme.button-library.acme-button.yaml",
+      "status": "authored-reference",
+      "detail": "This report includes the component manifest policy reference. ForgeGate has not loaded a full policy ruleset snapshot yet."
+    },
+    "notConnected": [
+      {
+        "section": "manual reviews",
+        "reason": "The developer report fixture intentionally omits manual review records to prove the Starlight components render connected and not-connected states together."
+      }
+    ]
+  },
+  "documentation": [
+    {
+      "adapter": "starlight",
+      "pathOrPageId": "src/content/docs/components/button.md",
+      "status": "current",
+      "detail": "Published version 0.1.0 matches component version 0.1.0."
+    }
+  ]
+}

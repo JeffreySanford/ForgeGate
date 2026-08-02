@@ -267,6 +267,10 @@ describe('ForgeGate report data conventions', () => {
         path: 'src/data/forgegate/components/acme-button--for-designers.json',
         slug: 'acme-button--for-designers',
       },
+      {
+        path: 'src/data/forgegate/components/acme-button--for-developers.json',
+        slug: 'acme-button--for-developers',
+      },
     ]);
     expect(registerForgeGateReportData(discovery).entries).toEqual([
       {
@@ -284,6 +288,15 @@ describe('ForgeGate report data conventions', () => {
         routePath: 'components/acme-button--for-designers',
         href: '/components/acme-button--for-designers/',
         slug: 'acme-button--for-designers',
+      },
+      {
+        kind: 'component',
+        label: 'Acme Button For Developers',
+        reportDataPath:
+          'src/data/forgegate/components/acme-button--for-developers.json',
+        routePath: 'components/acme-button--for-developers',
+        href: '/components/acme-button--for-developers/',
+        slug: 'acme-button--for-developers',
       },
     ]);
   });

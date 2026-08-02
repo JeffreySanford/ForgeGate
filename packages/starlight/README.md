@@ -26,7 +26,7 @@ export default defineConfig({
 });
 ```
 
-When `filesystemDiscovery` is enabled, the integration scans the configured report-data root during the Astro config lifecycle and logs discovered registry/component report JSON plus deterministic route-registration entries.
+When `filesystemDiscovery` is enabled, the integration scans the configured report-data root during the Astro config lifecycle and logs discovered registry/component report JSON plus deterministic route-registration entries. The Acme fixture currently builds two generated Button report routes, designer and developer, from two companion JSON artifacts so fixture validation covers more than one discovered report path without inventing a second component source.
 
 It does not yet inject Astro routes from those discovered entries. Target-repository build validation is available after approval when `.forgegate/config.yaml` defines `commandMappings.starlightBuild`; ForgeGate now records the detected Starlight project set in the validation diagnostic while still running the repository-authored command from the workspace root. The same Starlight assumptions were also validated manually against `D:/repos/public-sector-federation` by running its real `pnpm nx run starlight:build` target successfully on 2026-07-31. Broader automated arbitrary-repository coverage remains future work.
 

@@ -18,6 +18,10 @@ export default defineConfig({
           items: [
             { label: 'Registry', slug: 'components' },
             { label: 'Button', slug: 'components/acme-button--for-designers' },
+            {
+              label: 'Button developer',
+              slug: 'components/acme-button--for-developers',
+            },
           ],
         },
       ],
