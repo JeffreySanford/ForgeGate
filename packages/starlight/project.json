@@ -15,6 +15,7 @@
       "cache": true,
       "inputs": [
         "{projectRoot}/src/**/*",
+        "{projectRoot}/package.json",
         "{projectRoot}/tsconfig*.json",
         "{workspaceRoot}/tsconfig.base.json"
       ],
@@ -28,6 +29,7 @@
       "cache": true,
       "inputs": [
         "{projectRoot}/src/**/*",
+        "{projectRoot}/package.json",
         "{workspaceRoot}/fixtures/acme-button-library/astro.config.mjs",
         "{workspaceRoot}/fixtures/acme-button-library/src/content.config.ts",
         "{workspaceRoot}/fixtures/acme-button-library/src/content/**/*",

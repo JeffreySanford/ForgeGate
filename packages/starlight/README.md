@@ -8,6 +8,26 @@ This package is intentionally narrow today. It proves that generated pages can i
 
 ForgeGate chooses the starting audience tier from `.forgegate/config.yaml` `adapterConfiguration.starlight` when present. Supported keys are `defaultAudience`, `organizationAudiences`, `libraryAudiences`, `packageAudiences`, and `componentAudiences`; accepted values are `designer-heavy`, `balanced`, and `developer-heavy`.
 
+## Astro integration wiring
+
+The local Acme fixture installs the integration from the source plugin entrypoint until `@forgegate/starlight` becomes a published workspace package:
+
+```js
+import { forgeGateStarlightIntegration } from '../../packages/starlight/src/lib/plugin.ts';
+
+export default defineConfig({
+  integrations: [
+    starlight({ title: 'Component Library' }),
+    forgeGateStarlightIntegration({
+      filesystemDiscovery: true,
+      reportDataRoot: 'src/data/forgegate/components',
+    }),
+  ],
+});
+```
+
+When `filesystemDiscovery` is enabled, the integration scans the configured report-data root during the Astro config lifecycle and logs discovered registry/component report JSON plus deterministic route-registration entries.
+
 It does not yet inject Astro routes from those discovered entries. Target-repository build validation is available after approval when `.forgegate/config.yaml` defines `commandMappings.starlightBuild`; ForgeGate now records the detected Starlight project set in the validation diagnostic while still running the repository-authored command from the workspace root. The same Starlight assumptions were also validated manually against `D:/repos/public-sector-federation` by running its real `pnpm nx run starlight:build` target successfully on 2026-07-31. Broader automated arbitrary-repository coverage remains future work.
 
 Run the package checks with:

@@ -1,6 +1,7 @@
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import { fileURLToPath } from 'node:url';
+import { forgeGateStarlightIntegration } from '../../packages/starlight/src/lib/plugin.ts';
 
 export default defineConfig({
   site: 'https://fixture.forgegate.local',
@@ -20,6 +21,10 @@ export default defineConfig({
           ],
         },
       ],
+    }),
+    forgeGateStarlightIntegration({
+      filesystemDiscovery: true,
+      reportDataRoot: 'src/data/forgegate/components',
     }),
   ],
   vite: {

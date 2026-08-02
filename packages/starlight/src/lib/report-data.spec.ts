@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   classifyForgeGateReportDataPath,
   discoverForgeGateReportDataFiles,
@@ -247,6 +248,44 @@ describe('ForgeGate report data conventions', () => {
       ],
       limitations: [],
     });
+  });
+
+  it('discovers and registers the checked-in Acme fixture report data', async () => {
+    const workspaceRoot = fileURLToPath(
+      new URL('../../../../fixtures/acme-button-library/', import.meta.url),
+    );
+    const discovery = await discoverForgeGateReportDataFiles({
+      workspaceRoot,
+      reportDataRoot: 'src/data/forgegate/components',
+    });
+
+    expect(discovery.registryPath).toBe(
+      'src/data/forgegate/components/index.json',
+    );
+    expect(discovery.componentReports).toEqual([
+      {
+        path: 'src/data/forgegate/components/acme-button--for-designers.json',
+        slug: 'acme-button--for-designers',
+      },
+    ]);
+    expect(registerForgeGateReportData(discovery).entries).toEqual([
+      {
+        kind: 'registry',
+        label: 'Component registry',
+        reportDataPath: 'src/data/forgegate/components/index.json',
+        routePath: 'components',
+        href: '/components/',
+      },
+      {
+        kind: 'component',
+        label: 'Acme Button For Designers',
+        reportDataPath:
+          'src/data/forgegate/components/acme-button--for-designers.json',
+        routePath: 'components/acme-button--for-designers',
+        href: '/components/acme-button--for-designers/',
+        slug: 'acme-button--for-designers',
+      },
+    ]);
   });
 
   it('reports registration limitations when component reports are missing', async () => {

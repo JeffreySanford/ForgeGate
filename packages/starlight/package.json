@@ -1,0 +1,13 @@
+{
+  "name": "@forgegate/starlight",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/lib/plugin.ts"
+  },
+  "peerDependencies": {
+    "astro": "^7.1.6"
+  }
+}
