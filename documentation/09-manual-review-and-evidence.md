@@ -273,10 +273,11 @@ Required action:
 > Copied package attachment files are now detected during verified package
 > reload and held as `requires-review` rather than loaded into generated
 > Starlight report data. The desktop import workflow pauses for a reviewer
-> acknowledgement whenever copied attachments are present, then continues only
-> if the reviewer chooses to regenerate without those copied files. Fuller
-> Starlight plugin discovery and registration comes next. Broad binary/temp
-> attachment copying follows only after the current consent-policy
+> acknowledgement whenever copied attachments are present, shows bounded
+> redacted previews and the current `excluded-from-report` decision, then
+> continues only if the reviewer chooses to regenerate without those copied
+> files. Fuller Starlight plugin discovery and registration comes next. Broad
+> binary/temp attachment copying follows only after the current consent-policy
 > classification is wired to an explicit UI flow and binary-safe file handling.
 
 Suggested export:
@@ -352,9 +353,11 @@ from that selected directory, verifies the package, and stages regenerated
 Starlight output for review before any write lands in the workspace. Verified
 copied files under `attachments/files/` are counted and reported as requiring
 review. The Starlight generator pauses on those files and lets the reviewer
-discard the package import or regenerate without copied attachment files, but
-their paths and contents are still not exposed to Starlight report data.
-Organization trust/signing policy remains future work.
+inspect bounded redacted previews, discard the package import, or regenerate
+without copied attachment files. Each file is still recorded as
+`excluded-from-report`, so copied attachment paths, previews, and contents are
+not exposed to Starlight report data. Organization trust/signing policy remains
+future work.
 
 ## Privacy
 

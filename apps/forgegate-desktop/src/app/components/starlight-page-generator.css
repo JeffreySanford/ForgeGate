@@ -98,6 +98,18 @@
   overflow-wrap: anywhere;
 }
 
+.starlight-page-generator__attachment-review pre {
+  max-height: 10rem;
+  margin: 0;
+  padding: var(--fg-space-2);
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface-subtle);
+  font-size: var(--fg-type-size-sm);
+}
+
 .starlight-page-generator__diff {
   margin: 0;
   padding: var(--fg-space-2);

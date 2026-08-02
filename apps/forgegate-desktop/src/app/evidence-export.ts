@@ -358,7 +358,7 @@ function buildRedactionPlan(input: {
   };
 }
 
-function redactAttachmentText(text: string): string {
+export function redactAttachmentText(text: string): string {
   return text
     .replace(
       /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASS|API_KEY|AUTH)[A-Z0-9_]*=)([^\s"'`]+)/gi,

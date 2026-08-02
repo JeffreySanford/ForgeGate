@@ -91,7 +91,14 @@
         <span>{{ attachment.sourceEvidenceId }}</span>
         <code>{{ attachment.sourcePath }}</code>
         <code>{{ attachment.targetPath }}</code>
-        <span>{{ attachment.reviewStatus }}</span>
+        <span>
+          {{ attachment.sizeBytes }} byte(s), {{ attachment.lineCount }} line(s),
+          {{ attachment.reviewStatus }}, {{ attachment.reviewDecision }}
+        </span>
+        <pre>{{ attachment.redactedPreview }}</pre>
+        @if (attachment.previewTruncated) {
+        <span>Preview truncated.</span>
+        }
       </li>
       }
     </ul>

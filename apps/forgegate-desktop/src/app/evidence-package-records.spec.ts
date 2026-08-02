@@ -192,14 +192,19 @@ describe('loadStarlightEvidencePackageRecords', () => {
 
     expect(records.integrity.status).toBe('verified');
     expect(records.copiedAttachmentFiles).toEqual([
-      {
+      expect.objectContaining({
         sourceEvidenceId: 'unit-run-1',
         sourcePath: '.forgegate/evidence/raw/unit-run.txt',
         targetPath: 'attachments/files/unit-run-1.txt',
         redactionRequired: true,
+        redactedPreview: 'TOKEN=[REDACTED]\nTests passed.',
+        previewTruncated: false,
         reviewStatus: 'requires-review',
-      },
+        reviewDecision: 'excluded-from-report',
+      }),
     ]);
+    expect(records.copiedAttachmentFiles[0]?.sizeBytes).toBeGreaterThan(0);
+    expect(records.copiedAttachmentFiles[0]?.lineCount).toBe(2);
     expect(records.limitations).toContain(
       '1 copied attachment file(s) were verified but not loaded into Starlight report data because ForgeGate has not implemented reviewer redaction approval for imported package attachments yet.',
     );

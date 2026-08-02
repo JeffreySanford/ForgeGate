@@ -425,7 +425,12 @@ describe('generateDesignerStarlightComponentPage', () => {
           sourcePath: '.forgegate/evidence/raw/unit-run.txt',
           targetPath: 'attachments/files/package-unit-run.txt',
           redactionRequired: true,
+          sizeBytes: 27,
+          lineCount: 2,
+          redactedPreview: 'TOKEN=[REDACTED]\nTests passed.',
+          previewTruncated: false,
           reviewStatus: 'requires-review',
+          reviewDecision: 'excluded-from-report',
         },
       ],
       limitations: [

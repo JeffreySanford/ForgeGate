@@ -62,6 +62,7 @@ import {
 import { buildEvidenceExport } from './evidence-export';
 import {
   loadVerifiedStarlightEvidencePackageRecords,
+  type EvidencePackageCopiedAttachmentFile,
   type StarlightEvidencePackageRecords,
   type VerifiedStarlightEvidencePackageRecords,
 } from './evidence-package-records';
@@ -156,13 +157,7 @@ export interface StarlightEvidencePackageImportResult {
 
 export interface StarlightEvidencePackageAttachmentReview {
   readonly directoryPath: string;
-  readonly copiedAttachmentFiles: readonly {
-    readonly sourceEvidenceId: string;
-    readonly sourcePath: string;
-    readonly targetPath: string;
-    readonly redactionRequired: boolean;
-    readonly reviewStatus: 'requires-review';
-  }[];
+  readonly copiedAttachmentFiles: readonly EvidencePackageCopiedAttachmentFile[];
   readonly limitation: string;
 }
 

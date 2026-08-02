@@ -5,7 +5,10 @@ import type {
   TestExecution,
 } from '@forgegate/core-evidence';
 import type { AutomatedEvidenceDetail } from './evidence-detail';
+import { redactAttachmentText } from './evidence-export';
 import type { ReleaseDecisionWorkflowRecord } from './release-decision-export';
+
+const COPIED_ATTACHMENT_PREVIEW_MAX_CHARS = 1200;
 
 export interface StarlightEvidencePackageRecords {
   readonly testExecutions: readonly TestExecution[];
@@ -23,7 +26,12 @@ export interface EvidencePackageCopiedAttachmentFile {
   readonly sourcePath: string;
   readonly targetPath: string;
   readonly redactionRequired: boolean;
+  readonly sizeBytes: number;
+  readonly lineCount: number;
+  readonly redactedPreview: string;
+  readonly previewTruncated: boolean;
   readonly reviewStatus: 'requires-review';
+  readonly reviewDecision: 'excluded-from-report';
 }
 
 export interface EvidencePackageIntegrityReport {
@@ -252,19 +260,30 @@ function readCopiedAttachmentFiles(
       );
       return [];
     }
-    if (files[targetPath] === undefined) {
+    const content = files[targetPath];
+    if (content === undefined) {
       limitations.push(
         `${targetPath} is indexed as a copied attachment but the file is absent.`,
       );
       return [];
     }
+    const redactedContent = redactAttachmentText(content);
     return [
       {
         sourceEvidenceId,
         sourcePath,
         targetPath,
         redactionRequired,
+        sizeBytes: new TextEncoder().encode(content).byteLength,
+        lineCount: content.split(/\r?\n/).length,
+        redactedPreview: redactedContent.slice(
+          0,
+          COPIED_ATTACHMENT_PREVIEW_MAX_CHARS,
+        ),
+        previewTruncated:
+          redactedContent.length > COPIED_ATTACHMENT_PREVIEW_MAX_CHARS,
         reviewStatus: 'requires-review' as const,
+        reviewDecision: 'excluded-from-report' as const,
       },
     ];
   });

@@ -349,7 +349,12 @@ describe('StarlightPageGenerator', () => {
           sourcePath: '.forgegate/evidence/raw/unit-run.txt',
           targetPath: 'attachments/files/package-unit-run.txt',
           redactionRequired: true,
+          sizeBytes: 30,
+          lineCount: 2,
+          redactedPreview: 'TOKEN=[REDACTED]\nTests passed.',
+          previewTruncated: false,
           reviewStatus: 'requires-review',
+          reviewDecision: 'excluded-from-report',
         },
       ],
       limitation:
@@ -374,6 +379,9 @@ describe('StarlightPageGenerator', () => {
     expect(fixture.nativeElement.textContent).toContain(
       'attachments/files/package-unit-run.txt',
     );
+    expect(fixture.nativeElement.textContent).toContain('TOKEN=[REDACTED]');
+    expect(fixture.nativeElement.textContent).not.toContain('TOKEN=secret');
+    expect(fixture.nativeElement.textContent).toContain('excluded-from-report');
 
     const buttons = Array.from(
       fixture.nativeElement.querySelectorAll('button'),

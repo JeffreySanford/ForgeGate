@@ -2437,7 +2437,8 @@ describe('WorkspaceService', () => {
           ],
           limitations: [],
         }),
-        'attachments/files/package-unit-run.txt': 'Tests passed.',
+        'attachments/files/package-unit-run.txt':
+          'TOKEN=[REDACTED]\nTests passed.',
       });
       invokeMock
         .mockResolvedValueOnce('D:/exports/acme-button-evidence')
@@ -2450,11 +2451,14 @@ describe('WorkspaceService', () => {
       expect(service.starlightEvidencePackageAttachmentReview()).toMatchObject({
         directoryPath: 'D:/exports/acme-button-evidence',
         copiedAttachmentFiles: [
-          {
+          expect.objectContaining({
             sourceEvidenceId: 'package-unit-run',
             targetPath: 'attachments/files/package-unit-run.txt',
+            redactedPreview: 'TOKEN=[REDACTED]\nTests passed.',
+            lineCount: 2,
             reviewStatus: 'requires-review',
-          },
+            reviewDecision: 'excluded-from-report',
+          }),
         ],
       });
 
@@ -2492,7 +2496,12 @@ describe('WorkspaceService', () => {
             sourcePath: '.forgegate/evidence/raw/unit-run.txt',
             targetPath: 'attachments/files/package-unit-run.txt',
             redactionRequired: true,
+            sizeBytes: 31,
+            lineCount: 2,
+            redactedPreview: 'TOKEN=[REDACTED]\nTests passed.',
+            previewTruncated: false,
             reviewStatus: 'requires-review',
+            reviewDecision: 'excluded-from-report',
           },
         ],
         limitation: 'Copied attachment files require review.',
