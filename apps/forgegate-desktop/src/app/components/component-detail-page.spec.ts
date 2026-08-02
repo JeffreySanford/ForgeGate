@@ -873,13 +873,11 @@ describe('ComponentDetailPage', () => {
     );
   });
 
-  it('clicking "Run unit tests" runs the real configured gate for this exact component', async () => {
+  it('clicking "Run Unit tests" runs the real configured gate for this exact component', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);
     workspaceService.customElementsManifest.set(richManifest);
-    const gateSpy = vi
-      .spyOn(workspaceService, 'runUnitTestGate')
-      .mockResolvedValue();
+    const gateSpy = vi.spyOn(workspaceService, 'runGate').mockResolvedValue();
 
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
@@ -890,13 +888,14 @@ describe('ComponentDetailPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const runButton = Array.from(compiled.querySelectorAll('button')).find(
-      (button) => button.textContent?.includes('Run unit tests'),
+      (button) => button.textContent?.includes('Run Unit tests'),
     );
     expect(runButton).toBeDefined();
     runButton?.click();
 
     expect(gateSpy).toHaveBeenCalledTimes(1);
-    expect(gateSpy.mock.calls[0]?.[0]?.id).toBe(
+    expect(gateSpy.mock.calls[0]?.[0]).toBe('unit');
+    expect(gateSpy.mock.calls[0]?.[1]?.id).toBe(
       'acme.design-system.acme-button',
     );
   });

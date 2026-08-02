@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createComponentManifest } from '@forgegate/core-manifest';
 import {
-  UNIT_TEST_GATE_ADAPTER_VERSION,
-  buildUnitTestExecution,
-  unitTestGateStatus,
-} from './unit-test-gate';
+  PROCESS_GATE_ADAPTER_VERSION,
+  PROCESS_GATE_DEFINITIONS,
+  buildProcessGateExecution,
+  processGateStatus,
+} from './process-gate';
 import type { CommandResult, WorkspaceCommandPlan } from './workspace.service';
 
 function manifest() {
@@ -19,8 +20,8 @@ function manifest() {
 
 const plan: WorkspaceCommandPlan = {
   command: 'npm',
-  args: ['test'],
-  commandText: 'npm test',
+  args: ['run', 'lint'],
+  commandText: 'npm run lint',
 };
 
 function result(overrides: Partial<CommandResult>): CommandResult {
@@ -36,31 +37,40 @@ function result(overrides: Partial<CommandResult>): CommandResult {
   };
 }
 
-describe('unitTestGateStatus', () => {
+describe('PROCESS_GATE_DEFINITIONS', () => {
+  it('defines unit, lint, and build with distinct real commandMappings keys', () => {
+    const keys = PROCESS_GATE_DEFINITIONS.map((gate) => gate.commandMappingKey);
+    expect(keys).toEqual(['unitTest', 'lint', 'build']);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('processGateStatus', () => {
   it('reports passed for a real exit code of 0', () => {
-    expect(unitTestGateStatus(result({ exitCode: 0 }))).toBe('passed');
+    expect(processGateStatus(result({ exitCode: 0 }))).toBe('passed');
   });
 
   it('reports failed for a real nonzero exit code', () => {
-    expect(unitTestGateStatus(result({ exitCode: 1 }))).toBe('failed');
+    expect(processGateStatus(result({ exitCode: 1 }))).toBe('failed');
   });
 
   it('reports incomplete for a cancelled run, not failed', () => {
-    expect(
-      unitTestGateStatus(result({ exitCode: null, cancelled: true })),
-    ).toBe('incomplete');
+    expect(processGateStatus(result({ exitCode: null, cancelled: true }))).toBe(
+      'incomplete',
+    );
   });
 
   it('reports incomplete for a timed-out run, not failed', () => {
-    expect(unitTestGateStatus(result({ exitCode: null, timedOut: true }))).toBe(
+    expect(processGateStatus(result({ exitCode: null, timedOut: true }))).toBe(
       'incomplete',
     );
   });
 });
 
-describe('buildUnitTestExecution', () => {
-  it('builds a real TestExecution attributed to the exact component whose package ran', () => {
-    const execution = buildUnitTestExecution(
+describe('buildProcessGateExecution', () => {
+  it('builds a real TestExecution tagged with the exact gate that ran', () => {
+    const execution = buildProcessGateExecution(
+      'lint',
       manifest(),
       plan,
       result({ exitCode: 0 }),
@@ -68,21 +78,34 @@ describe('buildUnitTestExecution', () => {
       'a'.repeat(40),
     );
 
+    expect(execution.gate).toBe('lint');
     expect(execution.componentVersionId).toBe(
       'acme.button-library.acme-button@0.1.0',
     );
-    expect(execution.gate).toBe('unit');
     expect(execution.tool).toBe('npm');
     expect(execution.toolVersion).toBe('unknown');
-    expect(execution.adapterVersion).toBe(UNIT_TEST_GATE_ADAPTER_VERSION);
+    expect(execution.adapterVersion).toBe(PROCESS_GATE_ADAPTER_VERSION);
     expect(execution.status).toBe('passed');
     expect(execution.startedAt).toBe('2026-01-01T00:00:00.000Z');
     expect(execution.durationMs).toBe(1234);
     expect(execution.commitOrFingerprint).toBe('a'.repeat(40));
   });
 
+  it('gives unit, lint, and build distinct ids for the same component and instant', () => {
+    const shared = manifest();
+    const now = '2026-01-01T00:00:00.000Z';
+    const commit = 'a'.repeat(40);
+    const ids = (['unit', 'lint', 'build'] as const).map(
+      (gate) =>
+        buildProcessGateExecution(gate, shared, plan, result({}), now, commit)
+          .id,
+    );
+    expect(new Set(ids).size).toBe(3);
+  });
+
   it('honestly omits rawArtifactRef when no artifact was captured', () => {
-    const execution = buildUnitTestExecution(
+    const execution = buildProcessGateExecution(
+      'build',
       manifest(),
       plan,
       result({ artifactPath: null }),
@@ -93,7 +116,8 @@ describe('buildUnitTestExecution', () => {
   });
 
   it('records a real captured artifact path when one exists', () => {
-    const execution = buildUnitTestExecution(
+    const execution = buildProcessGateExecution(
+      'build',
       manifest(),
       plan,
       result({ artifactPath: '/tmp/forgegate/run-1.json' }),
@@ -104,7 +128,8 @@ describe('buildUnitTestExecution', () => {
   });
 
   it('records a real failed status without fabricating a passed result', () => {
-    const execution = buildUnitTestExecution(
+    const execution = buildProcessGateExecution(
+      'build',
       manifest(),
       plan,
       result({ exitCode: 1 }),

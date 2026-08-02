@@ -2520,7 +2520,7 @@ describe('WorkspaceService', () => {
     });
   });
 
-  describe('runUnitTestGate / approveStagedTestExecution / discardStagedTestExecution', () => {
+  describe('runGate / approveStagedTestExecution / discardStagedTestExecution', () => {
     const manifest = createComponentManifest({
       id: 'acme.design-system.acme-button',
       framework: 'web-components',
@@ -2543,15 +2543,15 @@ describe('WorkspaceService', () => {
         safeWriteLocations: [],
       });
 
-      await service.runUnitTestGate(manifest);
+      await service.runGate('unit', manifest);
 
       expect(invokeMock).not.toHaveBeenCalled();
-      expect(service.unitTestGateSkipped()).toBe(
+      expect(service.gateSkipped()).toBe(
         'No unitTest command is configured in .forgegate/config.yaml.',
       );
     });
 
-    it('runs the configured command scoped to the component package and stages a real passing result', async () => {
+    it('runs the configured unit-test command scoped to the component package and stages a real passing result', async () => {
       service.workspacePath.set('D:/repos/ForgeGate');
       service.gitStatus.set({
         branch: 'main',
@@ -2589,7 +2589,7 @@ describe('WorkspaceService', () => {
         .mockResolvedValueOnce(runResult)
         .mockResolvedValueOnce(stagedWrite);
 
-      await service.runUnitTestGate(manifest);
+      await service.runGate('unit', manifest);
 
       expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
         workspacePath: 'D:/repos/ForgeGate',
@@ -2603,10 +2603,11 @@ describe('WorkspaceService', () => {
         'stage_test_execution',
         expect.objectContaining({ workspacePath: 'D:/repos/ForgeGate' }),
       );
-      expect(service.unitTestGateResult()).toEqual(runResult);
-      expect(service.unitTestGateSkipped()).toBeNull();
+      expect(service.gateResult()).toEqual(runResult);
+      expect(service.gateSkipped()).toBeNull();
       const staged = service.stagedTestExecution();
       expect(staged?.componentId).toBe(manifest.id);
+      expect(staged?.execution.gate).toBe('unit');
       expect(staged?.execution.status).toBe('passed');
       expect(staged?.execution.componentVersionId).toBe(
         'acme.design-system.acme-button@1.0.0',
@@ -2614,7 +2615,7 @@ describe('WorkspaceService', () => {
       expect(
         service
           .adapterDiagnostics()
-          .find((diagnostic) => diagnostic.id === 'unit-test-gate-command'),
+          .find((diagnostic) => diagnostic.id === 'unit-gate-command'),
       ).toMatchObject({ status: 'loaded', error: null });
     });
 
@@ -2647,14 +2648,117 @@ describe('WorkspaceService', () => {
         newContent: '{}',
       });
 
-      await service.runUnitTestGate(manifest);
+      await service.runGate('unit', manifest);
 
       expect(service.stagedTestExecution()?.execution.status).toBe('failed');
       expect(
         service
           .adapterDiagnostics()
-          .find((diagnostic) => diagnostic.id === 'unit-test-gate-command'),
+          .find((diagnostic) => diagnostic.id === 'unit-gate-command'),
       ).toMatchObject({ status: 'failed', error: '3 tests failed' });
+    });
+
+    it('runs the configured lint command against its own real commandMappings key', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { lint: 'npm run lint' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 200,
+        artifactPath: null,
+      };
+      invokeMock.mockResolvedValueOnce(runResult).mockResolvedValueOnce({
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      });
+
+      await service.runGate('lint', manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativeCwd: 'packages/acme-button',
+        command: 'npm',
+        args: ['run', 'lint'],
+        timeoutSeconds: 180,
+      });
+      expect(service.stagedTestExecution()?.execution.gate).toBe('lint');
+    });
+
+    it('runs the configured build command against its own real commandMappings key', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { build: 'npm run build' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 4000,
+        artifactPath: null,
+      };
+      invokeMock.mockResolvedValueOnce(runResult).mockResolvedValueOnce({
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      });
+
+      await service.runGate('build', manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativeCwd: 'packages/acme-button',
+        command: 'npm',
+        args: ['run', 'build'],
+        timeoutSeconds: 600,
+      });
+      expect(service.stagedTestExecution()?.execution.gate).toBe('build');
+    });
+
+    it('skips lint honestly without being satisfied by an unrelated unitTest mapping', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { unitTest: 'npm test' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runGate('lint', manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.gateSkipped()).toBe(
+        'No lint command is configured in .forgegate/config.yaml.',
+      );
     });
 
     it('approves a staged test execution into the real evidence directory', async () => {

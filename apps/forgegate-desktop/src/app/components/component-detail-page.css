@@ -268,6 +268,13 @@
   margin: 0 0 var(--fg-space-2);
 }
 
+.component-detail__gate-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fg-space-2);
+  margin-bottom: var(--fg-space-2);
+}
+
 .component-detail__live-output {
   max-height: 16rem;
   overflow-y: auto;

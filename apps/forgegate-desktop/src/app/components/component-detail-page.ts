@@ -15,6 +15,7 @@ import {
   isCurrentAgainstCommit,
   isStaleAgainstCommit,
 } from '../evidence-freshness';
+import { PROCESS_GATE_DEFINITIONS, type ProcessGateId } from '../process-gate';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '@forgegate/adapter-storybook';
 import { computeDocumentationDriftState } from '../documentation-drift';
@@ -593,12 +594,14 @@ export class ComponentDetailPage {
     );
   }
 
-  protected runUnitTests(): void {
+  protected readonly gateDefinitions = PROCESS_GATE_DEFINITIONS;
+
+  protected runGate(gate: ProcessGateId): void {
     const manifest = this.manifest();
     if (!manifest) {
       return;
     }
-    void this.workspace.runUnitTestGate(manifest);
+    void this.workspace.runGate(gate, manifest);
   }
 
   protected approveTestExecution(): void {

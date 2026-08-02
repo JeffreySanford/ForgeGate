@@ -17,7 +17,11 @@ import {
   type TestExecution,
 } from '@forgegate/core-evidence';
 import { findingsFromManualReviewStepResults } from './manual-review-findings';
-import { buildUnitTestExecution } from './unit-test-gate';
+import {
+  buildProcessGateExecution,
+  PROCESS_GATE_DEFINITIONS,
+  type ProcessGateId,
+} from './process-gate';
 import {
   extractProtectedOverview,
   generateStarlightComponentReportData,
@@ -315,8 +319,6 @@ const GENERATE_CEM_COMMAND = 'npx';
 const GENERATE_CEM_TIMEOUT_SECONDS = 120;
 const STARLIGHT_BUILD_COMMAND_MAPPING = 'starlightBuild';
 const STARLIGHT_BUILD_TIMEOUT_SECONDS = 180;
-const UNIT_TEST_GATE_COMMAND_MAPPING = 'unitTest';
-const UNIT_TEST_GATE_TIMEOUT_SECONDS = 300;
 const CEM_EXCLUDED_GLOBS = [
   'node_modules/**',
   'dist/**',
@@ -489,21 +491,24 @@ export class WorkspaceService {
 
   /**
    * ForgeGate actually running a target repository's own configured
-   * `commandMappings.unitTest` command (`unit-test-gate.ts`), scoped to one
-   * component's own package directory — not ingesting a
+   * command for a real gate — `unit`, `lint`, or `build` today
+   * (`process-gate.ts`'s `PROCESS_GATE_DEFINITIONS`) — scoped to one
+   * component's own package directory, not ingesting a
    * `.forgegate/evidence/*.json` file the repository already produced.
-   * `unitTestGateSkipped` is set (never silently ignored) when no
-   * `unitTest` mapping is configured. On a real completed run — pass or
-   * fail — the resulting `TestExecution` is staged automatically
+   * Only one gate runs at a time per the UI (`runningGate` names which),
+   * so these are shared across gate types rather than duplicated per gate.
+   * `gateSkipped` is set (never silently ignored) when the gate's
+   * `commandMappings` key isn't configured. On a real completed run — pass
+   * or fail — the resulting `TestExecution` is staged automatically
    * (`stagedTestExecution`); nothing is written into `.forgegate/evidence/`
    * until an explicit "Approve" call, the same P2 entry gate 2 discipline
    * every other evidence write follows.
    */
-  readonly unitTestGateRunning = signal(false);
-  readonly unitTestGateLiveOutput = signal('');
-  readonly unitTestGateResult = signal<CommandResult | null>(null);
-  readonly unitTestGateError = signal<string | null>(null);
-  readonly unitTestGateSkipped = signal<string | null>(null);
+  readonly runningGate = signal<ProcessGateId | null>(null);
+  readonly gateLiveOutput = signal('');
+  readonly gateResult = signal<CommandResult | null>(null);
+  readonly gateError = signal<string | null>(null);
+  readonly gateSkipped = signal<string | null>(null);
 
   readonly stagedTestExecution = signal<{
     readonly execution: TestExecution;
@@ -1997,26 +2002,34 @@ export class WorkspaceService {
 
   /**
    * Actually runs the given component's package through the workspace's
-   * own configured `commandMappings.unitTest` command
-   * (`run_workspace_command`, scoped to `manifest.packagePath` as the
-   * working directory) — not ingesting a pre-existing evidence file. Skips
-   * honestly (`unitTestGateSkipped`) rather than silently doing nothing
-   * when no `unitTest` mapping is configured. On a real completed run, the
-   * resulting `TestExecution` (`buildUnitTestExecution`) is staged
-   * automatically — pass or fail, since a real failure is exactly the
-   * evidence this exists to produce — but nothing is written into
-   * `.forgegate/evidence/` until an explicit `approveStagedTestExecution`.
+   * own configured command for one real gate (`PROCESS_GATE_DEFINITIONS`
+   * — `unit`, `lint`, or `build`) via `run_workspace_command`, scoped to
+   * `manifest.packagePath` as the working directory — not ingesting a
+   * pre-existing evidence file. Skips honestly (`gateSkipped`) rather than
+   * silently doing nothing when that gate's `commandMappings` key isn't
+   * configured. On a real completed run, the resulting `TestExecution`
+   * (`buildProcessGateExecution`) is staged automatically — pass or fail,
+   * since a real failure is exactly the evidence this exists to produce —
+   * but nothing is written into `.forgegate/evidence/` until an explicit
+   * `approveStagedTestExecution`.
    */
-  async runUnitTestGate(manifest: ComponentManifest): Promise<void> {
+  async runGate(
+    gate: ProcessGateId,
+    manifest: ComponentManifest,
+  ): Promise<void> {
     const path = this.workspacePath();
-    if (!path || this.unitTestGateRunning()) {
+    if (!path || this.runningGate()) {
+      return;
+    }
+    const definition = PROCESS_GATE_DEFINITIONS.find((g) => g.id === gate);
+    if (!definition) {
       return;
     }
     const commandText =
-      this.repositoryConfig()?.commandMappings[UNIT_TEST_GATE_COMMAND_MAPPING];
+      this.repositoryConfig()?.commandMappings[definition.commandMappingKey];
     if (!commandText) {
-      this.unitTestGateSkipped.set(
-        `No ${UNIT_TEST_GATE_COMMAND_MAPPING} command is configured in .forgegate/config.yaml.`,
+      this.gateSkipped.set(
+        `No ${definition.commandMappingKey} command is configured in .forgegate/config.yaml.`,
       );
       return;
     }
@@ -2025,20 +2038,20 @@ export class WorkspaceService {
     try {
       plan = parseWorkspaceCommandMapping(commandText);
     } catch (error) {
-      this.unitTestGateError.set(String(error));
+      this.gateError.set(String(error));
       return;
     }
 
-    this.unitTestGateRunning.set(true);
-    this.unitTestGateError.set(null);
-    this.unitTestGateResult.set(null);
-    this.unitTestGateLiveOutput.set('');
-    this.unitTestGateSkipped.set(null);
+    this.runningGate.set(gate);
+    this.gateError.set(null);
+    this.gateResult.set(null);
+    this.gateLiveOutput.set('');
+    this.gateSkipped.set(null);
     const startedAt = new Date().toISOString();
     const unlisten = await this.listen<CommandOutputLine>(
       'workspace-command-output',
       (event) => {
-        this.unitTestGateLiveOutput.update(
+        this.gateLiveOutput.update(
           (current) => current + event.payload.line + '\n',
         );
       },
@@ -2049,12 +2062,12 @@ export class WorkspaceService {
         relativeCwd: manifest.packagePath,
         command: plan.command,
         args: [...plan.args],
-        timeoutSeconds: UNIT_TEST_GATE_TIMEOUT_SECONDS,
+        timeoutSeconds: definition.timeoutSeconds,
       });
-      this.unitTestGateResult.set(result);
+      this.gateResult.set(result);
       this.setAdapterDiagnostic({
-        id: 'unit-test-gate-command',
-        adapter: 'Unit test gate',
+        id: `${gate}-gate-command`,
+        adapter: `${definition.label} gate`,
         source: `${manifest.packagePath}: ${plan.commandText}`,
         status: result.exitCode === 0 ? 'loaded' : 'failed',
         rawOutput: JSON.stringify(result, null, 2),
@@ -2063,9 +2076,10 @@ export class WorkspaceService {
             ? null
             : result.cancelled
               ? 'Cancelled by user'
-              : result.stderr || 'Unit test command failed',
+              : result.stderr || `${definition.label} command failed`,
       });
-      const execution = buildUnitTestExecution(
+      const execution = buildProcessGateExecution(
+        gate,
         manifest,
         plan,
         result,
@@ -2074,10 +2088,10 @@ export class WorkspaceService {
       );
       await this.stageTestExecution(execution, manifest.id);
     } catch (error) {
-      this.unitTestGateError.set(String(error));
+      this.gateError.set(String(error));
     } finally {
       unlisten();
-      this.unitTestGateRunning.set(false);
+      this.runningGate.set(null);
     }
   }
 

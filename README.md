@@ -141,12 +141,13 @@ native ForgeGate `TestExecution` shape plus provenance-bearing
 `playwright-json`, `axe-json`, and `storybook-interactions-json` envelopes. Raw
 Playwright, axe, and Storybook interaction reports are preserved and exported
 under the documented `automated/` evidence-package files. ForgeGate now also
-runs one target-repository gate itself — a component's own configured
-`commandMappings.unitTest` command, scoped to that component's package, with
-the real result staged and explicitly approved into `.forgegate/evidence/`
-before it commits. Storybook interaction, Playwright, axe, lint, and build
-gates remain import-only; running those from ForgeGate is still a future
-orchestration milestone.
+runs three target-repository gates itself — a component's own configured
+`unitTest`, `lint`, and `build` commands, each scoped to that component's
+package, with the real result staged and explicitly approved into
+`.forgegate/evidence/` before it commits. Storybook interaction, Playwright,
+and axe gates remain import-only; running those from ForgeGate needs a real
+design decision (reusing the existing structured-report parsers rather than
+an exit-code-only run), not just repeating this same mechanism.
 
 ### Manual review and evidence
 

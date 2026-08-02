@@ -255,33 +255,36 @@
     </table>
     }
 
-    <h3 id="unit-test-gate-title">Run unit tests</h3>
+    <h3 id="process-gate-title">Run a gate</h3>
     <p class="component-detail__caveat">
-      Actually runs this package's own configured
-      <code>unitTest</code> command (from <code>.forgegate/config.yaml</code>) —
-      not evidence the repository already produced. Records only the real
+      Actually runs this package's own configured command for the selected gate
+      (from <code>.forgegate/config.yaml</code>'s <code>commandMappings</code>)
+      — not evidence the repository already produced. Records only the real
       pass/fail exit code, not per-test detail.
     </p>
-    <button
-      type="button"
-      [disabled]="
-        workspace.unitTestGateRunning() || !!workspace.stagedTestExecution()
-      "
-      (click)="runUnitTests()"
-    >
-      {{ workspace.unitTestGateRunning() ? 'Running?' : 'Run unit tests' }}
-    </button>
-    @if (workspace.unitTestGateSkipped(); as skipped) {
+    <div class="component-detail__gate-buttons">
+      @for (gate of gateDefinitions; track gate.id) {
+      <button
+        type="button"
+        [disabled]="!!workspace.runningGate() || !!workspace.stagedTestExecution()"
+        (click)="runGate(gate.id)"
+      >
+        {{ workspace.runningGate() === gate.id ? 'Running…' : 'Run ' +
+        gate.label }}
+      </button>
+      }
+    </div>
+    @if (workspace.gateSkipped(); as skipped) {
     <p role="status">{{ skipped }}</p>
-    } @if (workspace.unitTestGateLiveOutput()) {
+    } @if (workspace.gateLiveOutput()) {
     <details open>
       <summary>Live output</summary>
       <pre class="component-detail__live-output">
 {{
-        workspace.unitTestGateLiveOutput()
+        workspace.gateLiveOutput()
       }}</pre>
     </details>
-    } @if (workspace.unitTestGateError(); as gateError) {
+    } @if (workspace.gateError(); as gateError) {
     <p role="alert">{{ gateError }}</p>
     } @if (workspace.stageTestExecutionError(); as stageError) {
     <p role="alert">Failed to stage the test result: {{ stageError }}</p>
