@@ -5,6 +5,7 @@ import type {
   TestExecution,
 } from '@forgegate/core-evidence';
 import type { AutomatedEvidenceDetail } from './evidence-detail';
+import type { ReleaseDecisionWorkflowRecord } from './release-decision-export';
 
 export interface StarlightEvidencePackageRecords {
   readonly testExecutions: readonly TestExecution[];
@@ -12,6 +13,7 @@ export interface StarlightEvidencePackageRecords {
   readonly manualReviews: readonly ManualReview[];
   readonly findings: readonly Finding[];
   readonly exceptions: readonly Exception[];
+  readonly releaseDecisionRecords: readonly ReleaseDecisionWorkflowRecord[];
   readonly limitations: readonly string[];
 }
 
@@ -41,6 +43,11 @@ export function loadStarlightEvidencePackageRecords(
     exceptions: readDirectoryRecords<Exception>(
       files,
       'exceptions/',
+      limitations,
+    ),
+    releaseDecisionRecords: readDirectoryRecords<ReleaseDecisionWorkflowRecord>(
+      files,
+      'release-decisions/',
       limitations,
     ),
     limitations,

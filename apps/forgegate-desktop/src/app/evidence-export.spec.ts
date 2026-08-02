@@ -633,6 +633,16 @@ describe('buildEvidenceExport', () => {
     expect(decision.approver).toBeUndefined();
     expect(decision.notRealApproval).toBeUndefined();
     expect(decision.policyVersion).toBe('2.1.0');
+    const workflowRecordPath =
+      'release-decisions/acme.lib.button-release-decision-workflow-record.json';
+    const workflowRecord = JSON.parse(requireFile(result, workflowRecordPath));
+    expect(workflowRecord).toMatchObject({
+      decisionId: 'acme.lib.button-release-decision',
+      outcome: 'blocked',
+      authorization: 'blocked-no-approval-required',
+      notRealApproval: false,
+      blockingFindingIds: ['acme.lib.button-blocking-0'],
+    });
 
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     expect(manifestJson.notRealApproval).toBeUndefined();
@@ -643,6 +653,8 @@ describe('buildEvidenceExport', () => {
       'policy-snapshot.json',
     );
     expect(manifestJson.contents).toContain('policy-snapshot.json');
+    expect(manifestJson.contents).toContain(workflowRecordPath);
+    expect(manifestJson.checksums).toHaveProperty(workflowRecordPath);
 
     const policySnapshot = JSON.parse(
       requireFile(result, 'policy-snapshot.json'),
@@ -780,6 +792,17 @@ describe('buildEvidenceExport', () => {
     expect(decision.approver).toBe('e2e-harness');
     // The marker travels with the file itself, not only the manifest.
     expect(decision.notRealApproval).toBe(true);
+    const workflowRecord = JSON.parse(
+      requireFile(
+        result,
+        'release-decisions/acme.lib.button-release-decision-workflow-record.json',
+      ),
+    );
+    expect(workflowRecord).toMatchObject({
+      authorization: 'test-harness-not-real',
+      approver: 'e2e-harness',
+      notRealApproval: true,
+    });
 
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
     expect(manifestJson.notRealApproval).toBe(true);
@@ -818,6 +841,17 @@ describe('buildEvidenceExport', () => {
     expect(decision.outcome).toBe('authorized-candidate');
     expect(decision.approver).toBe('lead@example.com');
     expect(decision.notRealApproval).toBeUndefined();
+    const workflowRecord = JSON.parse(
+      requireFile(
+        result,
+        'release-decisions/acme.lib.button-release-decision-workflow-record.json',
+      ),
+    );
+    expect(workflowRecord).toMatchObject({
+      authorization: 'human-approved',
+      approver: 'lead@example.com',
+      notRealApproval: false,
+    });
     expect(requireFile(result, 'report.html')).not.toContain(
       'NOT A REAL APPROVAL',
     );

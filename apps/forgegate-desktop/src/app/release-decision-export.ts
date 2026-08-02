@@ -42,6 +42,28 @@ export interface ReleaseDecisionExport {
    * always a real decision.
    */
   readonly notRealApproval: boolean;
+  readonly workflowRecord: ReleaseDecisionWorkflowRecord;
+}
+
+export interface ReleaseDecisionWorkflowRecord {
+  readonly id: string;
+  readonly decisionId: string;
+  readonly componentVersionId: string;
+  readonly policyId: string;
+  readonly policyVersion: string;
+  readonly outcome: ReleaseDecision['outcome'];
+  readonly commit: string;
+  readonly decidedAt: string;
+  readonly source: 'forgegate-export-evaluation';
+  readonly authorization:
+    | 'blocked-no-approval-required'
+    | 'human-approved'
+    | 'test-harness-not-real';
+  readonly approver?: string;
+  readonly notRealApproval: boolean;
+  readonly evidenceIds: readonly string[];
+  readonly blockingFindingIds: readonly string[];
+  readonly limitations: readonly string[];
 }
 
 export interface PolicySnapshotExport {
@@ -233,5 +255,51 @@ export function computeReleaseDecision(input: {
     decision,
     notRealApproval:
       decision.outcome === 'authorized-candidate' && !isRealApproval(approver),
+    workflowRecord: buildReleaseDecisionWorkflowRecord(decision, approver),
+  };
+}
+
+function buildReleaseDecisionWorkflowRecord(
+  decision: ReleaseDecision,
+  approver: EvidenceApprover | null,
+): ReleaseDecisionWorkflowRecord {
+  const notRealApproval =
+    decision.outcome === 'authorized-candidate' && !isRealApproval(approver);
+  const authorization =
+    decision.outcome === 'blocked'
+      ? 'blocked-no-approval-required'
+      : notRealApproval
+        ? 'test-harness-not-real'
+        : 'human-approved';
+  return {
+    id: `${decision.id}-workflow-record`,
+    decisionId: decision.id,
+    componentVersionId: decision.componentVersionId,
+    policyId: decision.policyId,
+    policyVersion: decision.policyVersion,
+    outcome: decision.outcome,
+    commit: decision.commit,
+    decidedAt: decision.decidedAt,
+    source: 'forgegate-export-evaluation',
+    authorization,
+    ...(decision.approver ? { approver: decision.approver } : {}),
+    notRealApproval,
+    evidenceIds: decision.evidenceIds,
+    blockingFindingIds: decision.blockingFindingIds,
+    limitations:
+      decision.outcome === 'blocked'
+        ? [
+            'This is a durable blocked evaluation record; no approver is required because no release was authorized.',
+            'ForgeGate has not implemented repository write-back for release-decision workflow history yet, so this record is persisted inside the evidence package.',
+          ]
+        : notRealApproval
+          ? [
+              'This authorized-candidate path was exercised by a test harness and is not a real approval.',
+              'ForgeGate has not implemented repository write-back for release-decision workflow history yet, so this record is persisted inside the evidence package.',
+            ]
+          : [
+              'This authorized-candidate record includes a named human approver supplied by the caller.',
+              'ForgeGate has not implemented repository write-back for release-decision workflow history yet, so this record is persisted inside the evidence package.',
+            ],
   };
 }

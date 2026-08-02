@@ -227,6 +227,12 @@ Required action:
 > exercised end to end; anything produced that way is flagged `notRealApproval`
 > in both `release-decision.json` and `manifest.json`, and banner-marked in
 > `report.html`, so it can never be mistaken for a real approval.
+> When a decision is produced, ForgeGate also writes a durable workflow record
+> under `release-decisions/`. That record links back to `release-decision.json`,
+> repeats the component, policy, commit, evidence, and finding inputs, and
+> distinguishes `blocked-no-approval-required`, `human-approved`, and
+> `test-harness-not-real`. Repository write-back for release-decision history
+> and desktop human-approver capture remain future work.
 >
 > **`policy-snapshot.json`.** This is now a real snapshot of ForgeGate's narrow
 > built-in release-decision rules, not a complete organizational policy engine.
@@ -271,6 +277,7 @@ forgegate-evidence/
 ├── manifest.json
 ├── policy-snapshot.json
 ├── release-decision.json
+├── release-decisions/
 ├── test-summary.json
 ├── automated/
 │   ├── axe-results.json

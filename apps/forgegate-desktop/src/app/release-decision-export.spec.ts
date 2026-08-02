@@ -65,6 +65,13 @@ describe('computeReleaseDecision', () => {
     expect(result.decision.commit).toBe(COMMIT);
     // A blocked outcome needs no approval at all, so it is never "not real".
     expect(result.notRealApproval).toBe(false);
+    expect(result.workflowRecord).toMatchObject({
+      id: 'acme.lib.button-release-decision-workflow-record',
+      decisionId: 'acme.lib.button-release-decision',
+      authorization: 'blocked-no-approval-required',
+      notRealApproval: false,
+      blockingFindingIds: ['acme.lib.button-blocking-0'],
+    });
   });
 
   it('never records an approver on a blocked decision, even when one is supplied', () => {
@@ -112,6 +119,11 @@ describe('computeReleaseDecision', () => {
     expect(result.decision.outcome).toBe('authorized-candidate');
     expect(result.decision.approver).toBe('lead@example.com');
     expect(result.notRealApproval).toBe(false);
+    expect(result.workflowRecord).toMatchObject({
+      authorization: 'human-approved',
+      approver: 'lead@example.com',
+      notRealApproval: false,
+    });
   });
 
   it('lets a test harness drive the authorized path but flags the approval as not real', () => {
@@ -129,6 +141,14 @@ describe('computeReleaseDecision', () => {
     expect(result.decision.outcome).toBe('authorized-candidate');
     expect(result.decision.approver).toBe('e2e-harness');
     expect(result.notRealApproval).toBe(true);
+    expect(result.workflowRecord).toMatchObject({
+      authorization: 'test-harness-not-real',
+      approver: 'e2e-harness',
+      notRealApproval: true,
+    });
+    expect(result.workflowRecord.limitations.join(' ')).toContain(
+      'not a real approval',
+    );
   });
 
   it('reports why no decision is possible when the repository authored no policy', () => {

@@ -638,6 +638,11 @@ export async function buildEvidenceExport(
       null,
       2,
     );
+    contentFiles[
+      `release-decisions/${sanitizeForFilename(
+        releaseDecision.workflowRecord.id,
+      )}.json`
+    ] = JSON.stringify(releaseDecision.workflowRecord, null, 2);
   }
   contentFiles['report.html'] = renderEvidenceReport({
     versionId,

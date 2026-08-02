@@ -11,6 +11,8 @@ describe('loadStarlightEvidencePackageRecords', () => {
       adapter: 'framework.web-components',
       packagePath: '.',
       componentVersion: '1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
     });
     const automatedArtifact: AutomatedEvidenceArtifact = {
       kind: 'axe-json',
@@ -64,6 +66,7 @@ describe('loadStarlightEvidencePackageRecords', () => {
           sourceEvidenceId: 'axe-run-1',
         },
       ],
+      repositoryCommit: 'a'.repeat(40),
       starlightProjects: [],
     });
 
@@ -76,6 +79,10 @@ describe('loadStarlightEvidencePackageRecords', () => {
     });
     expect(records.findings[0]).toMatchObject({
       id: 'color-contrast-finding',
+    });
+    expect(records.releaseDecisionRecords[0]).toMatchObject({
+      authorization: 'blocked-no-approval-required',
+      outcome: 'blocked',
     });
     expect(records.limitations).toContain(
       'manual/ has no JSON records in this evidence package.',
