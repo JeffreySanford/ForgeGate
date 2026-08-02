@@ -1,4 +1,5 @@
 import type {
+  AutomatedEvidenceArtifact,
   Exception,
   Finding,
   ManualProcedure,
@@ -6,6 +7,7 @@ import type {
   TestExecution,
 } from '@forgegate/core-evidence';
 import type { ExternalPolicyDocumentSnapshot } from './policy-document';
+import { buildAutomatedEvidenceDetails } from './evidence-detail';
 import type {
   ComponentManifest,
   ContractMember,
@@ -394,6 +396,7 @@ export function buildStarlightComponentReport(
   manifest: ComponentManifest,
   procedures: readonly ManualProcedure[],
   testExecutions: readonly TestExecution[],
+  automatedArtifacts: readonly AutomatedEvidenceArtifact[],
   manualReviews: readonly ManualReview[],
   findings: readonly Finding[],
   exceptions: readonly Exception[],
@@ -413,6 +416,13 @@ export function buildStarlightComponentReport(
     : manifest.id;
   const automatedEvidence = testExecutions.filter(
     (execution) => execution.componentVersionId === componentVersion,
+  );
+  const automatedDetailsByArtifactId = new Map(
+    buildAutomatedEvidenceDetails(
+      automatedArtifacts.filter(
+        (artifact) => artifact.componentVersionId === componentVersion,
+      ),
+    ).map((detail) => [detail.sourceArtifactId, detail]),
   );
   const connectedManualReviews = manualReviews.filter(
     (review) => review.componentVersionId === componentVersion,
@@ -591,6 +601,9 @@ export function buildStarlightComponentReport(
         ...(execution.rawArtifactRef
           ? { rawArtifactRef: execution.rawArtifactRef }
           : {}),
+        ...(automatedDetailsByArtifactId.get(execution.id)
+          ? { details: automatedDetailsByArtifactId.get(execution.id) }
+          : {}),
       })),
       manualReviews: connectedManualReviews.map((review) => ({
         id: review.id,
@@ -648,6 +661,7 @@ export function generateStarlightComponentReportData(
       input.manifest,
       input.procedures,
       input.testExecutions ?? [],
+      input.automatedArtifacts ?? [],
       input.manualReviews ?? [],
       input.findings ?? [],
       input.exceptions ?? [],
@@ -732,6 +746,7 @@ export interface StarlightPageInput {
   readonly manifest: ComponentManifest;
   readonly procedures: readonly ManualProcedure[];
   readonly testExecutions?: readonly TestExecution[];
+  readonly automatedArtifacts?: readonly AutomatedEvidenceArtifact[];
   readonly manualReviews?: readonly ManualReview[];
   readonly findings?: readonly Finding[];
   readonly exceptions?: readonly Exception[];

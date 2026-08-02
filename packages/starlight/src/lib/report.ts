@@ -28,6 +28,29 @@ export interface ForgeGateManualProcedureReport {
   readonly steps: readonly ForgeGateManualProcedureStepReport[];
 }
 
+export interface ForgeGateAutomatedEvidenceDetailMetricReport {
+  readonly label: string;
+  readonly value: string | number;
+}
+
+export interface ForgeGateAutomatedEvidenceDetailObservationReport {
+  readonly label: string;
+  readonly detail: string;
+  readonly severity?: string;
+}
+
+export interface ForgeGateAutomatedEvidenceDetailReport {
+  readonly id: string;
+  readonly sourceArtifactId: string;
+  readonly kind: string;
+  readonly gate: string;
+  readonly tool: string;
+  readonly summary: string;
+  readonly metrics: readonly ForgeGateAutomatedEvidenceDetailMetricReport[];
+  readonly observations: readonly ForgeGateAutomatedEvidenceDetailObservationReport[];
+  readonly limitations: readonly string[];
+}
+
 export interface ForgeGateAutomatedEvidenceReport {
   readonly id: string;
   readonly gate: string;
@@ -35,6 +58,7 @@ export interface ForgeGateAutomatedEvidenceReport {
   readonly status: string;
   readonly commitOrFingerprint: string;
   readonly rawArtifactRef?: string;
+  readonly details?: ForgeGateAutomatedEvidenceDetailReport;
 }
 
 export interface ForgeGateManualReviewEvidenceReport {

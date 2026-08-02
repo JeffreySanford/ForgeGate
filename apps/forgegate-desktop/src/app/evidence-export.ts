@@ -18,6 +18,10 @@ import {
   type PolicySnapshotExport,
 } from './release-decision-export';
 import type { ExternalPolicyDocumentSnapshot } from './policy-document';
+import {
+  buildAutomatedEvidenceDetails,
+  type AutomatedEvidenceDetail,
+} from './evidence-detail';
 
 /**
  * Real target for evidence export, per `documentation/09-manual-review-and-evidence.md`'s
@@ -317,6 +321,7 @@ export async function buildEvidenceExport(
   const automatedArtifacts = (input.automatedArtifacts ?? []).filter(
     (artifact) => artifact.componentVersionId === versionId,
   );
+  const automatedDetails = buildAutomatedEvidenceDetails(automatedArtifacts);
   const manualReviews = (input.manualReviews ?? []).filter(
     (review) => review.componentVersionId === versionId,
   );
@@ -420,6 +425,11 @@ export async function buildEvidenceExport(
     vitestArtifacts.length
   ) {
     delete excludes['automated/'];
+    contentFiles['automated/details.json'] = JSON.stringify(
+      automatedDetails,
+      null,
+      2,
+    );
     if (axeArtifacts.length) {
       contentFiles['automated/axe-results.json'] = JSON.stringify(
         axeArtifacts,
@@ -537,6 +547,7 @@ export async function buildEvidenceExport(
     exportedAt,
     repositoryCommit,
     testExecutions,
+    automatedDetails,
     manualReviews,
     exceptions: relevantExceptions,
     documentationStatus,
@@ -643,6 +654,7 @@ function renderEvidenceReport(input: {
   exportedAt: string;
   repositoryCommit: string | null;
   testExecutions: readonly TestExecution[];
+  automatedDetails: readonly AutomatedEvidenceDetail[];
   manualReviews: readonly ManualReview[];
   exceptions: readonly Exception[];
   documentationStatus: readonly DocumentationStatusRow[];
@@ -662,6 +674,7 @@ function renderEvidenceReport(input: {
     exportedAt,
     repositoryCommit,
     testExecutions,
+    automatedDetails,
     manualReviews,
     exceptions,
     documentationStatus,
@@ -694,6 +707,39 @@ function renderEvidenceReport(input: {
     </table>`
     : notConnected(
         'No automated result evidence is connected for this component version.',
+      );
+
+  const automatedDetailSection = automatedDetails.length
+    ? `<table>
+      <caption>Automated evidence detail</caption>
+      <thead><tr><th scope="col">Artifact</th><th scope="col">Summary</th><th scope="col">Metrics</th><th scope="col">Observations</th></tr></thead>
+      <tbody>${automatedDetails
+        .map((detail) => {
+          const metrics = detail.metrics
+            .map((metric) => `${metric.label}: ${metric.value}`)
+            .join('; ');
+          const observations = detail.observations.length
+            ? detail.observations
+                .map((observation) =>
+                  [
+                    observation.label,
+                    observation.severity
+                      ? `(${observation.severity})`
+                      : '',
+                    observation.detail,
+                  ]
+                    .filter(Boolean)
+                    .join(' '),
+                )
+                .join('; ')
+            : 'No detailed issues were parsed from this artifact.';
+          return `<tr><th scope="row"><code>${escapeHtml(detail.sourceArtifactId)}</code><br><span class="not-connected">${escapeHtml(detail.kind)}</span></th><td>${escapeHtml(detail.summary)}</td><td>${escapeHtml(metrics || 'No metrics parsed.')}</td><td>${escapeHtml(observations)}</td></tr>`;
+        })
+        .join('')}</tbody>
+    </table>
+    <p class="not-connected">Detailed summaries are derived from known automated report fields only. Raw logs, screenshots, traces, DOM snippets, coverage, and attachment contents are not embedded here; see the raw automated artifacts and redaction plan for provenance.</p>`
+    : notConnected(
+        'No parsed automated report details are connected for this component version.',
       );
 
   const manualReviewsSection = manualReviews.length
@@ -869,6 +915,7 @@ ${
 
 <h2>Automated results</h2>
 ${automatedResults}
+${automatedDetailSection}
 
 <h2>Manual reviews</h2>
 ${manualReviewsSection}

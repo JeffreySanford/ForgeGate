@@ -842,6 +842,7 @@ describe('buildEvidenceExport', () => {
     expect(Object.keys(result.files)).toContain(
       'automated/playwright-results.json',
     );
+    expect(Object.keys(result.files)).toContain('automated/details.json');
     const playwrightResults = JSON.parse(
       requireFile(result, 'automated/playwright-results.json'),
     );
@@ -861,9 +862,11 @@ describe('buildEvidenceExport', () => {
     expect(manifestJson.contents).toContain(
       'automated/playwright-results.json',
     );
+    expect(manifestJson.contents).toContain('automated/details.json');
     expect(manifestJson.checksums).toHaveProperty(
       'automated/playwright-results.json',
     );
+    expect(manifestJson.checksums).toHaveProperty('automated/details.json');
     expect(Object.keys(manifestJson.excludes)).not.toContain('automated/');
     expect(manifestJson.excludes).toMatchObject({
       'automated/axe-results.json':
@@ -871,6 +874,17 @@ describe('buildEvidenceExport', () => {
       'automated/interaction-results.json':
         'No Storybook interaction result artifact is connected for this component yet.',
     });
+    const details = JSON.parse(requireFile(result, 'automated/details.json'));
+    expect(details).toHaveLength(1);
+    expect(details[0]).toMatchObject({
+      sourceArtifactId: 'matching-playwright',
+      kind: 'playwright-json',
+      summary:
+        'Playwright completed without failing checks in the parsed report.',
+    });
+    expect(requireFile(result, 'report.html')).toContain(
+      'Automated evidence detail',
+    );
   });
 
   it('writes imported axe reports as a first-class automated artifact when raw evidence is preserved', async () => {

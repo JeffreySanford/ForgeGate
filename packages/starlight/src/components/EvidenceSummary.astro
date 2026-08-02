@@ -169,6 +169,37 @@ function severityClass(severity: string): string {
               <span class="forgegate-evidence-list__title">{execution.gate}</span>
               <span>{execution.tool}</span>
               <code>{execution.commitOrFingerprint}</code>
+              {execution.details ? (
+                <div class="forgegate-evidence-detail">
+                  <p>{execution.details.summary}</p>
+                  <dl>
+                    {execution.details.metrics.map((metric) => (
+                      <div>
+                        <dt>{metric.label}</dt>
+                        <dd>{metric.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {execution.details.observations.length ? (
+                    <ul>
+                      {execution.details.observations.map((observation) => (
+                        <li>
+                          <span class={severityClass(observation.severity ?? 'minor')}>
+                            {observation.severity ?? 'note'}
+                          </span>
+                          <span class="forgegate-evidence-list__title">
+                            {observation.label}
+                          </span>
+                          <span>{observation.detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <p class="forgegate-evidence-detail__limit">
+                    {execution.details.limitations.join(' ')}
+                  </p>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -298,6 +329,51 @@ function severityClass(severity: string): string {
 
   .forgegate-evidence-list__title {
     font-weight: 700;
+  }
+
+  .forgegate-evidence-detail {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.15rem;
+    padding: 0.7rem 0 0.15rem;
+    border-top: 1px dashed var(--forgegate-report-border);
+  }
+
+  .forgegate-evidence-detail p {
+    margin: 0;
+  }
+
+  .forgegate-evidence-detail dl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.45rem;
+    margin: 0;
+  }
+
+  .forgegate-evidence-detail dt {
+    color: var(--forgegate-report-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .forgegate-evidence-detail dd {
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .forgegate-evidence-detail ul {
+    gap: 0.4rem;
+  }
+
+  .forgegate-evidence-detail li {
+    grid-template-columns: auto minmax(8rem, 0.45fr) minmax(12rem, 1fr);
+  }
+
+  .forgegate-evidence-detail__limit {
+    color: var(--forgegate-report-muted);
+    font-size: 0.88rem;
   }
 
   .forgegate-chip--success {

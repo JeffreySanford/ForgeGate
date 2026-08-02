@@ -1,5 +1,6 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
 import type {
+  AutomatedEvidenceArtifact,
   Exception,
   Finding,
   ManualProcedure,
@@ -163,6 +164,29 @@ describe('generateDesignerStarlightComponentPage', () => {
       commitOrFingerprint: 'b91d20e',
       rawArtifactRef: '.forgegate/evidence/axe-acme-button.json',
     };
+    const automatedArtifact: AutomatedEvidenceArtifact = {
+      kind: 'axe-json',
+      id: 'axe-acme-button',
+      componentVersionId: 'acme.design-system.acme-button@1.2.0',
+      gate: 'accessibility',
+      tool: 'axe-core',
+      toolVersion: '4.9.0',
+      adapterVersion: '0.1.0',
+      commitOrFingerprint: 'b91d20e',
+      rawArtifactRef: '.forgegate/evidence/axe-acme-button.json',
+      report: {
+        violations: [
+          {
+            id: 'color-contrast',
+            impact: 'serious',
+            help: 'Elements must meet minimum color contrast ratio.',
+            nodes: [{}],
+          },
+        ],
+        incomplete: [],
+        passes: [{ id: 'button-name', nodes: [] }],
+      },
+    };
     const manualReview: ManualReview = {
       id: 'review-acme-button',
       componentVersionId: 'acme.design-system.acme-button@1.2.0',
@@ -198,6 +222,14 @@ describe('generateDesignerStarlightComponentPage', () => {
       testExecutions: [
         automated,
         { ...automated, id: 'axe-other', componentVersionId: 'other@1.0.0' },
+      ],
+      automatedArtifacts: [
+        automatedArtifact,
+        {
+          ...automatedArtifact,
+          id: 'axe-other',
+          componentVersionId: 'other@1.0.0',
+        },
       ],
       manualReviews: [
         manualReview,
@@ -235,6 +267,9 @@ describe('generateDesignerStarlightComponentPage', () => {
     expect(data).toContain('"attachments": [');
     expect(data).toContain('"sourceEvidenceId": "axe-acme-button"');
     expect(data).toContain('"status": "referenced-not-copied"');
+    expect(data).toContain('"details": {');
+    expect(data).toContain('Axe reported accessibility violations');
+    expect(data).toContain('"label": "Violation: color-contrast"');
     expect(data).toContain('"redaction": {');
     expect(data).toContain(
       'Referenced raw artifacts require redaction before ForgeGate can copy them into portable Starlight evidence bundles.',
