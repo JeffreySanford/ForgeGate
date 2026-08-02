@@ -1,0 +1,54 @@
+id: blueprint.text-input
+version: 1.0.0
+name: Text input
+purpose: Collect a single line of typed text from the user.
+preferredNativeElement: input
+
+requiredStates:
+  - default
+  - hover
+  - focus-visible
+  - disabled
+  - readonly
+  - required
+  - error
+
+inspectorGroups:
+  - id: labeling
+    label: Labeling
+    fields:
+      - path: contract.properties.label
+        label: Visible label
+        control: text
+        required: true
+      - path: contract.properties.description
+        label: Description
+        control: text
+
+  - id: validation
+    label: Validation
+    fields:
+      - path: contract.properties.required
+        label: Required
+        control: toggle
+      - path: contract.properties.autocomplete
+        label: Autocomplete
+        control: text
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
+  - id: root.border
+    label: Border
+    types: [color]
+    required: true
+
+constraints:
+  - when: error == true
+    require: accessibleDescription

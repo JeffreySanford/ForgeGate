@@ -850,8 +850,20 @@ mod tests {
         assert!(scan.release_decision_files.is_empty());
         assert_eq!(
             scan.blueprint_files,
-            vec![".forgegate/blueprints/blueprint.button.yaml".to_string()],
-            "ForgeGate now dogfoods Blueprint Studio against its own shell with a real button blueprint"
+            vec![
+                ".forgegate/blueprints/blueprint.accordion.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.alert.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.button.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.checkbox.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.link.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.radio-group.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.tabs.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.text-input.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.textarea.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.toggle.yaml".to_string(),
+                ".forgegate/blueprints/blueprint.tooltip.yaml".to_string(),
+            ],
+            "ForgeGate now dogfoods Blueprint Studio against its own shell with a real, documented blueprint set (documentation/14-component-blueprints.md's initial set)"
         );
         assert!(
             scan.proposal_files.is_empty(),

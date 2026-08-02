@@ -1,0 +1,56 @@
+id: blueprint.textarea
+version: 1.0.0
+name: Textarea
+purpose: Collect multi-line typed text from the user.
+preferredNativeElement: textarea
+
+requiredStates:
+  - default
+  - hover
+  - focus-visible
+  - disabled
+  - readonly
+  - required
+  - error
+
+inspectorGroups:
+  - id: labeling
+    label: Labeling
+    fields:
+      - path: contract.properties.label
+        label: Visible label
+        control: text
+        required: true
+      - path: contract.properties.description
+        label: Description
+        control: text
+
+  - id: behavior
+    label: Behavior
+    fields:
+      - path: contract.properties.resize
+        label: Resize behavior
+        control: segmented
+        options: [none, vertical, both]
+        required: true
+      - path: contract.properties.characterLimit
+        label: Character limit
+        control: number
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
+  - id: root.border
+    label: Border
+    types: [color]
+    required: true
+
+constraints:
+  - when: characterLimit > 0
+    require: accessibleDescription

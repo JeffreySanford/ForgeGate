@@ -1,0 +1,29 @@
+id: blueprint.accordion
+version: 1.0.0
+name: Accordion
+purpose: Let the user expand or collapse a section of content via a labeled trigger.
+preferredNativeElement: button
+
+requiredStates:
+  - collapsed
+  - expanded
+  - disabled
+  - focus-visible
+
+inspectorGroups:
+  - id: behavior
+    label: Behavior
+    fields:
+      - path: contract.properties.multipleOpen
+        label: Allow multiple sections open
+        control: toggle
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true

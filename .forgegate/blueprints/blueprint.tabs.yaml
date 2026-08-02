@@ -1,0 +1,30 @@
+id: blueprint.tabs
+version: 1.0.0
+name: Tabs
+purpose: Let the user switch between related content panels sharing the same context.
+
+requiredStates:
+  - default
+  - selected
+  - disabled
+  - focus-visible
+
+inspectorGroups:
+  - id: behavior
+    label: Behavior
+    fields:
+      - path: contract.properties.activationMode
+        label: Activation mode
+        control: segmented
+        options: [automatic, manual]
+        required: true
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true

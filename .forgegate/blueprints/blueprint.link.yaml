@@ -1,0 +1,44 @@
+id: blueprint.link
+version: 1.0.0
+name: Link
+purpose: Navigate to another location or resource.
+preferredNativeElement: a
+
+requiredStates:
+  - default
+  - hover
+  - focus-visible
+  - active
+  - visited
+  - disabled
+
+inspectorGroups:
+  - id: appearance
+    label: Appearance
+    fields:
+      - path: contract.properties.emphasis
+        label: Emphasis
+        control: segmented
+        options: [standalone, inline]
+        required: true
+
+  - id: destination
+    label: Destination
+    fields:
+      - path: contract.properties.href
+        label: Destination URL
+        control: text
+        required: true
+      - path: contract.properties.external
+        label: Opens in a new context
+        control: toggle
+
+tokenSlots:
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
+
+constraints:
+  - when: external == true
+    require: accessibleDescription

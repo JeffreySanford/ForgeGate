@@ -1,0 +1,37 @@
+id: blueprint.alert
+version: 1.0.0
+name: Alert
+purpose: Communicate an important, often asynchronous status change to the user.
+
+requiredStates:
+  - informational
+  - success
+  - warning
+  - error
+
+inspectorGroups:
+  - id: severity
+    label: Severity
+    fields:
+      - path: contract.properties.severity
+        label: Severity
+        control: segmented
+        options: [informational, success, warning, error]
+        required: true
+      - path: contract.properties.persistent
+        label: Persistent
+        control: toggle
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
+
+constraints:
+  - when: severity == error
+    require: accessibleDescription

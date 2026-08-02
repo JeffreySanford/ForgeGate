@@ -1,0 +1,43 @@
+id: blueprint.toggle
+version: 1.0.0
+name: Toggle
+purpose: Let the user immediately turn a setting on or off.
+preferredNativeElement: button
+
+requiredStates:
+  - on
+  - off
+  - disabled
+  - focus-visible
+
+inspectorGroups:
+  - id: labeling
+    label: Labeling
+    fields:
+      - path: contract.properties.label
+        label: Visible label
+        control: text
+        required: true
+
+  - id: behavior
+    label: Behavior
+    fields:
+      - path: contract.properties.effectTiming
+        label: Effect timing
+        control: segmented
+        options: [immediate, submitted]
+        required: true
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
+
+constraints:
+  - when: effectTiming == submitted
+    require: accessibleDescription

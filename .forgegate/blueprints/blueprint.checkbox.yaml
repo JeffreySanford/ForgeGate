@@ -1,0 +1,46 @@
+id: blueprint.checkbox
+version: 1.0.0
+name: Checkbox
+purpose: Let the user select or deselect a single independent option.
+preferredNativeElement: input
+
+requiredStates:
+  - checked
+  - unchecked
+  - indeterminate
+  - disabled
+  - focus-visible
+  - error
+
+inspectorGroups:
+  - id: labeling
+    label: Labeling
+    fields:
+      - path: contract.properties.label
+        label: Visible label
+        control: text
+        required: true
+      - path: contract.properties.description
+        label: Description
+        control: text
+
+  - id: behavior
+    label: Behavior
+    fields:
+      - path: contract.properties.indeterminate
+        label: Supports indeterminate
+        control: toggle
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
+
+constraints:
+  - when: error == true
+    require: accessibleDescription

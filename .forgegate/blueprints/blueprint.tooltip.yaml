@@ -1,0 +1,28 @@
+id: blueprint.tooltip
+version: 1.0.0
+name: Tooltip
+purpose: Provide supplementary, noninteractive information tied to a trigger element on hover or focus.
+
+requiredStates:
+  - hidden
+  - visible
+
+inspectorGroups:
+  - id: behavior
+    label: Behavior
+    fields:
+      - path: contract.properties.trigger
+        label: Trigger relationship
+        control: select
+        options: [hover-and-focus, focus-only]
+        required: true
+
+tokenSlots:
+  - id: root.background
+    label: Background
+    types: [color]
+    required: true
+  - id: root.foreground
+    label: Foreground
+    types: [color]
+    required: true
