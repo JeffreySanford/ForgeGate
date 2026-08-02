@@ -14,7 +14,16 @@ export interface StarlightEvidencePackageRecords {
   readonly findings: readonly Finding[];
   readonly exceptions: readonly Exception[];
   readonly releaseDecisionRecords: readonly ReleaseDecisionWorkflowRecord[];
+  readonly copiedAttachmentFiles: readonly EvidencePackageCopiedAttachmentFile[];
   readonly limitations: readonly string[];
+}
+
+export interface EvidencePackageCopiedAttachmentFile {
+  readonly sourceEvidenceId: string;
+  readonly sourcePath: string;
+  readonly targetPath: string;
+  readonly redactionRequired: boolean;
+  readonly reviewStatus: 'requires-review';
 }
 
 export interface EvidencePackageIntegrityReport {
@@ -38,6 +47,7 @@ export function loadStarlightEvidencePackageRecords(
   files: Readonly<Record<string, string>>,
 ): StarlightEvidencePackageRecords {
   const limitations: string[] = [];
+  const copiedAttachmentFiles = readCopiedAttachmentFiles(files, limitations);
   return {
     testExecutions: readArrayFile<TestExecution>(
       files,
@@ -61,6 +71,7 @@ export function loadStarlightEvidencePackageRecords(
       'release-decisions/',
       limitations,
     ),
+    copiedAttachmentFiles,
     limitations,
   };
 }
@@ -202,6 +213,67 @@ function readDirectoryRecords<T>(
     const parsed = parseJson(files[path] ?? '', path, limitations);
     return parsed === undefined ? [] : [parsed as T];
   });
+}
+
+function readCopiedAttachmentFiles(
+  files: Readonly<Record<string, string>>,
+  limitations: string[],
+): readonly EvidencePackageCopiedAttachmentFile[] {
+  const indexContent = files['attachments/index.json'];
+  if (indexContent === undefined) {
+    return [];
+  }
+  const parsed = parseJson(indexContent, 'attachments/index.json', limitations);
+  if (!isRecord(parsed) || !Array.isArray(parsed['attachments'])) {
+    limitations.push('attachments/index.json does not contain an attachments array.');
+    return [];
+  }
+  const copied = parsed['attachments'].flatMap((value) => {
+    if (!isRecord(value)) {
+      limitations.push('attachments/index.json contains an invalid attachment record.');
+      return [];
+    }
+    const status = value['status'];
+    const sourceEvidenceId = value['sourceEvidenceId'];
+    const sourcePath = value['sourcePath'];
+    const targetPath = value['targetPath'];
+    const redactionRequired = value['redactionRequired'];
+    if (status !== 'copied-redacted') {
+      return [];
+    }
+    if (
+      typeof sourceEvidenceId !== 'string' ||
+      typeof sourcePath !== 'string' ||
+      typeof targetPath !== 'string' ||
+      typeof redactionRequired !== 'boolean'
+    ) {
+      limitations.push(
+        'attachments/index.json contains a copied attachment record with missing fields.',
+      );
+      return [];
+    }
+    if (files[targetPath] === undefined) {
+      limitations.push(
+        `${targetPath} is indexed as a copied attachment but the file is absent.`,
+      );
+      return [];
+    }
+    return [
+      {
+        sourceEvidenceId,
+        sourcePath,
+        targetPath,
+        redactionRequired,
+        reviewStatus: 'requires-review' as const,
+      },
+    ];
+  });
+  if (copied.length) {
+    limitations.push(
+      `${copied.length} copied attachment file(s) were verified but not loaded into Starlight report data because ForgeGate has not implemented reviewer redaction approval for imported package attachments yet.`,
+    );
+  }
+  return copied;
 }
 
 function parseJson(

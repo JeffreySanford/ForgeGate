@@ -58,6 +58,8 @@
     {{ result.manualReviewCount }} manual review(s),
     {{ result.findingCount }} finding(s),
     {{ result.releaseDecisionRecordCount }} release workflow record(s),
+    {{ result.copiedAttachmentFileCount }} copied attachment file(s) held for
+    redaction review,
     {{ result.limitationCount }} limitation(s).
   </p>
   } @if (workspace.starlightBuildResult(); as result) {

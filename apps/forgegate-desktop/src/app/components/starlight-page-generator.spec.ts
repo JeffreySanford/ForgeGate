@@ -307,6 +307,7 @@ describe('StarlightPageGenerator', () => {
       findingCount: 1,
       exceptionCount: 0,
       releaseDecisionRecordCount: 1,
+      copiedAttachmentFileCount: 2,
     });
 
     fixture = TestBed.createComponent(HostComponent);
@@ -319,6 +320,9 @@ describe('StarlightPageGenerator', () => {
     expect(fixture.nativeElement.textContent).toContain('6 verified file');
     expect(fixture.nativeElement.textContent).toContain(
       '1 release workflow record',
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      '2 copied attachment file',
     );
   });
 

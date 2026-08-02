@@ -84,6 +84,7 @@ describe('loadStarlightEvidencePackageRecords', () => {
     expect(records.findings[0]).toMatchObject({
       id: 'color-contrast-finding',
     });
+    expect(records.copiedAttachmentFiles).toEqual([]);
     expect(records.releaseDecisionRecords[0]).toMatchObject({
       authorization: 'blocked-no-approval-required',
       outcome: 'blocked',
@@ -101,6 +102,7 @@ describe('loadStarlightEvidencePackageRecords', () => {
 
     expect(records.testExecutions).toEqual([]);
     expect(records.findings).toEqual([]);
+    expect(records.copiedAttachmentFiles).toEqual([]);
     expect(records.limitations).toContain('test-summary.json is not a JSON array.');
     expect(records.limitations.some((limitation) => limitation.includes('bad.json'))).toBe(
       true,
@@ -147,9 +149,60 @@ describe('loadStarlightEvidencePackageRecords', () => {
     expect(records.integrity.status).toBe('verified');
     expect(records.integrity.verifiedContentPaths).toContain('test-summary.json');
     expect(records.testExecutions).toHaveLength(1);
+    expect(records.copiedAttachmentFiles).toEqual([]);
     expect(records.releaseDecisionRecords[0]).toMatchObject({
       authorization: 'blocked-no-approval-required',
     });
+  });
+
+  it('detects verified copied attachment files but holds their contents for redaction review', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [
+        {
+          id: 'unit-run-1',
+          componentVersionId: 'acme.lib.button@1.0.0',
+          gate: 'unit',
+          tool: 'vitest',
+          toolVersion: '4.1.10',
+          adapterVersion: '0.1.0',
+          status: 'passed',
+          startedAt: '2026-01-01T00:00:00.000Z',
+          commitOrFingerprint: 'a'.repeat(40),
+          rawArtifactRef: '.forgegate/evidence/raw/unit-run.txt',
+        },
+      ],
+      attachmentContents: {
+        'unit-run-1': 'TOKEN=secret\nTests passed.',
+      },
+      repositoryCommit: 'a'.repeat(40),
+      starlightProjects: [],
+    });
+
+    const records = await loadVerifiedStarlightEvidencePackageRecords(result.files);
+
+    expect(records.integrity.status).toBe('verified');
+    expect(records.copiedAttachmentFiles).toEqual([
+      {
+        sourceEvidenceId: 'unit-run-1',
+        sourcePath: '.forgegate/evidence/raw/unit-run.txt',
+        targetPath: 'attachments/files/unit-run-1.txt',
+        redactionRequired: true,
+        reviewStatus: 'requires-review',
+      },
+    ]);
+    expect(records.limitations).toContain(
+      '1 copied attachment file(s) were verified but not loaded into Starlight report data because ForgeGate has not implemented reviewer redaction approval for imported package attachments yet.',
+    );
   });
 
   it('does not load tampered or unlisted package records', async () => {
@@ -197,6 +250,7 @@ describe('loadStarlightEvidencePackageRecords', () => {
     expect(records.integrity.status).toBe('failed');
     expect(records.testExecutions).toEqual([]);
     expect(records.manualReviews).toEqual([]);
+    expect(records.copiedAttachmentFiles).toEqual([]);
     expect(records.limitations).toContain('test-summary.json checksum mismatch.');
     expect(
       records.limitations.some((limitation) =>

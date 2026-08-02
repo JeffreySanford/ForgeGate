@@ -419,7 +419,19 @@ describe('generateDesignerStarlightComponentPage', () => {
           limitations: ['Package-scoped release history.'],
         },
       ],
-      limitations: ['checksums.sha256 verified 6 package files.'],
+      copiedAttachmentFiles: [
+        {
+          sourceEvidenceId: 'package-unit-run',
+          sourcePath: '.forgegate/evidence/raw/unit-run.txt',
+          targetPath: 'attachments/files/package-unit-run.txt',
+          redactionRequired: true,
+          reviewStatus: 'requires-review',
+        },
+      ],
+      limitations: [
+        'checksums.sha256 verified 6 package files.',
+        '1 copied attachment file(s) were verified but not loaded into Starlight report data because ForgeGate has not implemented reviewer redaction approval for imported package attachments yet.',
+      ],
     };
 
     const data = JSON.parse(
@@ -470,8 +482,10 @@ describe('generateDesignerStarlightComponentPage', () => {
     });
     expect(data.evidence.notConnected).toContainEqual({
       section: 'imported evidence package',
-      reason: 'checksums.sha256 verified 6 package files.',
+      reason:
+        'checksums.sha256 verified 6 package files. 1 copied attachment file(s) were verified but not loaded into Starlight report data because ForgeGate has not implemented reviewer redaction approval for imported package attachments yet.',
     });
+    expect(JSON.stringify(data)).not.toContain('attachments/files/package-unit-run.txt');
   });
 
   it('keeps live workspace records authoritative over imported package duplicates', () => {
@@ -494,6 +508,7 @@ describe('generateDesignerStarlightComponentPage', () => {
       findings: [],
       exceptions: [],
       releaseDecisionRecords: [],
+      copiedAttachmentFiles: [],
       limitations: [],
     };
 

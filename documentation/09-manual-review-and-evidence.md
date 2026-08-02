@@ -270,9 +270,12 @@ Required action:
 > now exist: imported verified records can be merged into generated component
 > report data, with live workspace records remaining authoritative on duplicate
 > ids, and the generated files still stage for diff review before approval.
-> Fuller Starlight plugin discovery and registration comes next. Broad
-> binary/temp attachment copying follows only after the current consent-policy
-> classification is wired to an explicit UI flow and binary-safe file handling.
+> Copied package attachment files are now detected during verified package
+> reload and held as `requires-review` rather than loaded into generated
+> Starlight report data. Fuller Starlight plugin discovery and registration
+> comes next. Broad binary/temp attachment copying follows only after the
+> current consent-policy classification is wired to an explicit UI flow and
+> binary-safe file handling.
 
 Suggested export:
 
@@ -344,8 +347,11 @@ loader. Those verified records can now feed generated Starlight component
 report data directly. The first desktop import/regeneration UI uses a dedicated
 package-directory picker, reads only safe evidence-package-relative text files
 from that selected directory, verifies the package, and stages regenerated
-Starlight output for review before any write lands in the workspace.
-Organization trust/signing policy remains future work.
+Starlight output for review before any write lands in the workspace. Verified
+copied files under `attachments/files/` are counted and reported as requiring
+review, but their paths and contents are not exposed to Starlight report data
+until a real redaction-review approval UI exists. Organization trust/signing
+policy remains future work.
 
 ## Privacy
 

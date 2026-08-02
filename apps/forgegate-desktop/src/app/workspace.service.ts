@@ -150,6 +150,7 @@ export interface StarlightEvidencePackageImportResult {
   readonly findingCount: number;
   readonly exceptionCount: number;
   readonly releaseDecisionRecordCount: number;
+  readonly copiedAttachmentFileCount: number;
 }
 
 export function isWorkspaceRelativeRawArtifactRef(
@@ -2102,6 +2103,7 @@ export class WorkspaceService {
         findingCount: records.findings.length,
         exceptionCount: records.exceptions.length,
         releaseDecisionRecordCount: records.releaseDecisionRecords.length,
+        copiedAttachmentFileCount: records.copiedAttachmentFiles.length,
       });
       if (records.integrity.status === 'unavailable') {
         this.starlightEvidencePackageImportError.set(

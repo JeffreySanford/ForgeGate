@@ -2373,6 +2373,7 @@ describe('WorkspaceService', () => {
         testExecutionCount: 1,
         automatedDetailCount: 1,
         releaseDecisionRecordCount: 1,
+        copiedAttachmentFileCount: 0,
       });
       expect(service.stagedStarlightPage()).toEqual({
         componentId: manifest.id,
