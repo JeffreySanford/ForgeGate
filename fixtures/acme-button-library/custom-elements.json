@@ -8,7 +8,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "A minimal, real vanilla Web Component — the deterministic fixture ADR\n0003 calls for, so ForgeGate's own dev/test workflow has something real\n(not a synthetic in-memory manifest) to point a workspace scan at.\nDeliberately plain (no build step, no framework) so it can be opened by\nForgeGate with zero setup.",
+          "description": "A minimal, real vanilla Web Component - the deterministic fixture ADR\n0003 calls for, so ForgeGate's own dev/test workflow has something real\n(not a synthetic in-memory manifest) to point a workspace scan at.\nDeliberately plain (no build step, no framework) so it can be opened by\nForgeGate with zero setup.",
           "name": "AcmeButton",
           "cssParts": [
             {
@@ -75,6 +75,68 @@
           "declaration": {
             "name": "AcmeButton",
             "module": "src/acme-button.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/acme-card.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "A minimal companion fixture component used to prove ForgeGate reports more\nthan one real component from the same repository.",
+          "name": "AcmeCard",
+          "cssParts": [
+            {
+              "description": "The outer card container.",
+              "name": "container"
+            }
+          ],
+          "slots": [
+            {
+              "description": "Optional heading content.",
+              "name": "header"
+            },
+            {
+              "description": "Main card body.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "tone",
+              "description": "Visual tone: \"neutral\" or \"accent\"."
+            }
+          ],
+          "attributes": [
+            {
+              "name": "tone"
+            }
+          ],
+          "superclass": {
+            "name": "HTMLElement"
+          },
+          "tagName": "acme-card",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "AcmeCard",
+          "declaration": {
+            "name": "AcmeCard",
+            "module": "src/acme-card.js"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "acme-card",
+          "declaration": {
+            "name": "AcmeCard",
+            "module": "src/acme-card.js"
           }
         }
       ]

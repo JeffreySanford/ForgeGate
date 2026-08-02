@@ -1,12 +1,19 @@
 {
   "evidenceCommit": "fixture",
-  "componentCount": 1,
+  "componentCount": 2,
   "components": [
     {
       "componentId": "acme.button-library.acme-button",
       "version": "0.1.0",
       "lifecycle": "candidate",
       "manifestPath": ".forgegate/components/acme.button-library.acme-button.yaml",
+      "manifestSchemaVersion": "0.2.0"
+    },
+    {
+      "componentId": "acme.button-library.acme-card",
+      "version": "0.1.0",
+      "lifecycle": "candidate",
+      "manifestPath": ".forgegate/components/acme.button-library.acme-card.yaml",
       "manifestSchemaVersion": "0.2.0"
     }
   ]

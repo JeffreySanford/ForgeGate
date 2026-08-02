@@ -22,6 +22,7 @@ export default defineConfig({
               label: 'Button developer',
               slug: 'components/acme-button--for-developers',
             },
+            { label: 'Card', slug: 'components/acme-card--for-designers' },
           ],
         },
       ],

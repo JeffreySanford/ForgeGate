@@ -1,0 +1,69 @@
+schemaVersion: 0.2.0
+id: acme.button-library.acme-card
+componentVersion: 0.1.0
+framework: web-components
+adapter: framework.web-components
+packagePath: .
+sourceFiles:
+  - src/acme-card.js
+lifecycle: candidate
+reviewers: []
+contract:
+  inputs:
+    - name: tone
+      type: "'neutral' | 'accent'"
+      required: false
+      description: Visual emphasis for the card container.
+  outputs: []
+  content:
+    - name: header
+      type: slot
+      required: false
+      description: Optional heading content.
+    - name: default
+      type: slot
+      required: true
+      description: Main card body.
+  publicMethods: []
+  styleParts:
+    - name: container
+      required: false
+      description: Outer card container.
+states:
+  - name: default
+    required: true
+    description: Neutral content grouping.
+  - name: accent
+    required: true
+    description: Highlighted content grouping.
+themes: []
+densities: []
+viewports: []
+environments: []
+tokenMappings:
+  - tokenPath: color.surface
+    category: color
+    required: true
+  - tokenPath: color.surface-accent
+    category: color
+    required: true
+  - tokenPath: radius.card
+    category: border
+    required: true
+storyMappings:
+  - storybookStoryId: components-acmecard--neutral
+    stateName: default
+  - storybookStoryId: components-acmecard--accent
+    stateName: accent
+testRequirements:
+  - gate: unit
+    scope: component
+    required: true
+manualReviewProcedureIds: []
+documentationTargets:
+  - adapter: starlight
+    pathOrPageId: src/content/docs/components/card.md
+    publishedVersion: 0.1.0
+consumerApplicationIds: []
+policyId: acme.baseline
+policyVersion: 1.0.0

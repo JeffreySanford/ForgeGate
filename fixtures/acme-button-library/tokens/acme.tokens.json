@@ -12,10 +12,24 @@
     "text-inverse": {
       "$type": "color",
       "$value": "#f3f6fb"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "$description": "Default card surface."
+    },
+    "surface-accent": {
+      "$type": "color",
+      "$value": "#eef4ff",
+      "$description": "Accent card surface."
     }
   },
   "radius": {
     "button": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "card": {
       "$type": "dimension",
       "$value": "8px"
     }

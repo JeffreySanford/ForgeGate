@@ -1,0 +1,76 @@
+---
+title: 'Acme Card'
+description: 'Designer-ready ForgeGate report for Acme Card.'
+forgegate:
+  componentId: 'acme.button-library.acme-card'
+  version: '0.1.0'
+  lifecycle: 'candidate'
+  evidenceCommit: 'fixture'
+  audience: 'designer-heavy'
+  reportData: 'src/data/forgegate/components/acme-card--for-designers.json'
+---
+
+import {
+  ComponentStatus,
+  StateMatrix,
+  TokenTable,
+  ApiTable,
+  EvidenceSummary,
+  ConsumerValidation,
+  ReleaseHistory,
+} from '@forgegate/starlight';
+import forgegateReport from '../../../data/forgegate/components/acme-card--for-designers.json';
+
+<ComponentStatus
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+## Overview
+
+{/* forgegate:user-content:start overview */}
+
+Acme Card groups related content and exposes neutral and accent presentation states for review.
+
+{/* forgegate:user-content:end overview */}
+
+## States
+
+<StateMatrix
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+## Tokens
+
+<TokenTable
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+## API
+
+<ApiTable component="acme.button-library.acme-card" report={forgegateReport} />
+
+## Assurance
+
+<EvidenceSummary
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+<ConsumerValidation
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>
+
+<ReleaseHistory
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={forgegateReport}
+/>

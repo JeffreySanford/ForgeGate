@@ -266,10 +266,9 @@ function applyRepositoryOverride(
     viewports: override.viewports,
     environments: override.environments,
     tokenMappings: override.tokenMappings,
-    storyMappings: mergeStoryMappings(
-      override.storyMappings,
-      discoveredStories,
-    ),
+    storyMappings: override.storyMappings.length
+      ? override.storyMappings
+      : discoveredStories,
     testRequirements: override.testRequirements,
     manualReviewProcedureIds: override.manualReviewProcedureIds,
     documentationTargets: override.documentationTargets,
@@ -356,18 +355,6 @@ function angularMemberToContractMember(member: AngularMember): {
 
 function sanitizeIdentitySegment(value: string): string {
   return value.replace(/[.\s]+/g, '-');
-}
-
-function mergeStoryMappings(
-  authored: readonly ManifestStoryMapping[],
-  discovered: readonly ManifestStoryMapping[],
-): readonly ManifestStoryMapping[] {
-  const mappings = new Map<string, ManifestStoryMapping>();
-  for (const mapping of [...authored, ...discovered]) {
-    const key = `${mapping.storybookStoryId}\0${mapping.stateName ?? ''}`;
-    mappings.set(key, mapping);
-  }
-  return [...mappings.values()];
 }
 
 function resolveSourcePackage(

@@ -50,7 +50,7 @@ async function findRepoRoot(startDir: string): Promise<string> {
  * ForgeGate actually shells out to run on a user's real workspace.
  */
 describe('GENERATE_CEM_COMMAND / GENERATE_CEM_ARGS (real command, no mocks)', () => {
-  it('actually generates a Custom Elements Manifest describing acme-button when run for real', async () => {
+  it('actually generates a Custom Elements Manifest describing the fixture components when run for real', async () => {
     const repoRoot = await findRepoRoot(process.cwd());
     const fixtureSource = join(repoRoot, 'fixtures/acme-button-library');
 
@@ -82,6 +82,7 @@ describe('GENERATE_CEM_COMMAND / GENERATE_CEM_ARGS (real command, no mocks)', ()
           (module.declarations ?? []).map((declaration) => declaration.tagName),
       );
       expect(tagNames).toContain('acme-button');
+      expect(tagNames).toContain('acme-card');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

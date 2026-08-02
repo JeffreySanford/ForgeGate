@@ -4,7 +4,7 @@ description: 'Generated ForgeGate component registry overview.'
 forgegate:
   page: 'component-registry'
   evidenceCommit: 'fixture'
-  componentCount: 1
+  componentCount: 2
   reportData: 'src/data/forgegate/components/index.json'
 ---
 
@@ -15,6 +15,7 @@ import {
 } from '@forgegate/starlight';
 import forgegateRegistry from '../../../data/forgegate/components/index.json';
 import acmeButtonReport from '../../../data/forgegate/components/acme-button--for-designers.json';
+import acmeCardReport from '../../../data/forgegate/components/acme-card--for-designers.json';
 
 # Component registry
 
@@ -34,4 +35,18 @@ import acmeButtonReport from '../../../data/forgegate/components/acme-button--fo
   component="acme.button-library.acme-button"
   tier="designer-heavy"
   report={acmeButtonReport}
+/>
+
+### Acme Card
+
+<ComponentStatus
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={acmeCardReport}
+/>
+
+<EvidenceSummary
+  component="acme.button-library.acme-card"
+  tier="designer-heavy"
+  report={acmeCardReport}
 />

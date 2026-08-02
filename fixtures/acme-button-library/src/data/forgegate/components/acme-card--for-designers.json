@@ -1,0 +1,134 @@
+{
+  "componentId": "acme.button-library.acme-card",
+  "version": "0.1.0",
+  "lifecycle": "candidate",
+  "evidenceCommit": "fixture",
+  "packagePath": ".",
+  "tier": "designer-heavy",
+  "manifest": {
+    "schemaVersion": "0.2.0",
+    "path": ".forgegate/components/acme.button-library.acme-card.yaml",
+    "framework": "web-components",
+    "adapter": "framework.web-components",
+    "sourceFiles": ["src/acme-card.js"],
+    "documentationTargets": [
+      {
+        "adapter": "starlight",
+        "pathOrPageId": "src/content/docs/components/card.md",
+        "publishedVersion": "0.1.0"
+      }
+    ],
+    "policyId": "acme.baseline",
+    "policyVersion": "1.0.0"
+  },
+  "states": [
+    {
+      "name": "default",
+      "required": true,
+      "description": "Neutral content grouping.",
+      "storybookStoryId": "components-acmecard--neutral"
+    },
+    {
+      "name": "accent",
+      "required": true,
+      "description": "Highlighted content grouping.",
+      "storybookStoryId": "components-acmecard--accent"
+    }
+  ],
+  "tokens": [
+    { "tokenPath": "color.surface", "category": "color", "required": true },
+    {
+      "tokenPath": "color.surface-accent",
+      "category": "color",
+      "required": true
+    },
+    { "tokenPath": "radius.card", "category": "border", "required": true }
+  ],
+  "contract": {
+    "inputs": [
+      {
+        "name": "tone",
+        "type": "'neutral' | 'accent'",
+        "required": false,
+        "description": "Visual emphasis for the card container."
+      }
+    ],
+    "outputs": [],
+    "content": [
+      {
+        "name": "header",
+        "type": "slot",
+        "required": false,
+        "description": "Optional heading content."
+      },
+      {
+        "name": "default",
+        "type": "slot",
+        "required": true,
+        "description": "Main card body."
+      }
+    ],
+    "publicMethods": [],
+    "styleParts": [
+      {
+        "name": "container",
+        "required": false,
+        "description": "Outer card container."
+      }
+    ]
+  },
+  "manualProcedures": [],
+  "evidence": {
+    "automated": [
+      {
+        "id": "acme-card-unit-2026-08-02",
+        "gate": "unit",
+        "tool": "node:test",
+        "status": "passed",
+        "commitOrFingerprint": "fixture",
+        "rawArtifactRef": ".forgegate/evidence/raw/acme-card-unit.tap"
+      }
+    ],
+    "manualReviews": [],
+    "findings": [],
+    "exceptions": [],
+    "redaction": {
+      "status": "planning-only",
+      "detail": "The unit TAP artifact is referenced but not copied into generated Starlight output."
+    },
+    "releaseDecision": {
+      "status": "not-connected",
+      "policyId": "acme.baseline",
+      "policyVersion": "1.0.0",
+      "blockingFindingIds": [],
+      "evidenceIds": ["acme-card-unit-2026-08-02"],
+      "commit": "fixture"
+    },
+    "policySnapshot": {
+      "policyId": "acme.baseline",
+      "policyVersion": "1.0.0",
+      "source": "component-manifest",
+      "manifestPath": ".forgegate/components/acme.button-library.acme-card.yaml",
+      "status": "authored-reference",
+      "detail": "This report includes the component manifest policy reference. ForgeGate has not loaded a full policy ruleset snapshot yet."
+    },
+    "notConnected": [
+      {
+        "section": "manual reviews",
+        "reason": "No manual review procedure is connected for Card yet."
+      },
+      {
+        "section": "release approval",
+        "reason": "The report has passing unit evidence, but no human approval workflow record is connected yet."
+      }
+    ]
+  },
+  "documentation": [
+    {
+      "adapter": "starlight",
+      "pathOrPageId": "src/content/docs/components/card.md",
+      "status": "current",
+      "detail": "Published version 0.1.0 matches component version 0.1.0."
+    }
+  ]
+}

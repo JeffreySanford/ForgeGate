@@ -1,0 +1,13 @@
+{
+  "id": "acme-card-unit-2026-08-02",
+  "componentVersionId": "acme.button-library.acme-card@0.1.0",
+  "gate": "unit",
+  "tool": "node:test",
+  "toolVersion": "22.21.1",
+  "adapterVersion": "0.1.0",
+  "status": "passed",
+  "startedAt": "2026-08-02T16:00:00.000Z",
+  "durationMs": 410.1182,
+  "commitOrFingerprint": "fixture",
+  "rawArtifactRef": ".forgegate/evidence/raw/acme-card-unit.tap"
+}

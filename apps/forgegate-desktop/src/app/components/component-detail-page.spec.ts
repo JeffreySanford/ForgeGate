@@ -434,7 +434,7 @@ describe('ComponentDetailPage', () => {
     const storyButtons = Array.from(
       compiled.querySelectorAll('.component-detail__story-picker button'),
     ).map((button) => button.textContent?.trim());
-    expect(storyButtons).toEqual(['Primary', 'Secondary', 'Disabled']);
+    expect(storyButtons).toEqual(['Primary', 'Disabled']);
     expect(
       compiled
         .querySelector('.component-detail__preview-frame')

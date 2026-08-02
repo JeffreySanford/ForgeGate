@@ -800,11 +800,17 @@ mod tests {
         assert_eq!(scan.starlight_projects, vec!["".to_string()]);
         assert_eq!(
             scan.component_manifests,
-            vec![".forgegate/components/acme.button-library.acme-button.yaml".to_string()]
+            vec![
+                ".forgegate/components/acme.button-library.acme-button.yaml".to_string(),
+                ".forgegate/components/acme.button-library.acme-card.yaml".to_string()
+            ]
         );
         assert_eq!(
             scan.test_evidence_files,
-            vec![".forgegate/evidence/acme-button-unit.json".to_string()]
+            vec![
+                ".forgegate/evidence/acme-button-unit.json".to_string(),
+                ".forgegate/evidence/acme-card-unit.json".to_string()
+            ]
         );
         assert_eq!(
             scan.manual_review_files,
