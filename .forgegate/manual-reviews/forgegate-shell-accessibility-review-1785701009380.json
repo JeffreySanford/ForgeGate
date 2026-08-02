@@ -1,0 +1,696 @@
+{
+  "id": "forgegate-shell-accessibility-review-1785701009380",
+  "componentVersionId": "forgegate.desktop.shell",
+  "procedureId": "forgegate-shell-accessibility-review",
+  "procedureVersion": "1.0.0",
+  "reviewerIdentity": "jeffreysanford@gmail.com",
+  "reviewerRole": "accessibility-reviewer",
+  "date": "2026-08-02T20:03:29.380Z",
+  "operatingSystem": "Windows 11",
+  "assistiveTechnology": "NVDA",
+  "status": "passed",
+  "commitOrFingerprint": "24d100aac0491d7e944b122e73c1a5d72968f70f",
+  "stepResults": [
+    {
+      "stepIndex": 0,
+      "action": "[Shell & navigation] Tab from the very start of the page through the primary navigation and the workspace context bar.",
+      "expected": "Every nav link and the \"Open workspace…\" button receives a clear, visible focus indicator in a logical order — nothing is skipped, and nothing is unreachable by keyboard alone.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 1,
+      "action": "[Shell & navigation] Listen to how the screen reader announces each navigation link, including the \"Coming soon\" items.",
+      "expected": "Each link announces a distinct, meaningful name — not a generic \"link\" — and the \"Coming soon\" badge is announced as part of the link, not left silent.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 2,
+      "action": "[Shell & navigation] Navigate from one primary route to another using only the keyboard (e.g. Workspace to Components).",
+      "expected": "Focus visibly and audibly moves to the main content landmark after the route changes, and the screen reader announces the destination page.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 3,
+      "action": "[Workspace command center] Open a real workspace, then tab through the system map, evidence timeline, adapter constellation, and change-impact table on the Workspace page.",
+      "expected": "Every real interactive element (links, buttons, disclosures) is reachable by keyboard, announces its role and label, and nothing traps focus.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 4,
+      "action": "[Workspace command center] On the evidence timeline, activate \"Show changed files\" for a stale entry.",
+      "expected": "Keyboard focus moves into the revealed region, and the screen reader announces its content — the files list, or the explicit \"no differences\"/error message.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 5,
+      "action": "[Workspace command center] Locate the system map's semantic table alternative instead of relying on the diagram.",
+      "expected": "The same component/adapter relationships shown in the diagram are available as real accessible table text.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 6,
+      "action": "[Component inventory] Tab through the readiness-distribution lifecycle bars and the component table/cards on the Components page.",
+      "expected": "Each lifecycle bar announces as a toggle button with its pressed state, and pressing Space or Enter filters the inventory below it.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 7,
+      "action": "[Component inventory] Use your screen reader's table-navigation shortcut (e.g. NVDA's Ctrl+Alt+Arrow keys) to move through the inventory table.",
+      "expected": "Each cell is announced together with its column header, not as anonymous text.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 8,
+      "action": "[Blueprint Studio] Tab through the blueprint catalog on the Studio page, then select a blueprint using only the keyboard.",
+      "expected": "Each catalog entry announces its name and purpose, its pressed state, and selecting one moves focus sensibly into the proposal form that appears.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 9,
+      "action": "[Blueprint Studio] Fill out the proposal form — component name, package path, adapter, purpose, and the native-semantic-confirmation checkbox — using only the keyboard and screen reader.",
+      "expected": "Every field announces its label and required state, and the checkbox announces the blueprint's preferred native element it refers to.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 10,
+      "action": "[Blueprint Studio] Add a contract member, toggle a required state, add a custom state, set a variant selection, add an anatomy part, and map a token slot — all without a mouse.",
+      "expected": "Every add/remove button and input in each of these sections is reachable, announces a clear purpose, and no focus is lost or trapped when a row is added or removed.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 11,
+      "action": "[Blueprint Studio] Create a proposal, review the staged diff, then Approve it using only the keyboard and screen reader.",
+      "expected": "The staged diff region is announced when it appears, and the Approve/Discard buttons announce their purpose and any resulting error or success message.",
+      "status": "passed"
+    },
+    {
+      "stepIndex": 12,
+      "action": "[Component assurance records] Open app-accessibility-review-page's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-accessibility-review-page"
+    },
+    {
+      "stepIndex": 13,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-accessibility-review-page's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-accessibility-review-page"
+    },
+    {
+      "stepIndex": 14,
+      "action": "[Component assurance records] Fill out and save a manual review for app-accessibility-review-page using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-accessibility-review-page"
+    },
+    {
+      "stepIndex": 15,
+      "action": "[Component assurance records] Open app-header's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-header"
+    },
+    {
+      "stepIndex": 16,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-header's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-header"
+    },
+    {
+      "stepIndex": 17,
+      "action": "[Component assurance records] Fill out and save a manual review for app-header using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-header"
+    },
+    {
+      "stepIndex": 18,
+      "action": "[Component assurance records] Open app-sidebar's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-sidebar"
+    },
+    {
+      "stepIndex": 19,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-sidebar's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-sidebar"
+    },
+    {
+      "stepIndex": 20,
+      "action": "[Component assurance records] Fill out and save a manual review for app-sidebar using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-sidebar"
+    },
+    {
+      "stepIndex": 21,
+      "action": "[Component assurance records] Open app-x's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-x"
+    },
+    {
+      "stepIndex": 22,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-x's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-x"
+    },
+    {
+      "stepIndex": 23,
+      "action": "[Component assurance records] Fill out and save a manual review for app-x using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-x"
+    },
+    {
+      "stepIndex": 24,
+      "action": "[Component assurance records] Open app-signal's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-signal"
+    },
+    {
+      "stepIndex": 25,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-signal's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-signal"
+    },
+    {
+      "stepIndex": 26,
+      "action": "[Component assurance records] Fill out and save a manual review for app-signal using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-signal"
+    },
+    {
+      "stepIndex": 27,
+      "action": "[Component assurance records] Open ComputedComponent's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.ComputedComponent"
+    },
+    {
+      "stepIndex": 28,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on ComputedComponent's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.ComputedComponent"
+    },
+    {
+      "stepIndex": 29,
+      "action": "[Component assurance records] Fill out and save a manual review for ComputedComponent using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.ComputedComponent"
+    },
+    {
+      "stepIndex": 30,
+      "action": "[Component assurance records] Open app-one's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-one"
+    },
+    {
+      "stepIndex": 31,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-one's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-one"
+    },
+    {
+      "stepIndex": 32,
+      "action": "[Component assurance records] Fill out and save a manual review for app-one using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-one"
+    },
+    {
+      "stepIndex": 33,
+      "action": "[Component assurance records] Open app-two's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-two"
+    },
+    {
+      "stepIndex": 34,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-two's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-two"
+    },
+    {
+      "stepIndex": 35,
+      "action": "[Component assurance records] Fill out and save a manual review for app-two using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-two"
+    },
+    {
+      "stepIndex": 36,
+      "action": "[Component assurance records] Open a's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.a"
+    },
+    {
+      "stepIndex": 37,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on a's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.a"
+    },
+    {
+      "stepIndex": 38,
+      "action": "[Component assurance records] Fill out and save a manual review for a using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.a"
+    },
+    {
+      "stepIndex": 39,
+      "action": "[Component assurance records] Open app-root's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-root"
+    },
+    {
+      "stepIndex": 40,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-root's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-root"
+    },
+    {
+      "stepIndex": 41,
+      "action": "[Component assurance records] Fill out and save a manual review for app-root using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-root"
+    },
+    {
+      "stepIndex": 42,
+      "action": "[Component assurance records] Open app-coming-soon-page's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-coming-soon-page"
+    },
+    {
+      "stepIndex": 43,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-coming-soon-page's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-coming-soon-page"
+    },
+    {
+      "stepIndex": 44,
+      "action": "[Component assurance records] Fill out and save a manual review for app-coming-soon-page using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-coming-soon-page"
+    },
+    {
+      "stepIndex": 45,
+      "action": "[Component assurance records] Open app-component-detail-page's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-component-detail-page"
+    },
+    {
+      "stepIndex": 46,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-component-detail-page's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-component-detail-page"
+    },
+    {
+      "stepIndex": 47,
+      "action": "[Component assurance records] Fill out and save a manual review for app-component-detail-page using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-component-detail-page"
+    },
+    {
+      "stepIndex": 48,
+      "action": "[Component assurance records] Open app-components-page's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-components-page"
+    },
+    {
+      "stepIndex": 49,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-components-page's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-components-page"
+    },
+    {
+      "stepIndex": 50,
+      "action": "[Component assurance records] Fill out and save a manual review for app-components-page using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-components-page"
+    },
+    {
+      "stepIndex": 51,
+      "action": "[Component assurance records] Open app-manual-review-walkthrough's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-manual-review-walkthrough"
+    },
+    {
+      "stepIndex": 52,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-manual-review-walkthrough's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-manual-review-walkthrough"
+    },
+    {
+      "stepIndex": 53,
+      "action": "[Component assurance records] Fill out and save a manual review for app-manual-review-walkthrough using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-manual-review-walkthrough"
+    },
+    {
+      "stepIndex": 54,
+      "action": "[Component assurance records] Open app-readiness-distribution's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-readiness-distribution"
+    },
+    {
+      "stepIndex": 55,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-readiness-distribution's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-readiness-distribution"
+    },
+    {
+      "stepIndex": 56,
+      "action": "[Component assurance records] Fill out and save a manual review for app-readiness-distribution using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-readiness-distribution"
+    },
+    {
+      "stepIndex": 57,
+      "action": "[Component assurance records] Open app-starlight-page-generator's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-starlight-page-generator"
+    },
+    {
+      "stepIndex": 58,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-starlight-page-generator's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-starlight-page-generator"
+    },
+    {
+      "stepIndex": 59,
+      "action": "[Component assurance records] Fill out and save a manual review for app-starlight-page-generator using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-starlight-page-generator"
+    },
+    {
+      "stepIndex": 60,
+      "action": "[Component assurance records] Open app-studio-page's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-studio-page"
+    },
+    {
+      "stepIndex": 61,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-studio-page's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-studio-page"
+    },
+    {
+      "stepIndex": 62,
+      "action": "[Component assurance records] Fill out and save a manual review for app-studio-page using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-studio-page"
+    },
+    {
+      "stepIndex": 63,
+      "action": "[Component assurance records] Open app-adapter-constellation-view's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-adapter-constellation-view"
+    },
+    {
+      "stepIndex": 64,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-adapter-constellation-view's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-adapter-constellation-view"
+    },
+    {
+      "stepIndex": 65,
+      "action": "[Component assurance records] Fill out and save a manual review for app-adapter-constellation-view using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-adapter-constellation-view"
+    },
+    {
+      "stepIndex": 66,
+      "action": "[Component assurance records] Open app-assurance-journey's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-assurance-journey"
+    },
+    {
+      "stepIndex": 67,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-assurance-journey's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-assurance-journey"
+    },
+    {
+      "stepIndex": 68,
+      "action": "[Component assurance records] Fill out and save a manual review for app-assurance-journey using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-assurance-journey"
+    },
+    {
+      "stepIndex": 69,
+      "action": "[Component assurance records] Open app-change-impact-table's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-change-impact-table"
+    },
+    {
+      "stepIndex": 70,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-change-impact-table's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-change-impact-table"
+    },
+    {
+      "stepIndex": 71,
+      "action": "[Component assurance records] Fill out and save a manual review for app-change-impact-table using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-change-impact-table"
+    },
+    {
+      "stepIndex": 72,
+      "action": "[Component assurance records] Open app-documentation-drift-map's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-documentation-drift-map"
+    },
+    {
+      "stepIndex": 73,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-documentation-drift-map's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-documentation-drift-map"
+    },
+    {
+      "stepIndex": 74,
+      "action": "[Component assurance records] Fill out and save a manual review for app-documentation-drift-map using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-documentation-drift-map"
+    },
+    {
+      "stepIndex": 75,
+      "action": "[Component assurance records] Open app-evidence-history-trend-view's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-evidence-history-trend-view"
+    },
+    {
+      "stepIndex": 76,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-evidence-history-trend-view's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-evidence-history-trend-view"
+    },
+    {
+      "stepIndex": 77,
+      "action": "[Component assurance records] Fill out and save a manual review for app-evidence-history-trend-view using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-evidence-history-trend-view"
+    },
+    {
+      "stepIndex": 78,
+      "action": "[Component assurance records] Open app-evidence-timeline-view's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-evidence-timeline-view"
+    },
+    {
+      "stepIndex": 79,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-evidence-timeline-view's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-evidence-timeline-view"
+    },
+    {
+      "stepIndex": 80,
+      "action": "[Component assurance records] Fill out and save a manual review for app-evidence-timeline-view using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-evidence-timeline-view"
+    },
+    {
+      "stepIndex": 81,
+      "action": "[Component assurance records] Open app-filesystem-changes-banner's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-filesystem-changes-banner"
+    },
+    {
+      "stepIndex": 82,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-filesystem-changes-banner's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-filesystem-changes-banner"
+    },
+    {
+      "stepIndex": 83,
+      "action": "[Component assurance records] Fill out and save a manual review for app-filesystem-changes-banner using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-filesystem-changes-banner"
+    },
+    {
+      "stepIndex": 84,
+      "action": "[Component assurance records] Open app-system-map's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-system-map"
+    },
+    {
+      "stepIndex": 85,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-system-map's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-system-map"
+    },
+    {
+      "stepIndex": 86,
+      "action": "[Component assurance records] Fill out and save a manual review for app-system-map using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-system-map"
+    },
+    {
+      "stepIndex": 87,
+      "action": "[Component assurance records] Open app-token-topology-view's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-token-topology-view"
+    },
+    {
+      "stepIndex": 88,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-token-topology-view's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-token-topology-view"
+    },
+    {
+      "stepIndex": 89,
+      "action": "[Component assurance records] Fill out and save a manual review for app-token-topology-view using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-token-topology-view"
+    },
+    {
+      "stepIndex": 90,
+      "action": "[Component assurance records] Open app-workspace-page's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-workspace-page"
+    },
+    {
+      "stepIndex": 91,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-workspace-page's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-workspace-page"
+    },
+    {
+      "stepIndex": 92,
+      "action": "[Component assurance records] Fill out and save a manual review for app-workspace-page using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-workspace-page"
+    },
+    {
+      "stepIndex": 93,
+      "action": "[Component assurance records] Open app-workspace-scan-progress's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-workspace-scan-progress"
+    },
+    {
+      "stepIndex": 94,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on app-workspace-scan-progress's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-workspace-scan-progress"
+    },
+    {
+      "stepIndex": 95,
+      "action": "[Component assurance records] Fill out and save a manual review for app-workspace-scan-progress using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "unscoped.forgegate.app-workspace-scan-progress"
+    },
+    {
+      "stepIndex": 96,
+      "action": "[Component assurance records] Open shell's assurance record and tab through its readiness rail, states, anatomy, and contract sections.",
+      "expected": "Every section and disclosure control announces its expanded/collapsed state, and all real content is reachable without a mouse.",
+      "status": "passed",
+      "componentId": "forgegate.desktop.shell"
+    },
+    {
+      "stepIndex": 97,
+      "action": "[Component assurance records] Tab into and then back out of the embedded Storybook preview on shell's record.",
+      "expected": "Focus does not get trapped inside the preview; there is a clear, discoverable way to tab past it.",
+      "status": "passed",
+      "componentId": "forgegate.desktop.shell"
+    },
+    {
+      "stepIndex": 98,
+      "action": "[Component assurance records] Fill out and save a manual review for shell using only the keyboard and screen reader.",
+      "expected": "Every field announces its label, required state is clear, and the Save/Approve buttons announce whether they are enabled or disabled.",
+      "status": "passed",
+      "componentId": "forgegate.desktop.shell"
+    }
+  ]
+}
