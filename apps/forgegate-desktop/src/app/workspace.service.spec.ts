@@ -633,6 +633,15 @@ describe('WorkspaceService', () => {
       '  styleParts: []',
       'requiredStates: [default, hover]',
       'variantSelections: []',
+      'anatomyParts:',
+      '  - id: leading-icon',
+      '    label: Leading icon',
+      '    required: false',
+      '    publicSlot: true',
+      '    publicPart: false',
+      'tokenMappings:',
+      '  - slotId: root.background',
+      '    tokenPath: primitive.color.blue.50',
     ].join('\n');
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
@@ -672,6 +681,18 @@ describe('WorkspaceService', () => {
         },
         requiredStates: ['default', 'hover'],
         variantSelections: [],
+        anatomyParts: [
+          {
+            id: 'leading-icon',
+            label: 'Leading icon',
+            required: false,
+            publicSlot: true,
+            publicPart: false,
+          },
+        ],
+        tokenMappings: [
+          { slotId: 'root.background', tokenPath: 'primitive.color.blue.50' },
+        ],
       },
     ]);
     expect(service.proposalError()).toContain(

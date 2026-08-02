@@ -3,9 +3,10 @@
 
   <p class="studio-page__caveat">
     Choose a blueprint to see what a complete component of that pattern
-    requires, then define its purpose, native semantics, portable contract, and
-    variant/state selections. Anatomy and token mapping from a selected
-    blueprint are not built yet.
+    requires, then define its purpose, native semantics, portable contract,
+    variant/state selections, anatomy parts, and token slot mapping.
+    Behavior, fixtures, and preview from a selected blueprint are not built
+    yet.
   </p>
 
   @if (!workspace.workspacePath()) {
@@ -98,9 +99,9 @@
     >
       <h3 id="proposal-form-title">Define purpose and native semantics</h3>
       <p>
-        <span aria-hidden="true">*</span> Required. Anatomy, token mapping, and
-        everything after is not built yet — this form stops there honestly
-        rather than pretending to continue.
+        <span aria-hidden="true">*</span> Required. Behavior, fixtures,
+        preview, and everything after is not built yet — this form stops
+        there honestly rather than pretending to continue.
       </p>
       <div class="studio-page__field">
         <label for="proposal-component-name"
@@ -168,7 +169,7 @@
       <h3>Configure the portable public contract</h3>
       <p>
         Real, portable contract members — the same shape a generated component's
-        own contract would use. Anatomy and token mapping are not built yet.
+        own contract would use. Behavior and fixtures are not built yet.
       </p>
       @for (category of contractCategories; track category.key) {
       <fieldset class="studio-page__contract-category">
@@ -299,6 +300,117 @@
           />
         </div>
         } }
+      </fieldset>
+      }
+
+      <h3>Define anatomy parts and map token slots</h3>
+      <p>
+        Name the component's meaningful parts, and map each of the blueprint's
+        required token slots to a real, discovered DTCG token. Behavior and
+        fixtures are not built yet.
+      </p>
+      <fieldset class="studio-page__anatomy">
+        <legend>Anatomy parts</legend>
+        @for (part of anatomyPartsInput(); track $index) {
+        <div class="studio-page__anatomy-part">
+          <label [attr.for]="'anatomy-id-' + $index"
+            >Part id <span aria-hidden="true">*</span></label
+          >
+          <input
+            [id]="'anatomy-id-' + $index"
+            type="text"
+            [value]="part.id"
+            (input)="
+              updateAnatomyPart($index, 'id', $any($event.target).value)
+            "
+          />
+          <label [attr.for]="'anatomy-label-' + $index">Label</label>
+          <input
+            [id]="'anatomy-label-' + $index"
+            type="text"
+            [value]="part.label"
+            (input)="
+              updateAnatomyPart($index, 'label', $any($event.target).value)
+            "
+          />
+          <label [attr.for]="'anatomy-required-' + $index">Required</label>
+          <input
+            [id]="'anatomy-required-' + $index"
+            type="checkbox"
+            [checked]="part.required"
+            (change)="
+              updateAnatomyPart(
+                $index,
+                'required',
+                $any($event.target).checked
+              )
+            "
+          />
+          <label [attr.for]="'anatomy-public-slot-' + $index"
+            >Public slot</label
+          >
+          <input
+            [id]="'anatomy-public-slot-' + $index"
+            type="checkbox"
+            [checked]="part.publicSlot"
+            (change)="
+              updateAnatomyPart(
+                $index,
+                'publicSlot',
+                $any($event.target).checked
+              )
+            "
+          />
+          <label [attr.for]="'anatomy-public-part-' + $index"
+            >Public CSS part</label
+          >
+          <input
+            [id]="'anatomy-public-part-' + $index"
+            type="checkbox"
+            [checked]="part.publicPart"
+            (change)="
+              updateAnatomyPart(
+                $index,
+                'publicPart',
+                $any($event.target).checked
+              )
+            "
+          />
+          <button type="button" (click)="removeAnatomyPart($index)">
+            Remove
+          </button>
+        </div>
+        }
+        <button type="button" (click)="addAnatomyPart()">
+          Add anatomy part
+        </button>
+      </fieldset>
+
+      @if (blueprint.tokenSlots.length) {
+      <fieldset class="studio-page__token-mappings">
+        <legend>Token slot mapping</legend>
+        <datalist id="studio-discovered-tokens">
+          @for (token of workspace.designTokens(); track token.path) {
+          <option [value]="token.path"></option>
+          }
+        </datalist>
+        @for (slot of blueprint.tokenSlots; track slot.id) {
+        <div class="studio-page__field">
+          <label [attr.for]="'token-mapping-' + slot.id"
+            >{{ slot.label }} ({{ slot.types.join(', ') }}){{ slot.required ? '
+            — required' : '' }}</label
+          >
+          <input
+            [id]="'token-mapping-' + slot.id"
+            type="text"
+            list="studio-discovered-tokens"
+            [value]="tokenMappingValue(slot.id)"
+            (input)="
+              setTokenMapping(slot.id, $any($event.target).value)
+            "
+          />
+        </div>
+        }
       </fieldset>
       }
 

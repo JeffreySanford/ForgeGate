@@ -9,11 +9,12 @@
  *
  * Deliberately still a narrow slice of that workstream's full illustrative
  * shape — covering "choose a blueprint", "define purpose and native
- * semantics", "configure the portable public contract", and "compose
- * variants and required states" (the first four items of P2's first-slice
- * checklist), not the entire eventual anatomy/token/fixture/coverage/
- * finding/exception/generation-plan/revision model. Those remain real,
- * named gaps, not fabricated here.
+ * semantics", "configure the portable public contract", "compose variants
+ * and required states", and part of "define anatomy, slots, parts, token
+ * slots, behavior, and fixtures" (anatomy parts and token-slot mapping
+ * only — not behavior or fixtures) from P2's first-slice checklist, not
+ * the entire eventual fixture/coverage/finding/exception/generation-plan/
+ * revision model. Those remain real, named gaps, not fabricated here.
  */
 
 import type { ContractMember } from './contract';
@@ -68,6 +69,34 @@ export interface ProposalVariantSelection {
   readonly value: string;
 }
 
+/**
+ * One meaningful, named part of the component's anatomy — e.g. "root",
+ * "leading icon", "loading indicator" — per Workstream 6's anatomy editor.
+ * Deliberately flat, with no tree nesting, preview-overlay coordinates, or
+ * accessible-relationship graph yet.
+ */
+export interface ProposalAnatomyPart {
+  readonly id: string;
+  readonly label: string;
+  readonly required: boolean;
+  /** Whether this part is exposed as a public content/slot projection point. */
+  readonly publicSlot: boolean;
+  /** Whether this part is exposed as a public CSS styling part/hook. */
+  readonly publicPart: boolean;
+}
+
+/**
+ * The designer's mapping of one of the blueprint's own required token
+ * slots (`BlueprintTokenSlot.id`) to a real, approved DTCG token path this
+ * workspace already discovered — Workstream 7's "token mapping", without
+ * yet validating the token's resolved `$type` against the slot's declared
+ * `types`.
+ */
+export interface ProposalTokenMapping {
+  readonly slotId: string;
+  readonly tokenPath: string;
+}
+
 export interface ComponentProposal {
   readonly identity: ProposalIdentity;
   readonly blueprint: BlueprintReference;
@@ -100,4 +129,10 @@ export interface ComponentProposal {
    * story/test/preview/documentation markers).
    */
   readonly variantSelections: readonly ProposalVariantSelection[];
+  /** Real, named anatomy parts — the "anatomy" and "parts" half of "define
+   * anatomy, slots, parts, token slots, behavior, and fixtures". */
+  readonly anatomyParts: readonly ProposalAnatomyPart[];
+  /** Real mappings of the blueprint's own required token slots to approved
+   * DTCG tokens — the "token slots" half of that same checklist item. */
+  readonly tokenMappings: readonly ProposalTokenMapping[];
 }

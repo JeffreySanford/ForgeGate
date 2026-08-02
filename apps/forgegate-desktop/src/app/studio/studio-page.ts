@@ -3,7 +3,9 @@ import type {
   Blueprint,
   ComponentProposal,
   ContractMember,
+  ProposalAnatomyPart,
   ProposalContractDraft,
+  ProposalTokenMapping,
   ProposalVariantSelection,
 } from '@forgegate/core-manifest';
 import { WorkspaceService } from '../workspace.service';
@@ -38,25 +40,29 @@ function emptyContractDraft(): ProposalContractDraft {
 }
 
 /**
- * P2 first slice, items 1 through 4: "Choose the Button blueprint", "Define
- * purpose and native semantics", "Configure the portable public contract",
- * and "Compose variants and required states"
+ * P2 first slice, items 1 through 4 plus part of item 5: "Choose the
+ * Button blueprint", "Define purpose and native semantics", "Configure the
+ * portable public contract", "Compose variants and required states", and
+ * anatomy parts plus token-slot mapping from "define anatomy, slots,
+ * parts, token slots, behavior, and fixtures"
  * (`documentation/28-blueprint-studio-implementation-plan.md`'s Workstream
  * 3 "Studio navigation and shell", Workstream 1 "Portable proposal
- * domain", Workstream 4 "Button contract editor", and Workstream 5 "State
- * and variant matrix", Release A "Proposal Studio").
+ * domain", Workstream 4 "Button contract editor", Workstream 5 "State and
+ * variant matrix", Workstream 6 "Anatomy editor", and Workstream 7 "Token
+ * mapping", Release A "Proposal Studio").
  *
  * Deliberately narrow and honest about what it is not: choosing a
  * blueprint, drafting purpose and native semantic confirmation, editing a
- * portable public contract, and choosing required states plus a value per
- * blueprint inspector field is real and staged/approved through the same
- * P2 entry gate 2 discipline every other domain write uses. This is not
- * yet Workstream 4's full inspector-driven contract editor or Workstream
- * 5's full variant×state coverage matrix (blueprint/organization/designer
- * indicators, unsupported-combination exclusion rationale, per-cell
- * story/test/preview/documentation markers) — just real, generic, portable
- * lists. Anatomy, tokens, and everything after remains unbuilt and the
- * page says so explicitly.
+ * portable public contract, choosing required states plus a value per
+ * blueprint inspector field, naming anatomy parts, and mapping the
+ * blueprint's own token slots to real discovered DTCG tokens is real and
+ * staged/approved through the same P2 entry gate 2 discipline every other
+ * domain write uses. This is not yet Workstream 4's full inspector-driven
+ * contract editor, Workstream 5's full variant×state coverage matrix,
+ * Workstream 6's anatomy tree with preview overlay, or Workstream 7's
+ * `$type` validation against a slot's declared types — just real, generic,
+ * portable lists. Behavior, fixtures, preview, and everything after
+ * remains unbuilt and the page says so explicitly.
  */
 @Component({
   selector: 'app-studio-page',
@@ -88,6 +94,12 @@ export class StudioPage {
   protected readonly variantSelectionsInput = signal<
     readonly ProposalVariantSelection[]
   >([]);
+  protected readonly anatomyPartsInput = signal<readonly ProposalAnatomyPart[]>(
+    [],
+  );
+  protected readonly tokenMappingsInput = signal<
+    readonly ProposalTokenMapping[]
+  >([]);
 
   protected readonly canCreateProposal = computed(
     () =>
@@ -109,6 +121,8 @@ export class StudioPage {
     this.requiredStatesInput.set(blueprint?.requiredStates ?? []);
     this.customStateInput.set('');
     this.variantSelectionsInput.set([]);
+    this.anatomyPartsInput.set([]);
+    this.tokenMappingsInput.set([]);
   }
 
   protected clearSelection(): void {
@@ -146,6 +160,51 @@ export class StudioPage {
       this.variantSelectionsInput().find(
         (selection) => selection.fieldPath === fieldPath,
       )?.value ?? ''
+    );
+  }
+
+  protected addAnatomyPart(): void {
+    const part: ProposalAnatomyPart = {
+      id: '',
+      label: '',
+      required: false,
+      publicSlot: false,
+      publicPart: false,
+    };
+    this.anatomyPartsInput.update((parts) => [...parts, part]);
+  }
+
+  protected removeAnatomyPart(index: number): void {
+    this.anatomyPartsInput.update((parts) =>
+      parts.filter((_, i) => i !== index),
+    );
+  }
+
+  protected updateAnatomyPart(
+    index: number,
+    field: keyof ProposalAnatomyPart,
+    value: string | boolean,
+  ): void {
+    this.anatomyPartsInput.update((parts) =>
+      parts.map((part, i) =>
+        i === index ? { ...part, [field]: value } : part,
+      ),
+    );
+  }
+
+  protected setTokenMapping(slotId: string, tokenPath: string): void {
+    this.tokenMappingsInput.update((mappings) => {
+      const withoutSlot = mappings.filter(
+        (mapping) => mapping.slotId !== slotId,
+      );
+      return tokenPath ? [...withoutSlot, { slotId, tokenPath }] : withoutSlot;
+    });
+  }
+
+  protected tokenMappingValue(slotId: string): string {
+    return (
+      this.tokenMappingsInput().find((mapping) => mapping.slotId === slotId)
+        ?.tokenPath ?? ''
     );
   }
 
@@ -209,6 +268,8 @@ export class StudioPage {
       contract: this.contractDraft(),
       requiredStates: this.requiredStatesInput(),
       variantSelections: this.variantSelectionsInput(),
+      anatomyParts: this.anatomyPartsInput(),
+      tokenMappings: this.tokenMappingsInput(),
     };
     await this.workspace.stageProposal(proposal);
   }

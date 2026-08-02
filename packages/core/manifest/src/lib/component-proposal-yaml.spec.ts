@@ -29,6 +29,15 @@ requiredStates: [default, hover, disabled]
 variantSelections:
   - fieldPath: contract.properties.appearance
     value: outlined
+anatomyParts:
+  - id: leading-icon
+    label: Leading icon
+    required: false
+    publicSlot: true
+    publicPart: true
+tokenMappings:
+  - slotId: root.background
+    tokenPath: primitive.color.blue.50
 `;
 
 describe('parseComponentProposal', () => {
@@ -56,6 +65,25 @@ describe('parseComponentProposal', () => {
     expect(proposal.variantSelections).toEqual([
       { fieldPath: 'contract.properties.appearance', value: 'outlined' },
     ]);
+    expect(proposal.anatomyParts).toEqual([
+      {
+        id: 'leading-icon',
+        label: 'Leading icon',
+        required: false,
+        publicSlot: true,
+        publicPart: true,
+      },
+    ]);
+    expect(proposal.tokenMappings).toEqual([
+      { slotId: 'root.background', tokenPath: 'primitive.color.blue.50' },
+    ]);
+  });
+
+  it('rejects a proposal missing the required anatomyParts field', () => {
+    const invalid = validYaml.replace(/anatomyParts:[\s\S]*$/, '');
+    expect(() => parseComponentProposal(invalid)).toThrow(
+      'does not match the schema',
+    );
   });
 
   it('rejects a proposal missing the required contract field', () => {

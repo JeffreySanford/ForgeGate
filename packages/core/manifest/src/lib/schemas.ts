@@ -253,6 +253,29 @@ const proposalVariantSelectionSchema = {
   additionalProperties: false,
 } as const;
 
+const proposalAnatomyPartSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    label: { type: 'string', minLength: 1 },
+    required: { type: 'boolean' },
+    publicSlot: { type: 'boolean' },
+    publicPart: { type: 'boolean' },
+  },
+  required: ['id', 'label', 'required', 'publicSlot', 'publicPart'],
+  additionalProperties: false,
+} as const;
+
+const proposalTokenMappingSchema = {
+  type: 'object',
+  properties: {
+    slotId: { type: 'string', minLength: 1 },
+    tokenPath: { type: 'string', minLength: 1 },
+  },
+  required: ['slotId', 'tokenPath'],
+  additionalProperties: false,
+} as const;
+
 export const componentProposalSchema = {
   $id: 'https://forgegate.dev/schemas/component-proposal.schema.json',
   type: 'object',
@@ -268,6 +291,8 @@ export const componentProposalSchema = {
       type: 'array',
       items: proposalVariantSelectionSchema,
     },
+    anatomyParts: { type: 'array', items: proposalAnatomyPartSchema },
+    tokenMappings: { type: 'array', items: proposalTokenMappingSchema },
   },
   required: [
     'identity',
@@ -278,6 +303,8 @@ export const componentProposalSchema = {
     'contract',
     'requiredStates',
     'variantSelections',
+    'anatomyParts',
+    'tokenMappings',
   ],
   additionalProperties: false,
 } as const;

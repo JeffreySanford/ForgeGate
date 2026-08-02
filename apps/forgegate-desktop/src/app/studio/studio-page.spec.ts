@@ -211,6 +211,69 @@ describe('StudioPage', () => {
     expect(variantInput.value).toBe('outlined');
   });
 
+  it('adds and removes an anatomy part', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    (
+      Array.from(compiled.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Add anatomy part'),
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const idInput = compiled.querySelector('#anatomy-id-0') as HTMLInputElement;
+    expect(idInput).not.toBeNull();
+    idInput.value = 'leading-icon';
+    idInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(idInput.value).toBe('leading-icon');
+
+    const removeButton = compiled.querySelector(
+      '.studio-page__anatomy-part button',
+    ) as HTMLButtonElement;
+    removeButton.click();
+    fixture.detectChanges();
+    expect(compiled.querySelector('#anatomy-id-0')).toBeNull();
+  });
+
+  it('maps a blueprint token slot to a discovered DTCG token', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    workspace.designTokens.set([
+      { path: 'primitive.color.blue.50', type: 'color', value: '#eef' },
+    ]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const mappingInput = compiled.querySelector(
+      '#token-mapping-root\\.background',
+    ) as HTMLInputElement;
+    expect(mappingInput).not.toBeNull();
+    mappingInput.value = 'primitive.color.blue.50';
+    mappingInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(mappingInput.value).toBe('primitive.color.blue.50');
+  });
+
   it('adds and removes a contract member from a category', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);
