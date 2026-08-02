@@ -4,9 +4,9 @@
   <p class="studio-page__caveat">
     Choose a blueprint to see what a complete component of that pattern
     requires, then define its purpose, native semantics, portable contract,
-    variant/state selections, anatomy parts, token slot mapping, and a real
-    reference preview. Behavior and fixtures from a selected blueprint are not
-    built yet.
+    variant/state selections, anatomy parts, token slot mapping, behavior and
+    accessibility decisions, and a real reference preview. Fixtures from a
+    selected blueprint are not built yet.
   </p>
 
   @if (!workspace.workspacePath()) {
@@ -99,9 +99,9 @@
     >
       <h3 id="proposal-form-title">Define purpose and native semantics</h3>
       <p>
-        <span aria-hidden="true">*</span> Required. Behavior, fixtures, and
-        everything after the reference preview below is not built yet — this
-        form stops there honestly rather than pretending to continue.
+        <span aria-hidden="true">*</span> Required. Fixtures and everything
+        after the reference preview below is not built yet — this form stops
+        there honestly rather than pretending to continue.
       </p>
       <div class="studio-page__field">
         <label for="proposal-component-name"
@@ -169,7 +169,7 @@
       <h3>Configure the portable public contract</h3>
       <p>
         Real, portable contract members — the same shape a generated component's
-        own contract would use. Behavior and fixtures are not built yet.
+        own contract would use. Fixtures are not built yet.
       </p>
       @for (category of contractCategories; track category.key) {
       <fieldset class="studio-page__contract-category">
@@ -306,8 +306,8 @@
       <h3>Define anatomy parts and map token slots</h3>
       <p>
         Name the component's meaningful parts, and map each of the blueprint's
-        required token slots to a real, discovered DTCG token. Behavior and
-        fixtures are not built yet.
+        required token slots to a real, discovered DTCG token. Fixtures are not
+        built yet.
       </p>
       <fieldset class="studio-page__anatomy">
         <legend>Anatomy parts</legend>
@@ -413,6 +413,29 @@
         }
       </fieldset>
       }
+
+      <fieldset class="studio-page__behavior">
+        <legend>Define behavior and accessibility decisions</legend>
+        <p>
+          Real, free-text behavior decisions captured early enough to inform
+          stories, tests, and reviews. Not yet a guided per-decision editor with
+          cross-field validation.
+        </p>
+        @for (field of behaviorFields; track field.key) {
+        <div class="studio-page__field">
+          <label [attr.for]="'behavior-' + field.key">{{ field.label }}</label>
+          <textarea
+            [id]="'behavior-' + field.key"
+            rows="2"
+            [placeholder]="field.placeholder"
+            [value]="behaviorInput()[field.key]"
+            (input)="
+              updateBehaviorField(field.key, $any($event.target).value)
+            "
+          ></textarea>
+        </div>
+        }
+      </fieldset>
 
       <section
         class="studio-page__reference-preview fg-panel"

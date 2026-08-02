@@ -10,10 +10,9 @@
  * Deliberately still a narrow slice of that workstream's full illustrative
  * shape — covering "choose a blueprint", "define purpose and native
  * semantics", "configure the portable public contract", "compose variants
- * and required states", and part of "define anatomy, slots, parts, token
- * slots, behavior, and fixtures" (anatomy parts and token-slot mapping
- * only — not behavior or fixtures) from P2's first-slice checklist, not
- * the entire eventual fixture/coverage/finding/exception/generation-plan/
+ * and required states", and "define anatomy, slots, parts, token slots,
+ * behavior, and fixtures" except fixtures, from P2's first-slice checklist,
+ * not the entire eventual coverage/finding/exception/generation-plan/
  * revision model. Those remain real, named gaps, not fabricated here.
  */
 
@@ -97,6 +96,25 @@ export interface ProposalTokenMapping {
   readonly tokenPath: string;
 }
 
+/**
+ * The designer's guided behavior and accessibility decisions for this
+ * proposal — Workstream 8's "behavior" half of "define anatomy, slots,
+ * parts, token slots, behavior, and fixtures". Real, free-text decisions
+ * captured early enough to inform stories, tests, reviews, and eventual
+ * implementation hooks — not yet Workstream 8's full guided-decision UI
+ * (per-decision explanations, cross-field validation like "icon-only use
+ * requires an accessible-name strategy", or an exception-request
+ * workflow). Every field defaults to an honest empty string, never a
+ * fabricated placeholder.
+ */
+export interface ProposalBehaviorDecisions {
+  readonly keyboardBehaviorSummary: string;
+  readonly accessibleNameStrategy: string;
+  readonly focusBehavior: string;
+  readonly loadingBehavior: string;
+  readonly announcementStrategy: string;
+}
+
 export interface ComponentProposal {
   readonly identity: ProposalIdentity;
   readonly blueprint: BlueprintReference;
@@ -135,4 +153,7 @@ export interface ComponentProposal {
   /** Real mappings of the blueprint's own required token slots to approved
    * DTCG tokens — the "token slots" half of that same checklist item. */
   readonly tokenMappings: readonly ProposalTokenMapping[];
+  /** The "behavior" half of that same checklist item — Workstream 8's
+   * guided behavior and accessibility decisions. */
+  readonly behavior: ProposalBehaviorDecisions;
 }

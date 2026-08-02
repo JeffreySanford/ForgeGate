@@ -285,6 +285,8 @@ The proposal captures behavior early enough to drive stories, tests, reviews, an
 - Exceptions retain rationale and approver requirements.
 - The UI explains why each behavior matters.
 
+**Implementation status**: a real, narrow first slice exists — `ComponentProposal.behavior` (`ProposalBehaviorDecisions`) captures five free-text decisions (keyboard behavior summary, accessible-name strategy, focus behavior, loading/disabled behavior, announcement strategy) in `StudioPage`'s "Define behavior and accessibility decisions" fieldset. Not yet built: guided semantic decisions with structured options, cross-field validation (icon-only requiring an accessible-name strategy is not enforced), interaction consequences, required manual-review environments, and the exception-request workflow.
+
 ## Workstream 9 — Reference preview
 
 ### Outcome

@@ -274,6 +274,60 @@ describe('StudioPage', () => {
     expect(mappingInput.value).toBe('primitive.color.blue.50');
   });
 
+  it('captures real behavior and accessibility decisions, and resets them on a fresh blueprint selection', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const keyboardField = compiled.querySelector(
+      '#behavior-keyboardBehaviorSummary',
+    ) as HTMLTextAreaElement;
+    expect(keyboardField).not.toBeNull();
+    expect(keyboardField.value).toBe('');
+    keyboardField.value = 'Enter and Space activate the button.';
+    keyboardField.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const accessibleNameField = compiled.querySelector(
+      '#behavior-accessibleNameStrategy',
+    ) as HTMLTextAreaElement;
+    accessibleNameField.value = 'Icon-only variant requires a real aria-label.';
+    accessibleNameField.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(keyboardField.value).toBe('Enter and Space activate the button.');
+    expect(accessibleNameField.value).toBe(
+      'Icon-only variant requires a real aria-label.',
+    );
+
+    (
+      Array.from(compiled.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Choose a different blueprint'),
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const resetField = compiled.querySelector(
+      '#behavior-keyboardBehaviorSummary',
+    ) as HTMLTextAreaElement;
+    expect(resetField.value).toBe('');
+  });
+
   it('renders a real reference preview reflecting a mapped token, and labels it as not a repository implementation', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);

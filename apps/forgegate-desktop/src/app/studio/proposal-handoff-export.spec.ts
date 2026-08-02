@@ -55,6 +55,14 @@ const proposal: ComponentProposal = {
   tokenMappings: [
     { slotId: 'root.background', tokenPath: 'primitive.color.blue.50' },
   ],
+  behavior: {
+    keyboardBehaviorSummary: 'Enter and Space activate the button.',
+    accessibleNameStrategy:
+      'Requires a real aria-label for the icon-only variant.',
+    focusBehavior: 'Receives a visible focus ring.',
+    loadingBehavior: 'Disables activation while loading.',
+    announcementStrategy: 'State changes announce via a polite live region.',
+  },
 };
 
 describe('buildProposalHandoffExport', () => {

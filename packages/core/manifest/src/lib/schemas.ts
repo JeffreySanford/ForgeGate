@@ -276,6 +276,25 @@ const proposalTokenMappingSchema = {
   additionalProperties: false,
 } as const;
 
+const proposalBehaviorDecisionsSchema = {
+  type: 'object',
+  properties: {
+    keyboardBehaviorSummary: { type: 'string' },
+    accessibleNameStrategy: { type: 'string' },
+    focusBehavior: { type: 'string' },
+    loadingBehavior: { type: 'string' },
+    announcementStrategy: { type: 'string' },
+  },
+  required: [
+    'keyboardBehaviorSummary',
+    'accessibleNameStrategy',
+    'focusBehavior',
+    'loadingBehavior',
+    'announcementStrategy',
+  ],
+  additionalProperties: false,
+} as const;
+
 export const componentProposalSchema = {
   $id: 'https://forgegate.dev/schemas/component-proposal.schema.json',
   type: 'object',
@@ -293,6 +312,7 @@ export const componentProposalSchema = {
     },
     anatomyParts: { type: 'array', items: proposalAnatomyPartSchema },
     tokenMappings: { type: 'array', items: proposalTokenMappingSchema },
+    behavior: proposalBehaviorDecisionsSchema,
   },
   required: [
     'identity',
@@ -305,6 +325,7 @@ export const componentProposalSchema = {
     'variantSelections',
     'anatomyParts',
     'tokenMappings',
+    'behavior',
   ],
   additionalProperties: false,
 } as const;

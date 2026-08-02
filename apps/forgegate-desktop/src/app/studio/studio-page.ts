@@ -4,6 +4,7 @@ import type {
   ComponentProposal,
   ContractMember,
   ProposalAnatomyPart,
+  ProposalBehaviorDecisions,
   ProposalContractDraft,
   ProposalTokenMapping,
   ProposalVariantSelection,
@@ -44,34 +45,86 @@ function emptyContractDraft(): ProposalContractDraft {
   };
 }
 
+function emptyBehaviorDecisions(): ProposalBehaviorDecisions {
+  return {
+    keyboardBehaviorSummary: '',
+    accessibleNameStrategy: '',
+    focusBehavior: '',
+    loadingBehavior: '',
+    announcementStrategy: '',
+  };
+}
+
+/** The five behavior decision fields, per `ProposalBehaviorDecisions`. */
+export type BehaviorDecisionField = keyof ProposalBehaviorDecisions;
+
+const BEHAVIOR_DECISION_FIELDS: readonly {
+  readonly key: BehaviorDecisionField;
+  readonly label: string;
+  readonly placeholder: string;
+}[] = [
+  {
+    key: 'keyboardBehaviorSummary',
+    label: 'Keyboard behavior summary',
+    placeholder: 'Enter and Space activate the button.',
+  },
+  {
+    key: 'accessibleNameStrategy',
+    label: 'Accessible-name strategy',
+    placeholder:
+      'Icon-only use requires a real accessible label — describe how it is provided.',
+  },
+  {
+    key: 'focusBehavior',
+    label: 'Focus behavior',
+    placeholder: 'Receives a visible focus ring; no focus trapping.',
+  },
+  {
+    key: 'loadingBehavior',
+    label: 'Loading and disabled behavior',
+    placeholder: 'Loading disables activation and prevents duplicate presses.',
+  },
+  {
+    key: 'announcementStrategy',
+    label: 'Announcement strategy',
+    placeholder: 'State changes announced via a polite live region.',
+  },
+];
+
 /**
  * P2 first slice, items 1 through 4 plus part of item 5 and item 6:
  * "Choose the Button blueprint", "Define purpose and native semantics",
  * "Configure the portable public contract", "Compose variants and
- * required states", anatomy parts plus token-slot mapping from "define
- * anatomy, slots, parts, token slots, behavior, and fixtures", and a real
- * reference preview
+ * required states", "define anatomy, slots, parts, token slots, behavior,
+ * and fixtures" except fixtures, a real reference preview, and a real
+ * handoff-to-engineering export
  * (`documentation/28-blueprint-studio-implementation-plan.md`'s Workstream
  * 3 "Studio navigation and shell", Workstream 1 "Portable proposal
  * domain", Workstream 4 "Button contract editor", Workstream 5 "State and
  * variant matrix", Workstream 6 "Anatomy editor", Workstream 7 "Token
- * mapping", and Workstream 9 "Reference preview", Release A "Proposal
- * Studio").
+ * mapping", Workstream 8 "Behavior and accessibility editor", Workstream 9
+ * "Reference preview", and Workstream 13 "Handoff and proposal review",
+ * Release A "Proposal Studio").
  *
  * Deliberately narrow and honest about what it is not: choosing a
  * blueprint, drafting purpose and native semantic confirmation, editing a
  * portable public contract, choosing required states plus a value per
  * blueprint inspector field, naming anatomy parts, mapping the blueprint's
- * own token slots to real discovered DTCG tokens, and previewing that data
- * before generation exists is real and staged/approved through the same
- * P2 entry gate 2 discipline every other domain write uses. This is not
- * yet Workstream 4's full inspector-driven contract editor, Workstream
- * 5's full variant×state coverage matrix, Workstream 6's anatomy tree
- * with spatial preview overlay, Workstream 7's `$type` validation against
- * a slot's declared types, or Workstream 9's theme/viewport/locale/
- * direction controls and true anatomy overlay — just real, generic,
- * portable lists and a plain reference surface. Behavior, fixtures, and
- * everything after item 6 remains unbuilt and the page says so explicitly.
+ * own token slots to real discovered DTCG tokens, capturing free-text
+ * behavior/accessibility decisions, previewing that data before generation
+ * exists, and exporting an approved proposal as a real handoff package is
+ * real and staged/approved through the same P2 entry gate 2 discipline
+ * every other domain write uses. This is not yet Workstream 4's full
+ * inspector-driven contract editor, Workstream 5's full variant×state
+ * coverage matrix, Workstream 6's anatomy tree with spatial preview
+ * overlay, Workstream 7's `$type` validation against a slot's declared
+ * types, Workstream 8's guided per-decision UI with cross-field
+ * validation, Workstream 9's theme/viewport/locale/direction controls and
+ * true anatomy overlay, or Workstream 13's review checkpoints/comments —
+ * just real, generic, portable lists, a plain reference surface, and a
+ * checksum-verifiable export. Fixtures, and everything the generation
+ * pipeline itself would require, remain unbuilt and the page says so
+ * explicitly.
  */
 @Component({
   selector: 'app-studio-page',
@@ -109,6 +162,10 @@ export class StudioPage {
   protected readonly tokenMappingsInput = signal<
     readonly ProposalTokenMapping[]
   >([]);
+  protected readonly behaviorInput = signal<ProposalBehaviorDecisions>(
+    emptyBehaviorDecisions(),
+  );
+  protected readonly behaviorFields = BEHAVIOR_DECISION_FIELDS;
 
   protected readonly previewedStateInput = signal<string | null>(null);
 
@@ -162,8 +219,16 @@ export class StudioPage {
     this.variantSelectionsInput.set([]);
     this.anatomyPartsInput.set([]);
     this.tokenMappingsInput.set([]);
+    this.behaviorInput.set(emptyBehaviorDecisions());
     this.previewedStateInput.set(null);
     this.approvedProposalForHandoff.set(null);
+  }
+
+  protected updateBehaviorField(
+    field: BehaviorDecisionField,
+    value: string,
+  ): void {
+    this.behaviorInput.update((behavior) => ({ ...behavior, [field]: value }));
   }
 
   protected setPreviewedState(state: string): void {
@@ -315,6 +380,7 @@ export class StudioPage {
       variantSelections: this.variantSelectionsInput(),
       anatomyParts: this.anatomyPartsInput(),
       tokenMappings: this.tokenMappingsInput(),
+      behavior: this.behaviorInput(),
     };
     await this.workspace.stageProposal(proposal);
   }

@@ -189,7 +189,8 @@
 }
 
 .studio-page__anatomy,
-.studio-page__token-mappings {
+.studio-page__token-mappings,
+.studio-page__behavior {
   display: grid;
   gap: var(--fg-space-2);
   margin: var(--fg-space-3) 0;
@@ -199,7 +200,8 @@
 }
 
 .studio-page__anatomy legend,
-.studio-page__token-mappings legend {
+.studio-page__token-mappings legend,
+.studio-page__behavior legend {
   font-weight: 600;
   padding: 0 var(--fg-space-1);
 }

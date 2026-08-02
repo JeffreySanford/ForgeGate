@@ -642,6 +642,12 @@ describe('WorkspaceService', () => {
       'tokenMappings:',
       '  - slotId: root.background',
       '    tokenPath: primitive.color.blue.50',
+      'behavior:',
+      '  keyboardBehaviorSummary: Enter and Space activate the button.',
+      '  accessibleNameStrategy: Requires a real aria-label for the icon-only variant.',
+      '  focusBehavior: Receives a visible focus ring.',
+      '  loadingBehavior: Disables activation while loading.',
+      '  announcementStrategy: State changes announce via a polite live region.',
     ].join('\n');
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
@@ -693,6 +699,15 @@ describe('WorkspaceService', () => {
         tokenMappings: [
           { slotId: 'root.background', tokenPath: 'primitive.color.blue.50' },
         ],
+        behavior: {
+          keyboardBehaviorSummary: 'Enter and Space activate the button.',
+          accessibleNameStrategy:
+            'Requires a real aria-label for the icon-only variant.',
+          focusBehavior: 'Receives a visible focus ring.',
+          loadingBehavior: 'Disables activation while loading.',
+          announcementStrategy:
+            'State changes announce via a polite live region.',
+        },
       },
     ]);
     expect(service.proposalError()).toContain(
@@ -1893,6 +1908,13 @@ describe('WorkspaceService', () => {
       variantSelections: [],
       anatomyParts: [],
       tokenMappings: [],
+      behavior: {
+        keyboardBehaviorSummary: '',
+        accessibleNameStrategy: '',
+        focusBehavior: '',
+        loadingBehavior: '',
+        announcementStrategy: '',
+      },
     };
 
     it('does nothing if an export is already running', async () => {
