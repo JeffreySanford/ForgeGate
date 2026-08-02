@@ -10,7 +10,7 @@ The root [`TODO.md`](../TODO.md) contains the detailed implementation checklist.
 
 ## Current roadmap truth
 
-This roadmap is the intended product sequence, not a claim that each stage is untouched until the previous one is perfect. The current implementation has real slices through workspace discovery, component records, configured unit/lint/build gates, guided manual review, narrow policy/readiness, Starlight generation, and evidence export. The MVP is still not complete because Storybook/axe/Playwright execution, external policy-document loading, durable release approvals, binary/temp attachment capture, pilot validation, and the human ForgeGate screen-reader pass remain open. The active P2 work is therefore Starlight/reporting and evidence depth, not P3 or full Blueprint Studio UI.
+This roadmap is the intended product sequence, not a claim that each stage is untouched until the previous one is perfect. The current implementation has real slices through workspace discovery, component records, configured unit/lint/build gates, guided manual review, narrow policy/readiness, Starlight generation, evidence export, external policy-document provenance, curated automated-evidence details, verified evidence-package reload, copied-attachment review gates, and generated Starlight route injection. The MVP is still not complete because Storybook/axe/Playwright execution, full external policy-rule evaluation, repository release-history write-back, pilot validation, and the human ForgeGate screen-reader pass remain open. The next work should therefore stay on MVP closure and Starlight/report hardening, not P3 or full Blueprint Studio UI.
 
 ## Stage 0 — Product definition
 
@@ -161,7 +161,7 @@ Scope:
 
 This completes the first commercially meaningful vertical slice.
 
-Current implementation note: a real manifest-indexed export exists with checksums, report HTML, built-in policy snapshot, redaction plan, attachment index, and safe redacted text attachment copies. It is not complete until external policy documents, richer evidence details, broader attachment handling, and real release approval records are connected.
+Current implementation note: a real manifest-indexed export exists with checksums, report HTML, built-in and external policy-document provenance snapshots, redaction plan, attachment index, safe redacted text attachment copies, curated automated-evidence details, verified package reload for Starlight regeneration, copied-attachment review decisions, and release-decision workflow records. It is not complete until full external policy-rule evaluation, approved copied-content consumption, package trust/signing policy, and repository release-history write-back are connected.
 
 ## Stage 8 — Component blueprint expansion
 
