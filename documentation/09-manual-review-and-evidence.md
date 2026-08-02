@@ -232,8 +232,11 @@ Required action:
 > under `release-decisions/`. That record links back to `release-decision.json`,
 > repeats the component, policy, commit, evidence, and finding inputs, and
 > distinguishes `blocked-no-approval-required`, `human-approved`, and
-> `test-harness-not-real`. Repository write-back for release-decision history
-> and desktop human-approver capture remain future work.
+> `test-harness-not-real`. The component record can now stage that workflow
+> record into `.forgegate/release-decisions/` through the same diff/approve/
+> discard path used by other repository evidence writes, and later scans reload
+> those records as release history. Desktop human-approver capture remains
+> future work.
 >
 > **`policy-snapshot.json`.** This is now a real snapshot of ForgeGate's narrow
 > built-in release-decision rules, not a complete organizational policy engine.

@@ -213,6 +213,87 @@
     </p>
     } @if (workspace.evidenceExportError(); as exportError) {
     <p role="alert">Evidence export failed: {{ exportError }}</p>
+    }
+
+    <h3 id="release-history-title">Release history</h3>
+    <p class="component-detail__caveat">
+      Stages the current release-decision workflow record into
+      <code>.forgegate/release-decisions/</code>. Clean authorization still
+      requires a named human approver; blocked evaluations can be recorded now.
+    </p>
+    <button
+      type="button"
+      [disabled]="workspace.stageReleaseDecisionRunning() || !!workspace.stagedReleaseDecision()"
+      (click)="stageReleaseDecisionHistory()"
+    >
+      {{ workspace.stageReleaseDecisionRunning() ? 'Staging?' : 'Stage release
+      decision history' }}
+    </button>
+    @if (workspace.releaseDecisionRecordError(); as releaseHistoryError) {
+    <p role="alert">
+      Some release decision history could not be loaded: {{ releaseHistoryError
+      }}
+    </p>
+    } @if (workspace.stageReleaseDecisionError(); as releaseStageError) {
+    <p role="alert">Release decision not staged: {{ releaseStageError }}</p>
+    } @if (releaseDecisionRecords().length === 0) {
+    <p class="component-detail__unavailable">
+      No release-decision history is connected for this component version.
+    </p>
+    } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Outcome</th>
+          <th scope="col">Authorization</th>
+          <th scope="col">Policy</th>
+          <th scope="col">Commit</th>
+          <th scope="col">Decided</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (record of releaseDecisionRecords(); track record.id) {
+        <tr>
+          <th scope="row">{{ record.outcome }}</th>
+          <td>{{ record.authorization }}</td>
+          <td>{{ record.policyId }} &#64; {{ record.policyVersion }}</td>
+          <td><code>{{ record.commit }}</code></td>
+          <td>{{ record.decidedAt }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+    } @if (workspace.stagedReleaseDecision(); as stagedDecision) {
+    <div class="component-detail__staged" role="region">
+      <p>
+        Release decision <strong>{{ stagedDecision.record.outcome }}</strong>
+        is staged for <code>.forgegate/release-decisions/</code>. Review the
+        diff below, then approve to write it into repository history, or discard
+        to drop it.
+      </p>
+      <pre class="component-detail__diff">
+{{ stagedDecision.write.previousContent ?? '(new file)' }}
+&#8594;
+{{ stagedDecision.write.newContent }}</pre>
+      <div class="component-detail__staged-actions">
+        <button
+          type="button"
+          [disabled]="workspace.approveReleaseDecisionRunning()"
+          (click)="approveReleaseDecision()"
+        >
+          {{ workspace.approveReleaseDecisionRunning() ? 'Approving?' :
+          'Approve' }}
+        </button>
+        <button type="button" (click)="discardReleaseDecision()">Discard</button>
+      </div>
+      @if (workspace.approveReleaseDecisionError(); as approveError) {
+      <p role="alert">Failed to approve: {{ approveError }}</p>
+      }
+    </div>
+    } @if (workspace.saveReleaseDecisionResult(); as savedDecision) {
+    <p role="status">
+      Release decision history saved to <code>{{ savedDecision.path }}</code>
+    </p>
     } @if (workspace.testExecutionError(); as evidenceError) {
     <p role="alert">
       Some test evidence could not be loaded: {{ evidenceError }}

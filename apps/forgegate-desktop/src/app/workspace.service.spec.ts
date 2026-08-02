@@ -77,6 +77,14 @@ const scanFixtureWithProcedures = {
   ],
 };
 
+const scanFixtureWithReleaseDecisions = {
+  ...scanFixture,
+  releaseDecisionFiles: [
+    '.forgegate/release-decisions/acme-button-release-decision-workflow-record.json',
+    '.forgegate/release-decisions/broken.json',
+  ],
+};
+
 const gitStatusFixture = {
   branch: 'master',
   commit: 'a'.repeat(40),
@@ -522,6 +530,62 @@ describe('WorkspaceService', () => {
         .find(
           (diagnostic) =>
             diagnostic.id === 'procedure:.forgegate/procedures/broken.yaml',
+        ),
+    ).toMatchObject({ status: 'failed' });
+  });
+
+  it('loads valid release decision history and isolates an invalid sibling record', async () => {
+    const record = {
+      id: 'acme-button-release-decision-workflow-record',
+      decisionId: 'acme-button-release-decision',
+      componentVersionId: 'up.design-system.up-button@0.1.0',
+      policyId: 'up.baseline',
+      policyVersion: '1.0.0',
+      outcome: 'blocked',
+      commit: 'a'.repeat(40),
+      decidedAt: '2026-08-02T16:00:00.000Z',
+      source: 'forgegate-export-evaluation',
+      authorization: 'blocked-no-approval-required',
+      notRealApproval: false,
+      evidenceIds: ['unit-run'],
+      blockingFindingIds: ['up-button-blocking-0'],
+      limitations: ['Blocked records require no approver.'],
+    };
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithReleaseDecisions)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(JSON.stringify(record))
+      .mockResolvedValueOnce('{"authorization":"unknown"}');
+
+    await service.selectWorkspace();
+
+    expect(service.releaseDecisionRecords()).toEqual([record]);
+    expect(service.releaseDecisionRecordError()).toContain(
+      '.forgegate/release-decisions/broken.json',
+    );
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'release-decision:.forgegate/release-decisions/acme-button-release-decision-workflow-record.json',
+        ),
+    ).toMatchObject({
+      adapter: 'release decision history',
+      status: 'loaded',
+      rawOutput: JSON.stringify(record),
+      error: null,
+    });
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'release-decision:.forgegate/release-decisions/broken.json',
         ),
     ).toMatchObject({ status: 'failed' });
   });
@@ -2141,6 +2205,159 @@ describe('WorkspaceService', () => {
       await service.discardStagedManualReview();
 
       expect(invokeMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stageReleaseDecisionHistory / approveStagedReleaseDecision / discardStagedReleaseDecision', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.design-system.acme-button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      lifecycle: 'candidate',
+      policyId: 'acme.baseline',
+      policyVersion: '1.0.0',
+    });
+    const stagedWrite = {
+      stagingId: 'stg-1',
+      subdirectory: 'release-decisions',
+      filename:
+        'acme.design-system.acme-button-release-decision-workflow-record.json',
+      previousContent: null,
+      newContent: '{"outcome":"blocked"}',
+    };
+
+    it('stages a blocked release-decision workflow record into repository history', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.gitStatus.set(gitStatusFixture);
+      service.testExecutions.set([
+        {
+          id: 'unit-run',
+          componentVersionId: 'acme.design-system.acme-button@1.0.0',
+          gate: 'unit',
+          tool: 'vitest',
+          toolVersion: '4.1.10',
+          adapterVersion: '0.1.0',
+          status: 'passed',
+          startedAt: '2026-08-02T16:00:00.000Z',
+          commitOrFingerprint: gitStatusFixture.commit,
+        },
+      ]);
+      invokeMock.mockResolvedValueOnce(stagedWrite);
+
+      await service.stageReleaseDecisionHistory(manifest, [
+        'No manual review is current.',
+      ]);
+
+      expect(invokeMock).toHaveBeenCalledWith('stage_release_decision', {
+        workspacePath: 'D:/repos/ForgeGate',
+        decisionId:
+          'acme.design-system.acme-button-release-decision-workflow-record',
+        content: expect.stringContaining(
+          '"authorization": "blocked-no-approval-required"',
+        ),
+      });
+      expect(invokeMock.mock.calls[0]?.[1].content).toContain(
+        '"evidenceIds": [\n    "unit-run"\n  ]',
+      );
+      expect(service.stagedReleaseDecision()).toMatchObject({
+        componentId: manifest.id,
+        write: stagedWrite,
+        record: {
+          outcome: 'blocked',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+          notRealApproval: false,
+        },
+      });
+    });
+
+    it('refuses to stage a clean release candidate without a real approver', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.gitStatus.set(gitStatusFixture);
+
+      await service.stageReleaseDecisionHistory(manifest, []);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.stagedReleaseDecision()).toBeNull();
+      expect(service.stageReleaseDecisionError()).toContain(
+        'requires a named approver',
+      );
+    });
+
+    it('approves a staged release decision and updates loaded release history', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.stagedReleaseDecision.set({
+        componentId: manifest.id,
+        write: stagedWrite,
+        record: {
+          id: 'acme.design-system.acme-button-release-decision-workflow-record',
+          decisionId: 'acme.design-system.acme-button-release-decision',
+          componentVersionId: 'acme.design-system.acme-button@1.0.0',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+          outcome: 'blocked',
+          commit: gitStatusFixture.commit,
+          decidedAt: '2026-08-02T16:00:00.000Z',
+          source: 'forgegate-export-evaluation',
+          authorization: 'blocked-no-approval-required',
+          notRealApproval: false,
+          evidenceIds: ['unit-run'],
+          blockingFindingIds: ['acme.design-system.acme-button-blocking-0'],
+          limitations: [],
+        },
+      });
+      invokeMock.mockResolvedValueOnce(
+        'D:/repos/ForgeGate/.forgegate/release-decisions/acme.design-system.acme-button-release-decision-workflow-record.json',
+      );
+
+      await service.approveStagedReleaseDecision();
+
+      expect(invokeMock).toHaveBeenCalledWith('approve_staged_evidence_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: stagedWrite.stagingId,
+        subdirectory: 'release-decisions',
+        filename:
+          'acme.design-system.acme-button-release-decision-workflow-record.json',
+      });
+      expect(service.releaseDecisionRecords()).toHaveLength(1);
+      expect(service.stagedReleaseDecision()).toBeNull();
+      expect(service.saveReleaseDecisionResult()?.path).toContain(
+        '.forgegate/release-decisions',
+      );
+    });
+
+    it('discards a staged release decision without writing repository history', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.stagedReleaseDecision.set({
+        componentId: manifest.id,
+        write: stagedWrite,
+        record: {
+          id: 'acme.design-system.acme-button-release-decision-workflow-record',
+          decisionId: 'acme.design-system.acme-button-release-decision',
+          componentVersionId: 'acme.design-system.acme-button@1.0.0',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+          outcome: 'blocked',
+          commit: gitStatusFixture.commit,
+          decidedAt: '2026-08-02T16:00:00.000Z',
+          source: 'forgegate-export-evaluation',
+          authorization: 'blocked-no-approval-required',
+          notRealApproval: false,
+          evidenceIds: [],
+          blockingFindingIds: [],
+          limitations: [],
+        },
+      });
+
+      await service.discardStagedReleaseDecision();
+
+      expect(invokeMock).toHaveBeenCalledWith('discard_staged_evidence_write', {
+        workspacePath: 'D:/repos/ForgeGate',
+        stagingId: stagedWrite.stagingId,
+      });
+      expect(service.stagedReleaseDecision()).toBeNull();
     });
   });
 

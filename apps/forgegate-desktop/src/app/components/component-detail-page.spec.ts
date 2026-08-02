@@ -257,6 +257,72 @@ describe('ComponentDetailPage', () => {
     );
   });
 
+  it('renders release-decision history and stages a new repository history record', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '1.0.0',
+        lifecycle: 'candidate',
+        policyId: 'acme.baseline',
+        policyVersion: '1.0.0',
+      }),
+    ]);
+    workspaceService.releaseDecisionRecords.set([
+      {
+        id: 'acme-button-release-decision-workflow-record',
+        decisionId: 'acme-button-release-decision',
+        componentVersionId: 'acme.design-system.acme-button@1.0.0',
+        policyId: 'acme.baseline',
+        policyVersion: '1.0.0',
+        outcome: 'blocked',
+        commit: '1234567890abcdef1234567890abcdef12345678',
+        decidedAt: '2026-08-02T16:00:00.000Z',
+        source: 'forgegate-export-evaluation',
+        authorization: 'blocked-no-approval-required',
+        notRealApproval: false,
+        evidenceIds: [],
+        blockingFindingIds: ['acme-button-blocking-0'],
+        limitations: [],
+      },
+    ]);
+    const stageSpy = vi
+      .spyOn(workspaceService, 'stageReleaseDecisionHistory')
+      .mockResolvedValue();
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Release history');
+    expect(compiled.textContent).toContain('blocked');
+    expect(compiled.textContent).toContain('blocked-no-approval-required');
+
+    const stageButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Stage release decision history'),
+    );
+    stageButton?.click();
+
+    expect(stageSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'acme.design-system.acme-button',
+        policyId: 'acme.baseline',
+      }),
+      expect.arrayContaining([
+        expect.stringContaining('No automated test requirements declared'),
+      ]),
+    );
+  });
+
   it('updates to show the newly navigated component when moving directly between two detail routes', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

@@ -322,6 +322,26 @@ fn stage_test_execution(
     .map(Into::into)
 }
 
+/// Stages one durable release-decision workflow record into
+/// `.forgegate/release-decisions/`. This is repository history write-back,
+/// not evidence-package export, so it follows the same temporary staging
+/// and explicit approval discipline as manual reviews and test executions.
+#[tauri::command]
+fn stage_release_decision(
+    workspace_path: String,
+    decision_id: String,
+    content: String,
+) -> Result<StagedEvidenceWriteDto, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::stage_evidence_write(
+        &workspace,
+        "release-decisions",
+        &format!("{decision_id}.json"),
+        &content,
+    )
+    .map(Into::into)
+}
+
 /// Commits a previously staged evidence write into the real conventional
 /// evidence directory. Only ever called from an explicit "Approve" action
 /// the reviewer takes after being shown the staged diff — never silently
@@ -1788,6 +1808,46 @@ mod tests {
     }
 
     #[test]
+    fn stages_and_approves_a_real_release_decision_into_the_conventional_history_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-stage-release-decision-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(&dir).expect("should create temp workspace dir");
+
+        let staged = stage_release_decision(
+            dir.display().to_string(),
+            "acme.button-release-decision-workflow-record".to_string(),
+            "{\"authorization\":\"blocked-no-approval-required\"}".to_string(),
+        )
+        .expect("stage should succeed");
+
+        let result = approve_staged_evidence_write(
+            dir.display().to_string(),
+            staged.staging_id,
+            "release-decisions".to_string(),
+            "acme.button-release-decision-workflow-record.json".to_string(),
+        )
+        .expect("approve should succeed");
+
+        let result_path = PathBuf::from(&result);
+        assert_eq!(
+            result_path
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str()),
+            Some("release-decisions")
+        );
+        assert_eq!(
+            fs::read_to_string(&result).expect("file should be readable"),
+            "{\"authorization\":\"blocked-no-approval-required\"}"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn refuses_to_stage_a_finding_id_that_would_escape_the_conventional_directory() {
         let dir = std::env::temp_dir().join(format!(
             "forgegate-stage-finding-escape-{}-{}",
@@ -2029,6 +2089,7 @@ pub fn run() {
             stage_manual_review,
             stage_finding,
             stage_test_execution,
+            stage_release_decision,
             approve_staged_evidence_write,
             discard_staged_evidence_write,
             rollback_evidence_write,

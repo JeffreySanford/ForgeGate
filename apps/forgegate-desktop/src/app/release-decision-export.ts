@@ -66,6 +66,72 @@ export interface ReleaseDecisionWorkflowRecord {
   readonly limitations: readonly string[];
 }
 
+export function parseReleaseDecisionWorkflowRecord(
+  content: string,
+): ReleaseDecisionWorkflowRecord {
+  const parsed = JSON.parse(content) as unknown;
+  if (!isRecord(parsed)) {
+    throw new Error('Release decision workflow record must be a JSON object.');
+  }
+  const authorization = parsed['authorization'];
+  const outcome = parsed['outcome'];
+  if (
+    authorization !== 'blocked-no-approval-required' &&
+    authorization !== 'human-approved' &&
+    authorization !== 'test-harness-not-real'
+  ) {
+    throw new Error('Release decision workflow record has invalid authorization.');
+  }
+  if (outcome !== 'blocked' && outcome !== 'authorized-candidate') {
+    throw new Error('Release decision workflow record has invalid outcome.');
+  }
+  for (const field of [
+    'id',
+    'decisionId',
+    'componentVersionId',
+    'policyId',
+    'policyVersion',
+    'commit',
+    'decidedAt',
+  ]) {
+    if (typeof parsed[field] !== 'string' || !parsed[field]) {
+      throw new Error(`Release decision workflow record is missing ${field}.`);
+    }
+  }
+  if (parsed['source'] !== 'forgegate-export-evaluation') {
+    throw new Error('Release decision workflow record has invalid source.');
+  }
+  if (typeof parsed['notRealApproval'] !== 'boolean') {
+    throw new Error(
+      'Release decision workflow record is missing notRealApproval.',
+    );
+  }
+  if (
+    !Array.isArray(parsed['evidenceIds']) ||
+    !parsed['evidenceIds'].every((id) => typeof id === 'string')
+  ) {
+    throw new Error('Release decision workflow record has invalid evidenceIds.');
+  }
+  if (
+    !Array.isArray(parsed['blockingFindingIds']) ||
+    !parsed['blockingFindingIds'].every((id) => typeof id === 'string')
+  ) {
+    throw new Error(
+      'Release decision workflow record has invalid blockingFindingIds.',
+    );
+  }
+  if (
+    !Array.isArray(parsed['limitations']) ||
+    !parsed['limitations'].every((limitation) => typeof limitation === 'string')
+  ) {
+    throw new Error('Release decision workflow record has invalid limitations.');
+  }
+  if (parsed['approver'] !== undefined && typeof parsed['approver'] !== 'string') {
+    throw new Error('Release decision workflow record has invalid approver.');
+  }
+  return parsed as unknown as ReleaseDecisionWorkflowRecord;
+}
+
 export interface PolicySnapshotExport {
   readonly id: string;
   readonly componentVersionId: string;
@@ -290,16 +356,20 @@ function buildReleaseDecisionWorkflowRecord(
       decision.outcome === 'blocked'
         ? [
             'This is a durable blocked evaluation record; no approver is required because no release was authorized.',
-            'ForgeGate has not implemented repository write-back for release-decision workflow history yet, so this record is persisted inside the evidence package.',
+            'This record can be persisted inside an evidence package and written back to repository release-decision history after explicit reviewer approval.',
           ]
         : notRealApproval
           ? [
               'This authorized-candidate path was exercised by a test harness and is not a real approval.',
-              'ForgeGate has not implemented repository write-back for release-decision workflow history yet, so this record is persisted inside the evidence package.',
+              'This record can be persisted inside an evidence package and written back to repository release-decision history after explicit reviewer approval.',
             ]
           : [
               'This authorized-candidate record includes a named human approver supplied by the caller.',
-              'ForgeGate has not implemented repository write-back for release-decision workflow history yet, so this record is persisted inside the evidence package.',
+              'This record can be persisted inside an evidence package and written back to repository release-decision history after explicit reviewer approval.',
             ],
   };
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

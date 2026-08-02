@@ -163,6 +163,15 @@ export class ComponentDetailPage {
       .filter((review) => review.componentVersionId === versionId);
   });
 
+  protected readonly releaseDecisionRecords = computed(() => {
+    const manifest = this.manifest();
+    if (!manifest) return [];
+    const versionId = componentVersionId(manifest);
+    return this.workspace
+      .releaseDecisionRecords()
+      .filter((record) => record.componentVersionId === versionId);
+  });
+
   protected readonly evidenceFreshness = computed<string>(() => {
     const commit = this.shortCommit();
     if (!commit) {
@@ -610,6 +619,25 @@ export class ComponentDetailPage {
 
   protected discardTestExecution(): void {
     void this.workspace.discardStagedTestExecution();
+  }
+
+  protected stageReleaseDecisionHistory(): void {
+    const manifest = this.manifest();
+    if (!manifest) {
+      return;
+    }
+    void this.workspace.stageReleaseDecisionHistory(
+      manifest,
+      this.blockingReasons(),
+    );
+  }
+
+  protected approveReleaseDecision(): void {
+    void this.workspace.approveStagedReleaseDecision();
+  }
+
+  protected discardReleaseDecision(): void {
+    void this.workspace.discardStagedReleaseDecision();
   }
 
   private manifestSource(manifest: ComponentManifest): string {

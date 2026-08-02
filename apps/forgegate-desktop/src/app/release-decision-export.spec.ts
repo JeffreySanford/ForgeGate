@@ -4,6 +4,7 @@ import {
   computePolicySnapshot,
   computeReleaseDecision,
   isRealApproval,
+  parseReleaseDecisionWorkflowRecord,
   type EvidenceApprover,
 } from './release-decision-export';
 
@@ -309,5 +310,43 @@ describe('computePolicySnapshot', () => {
     expect('unavailable' in withoutCommit && withoutCommit.unavailable).toContain(
       'No repository commit',
     );
+  });
+});
+
+describe('parseReleaseDecisionWorkflowRecord', () => {
+  const record = {
+    id: 'acme.lib.button-release-decision-workflow-record',
+    decisionId: 'acme.lib.button-release-decision',
+    componentVersionId: 'acme.lib.button@1.0.0',
+    policyId: 'acme.baseline',
+    policyVersion: '2.1.0',
+    outcome: 'blocked',
+    commit: COMMIT,
+    decidedAt: '2026-01-01T00:00:00.000Z',
+    source: 'forgegate-export-evaluation',
+    authorization: 'blocked-no-approval-required',
+    notRealApproval: false,
+    evidenceIds: ['run-1'],
+    blockingFindingIds: ['finding-1'],
+    limitations: ['No approval required for blocked decisions.'],
+  };
+
+  it('parses a repository release-decision history record', () => {
+    expect(parseReleaseDecisionWorkflowRecord(JSON.stringify(record))).toEqual(
+      record,
+    );
+  });
+
+  it('rejects malformed release-decision history instead of loading it silently', () => {
+    expect(() =>
+      parseReleaseDecisionWorkflowRecord(
+        JSON.stringify({ ...record, authorization: 'unknown' }),
+      ),
+    ).toThrow('invalid authorization');
+    expect(() =>
+      parseReleaseDecisionWorkflowRecord(
+        JSON.stringify({ ...record, evidenceIds: [42] }),
+      ),
+    ).toThrow('invalid evidenceIds');
   });
 });

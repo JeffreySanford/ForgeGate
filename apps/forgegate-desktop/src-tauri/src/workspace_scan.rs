@@ -62,6 +62,7 @@ pub struct WorkspaceScan {
     pub exception_files: Vec<String>,
     pub procedure_files: Vec<String>,
     pub finding_files: Vec<String>,
+    pub release_decision_files: Vec<String>,
     pub ui_technologies: Vec<UiTechnologyDetection>,
     pub ui_source_files: Vec<String>,
     pub ui_source_files_truncated: bool,
@@ -103,6 +104,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         exception_files: detect_exception_files(root),
         procedure_files: detect_procedure_files(root),
         finding_files: detect_finding_files(root),
+        release_decision_files: detect_release_decision_files(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
         ui_source_files,
         ui_source_files_truncated,
@@ -380,6 +382,25 @@ fn detect_finding_files(root: &Path) -> Vec<String> {
         .collect::<Vec<_>>();
     findings.sort();
     findings
+}
+
+/// Mirrors the other `.forgegate/*` evidence directories: release
+/// decisions are durable workflow records ForgeGate can reload on later
+/// scans, not just transient export-package contents.
+fn detect_release_decision_files(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("release-decisions");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut decisions = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    decisions.sort();
+    decisions
 }
 
 fn top_level_entry_names(root: &Path) -> Result<Vec<String>, String> {
@@ -780,6 +801,7 @@ mod tests {
             scan.procedure_files,
             vec![".forgegate/procedures/forgegate-shell-accessibility-review.yaml".to_string()]
         );
+        assert!(scan.release_decision_files.is_empty());
         assert!(
             scan.ui_technologies.is_empty(),
             "Angular itself is a framework, not a detected UI library"
@@ -835,6 +857,10 @@ mod tests {
         assert!(
             scan.finding_files.is_empty(),
             "the fixture's checked-in review passed every step, so no ForgeGate-authored finding should exist"
+        );
+        assert!(
+            scan.release_decision_files.is_empty(),
+            "fixture has no repository release-decision history yet"
         );
         assert_eq!(scan.test_runners, vec!["node:test".to_string()]);
         assert!(scan.ui_technologies.is_empty());

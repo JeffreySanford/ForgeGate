@@ -59,7 +59,10 @@ import {
   parseStorybookIndex,
   type StorybookIndex,
 } from '@forgegate/adapter-storybook';
-import { buildEvidenceExport } from './evidence-export';
+import {
+  buildEvidenceExport,
+  findingsFromBlockingReasons,
+} from './evidence-export';
 import {
   loadVerifiedStarlightEvidencePackageRecords,
   type EvidencePackageCopiedAttachmentFile,
@@ -79,7 +82,12 @@ import {
   discoverAngularComponents,
   type AngularComponentDeclaration,
 } from './angular-components';
-import type { EvidenceApprover } from './release-decision-export';
+import {
+  computeReleaseDecision,
+  parseReleaseDecisionWorkflowRecord,
+  type EvidenceApprover,
+  type ReleaseDecisionWorkflowRecord,
+} from './release-decision-export';
 import type { ComponentSnapshotReadiness } from './component-readiness';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
@@ -120,6 +128,15 @@ export interface StagedManualReview {
     readonly finding: Finding;
     readonly write: StagedEvidenceWrite;
   }[];
+}
+
+/** A computed release-decision workflow record staged into repository
+ * history, plus the conventional evidence write the reviewer must approve
+ * before it lands in `.forgegate/release-decisions/`. */
+export interface StagedReleaseDecision {
+  readonly record: ReleaseDecisionWorkflowRecord;
+  readonly componentId: string;
+  readonly write: StagedEvidenceWrite;
 }
 
 /** A write staged at an arbitrary workspace-relative path, mirroring the
@@ -273,6 +290,7 @@ export interface WorkspaceScan {
   exceptionFiles?: string[];
   procedureFiles?: string[];
   findingFiles?: string[];
+  releaseDecisionFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -568,6 +586,13 @@ export class WorkspaceService {
    * by ForgeGate itself, one per failed or blocked guided-review step. */
   readonly findings = signal<readonly Finding[]>([]);
   readonly findingError = signal<string | null>(null);
+  /** Every real `.forgegate/release-decisions/*.json` workflow record.
+   * These are repository history write-back records, not just files found
+   * inside exported evidence packages. */
+  readonly releaseDecisionRecords = signal<
+    readonly ReleaseDecisionWorkflowRecord[]
+  >([]);
+  readonly releaseDecisionRecordError = signal<string | null>(null);
   readonly saveManualReviewRunning = signal(false);
   readonly saveManualReviewError = signal<string | null>(null);
   readonly saveManualReviewResult = signal<{ readonly path: string } | null>(
@@ -581,6 +606,14 @@ export class WorkspaceService {
   readonly stagedManualReview = signal<StagedManualReview | null>(null);
   readonly approveManualReviewRunning = signal(false);
   readonly approveManualReviewError = signal<string | null>(null);
+  readonly stagedReleaseDecision = signal<StagedReleaseDecision | null>(null);
+  readonly stageReleaseDecisionRunning = signal(false);
+  readonly stageReleaseDecisionError = signal<string | null>(null);
+  readonly approveReleaseDecisionRunning = signal(false);
+  readonly approveReleaseDecisionError = signal<string | null>(null);
+  readonly saveReleaseDecisionResult = signal<{ readonly path: string } | null>(
+    null,
+  );
   /** A generated Starlight documentation page staged but not yet
    * committed — populated by `generateAndStageStarlightPage`, cleared by
    * `approveStagedStarlightPage` or `discardStagedStarlightPage`. Real
@@ -808,6 +841,7 @@ export class WorkspaceService {
     this.exceptionError.set(null);
     this.procedureError.set(null);
     this.findingError.set(null);
+    this.releaseDecisionRecordError.set(null);
     this.storybookIndexError.set(null);
     this.nativeComponentSignalsError.set(null);
     this.cemGenerationResult.set(null);
@@ -866,6 +900,7 @@ export class WorkspaceService {
       await this.loadExceptions(path, scan);
       await this.loadProcedures(path, scan);
       await this.loadFindings(path, scan);
+      await this.loadReleaseDecisionRecords(path, scan);
       await this.loadDesignTokens(path, scan);
       await this.loadAngularComponents(path, scan);
       this.setScanProgress(
@@ -901,6 +936,7 @@ export class WorkspaceService {
       this.exceptions.set([]);
       this.procedures.set([]);
       this.findings.set([]);
+      this.releaseDecisionRecords.set([]);
       this.storybookIndex.set(null);
       this.nativeComponentSignals.set([]);
       this.evidenceHistoryTrend.set(null);
@@ -1811,6 +1847,45 @@ export class WorkspaceService {
     this.findingError.set(errors.length ? errors.join('\n') : null);
   }
 
+  private async loadReleaseDecisionRecords(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.releaseDecisionRecords.set([]);
+    const records: ReleaseDecisionWorkflowRecord[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.releaseDecisionFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        records.push(parseReleaseDecisionWorkflowRecord(text));
+        this.setAdapterDiagnostic({
+          id: `release-decision:${relativePath}`,
+          adapter: 'release decision history',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `release-decision:${relativePath}`,
+          adapter: 'release decision history',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.releaseDecisionRecords.set(records);
+    this.releaseDecisionRecordError.set(errors.length ? errors.join('\n') : null);
+  }
+
   /**
    * Saves a real, already-completed guided manual review as
    * `.forgegate/manual-reviews/<review.id>.json` inside the open
@@ -1961,6 +2036,135 @@ export class WorkspaceService {
       }
     } finally {
       this.stagedManualReview.set(null);
+    }
+  }
+
+  /**
+   * Computes the same release-decision workflow record used by evidence
+   * export, then stages it into `.forgegate/release-decisions/` so release
+   * history can live in the reviewed repository after explicit approval.
+   * Clean components still require a real human approver; without one the
+   * method reports the release-decision engine's unavailable reason rather
+   * than fabricating authorization.
+   */
+  async stageReleaseDecisionHistory(
+    manifest: ComponentManifest,
+    blockingReasons: readonly string[],
+    approver?: EvidenceApprover | null,
+  ): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.stageReleaseDecisionRunning()) {
+      return;
+    }
+    this.stageReleaseDecisionRunning.set(true);
+    this.stageReleaseDecisionError.set(null);
+    this.approveReleaseDecisionError.set(null);
+    this.saveReleaseDecisionResult.set(null);
+    this.stagedReleaseDecision.set(null);
+    try {
+      const versionId = componentVersionId(manifest);
+      const blockingReasonFindings = findingsFromBlockingReasons(
+        manifest.id,
+        blockingReasons,
+      );
+      const blockingReasonFindingIds = new Set(
+        blockingReasonFindings.map((finding) => finding.id),
+      );
+      const persistedFindings = this.findings().filter(
+        (finding) =>
+          finding.componentId === manifest.id &&
+          !blockingReasonFindingIds.has(finding.id),
+      );
+      const findings = [...blockingReasonFindings, ...persistedFindings];
+      const evidenceIds = this.testExecutions()
+        .filter((execution) => execution.componentVersionId === versionId)
+        .map((execution) => execution.id);
+      const decision = computeReleaseDecision({
+        manifest,
+        findings,
+        commit: this.gitStatus()?.commit ?? null,
+        decidedAt: new Date().toISOString(),
+        evidenceIds,
+        approver: approver ?? null,
+      });
+      if ('unavailable' in decision) {
+        this.stageReleaseDecisionError.set(decision.unavailable);
+        return;
+      }
+      const write = await this.invoke<StagedEvidenceWrite>(
+        'stage_release_decision',
+        {
+          workspacePath: path,
+          decisionId: decision.workflowRecord.id,
+          content: JSON.stringify(decision.workflowRecord, null, 2),
+        },
+      );
+      this.stagedReleaseDecision.set({
+        record: decision.workflowRecord,
+        componentId: manifest.id,
+        write,
+      });
+    } catch (error) {
+      this.stageReleaseDecisionError.set(String(error));
+    } finally {
+      this.stageReleaseDecisionRunning.set(false);
+    }
+  }
+
+  /**
+   * Commits a staged release-decision workflow record into repository
+   * history after the reviewer has inspected the diff.
+   */
+  async approveStagedReleaseDecision(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedReleaseDecision();
+    if (!path || !staged || this.approveReleaseDecisionRunning()) {
+      return;
+    }
+    this.approveReleaseDecisionRunning.set(true);
+    this.approveReleaseDecisionError.set(null);
+    try {
+      const writtenPath = await this.invoke<string>(
+        'approve_staged_evidence_write',
+        {
+          workspacePath: path,
+          stagingId: staged.write.stagingId,
+          subdirectory: staged.write.subdirectory,
+          filename: staged.write.filename,
+        },
+      );
+      this.saveReleaseDecisionResult.set({ path: writtenPath });
+      this.releaseDecisionRecords.set([
+        ...this.releaseDecisionRecords().filter(
+          (record) => record.id !== staged.record.id,
+        ),
+        staged.record,
+      ]);
+      this.stagedReleaseDecision.set(null);
+    } catch (error) {
+      this.approveReleaseDecisionError.set(String(error));
+    } finally {
+      this.approveReleaseDecisionRunning.set(false);
+    }
+  }
+
+  /**
+   * Discards a staged release-decision workflow record without writing it
+   * into `.forgegate/release-decisions/`.
+   */
+  async discardStagedReleaseDecision(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedReleaseDecision();
+    if (!path || !staged) {
+      return;
+    }
+    try {
+      await this.invoke<void>('discard_staged_evidence_write', {
+        workspacePath: path,
+        stagingId: staged.write.stagingId,
+      });
+    } finally {
+      this.stagedReleaseDecision.set(null);
     }
   }
 
