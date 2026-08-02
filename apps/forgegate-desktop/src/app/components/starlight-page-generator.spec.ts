@@ -326,6 +326,71 @@ describe('StarlightPageGenerator', () => {
     );
   });
 
+  it('shows copied attachment review actions before regenerated output is staged', () => {
+    workspace.workspaceScan.set({
+      packageName: null,
+      packageManager: null,
+      workspaceManager: null,
+      storybookProjects: [],
+      starlightProjects: ['apps/starlight'],
+      hasZeroheight: false,
+      tokenFiles: [],
+      testRunners: [],
+      visualRegressionProviders: [],
+      ciProviders: [],
+      customElementsManifests: [],
+      componentPackages: [],
+    });
+    workspace.starlightEvidencePackageAttachmentReview.set({
+      directoryPath: 'D:/exports/acme-button',
+      copiedAttachmentFiles: [
+        {
+          sourceEvidenceId: 'package-unit-run',
+          sourcePath: '.forgegate/evidence/raw/unit-run.txt',
+          targetPath: 'attachments/files/package-unit-run.txt',
+          redactionRequired: true,
+          reviewStatus: 'requires-review',
+        },
+      ],
+      limitation:
+        '1 copied attachment file(s) were verified but not loaded into Starlight report data.',
+    });
+    const continueSpy = vi
+      .spyOn(workspace, 'continueStarlightEvidencePackageImportWithoutAttachments')
+      .mockResolvedValue();
+    const discardSpy = vi.spyOn(
+      workspace,
+      'discardStarlightEvidencePackageAttachmentReview',
+    );
+
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifest = manifest();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Copied attachments require review',
+    );
+    expect(fixture.nativeElement.textContent).toContain('package-unit-run');
+    expect(fixture.nativeElement.textContent).toContain(
+      'attachments/files/package-unit-run.txt',
+    );
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ) as HTMLButtonElement[];
+    buttons
+      .find((button) =>
+        button.textContent?.includes('Regenerate without copied attachment'),
+      )
+      ?.click();
+    buttons
+      .find((button) => button.textContent?.includes('Discard package import'))
+      ?.click();
+
+    expect(continueSpy).toHaveBeenCalledTimes(1);
+    expect(discardSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('shows when Starlight build validation was skipped', () => {
     workspace.workspaceScan.set({
       packageName: null,

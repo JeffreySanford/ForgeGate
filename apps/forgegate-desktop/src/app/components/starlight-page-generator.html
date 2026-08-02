@@ -75,6 +75,42 @@
   <p role="alert">Failed to import evidence package: {{ error }}</p>
   } @if (workspace.starlightPageError(); as error) {
   <p role="alert">Failed to generate documentation page: {{ error }}</p>
+  } @if (workspace.starlightEvidencePackageAttachmentReview(); as review) {
+  <section
+    class="starlight-page-generator__attachment-review"
+    aria-labelledby="starlight-attachment-review-title"
+  >
+    <h3 id="starlight-attachment-review-title">
+      Copied attachments require review
+    </h3>
+    <p>{{ review.limitation }}</p>
+    <ul>
+      @for (attachment of review.copiedAttachmentFiles; track
+      attachment.targetPath) {
+      <li>
+        <span>{{ attachment.sourceEvidenceId }}</span>
+        <code>{{ attachment.sourcePath }}</code>
+        <code>{{ attachment.targetPath }}</code>
+        <span>{{ attachment.reviewStatus }}</span>
+      </li>
+      }
+    </ul>
+    <div class="starlight-page-generator__staged-actions">
+      <button
+        type="button"
+        [disabled]="
+          workspace.starlightEvidencePackageImportRunning() ||
+          workspace.starlightPageRunning()
+        "
+        (click)="continueImportWithoutAttachments()"
+      >
+        Regenerate without copied attachment files
+      </button>
+      <button type="button" (click)="discardAttachmentReview()">
+        Discard package import
+      </button>
+    </div>
+  </section>
   } @if (workspace.stagedStarlightPage(); as staged) {
   <div class="starlight-page-generator__staged" role="region">
     <p>

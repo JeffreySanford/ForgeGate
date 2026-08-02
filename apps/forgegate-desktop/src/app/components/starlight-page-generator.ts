@@ -71,4 +71,12 @@ export class StarlightPageGenerator implements OnInit {
   protected discard(): void {
     void this.workspace.discardStagedStarlightPage();
   }
+
+  protected continueImportWithoutAttachments(): void {
+    void this.workspace.continueStarlightEvidencePackageImportWithoutAttachments();
+  }
+
+  protected discardAttachmentReview(): void {
+    this.workspace.discardStarlightEvidencePackageAttachmentReview();
+  }
 }

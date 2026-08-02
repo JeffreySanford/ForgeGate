@@ -62,13 +62,40 @@
   cursor: not-allowed;
 }
 
-.starlight-page-generator__staged {
+.starlight-page-generator__staged,
+.starlight-page-generator__attachment-review {
   display: grid;
   gap: var(--fg-space-2);
   padding: var(--fg-space-3) var(--fg-space-4);
   border: 1px solid var(--fg-color-border);
   border-radius: var(--fg-radius-md);
   background: var(--fg-color-surface-subtle);
+}
+
+.starlight-page-generator__attachment-review h3,
+.starlight-page-generator__attachment-review p {
+  margin: 0;
+}
+
+.starlight-page-generator__attachment-review ul {
+  display: grid;
+  gap: var(--fg-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.starlight-page-generator__attachment-review li {
+  display: grid;
+  gap: var(--fg-space-1);
+  padding: var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+}
+
+.starlight-page-generator__attachment-review code {
+  overflow-wrap: anywhere;
 }
 
 .starlight-page-generator__diff {

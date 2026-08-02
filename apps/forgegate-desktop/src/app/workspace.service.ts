@@ -63,6 +63,7 @@ import { buildEvidenceExport } from './evidence-export';
 import {
   loadVerifiedStarlightEvidencePackageRecords,
   type StarlightEvidencePackageRecords,
+  type VerifiedStarlightEvidencePackageRecords,
 } from './evidence-package-records';
 import {
   buildExternalPolicyDocumentSnapshot,
@@ -151,6 +152,25 @@ export interface StarlightEvidencePackageImportResult {
   readonly exceptionCount: number;
   readonly releaseDecisionRecordCount: number;
   readonly copiedAttachmentFileCount: number;
+}
+
+export interface StarlightEvidencePackageAttachmentReview {
+  readonly directoryPath: string;
+  readonly copiedAttachmentFiles: readonly {
+    readonly sourceEvidenceId: string;
+    readonly sourcePath: string;
+    readonly targetPath: string;
+    readonly redactionRequired: boolean;
+    readonly reviewStatus: 'requires-review';
+  }[];
+  readonly limitation: string;
+}
+
+interface PendingStarlightEvidencePackageImport {
+  readonly manifest: ComponentManifest;
+  readonly template: StarlightPageTemplate;
+  readonly registryManifests: readonly ComponentManifest[];
+  readonly records: VerifiedStarlightEvidencePackageRecords;
 }
 
 export function isWorkspaceRelativeRawArtifactRef(
@@ -536,7 +556,11 @@ export class WorkspaceService {
   readonly starlightEvidencePackageImportError = signal<string | null>(null);
   readonly starlightEvidencePackageImportResult =
     signal<StarlightEvidencePackageImportResult | null>(null);
+  readonly starlightEvidencePackageAttachmentReview =
+    signal<StarlightEvidencePackageAttachmentReview | null>(null);
   readonly starlightTemplates = STARLIGHT_TEMPLATE_OPTIONS;
+  private pendingStarlightEvidencePackageImport: PendingStarlightEvidencePackageImport | null =
+    null;
 
   /**
    * ForgeGate actually running a target repository's own configured
@@ -2063,8 +2087,9 @@ export class WorkspaceService {
    * manifest/checksum contract, and then regenerates the selected Starlight
    * output through the same staged diff/approve path as ordinary generation.
    * This is the desktop workflow bridge for P2's verified package-record
-   * Starlight regeneration path; it does not consume copied attachment files
-   * directly, so redaction review remains explicit future UI work.
+   * Starlight regeneration path. If the package contains copied attachment
+   * files, generation pauses for an explicit reviewer acknowledgement before
+   * continuing without consuming those copied file contents.
    */
   async importEvidencePackageAndStageStarlightPage(
     manifest: ComponentManifest,
@@ -2080,6 +2105,8 @@ export class WorkspaceService {
     this.starlightEvidencePackageImportRunning.set(true);
     this.starlightEvidencePackageImportError.set(null);
     this.starlightEvidencePackageImportResult.set(null);
+    this.starlightEvidencePackageAttachmentReview.set(null);
+    this.pendingStarlightEvidencePackageImport = null;
     try {
       const directoryPath = await this.invoke<string | null>(
         'pick_evidence_package_directory',
@@ -2111,6 +2138,24 @@ export class WorkspaceService {
         );
         return;
       }
+      if (records.copiedAttachmentFiles.length) {
+        this.pendingStarlightEvidencePackageImport = {
+          manifest,
+          template,
+          registryManifests,
+          records,
+        };
+        this.starlightEvidencePackageAttachmentReview.set({
+          directoryPath,
+          copiedAttachmentFiles: records.copiedAttachmentFiles,
+          limitation:
+            records.limitations.find((limitation) =>
+              limitation.includes('copied attachment file(s)'),
+            ) ??
+            'Copied attachment files require review before ForgeGate can consume them.',
+        });
+        return;
+      }
       await this.generateAndStageStarlightPage(
         manifest,
         template,
@@ -2122,6 +2167,38 @@ export class WorkspaceService {
     } finally {
       this.starlightEvidencePackageImportRunning.set(false);
     }
+  }
+
+  async continueStarlightEvidencePackageImportWithoutAttachments(): Promise<void> {
+    const pending = this.pendingStarlightEvidencePackageImport;
+    if (
+      !pending ||
+      this.starlightEvidencePackageImportRunning() ||
+      this.starlightPageRunning()
+    ) {
+      return;
+    }
+    this.starlightEvidencePackageImportRunning.set(true);
+    this.starlightEvidencePackageImportError.set(null);
+    try {
+      this.starlightEvidencePackageAttachmentReview.set(null);
+      this.pendingStarlightEvidencePackageImport = null;
+      await this.generateAndStageStarlightPage(
+        pending.manifest,
+        pending.template,
+        pending.registryManifests,
+        pending.records,
+      );
+    } catch (error) {
+      this.starlightEvidencePackageImportError.set(String(error));
+    } finally {
+      this.starlightEvidencePackageImportRunning.set(false);
+    }
+  }
+
+  discardStarlightEvidencePackageAttachmentReview(): void {
+    this.pendingStarlightEvidencePackageImport = null;
+    this.starlightEvidencePackageAttachmentReview.set(null);
   }
 
   /**

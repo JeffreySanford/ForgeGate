@@ -2402,6 +2402,108 @@ describe('WorkspaceService', () => {
       expect(service.stagedStarlightPage()).toBeNull();
     });
 
+    it('pauses imported Starlight regeneration for copied attachment review', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({
+        ...scanFixture,
+        starlightProjects: ['apps/starlight'],
+      });
+      const files = await evidencePackageFiles({
+        'test-summary.json': JSON.stringify([
+          {
+            id: 'package-unit-run',
+            componentVersionId: 'acme.design-system.acme-button@1.0.0',
+            gate: 'unit',
+            tool: 'vitest',
+            toolVersion: '4.1.10',
+            adapterVersion: '0.1.0',
+            status: 'passed',
+            startedAt: '2026-08-02T12:00:00.000Z',
+            commitOrFingerprint: 'b'.repeat(40),
+            rawArtifactRef: '.forgegate/evidence/raw/unit-run.txt',
+          },
+        ]),
+        'automated/details.json': '[]',
+        'attachments/index.json': JSON.stringify({
+          attachments: [
+            {
+              id: 'package-unit-run-attachment',
+              sourceEvidenceId: 'package-unit-run',
+              sourcePath: '.forgegate/evidence/raw/unit-run.txt',
+              targetPath: 'attachments/files/package-unit-run.txt',
+              status: 'copied-redacted',
+              redactionRequired: true,
+            },
+          ],
+          limitations: [],
+        }),
+        'attachments/files/package-unit-run.txt': 'Tests passed.',
+      });
+      invokeMock
+        .mockResolvedValueOnce('D:/exports/acme-button-evidence')
+        .mockResolvedValueOnce(files);
+
+      await service.importEvidencePackageAndStageStarlightPage(manifest);
+
+      expect(invokeMock).toHaveBeenCalledTimes(2);
+      expect(service.stagedStarlightPage()).toBeNull();
+      expect(service.starlightEvidencePackageAttachmentReview()).toMatchObject({
+        directoryPath: 'D:/exports/acme-button-evidence',
+        copiedAttachmentFiles: [
+          {
+            sourceEvidenceId: 'package-unit-run',
+            targetPath: 'attachments/files/package-unit-run.txt',
+            reviewStatus: 'requires-review',
+          },
+        ],
+      });
+
+      invokeMock
+        .mockRejectedValueOnce('not a file')
+        .mockResolvedValueOnce(stagedPageWrite)
+        .mockResolvedValueOnce(stagedReportDataWrite);
+
+      await service.continueStarlightEvidencePackageImportWithoutAttachments();
+
+      expect(service.starlightEvidencePackageAttachmentReview()).toBeNull();
+      expect(invokeMock).toHaveBeenNthCalledWith(5, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath:
+          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        content: expect.stringContaining('"id": "package-unit-run"'),
+      });
+      expect(invokeMock.mock.calls[4]?.[1].content).not.toContain(
+        'attachments/files/package-unit-run.txt',
+      );
+      expect(service.stagedStarlightPage()).toEqual({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite, stagedReportDataWrite],
+      });
+    });
+
+    it('discards a copied attachment package review without staging output', async () => {
+      service.starlightEvidencePackageAttachmentReview.set({
+        directoryPath: 'D:/exports/acme-button-evidence',
+        copiedAttachmentFiles: [
+          {
+            sourceEvidenceId: 'package-unit-run',
+            sourcePath: '.forgegate/evidence/raw/unit-run.txt',
+            targetPath: 'attachments/files/package-unit-run.txt',
+            redactionRequired: true,
+            reviewStatus: 'requires-review',
+          },
+        ],
+        limitation: 'Copied attachment files require review.',
+      });
+
+      service.discardStarlightEvidencePackageAttachmentReview();
+
+      expect(service.starlightEvidencePackageAttachmentReview()).toBeNull();
+      expect(service.stagedStarlightPage()).toBeNull();
+    });
+
     it('derives the default Starlight template from repository adapter configuration', () => {
       service.repositoryConfig.set({
         configVersion: '0.1.0',
