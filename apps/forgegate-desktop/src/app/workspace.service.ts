@@ -128,6 +128,22 @@ export interface StagedStarlightPage {
   readonly writes: readonly StagedRelativeWrite[];
 }
 
+export function isWorkspaceRelativeRawArtifactRef(
+  value: string | null | undefined,
+): value is string {
+  if (!value || value.startsWith('/') || value.includes('\\')) {
+    return false;
+  }
+  if (/^[a-zA-Z]:\//.test(value)) {
+    return false;
+  }
+  const segments = value.split('/');
+  if (segments.some((segment) => !segment || segment === '..')) {
+    return false;
+  }
+  return !/\.(png|jpe?g|gif|webp|zip|gz|br|pdf)$/i.test(value);
+}
+
 export interface ComponentPackageCandidate {
   name: string;
   path: string;
@@ -1135,18 +1151,24 @@ export class WorkspaceService {
       if (!parentDirectory) {
         return;
       }
+      const componentVersion = componentVersionId(manifest);
+      const automatedArtifacts = this.automatedEvidenceArtifacts().filter(
+        (artifact) => artifact.componentVersionId === componentVersion,
+      );
+      const attachmentContents = await this.readExportAttachmentContents([
+        ...testExecutions,
+        ...automatedArtifacts,
+      ]);
       const { directoryName, files } = await buildEvidenceExport({
         id: crypto.randomUUID(),
         exportedAt: new Date().toISOString(),
         manifest,
         testExecutions,
-        automatedArtifacts: this.automatedEvidenceArtifacts().filter(
-          (artifact) =>
-            artifact.componentVersionId === componentVersionId(manifest),
-        ),
+        automatedArtifacts,
+        attachmentContents,
         manualReviews: manualReviews.filter(
           (review) =>
-            review.componentVersionId === componentVersionId(manifest),
+            review.componentVersionId === componentVersion,
         ),
         exceptions,
         persistedFindings,
@@ -1169,6 +1191,34 @@ export class WorkspaceService {
     } finally {
       this.evidenceExportRunning.set(false);
     }
+  }
+
+  private async readExportAttachmentContents(
+    rawArtifacts: readonly {
+      readonly id: string;
+      readonly rawArtifactRef?: string | null;
+    }[],
+  ): Promise<Readonly<Record<string, string>>> {
+    const workspacePath = this.workspacePath();
+    if (!workspacePath) {
+      return {};
+    }
+    const contents: Record<string, string> = {};
+    for (const artifact of rawArtifacts) {
+      if (!isWorkspaceRelativeRawArtifactRef(artifact.rawArtifactRef)) {
+        continue;
+      }
+      try {
+        contents[artifact.id] = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath: artifact.rawArtifactRef,
+        });
+      } catch {
+        // Export still writes attachments/index.json for traceability; an
+        // unreadable text attachment stays referenced-not-copied.
+      }
+    }
+    return contents;
   }
 
   /**

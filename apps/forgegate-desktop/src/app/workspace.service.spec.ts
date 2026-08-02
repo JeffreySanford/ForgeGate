@@ -4,6 +4,7 @@ import { createComponentManifest } from '@forgegate/core-manifest';
 import { TAURI_INVOKE } from './tauri-invoke';
 import { TAURI_LISTEN } from './tauri-listen';
 import {
+  isWorkspaceRelativeRawArtifactRef,
   parseWorkspaceCommandMapping,
   WorkspaceService,
 } from './workspace.service';
@@ -120,6 +121,22 @@ describe('parseWorkspaceCommandMapping', () => {
     expect(() =>
       parseWorkspaceCommandMapping('pnpm nx run "docs:build'),
     ).toThrow('Command mapping contains an unterminated quote.');
+  });
+});
+
+describe('isWorkspaceRelativeRawArtifactRef', () => {
+  it('accepts guarded workspace-relative text artifact refs only', () => {
+    expect(
+      isWorkspaceRelativeRawArtifactRef('.forgegate/evidence/raw/unit.tap'),
+    ).toBe(true);
+    expect(isWorkspaceRelativeRawArtifactRef('reports/axe.json')).toBe(true);
+    expect(isWorkspaceRelativeRawArtifactRef('/tmp/unit.tap')).toBe(false);
+    expect(isWorkspaceRelativeRawArtifactRef('D:/tmp/unit.tap')).toBe(false);
+    expect(isWorkspaceRelativeRawArtifactRef('../unit.tap')).toBe(false);
+    expect(isWorkspaceRelativeRawArtifactRef('reports\\unit.tap')).toBe(false);
+    expect(isWorkspaceRelativeRawArtifactRef('screenshots/button.png')).toBe(
+      false,
+    );
   });
 });
 
@@ -1292,6 +1309,52 @@ describe('WorkspaceService', () => {
       );
       expect(playwrightResults).toHaveLength(1);
       expect(playwrightResults[0].id).toBe('matching-playwright');
+    });
+
+    it('copies readable workspace-relative raw artifact text into redacted attachment files', async () => {
+      service.workspacePath.set('/repo');
+      const execution = {
+        id: 'unit-run',
+        componentVersionId: 'acme.lib.button@1.0.0',
+        gate: 'unit',
+        tool: 'vitest',
+        toolVersion: '4.1.10',
+        adapterVersion: '0.1.0',
+        status: 'passed' as const,
+        startedAt: '2026-01-01T00:00:00.000Z',
+        commitOrFingerprint: 'a'.repeat(40),
+        rawArtifactRef: '.forgegate/evidence/raw/unit.tap',
+      };
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce(
+          'ok 1 unit\nAPI_TOKEN=plain-secret\nAuthorization: Bearer abc.def\n',
+        )
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
+
+      await service.exportEvidencePackage(manifest, [execution]);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'read_text_file', {
+        workspacePath: '/repo',
+        relativePath: '.forgegate/evidence/raw/unit.tap',
+      });
+      const [, thirdCallArgs] = invokeMock.mock.calls[2] as [
+        string,
+        { files: Record<string, string> },
+      ];
+      expect(thirdCallArgs.files['attachments/files/unit-run.txt']).toBe(
+        'ok 1 unit\nAPI_TOKEN=[REDACTED]\nAuthorization: Bearer [REDACTED]\n',
+      );
+      const attachmentIndex = JSON.parse(
+        thirdCallArgs.files['attachments/index.json'] ?? '{}',
+      );
+      expect(attachmentIndex.attachments[0]).toMatchObject({
+        sourceEvidenceId: 'unit-run',
+        status: 'copied-redacted',
+        targetPath: 'attachments/files/unit-run.txt',
+      });
     });
 
     it("records the workspace's real current commit in the exported manifest", async () => {

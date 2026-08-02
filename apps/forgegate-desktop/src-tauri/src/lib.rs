@@ -95,21 +95,30 @@ async fn pick_export_directory(app: tauri::AppHandle) -> Option<String> {
 /// A real filename `write_evidence_package` will write: forward-slash
 /// separated, at most one subdirectory deep (matching the documented
 /// evidence-package shape's `findings/`, `automated/`, `manual/`,
-/// `exceptions/`, `attachments/` subdirectories), no `..` segment, no
-/// leading slash, no backslash (every real caller in this codebase
+/// `exceptions/`, `attachments/` subdirectories), plus the one explicit
+/// deeper attachment-copy shape `attachments/files/<name>`. Rejects `..`,
+/// leading slash, and backslash (every real caller in this codebase
 /// produces forward-slash paths only, so a backslash can only mean an
 /// unexpected caller).
 fn is_safe_relative_artifact_path(name: &str) -> bool {
     if name.is_empty() || name.starts_with('/') || name.contains('\\') || name.contains("..") {
         return false;
     }
-    !name.ends_with('/') && name.split('/').count() <= 2
+    if name.ends_with('/') {
+        return false;
+    }
+    let parts: Vec<&str> = name.split('/').collect();
+    parts.len() <= 2
+        || (parts.len() == 3
+            && parts[0] == "attachments"
+            && parts[1] == "files"
+            && !parts[2].is_empty())
 }
 
 /// Writes a real evidence-export package: creates `directory_name` inside
 /// `parent_directory`, then writes every entry in `files` as a real file
-/// in it (creating at most one level of subdirectory per file, e.g.
-/// `findings/acme-lib-button-blocking-0.json`). Returns the resulting
+/// in it (creating at most one level of subdirectory per file, except
+/// `attachments/files/<name>` for redacted copied attachments). Returns the resulting
 /// directory's real absolute path so the UI can tell the user exactly
 /// where it landed. Rejects a `parent_directory` that isn't a real,
 /// existing directory, and rejects any filename `is_safe_relative_artifact_path`
@@ -1482,10 +1491,49 @@ mod tests {
     }
 
     #[test]
+    fn writes_a_redacted_attachment_file_in_the_explicit_attachment_files_directory() {
+        let parent = std::env::temp_dir().join(format!(
+            "forgegate-evidence-export-attachment-file-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&parent).expect("should create temp parent dir");
+
+        let mut files = std::collections::HashMap::new();
+        files.insert(
+            "attachments/files/unit-run.txt".to_string(),
+            "ok 1 button works".to_string(),
+        );
+
+        let export_dir_path = write_evidence_package(
+            parent.display().to_string(),
+            "acme.lib.button-evidence-1".to_string(),
+            files,
+        )
+        .expect("writing an attachment file in attachments/files should succeed");
+
+        let attachment_path = std::path::PathBuf::from(&export_dir_path)
+            .join("attachments")
+            .join("files")
+            .join("unit-run.txt");
+        assert_eq!(
+            std::fs::read_to_string(attachment_path).expect("attachment should be readable"),
+            "ok 1 button works"
+        );
+
+        std::fs::remove_dir_all(&parent).ok();
+    }
+
+    #[test]
     fn is_safe_relative_artifact_path_accepts_and_rejects_the_expected_shapes() {
         assert!(is_safe_relative_artifact_path("manifest.json"));
         assert!(is_safe_relative_artifact_path("findings/x.json"));
+        assert!(is_safe_relative_artifact_path(
+            "attachments/files/unit-run.txt"
+        ));
         assert!(!is_safe_relative_artifact_path("a/b/c.json"));
+        assert!(!is_safe_relative_artifact_path(
+            "attachments/other/unit-run.txt"
+        ));
         assert!(!is_safe_relative_artifact_path("../escape.json"));
         assert!(!is_safe_relative_artifact_path("/absolute.json"));
         assert!(!is_safe_relative_artifact_path("windows\\backslash.json"));

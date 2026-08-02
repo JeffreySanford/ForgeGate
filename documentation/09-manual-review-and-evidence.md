@@ -199,15 +199,17 @@ Required action:
 > today: `manifest.json` (including the real repository commit and a
 > `checksums` map), `policy-snapshot.json` for ForgeGate's current built-in
 > release-decision ruleset, `test-summary.json`, `documentation-status.json`,
-> `redaction-plan.json`, `attachments/index.json` capture plans for connected
-> raw artifact refs,
+> `redaction-plan.json`, `attachments/index.json` for connected raw artifact
+> refs, and redacted `attachments/files/*.txt` copies for readable
+> workspace-relative text artifacts,
 > `automated/` for imported Playwright, axe, Storybook interaction, Jest, and
 > Vitest reports, `manual/` (one real file per connected `ManualReview`),
 > `findings/`, `exceptions/` (scoped to findings this export actually includes),
 > `release-decision.json`, `report.html`, and `checksums.sha256`.
 > Not yet implemented, and named explicitly in `manifest.json`'s `excludes` map
 > and in the report's "Not connected" section rather than silently omitted:
-> copying raw attachment files into `attachments/files/`. See TODO.md's "Evidence export
+> copying binary, absolute-path, temporary, or unreadable raw attachment files
+> into `attachments/files/`. See TODO.md's "Evidence export
 > remaining sections" for what each one is blocked on. ForgeGate still imports
 > externally produced Storybook interaction, axe, Playwright, Jest, and Vitest
 > evidence. It also now orchestrates three configured target-repository command
@@ -235,12 +237,15 @@ Required action:
 >
 > **Attachments and redaction.** ForgeGate now writes `attachments/index.json`
 > when connected evidence records carry a real raw artifact reference. That file
-> is a capture plan: it identifies the source evidence, source path, planned
-> target path, and redaction requirement. ForgeGate also writes
-> `redaction-plan.json` on every export to describe the current normalized-JSON,
-> raw-attachment, and HTML-report redaction posture. It still does not copy raw
-> binary files into `attachments/files/`; those remain excluded until file-copy
-> consent and redaction support are real.
+> identifies the source evidence, source path, planned target path, redaction
+> requirement, and whether the artifact was `copied-redacted` or
+> `referenced-not-copied`. ForgeGate also writes `redaction-plan.json` on every
+> export to describe the current normalized-JSON, raw-attachment, and
+> HTML-report redaction posture. It copies only workspace-relative text artifacts
+> it can read through the guarded `read_text_file` path, and writes them under
+> `attachments/files/*.txt` after narrow text redaction. Binary files, absolute
+> paths, temporary command artifacts, unreadable refs, and richer image/trace
+> redaction remain future work.
 
 Suggested export:
 

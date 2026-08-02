@@ -65,7 +65,7 @@ export interface ForgeGateExceptionReport {
 export interface ForgeGateAttachmentReferenceReport {
   readonly sourceEvidenceId: string;
   readonly sourcePath: string;
-  readonly status: 'referenced-not-copied';
+  readonly status: 'referenced-not-copied' | 'copied-redacted';
   readonly redactionRequired: boolean;
 }
 

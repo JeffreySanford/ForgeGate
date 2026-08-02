@@ -39,10 +39,11 @@ import {
  * also lists (`policy-snapshot.json`, `release-decision.json`,
  * `attachments/`) is honestly absent unless the real inputs exist. When
  * raw artifact references exist, ForgeGate writes an `attachments/index.json`
- * capture plan that names those real refs and discloses that the binary
- * files are not copied yet. `manifest.json`'s `excludes` field says why
- * for each absent section, rather than silently omitting it or fabricating
- * empty placeholders.
+ * capture plan that names those real refs and copies readable
+ * workspace-relative text artifacts after redaction. Binary, absolute,
+ * temporary, and unreadable raw artifacts stay indexed but not copied.
+ * `manifest.json`'s `excludes` field says why for each absent section,
+ * rather than silently omitting it or fabricating empty placeholders.
  */
 const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'policy-snapshot.json':
@@ -60,7 +61,7 @@ export interface EvidenceAttachmentReference {
   readonly sourceKind: 'test-execution' | 'automated-artifact';
   readonly sourcePath: string;
   readonly targetPath: string;
-  readonly status: 'referenced-not-copied';
+  readonly status: 'referenced-not-copied' | 'copied-redacted';
   readonly redactionRequired: true;
 }
 
@@ -139,6 +140,7 @@ function buildAttachmentIndex(input: {
   exportedAt: string;
   testExecutions: readonly TestExecution[];
   automatedArtifacts: readonly AutomatedEvidenceArtifact[];
+  attachmentContents: Readonly<Record<string, string>>;
 }): EvidenceAttachmentIndex | null {
   const references: EvidenceAttachmentReference[] = [];
   for (const execution of input.testExecutions) {
@@ -150,6 +152,7 @@ function buildAttachmentIndex(input: {
         sourceEvidenceId: execution.id,
         sourceKind: 'test-execution',
         sourcePath: execution.rawArtifactRef,
+        copied: hasAttachmentContent(input.attachmentContents, execution.id),
       }),
     );
   }
@@ -162,6 +165,7 @@ function buildAttachmentIndex(input: {
         sourceEvidenceId: artifact.id,
         sourceKind: 'automated-artifact',
         sourcePath: artifact.rawArtifactRef,
+        copied: hasAttachmentContent(input.attachmentContents, artifact.id),
       }),
     );
   }
@@ -175,8 +179,8 @@ function buildAttachmentIndex(input: {
     status: 'capture-plan',
     attachments: references,
     limitations: [
-      'ForgeGate has identified real source artifact references, but this export does not copy binary or external files into attachments/ yet.',
-      'Each referenced file must pass the redaction plan before a future export can embed it as portable evidence.',
+      'ForgeGate copies only workspace-relative text artifacts it can read through its guarded file API; unreadable, absolute, temporary, or binary artifacts remain referenced but not copied.',
+      "Copied attachment text is redacted with ForgeGate's current narrow text redaction rules before it is written into attachments/files/.",
     ],
   };
 }
@@ -185,16 +189,27 @@ function attachmentReference(input: {
   sourceEvidenceId: string;
   sourceKind: 'test-execution' | 'automated-artifact';
   sourcePath: string;
+  copied: boolean;
 }): EvidenceAttachmentReference {
+  const targetPath = `attachments/files/${sanitizeForFilename(
+    input.sourceEvidenceId,
+  )}.txt`;
   return {
     id: `${sanitizeForFilename(input.sourceEvidenceId)}-attachment`,
     sourceEvidenceId: input.sourceEvidenceId,
     sourceKind: input.sourceKind,
     sourcePath: input.sourcePath,
-    targetPath: `attachments/files/${sanitizeForFilename(input.sourceEvidenceId)}`,
-    status: 'referenced-not-copied',
+    targetPath,
+    status: input.copied ? 'copied-redacted' : 'referenced-not-copied',
     redactionRequired: true,
   };
+}
+
+function hasAttachmentContent(
+  contents: Readonly<Record<string, string>>,
+  sourceEvidenceId: string,
+): boolean {
+  return Object.prototype.hasOwnProperty.call(contents, sourceEvidenceId);
 }
 
 function buildRedactionPlan(input: {
@@ -220,7 +235,7 @@ function buildRedactionPlan(input: {
         id: 'raw-attachments-require-redaction-before-copy',
         scope: 'attachments/files/',
         action: input.attachmentIndex
-          ? 'block binary copy until redaction is implemented'
+          ? 'copy readable text artifacts after redaction; leave every other raw ref indexed only'
           : 'no raw attachments were referenced in this export',
         reason:
           'Raw test artifacts can contain screenshots, traces, environment details, URLs, tokens, or user-entered content.',
@@ -235,9 +250,19 @@ function buildRedactionPlan(input: {
     ],
     limitations: [
       'This is a disclosure and implementation plan, not a full secret-scanning or image-redaction engine.',
-      'ForgeGate does not yet copy raw attachment files into the export package.',
+      'ForgeGate does not yet copy binary, absolute-path, temporary, or unreadable raw attachment files into the export package.',
     ],
   };
+}
+
+function redactAttachmentText(text: string): string {
+  return text
+    .replace(
+      /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASS|API_KEY|AUTH)[A-Z0-9_]*=)([^\s"'`]+)/gi,
+      '$1[REDACTED]',
+    )
+    .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, '$1 [REDACTED]')
+    .replace(/\b(ghp|gho|github_pat|npm)_[A-Za-z0-9_]+/g, '[REDACTED]');
 }
 
 export interface EvidenceExportInput {
@@ -257,6 +282,7 @@ export interface EvidenceExportInput {
    * them — the two are derived from genuinely different real sources.
    */
   readonly persistedFindings?: readonly Finding[];
+  readonly attachmentContents?: Readonly<Record<string, string>>;
   readonly starlightProjects: readonly string[];
   readonly blockingReasons?: readonly string[];
   /**
@@ -345,6 +371,7 @@ export async function buildEvidenceExport(
     exportedAt,
     testExecutions,
     automatedArtifacts,
+    attachmentContents: input.attachmentContents ?? {},
   });
   const redactionPlan = buildRedactionPlan({
     versionId,
@@ -464,13 +491,26 @@ export async function buildEvidenceExport(
   }
   if (attachmentIndex) {
     delete excludes['attachments/'];
-    excludes['attachments/files/'] =
-      'Attachment source refs are indexed, but raw files are not copied until redaction and binary-capture support exist.';
+    const copiedAttachments = attachmentIndex.attachments.filter(
+      (attachment) => attachment.status === 'copied-redacted',
+    );
+    if (copiedAttachments.length === attachmentIndex.attachments.length) {
+      delete excludes['attachments/files/'];
+    } else {
+      excludes['attachments/files/'] =
+        'Some attachment source refs are indexed only because ForgeGate could not read them as workspace-relative text artifacts.';
+    }
     contentFiles['attachments/index.json'] = JSON.stringify(
       attachmentIndex,
       null,
       2,
     );
+    for (const attachment of copiedAttachments) {
+      const content = input.attachmentContents?.[attachment.sourceEvidenceId];
+      if (content !== undefined) {
+        contentFiles[attachment.targetPath] = redactAttachmentText(content);
+      }
+    }
   }
 
   if ('unavailable' in releaseDecision) {

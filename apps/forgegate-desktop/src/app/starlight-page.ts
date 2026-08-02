@@ -502,7 +502,7 @@ export function buildStarlightComponentReport(
           {
             section: 'attachment files',
             reason:
-              'Raw attachment files are referenced for reviewer traceability, but binary files are not copied into generated Starlight report data yet.',
+              'Raw attachment files are referenced for reviewer traceability; generated Starlight report data records the reference and redaction posture rather than embedding copied file contents.',
           },
         ]
       : [

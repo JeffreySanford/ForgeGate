@@ -400,7 +400,7 @@ describe('buildEvidenceExport', () => {
     expect(report).toContain('<h2>Attachments and redaction</h2>');
   });
 
-  it('writes an attachment capture index for real raw artifact refs without copying raw files yet', async () => {
+  it('writes an attachment capture index for real raw artifact refs without readable content', async () => {
     const manifest = createComponentManifest({
       id: 'acme.lib.button',
       framework: 'web-components',
@@ -443,7 +443,7 @@ describe('buildEvidenceExport', () => {
         sourceEvidenceId: 'axe-summary',
         sourceKind: 'test-execution',
         sourcePath: '.forgegate/evidence/raw/axe-results.json',
-        targetPath: 'attachments/files/axe-summary',
+        targetPath: 'attachments/files/axe-summary.txt',
         status: 'referenced-not-copied',
         redactionRequired: true,
       },
@@ -452,7 +452,7 @@ describe('buildEvidenceExport', () => {
         sourceEvidenceId: 'playwright-trace',
         sourceKind: 'automated-artifact',
         sourcePath: '.forgegate/evidence/raw/playwright-report.json',
-        targetPath: 'attachments/files/playwright-trace',
+        targetPath: 'attachments/files/playwright-trace.txt',
         status: 'referenced-not-copied',
         redactionRequired: true,
       },
@@ -462,7 +462,8 @@ describe('buildEvidenceExport', () => {
     expect(redactionPlan.rules).toContainEqual({
       id: 'raw-attachments-require-redaction-before-copy',
       scope: 'attachments/files/',
-      action: 'block binary copy until redaction is implemented',
+      action:
+        'copy readable text artifacts after redaction; leave every other raw ref indexed only',
       reason:
         'Raw test artifacts can contain screenshots, traces, environment details, URLs, tokens, or user-entered content.',
     });
@@ -471,12 +472,62 @@ describe('buildEvidenceExport', () => {
     expect(manifestJson.contents).toContain('attachments/index.json');
     expect(Object.keys(manifestJson.excludes)).not.toContain('attachments/');
     expect(manifestJson.excludes['attachments/files/']).toContain(
-      'raw files are not copied',
+      'could not read them as workspace-relative text artifacts',
     );
 
     const report = requireFile(result, 'report.html');
     expect(report).toContain('Attachment capture plan');
     expect(report).toContain('referenced-not-copied');
+  });
+
+  it('copies readable attachment text after redaction when content is supplied', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [
+        execution({
+          id: 'unit-run',
+          rawArtifactRef: '.forgegate/evidence/raw/unit.tap',
+        }),
+      ],
+      attachmentContents: {
+        'unit-run':
+          'ok 1 button works\nAPI_TOKEN=secret-value\nAuthorization: Bearer abc.def.ghi\n',
+      },
+      starlightProjects: [],
+    });
+
+    expect(requireFile(result, 'attachments/files/unit-run.txt')).toBe(
+      'ok 1 button works\nAPI_TOKEN=[REDACTED]\nAuthorization: Bearer [REDACTED]\n',
+    );
+    const attachmentIndex = JSON.parse(
+      requireFile(result, 'attachments/index.json'),
+    );
+    expect(attachmentIndex.attachments[0]).toMatchObject({
+      sourceEvidenceId: 'unit-run',
+      targetPath: 'attachments/files/unit-run.txt',
+      status: 'copied-redacted',
+      redactionRequired: true,
+    });
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain(
+      'attachments/files/unit-run.txt',
+    );
+    expect(manifestJson.checksums).toHaveProperty(
+      'attachments/files/unit-run.txt',
+    );
+    expect(Object.keys(manifestJson.excludes)).not.toContain(
+      'attachments/files/',
+    );
   });
 
   it('exports a fully real blocked release decision, with no approver involved', async () => {
