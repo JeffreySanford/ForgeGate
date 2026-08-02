@@ -205,7 +205,8 @@ Required action:
 > `automated/` for imported Playwright, axe, Storybook interaction, Jest, and
 > Vitest reports, `manual/` (one real file per connected `ManualReview`),
 > `findings/`, `exceptions/` (scoped to findings this export actually includes),
-> `release-decision.json`, `report.html`, and `checksums.sha256`.
+> `release-decision.json`, durable `release-decisions/*.json` workflow records,
+> `report.html`, and `checksums.sha256`.
 > Not yet implemented, and named explicitly in `manifest.json`'s `excludes` map
 > and in the report's "Not connected" section rather than silently omitted:
 > copying binary, absolute-path, temporary, or unreadable raw attachment files
@@ -264,11 +265,11 @@ Required action:
 > copy consent, size limits, binary-safe streaming, destination naming, and
 > retention rules exist.
 >
-> **Next implementation order.** Richer evidence-bundle loading comes next for
-> Starlight/export, then fuller
-> Starlight plugin discovery and registration. Broad binary/temp attachment
-> copying follows only after the current consent-policy classification is wired
-> to an explicit UI flow and binary-safe file handling.
+> **Next implementation order.** Direct Starlight regeneration from verified
+> exported packages comes next for Starlight/export, then fuller Starlight
+> plugin discovery and registration. Broad binary/temp attachment copying
+> follows only after the current consent-policy classification is wired to an
+> explicit UI flow and binary-safe file handling.
 
 Suggested export:
 
@@ -330,9 +331,14 @@ A human-readable report should explain:
 
 ## Integrity
 
-Evidence packages should include checksums. Later versions may support cryptographic signing and organization certificates.
+Evidence packages include checksums. Later versions may support cryptographic signing and organization certificates.
 
-ForgeGate should detect missing or modified evidence files and distinguish an incomplete package from a failed component.
+ForgeGate now verifies `manifest.json` and `checksums.sha256` when loading an
+already-read package file map for Starlight consumption. Missing, modified,
+conflicting, or unlisted evidence files are reported as package-integrity
+limitations, and unverified content is not passed into the Starlight record
+loader. A desktop package-import UI and organization trust/signing policy remain
+future work.
 
 ## Privacy
 
