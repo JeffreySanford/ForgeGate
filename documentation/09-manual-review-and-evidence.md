@@ -245,20 +245,24 @@ Required action:
 > **Attachments and redaction.** ForgeGate now writes `attachments/index.json`
 > when connected evidence records carry a real raw artifact reference. That file
 > identifies the source evidence, source path, planned target path, redaction
-> requirement, and whether the artifact was `copied-redacted` or
-> `referenced-not-copied`. ForgeGate also writes `redaction-plan.json` on every
+> requirement, source class, media class, consent status, copy blocker, and
+> whether the artifact was `copied-redacted`, `referenced-not-copied`,
+> `pending-consent`, or `blocked-binary-redaction`. ForgeGate also writes
+> `redaction-plan.json` on every
 > export to describe the current normalized-JSON, raw-attachment, and
 > HTML-report redaction posture. It copies only workspace-relative text artifacts
 > it can read through the guarded `read_text_file` path, and writes them under
 > `attachments/files/*.txt` after narrow text redaction. Binary files, absolute
 > paths, temporary command artifacts, unreadable refs, and richer image/trace
-> redaction remain future work.
+> redaction are classified with explicit blockers but remain uncopied until
+> copy consent, size limits, binary-safe streaming, destination naming, and
+> retention rules exist.
 >
 > **Next implementation order.** Richer evidence-bundle loading comes next for
 > Starlight/export, then fuller
 > Starlight plugin discovery and registration. Broad binary/temp attachment
-> copying follows only after consent, size-limit, retention, and redaction rules
-> are designed.
+> copying follows only after the current consent-policy classification is wired
+> to an explicit UI flow and binary-safe file handling.
 
 Suggested export:
 

@@ -445,6 +445,11 @@ describe('buildEvidenceExport', () => {
         sourcePath: '.forgegate/evidence/raw/axe-results.json',
         targetPath: 'attachments/files/axe-summary.txt',
         status: 'referenced-not-copied',
+        sourceClass: 'workspace-relative',
+        mediaClass: 'text',
+        consentStatus: 'not-requested',
+        copyBlocker:
+          'ForgeGate did not receive readable attachment content for this source.',
         redactionRequired: true,
       },
       {
@@ -454,6 +459,11 @@ describe('buildEvidenceExport', () => {
         sourcePath: '.forgegate/evidence/raw/playwright-report.json',
         targetPath: 'attachments/files/playwright-trace.txt',
         status: 'referenced-not-copied',
+        sourceClass: 'workspace-relative',
+        mediaClass: 'text',
+        consentStatus: 'not-requested',
+        copyBlocker:
+          'ForgeGate did not receive readable attachment content for this source.',
         redactionRequired: true,
       },
     ]);
@@ -463,7 +473,7 @@ describe('buildEvidenceExport', () => {
       id: 'raw-attachments-require-redaction-before-copy',
       scope: 'attachments/files/',
       action:
-        'copy readable text artifacts after redaction; leave every other raw ref indexed only',
+        'copy readable workspace-relative text artifacts after redaction; require explicit consent and richer redaction before copying absolute, temporary, binary, or archive refs',
       reason:
         'Raw test artifacts can contain screenshots, traces, environment details, URLs, tokens, or user-entered content.',
     });
@@ -516,6 +526,9 @@ describe('buildEvidenceExport', () => {
       sourceEvidenceId: 'unit-run',
       targetPath: 'attachments/files/unit-run.txt',
       status: 'copied-redacted',
+      sourceClass: 'workspace-relative',
+      mediaClass: 'text',
+      consentStatus: 'granted',
       redactionRequired: true,
     });
     const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
@@ -527,6 +540,70 @@ describe('buildEvidenceExport', () => {
     );
     expect(Object.keys(manifestJson.excludes)).not.toContain(
       'attachments/files/',
+    );
+  });
+
+  it('classifies absolute, temporary, and binary attachment refs before any broad copy is allowed', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [
+        execution({
+          id: 'absolute-run',
+          rawArtifactRef: 'C:/Users/Sanford/AppData/Local/Temp/axe-results.json',
+        }),
+        execution({
+          id: 'temporary-run',
+          rawArtifactRef: '/tmp/forgegate/playwright.trace',
+        }),
+        execution({
+          id: 'screenshot-run',
+          rawArtifactRef: '.forgegate/evidence/raw/screenshot.png',
+        }),
+      ],
+      starlightProjects: [],
+    });
+
+    const attachmentIndex = JSON.parse(
+      requireFile(result, 'attachments/index.json'),
+    );
+    expect(attachmentIndex.attachments).toMatchObject([
+      {
+        sourceEvidenceId: 'absolute-run',
+        sourceClass: 'temporary-path',
+        mediaClass: 'text',
+        status: 'pending-consent',
+        consentStatus: 'not-requested',
+      },
+      {
+        sourceEvidenceId: 'temporary-run',
+        sourceClass: 'temporary-path',
+        mediaClass: 'binary-or-archive',
+        status: 'blocked-binary-redaction',
+        consentStatus: 'not-requested',
+      },
+      {
+        sourceEvidenceId: 'screenshot-run',
+        sourceClass: 'workspace-relative',
+        mediaClass: 'binary-or-archive',
+        status: 'blocked-binary-redaction',
+        consentStatus: 'not-requested',
+      },
+    ]);
+    expect(result.files['attachments/files/absolute-run.txt']).toBeUndefined();
+    expect(result.files['attachments/files/temporary-run.txt']).toBeUndefined();
+    expect(result.files['attachments/files/screenshot-run.txt']).toBeUndefined();
+    expect(requireFile(result, 'report.html')).toContain(
+      'blocked-binary-redaction',
     );
   });
 

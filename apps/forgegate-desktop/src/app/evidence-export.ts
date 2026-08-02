@@ -66,7 +66,19 @@ export interface EvidenceAttachmentReference {
   readonly sourceKind: 'test-execution' | 'automated-artifact';
   readonly sourcePath: string;
   readonly targetPath: string;
-  readonly status: 'referenced-not-copied' | 'copied-redacted';
+  readonly status:
+    | 'referenced-not-copied'
+    | 'pending-consent'
+    | 'blocked-binary-redaction'
+    | 'copied-redacted';
+  readonly sourceClass:
+    | 'workspace-relative'
+    | 'absolute-path'
+    | 'temporary-path'
+    | 'unknown';
+  readonly mediaClass: 'text' | 'binary-or-archive' | 'unknown';
+  readonly consentStatus: 'granted' | 'not-requested';
+  readonly copyBlocker?: string;
   readonly redactionRequired: true;
 }
 
@@ -196,6 +208,7 @@ function attachmentReference(input: {
   sourcePath: string;
   copied: boolean;
 }): EvidenceAttachmentReference {
+  const policy = classifyAttachmentCapturePolicy(input.sourcePath);
   const targetPath = `attachments/files/${sanitizeForFilename(
     input.sourceEvidenceId,
   )}.txt`;
@@ -205,9 +218,94 @@ function attachmentReference(input: {
     sourceKind: input.sourceKind,
     sourcePath: input.sourcePath,
     targetPath,
-    status: input.copied ? 'copied-redacted' : 'referenced-not-copied',
+    status: input.copied
+      ? 'copied-redacted'
+      : attachmentStatusForPolicy(policy),
+    sourceClass: policy.sourceClass,
+    mediaClass: policy.mediaClass,
+    consentStatus: input.copied ? 'granted' : 'not-requested',
+    ...(input.copied ? {} : { copyBlocker: copyBlockerForPolicy(policy) }),
     redactionRequired: true,
   };
+}
+
+function classifyAttachmentCapturePolicy(sourcePath: string): {
+  readonly sourceClass: EvidenceAttachmentReference['sourceClass'];
+  readonly mediaClass: EvidenceAttachmentReference['mediaClass'];
+} {
+  return {
+    sourceClass: classifyAttachmentSourcePath(sourcePath),
+    mediaClass: classifyAttachmentMedia(sourcePath),
+  };
+}
+
+function classifyAttachmentSourcePath(
+  sourcePath: string,
+): EvidenceAttachmentReference['sourceClass'] {
+  const normalized = sourcePath.replace(/\\/g, '/');
+  if (
+    normalized.includes('/tmp/') ||
+    normalized.includes('/temp/') ||
+    normalized.includes('/AppData/Local/Temp/')
+  ) {
+    return 'temporary-path';
+  }
+  if (normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized)) {
+    return 'absolute-path';
+  }
+  if (normalized && !normalized.includes('..')) {
+    return 'workspace-relative';
+  }
+  return 'unknown';
+}
+
+function classifyAttachmentMedia(
+  sourcePath: string,
+): EvidenceAttachmentReference['mediaClass'] {
+  const lower = sourcePath.toLowerCase();
+  if (
+    /\.(png|jpe?g|gif|webp|avif|pdf|zip|gz|tgz|br|trace|har|mp4|mov|webm)$/i.test(
+      lower,
+    )
+  ) {
+    return 'binary-or-archive';
+  }
+  if (/\.(txt|log|tap|json|jsonl|xml|html?|md|csv|tsv|yaml|yml)$/i.test(lower)) {
+    return 'text';
+  }
+  return 'unknown';
+}
+
+function attachmentStatusForPolicy(policy: {
+  readonly sourceClass: EvidenceAttachmentReference['sourceClass'];
+  readonly mediaClass: EvidenceAttachmentReference['mediaClass'];
+}): EvidenceAttachmentReference['status'] {
+  if (policy.mediaClass === 'binary-or-archive') {
+    return 'blocked-binary-redaction';
+  }
+  if (
+    policy.sourceClass === 'absolute-path' ||
+    policy.sourceClass === 'temporary-path'
+  ) {
+    return 'pending-consent';
+  }
+  return 'referenced-not-copied';
+}
+
+function copyBlockerForPolicy(policy: {
+  readonly sourceClass: EvidenceAttachmentReference['sourceClass'];
+  readonly mediaClass: EvidenceAttachmentReference['mediaClass'];
+}): string {
+  if (policy.mediaClass === 'binary-or-archive') {
+    return 'Binary/archive attachment redaction and streaming are not implemented yet.';
+  }
+  if (policy.sourceClass === 'absolute-path') {
+    return 'Absolute-path attachment capture requires explicit copy consent and retention rules.';
+  }
+  if (policy.sourceClass === 'temporary-path') {
+    return 'Temporary-path attachment capture requires explicit copy consent, retention rules, and stale-file handling.';
+  }
+  return 'ForgeGate did not receive readable attachment content for this source.';
 }
 
 function hasAttachmentContent(
@@ -240,7 +338,7 @@ function buildRedactionPlan(input: {
         id: 'raw-attachments-require-redaction-before-copy',
         scope: 'attachments/files/',
         action: input.attachmentIndex
-          ? 'copy readable text artifacts after redaction; leave every other raw ref indexed only'
+          ? 'copy readable workspace-relative text artifacts after redaction; require explicit consent and richer redaction before copying absolute, temporary, binary, or archive refs'
           : 'no raw attachments were referenced in this export',
         reason:
           'Raw test artifacts can contain screenshots, traces, environment details, URLs, tokens, or user-entered content.',
@@ -255,7 +353,7 @@ function buildRedactionPlan(input: {
     ],
     limitations: [
       'This is a disclosure and implementation plan, not a full secret-scanning or image-redaction engine.',
-      'ForgeGate does not yet copy binary, absolute-path, temporary, or unreadable raw attachment files into the export package.',
+      'ForgeGate classifies binary, absolute-path, temporary, and unreadable raw attachment refs in attachments/index.json, but does not copy them until explicit consent, size limits, binary-safe streaming, and richer redaction are implemented.',
     ],
   };
 }
