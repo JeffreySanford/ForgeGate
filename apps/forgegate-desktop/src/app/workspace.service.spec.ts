@@ -2517,6 +2517,18 @@ describe('WorkspaceService', () => {
         status: 'loaded',
         error: null,
       });
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'starlight-build-command')
+          ?.rawOutput,
+      ).toContain('"validationMatrix"');
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'starlight-build-command')
+          ?.rawOutput,
+      ).toContain('"nx-command"');
     });
 
     it('records a configured Starlight build validation failure without undoing the approved page', async () => {

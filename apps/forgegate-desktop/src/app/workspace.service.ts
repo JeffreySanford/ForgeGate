@@ -2126,6 +2126,7 @@ export class WorkspaceService {
             ...result,
             detectedStarlightProjects:
               validationPlan.detectedStarlightProjects,
+            validationMatrix: validationPlan.validationMatrix,
           },
           null,
           2,

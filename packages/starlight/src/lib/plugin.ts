@@ -1,6 +1,13 @@
 import type { AstroIntegration } from 'astro';
+import {
+  forgeGateReportDataDiscovery,
+  safeReportDataRoot,
+  type ForgeGateReportDataDiscovery,
+} from './report-data';
 
 export const FORGEGATE_STARLIGHT_INTEGRATION_NAME = '@forgegate/starlight';
+export const FORGEGATE_STARLIGHT_MINIMUM_ASTRO_VERSION = '5.0.0';
+export const FORGEGATE_STARLIGHT_MINIMUM_STARLIGHT_VERSION = '0.41.0';
 
 export interface ForgeGateStarlightIntegrationOptions {
   /**
@@ -9,43 +16,90 @@ export interface ForgeGateStarlightIntegrationOptions {
    * generated MDX import paths to change.
    */
   readonly reportDataRoot?: string;
+  readonly astroVersion?: string;
+  readonly starlightVersion?: string;
 }
 
 export interface ForgeGateStarlightLifecycleStatus {
   readonly integrationName: typeof FORGEGATE_STARLIGHT_INTEGRATION_NAME;
   readonly reportDataRoot: string;
-  readonly lifecycle: 'presentation-package';
+  readonly reportData: ForgeGateReportDataDiscovery;
+  readonly lifecycle: 'discovery-contract';
   readonly supports: readonly string[];
   readonly planned: readonly string[];
+}
+
+export interface ForgeGateStarlightCompatibilityDiagnostic {
+  readonly level: 'info' | 'warning';
+  readonly code: string;
+  readonly message: string;
 }
 
 export function forgeGateStarlightLifecycleStatus(
   options: ForgeGateStarlightIntegrationOptions = {},
 ): ForgeGateStarlightLifecycleStatus {
+  const reportDataRoot = safeReportDataRoot(
+    options.reportDataRoot ?? 'src/data/forgegate/components',
+  );
   return {
     integrationName: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
-    reportDataRoot:
-      options.reportDataRoot ?? 'src/data/forgegate/components',
-    lifecycle: 'presentation-package',
+    reportDataRoot,
+    reportData: forgeGateReportDataDiscovery(reportDataRoot),
+    lifecycle: 'discovery-contract',
     supports: [
       'stable Astro integration name',
       'configurable generated report-data root',
+      'generated-data discovery conventions',
+      'component and registry report-data classification',
+      'version compatibility diagnostics',
       'manual MDX imports of ForgeGate presentation components',
       'manifest-backed component and registry report JSON',
     ],
     planned: [
-      'generated-data discovery',
-      'component auto-registration conventions',
-      'version compatibility diagnostics',
+      'filesystem-backed generated-data auto-discovery',
+      'component auto-registration',
       'migration guidance for generated MDX pages',
     ],
   };
+}
+
+export function forgeGateStarlightCompatibilityDiagnostics(
+  options: ForgeGateStarlightIntegrationOptions = {},
+): readonly ForgeGateStarlightCompatibilityDiagnostic[] {
+  const diagnostics: ForgeGateStarlightCompatibilityDiagnostic[] = [];
+  try {
+    safeReportDataRoot(options.reportDataRoot ?? 'src/data/forgegate/components');
+  } catch (error) {
+    diagnostics.push({
+      level: 'warning',
+      code: 'unsafe-report-data-root',
+      message: String(error),
+    });
+  }
+  diagnostics.push(
+    ...minimumVersionDiagnostics({
+      name: 'Astro',
+      code: 'astro-version-unknown',
+      tooOldCode: 'astro-version-unsupported',
+      actual: options.astroVersion,
+      minimum: FORGEGATE_STARLIGHT_MINIMUM_ASTRO_VERSION,
+    }),
+    ...minimumVersionDiagnostics({
+      name: 'Starlight',
+      code: 'starlight-version-unknown',
+      tooOldCode: 'starlight-version-unsupported',
+      actual: options.starlightVersion,
+      minimum: FORGEGATE_STARLIGHT_MINIMUM_STARLIGHT_VERSION,
+    }),
+  );
+  return diagnostics;
 }
 
 export function forgeGateStarlightIntegration(
   options: ForgeGateStarlightIntegrationOptions = {},
 ): AstroIntegration {
   const status = forgeGateStarlightLifecycleStatus(options);
+  const diagnostics = forgeGateStarlightCompatibilityDiagnostics(options);
 
   return {
     name: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
@@ -57,7 +111,66 @@ export function forgeGateStarlightIntegration(
         logger.debug(
           `ForgeGate Starlight lifecycle stage: ${status.lifecycle}.`,
         );
+        logger.debug(
+          `ForgeGate report data discovery glob: ${status.reportData.allReportsGlob}.`,
+        );
+        for (const diagnostic of diagnostics) {
+          const line = `[${diagnostic.code}] ${diagnostic.message}`;
+          if (diagnostic.level === 'warning') {
+            logger.warn(line);
+          } else {
+            logger.debug(line);
+          }
+        }
       },
     },
   };
+}
+
+function minimumVersionDiagnostics(input: {
+  readonly name: 'Astro' | 'Starlight';
+  readonly code: string;
+  readonly tooOldCode: string;
+  readonly actual?: string;
+  readonly minimum: string;
+}): readonly ForgeGateStarlightCompatibilityDiagnostic[] {
+  if (!input.actual) {
+    return [
+      {
+        level: 'info',
+        code: input.code,
+        message: `${input.name} version was not provided; ForgeGate cannot verify compatibility against ${input.minimum}.`,
+      },
+    ];
+  }
+  if (compareVersions(input.actual, input.minimum) < 0) {
+    return [
+      {
+        level: 'warning',
+        code: input.tooOldCode,
+        message: `${input.name} ${input.actual} is below ForgeGate's tested minimum ${input.minimum}.`,
+      },
+    ];
+  }
+  return [];
+}
+
+function compareVersions(left: string, right: string): number {
+  const leftParts = versionParts(left);
+  const rightParts = versionParts(right);
+  for (const index of [0, 1, 2] as const) {
+    const delta = leftParts[index] - rightParts[index];
+    if (delta !== 0) {
+      return delta;
+    }
+  }
+  return 0;
+}
+
+function versionParts(version: string): readonly [number, number, number] {
+  const match = version.match(/\d+(\.\d+)?(\.\d+)?/);
+  const parts = (match?.[0] ?? '0.0.0')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10));
+  return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
 }

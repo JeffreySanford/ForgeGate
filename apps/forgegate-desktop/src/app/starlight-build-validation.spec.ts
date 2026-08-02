@@ -1,5 +1,6 @@
 import {
   createStarlightBuildValidationPlan,
+  starlightBuildValidationMatrix,
   starlightBuildValidationSkippedReason,
 } from './starlight-build-validation';
 
@@ -22,7 +23,44 @@ describe('createStarlightBuildValidationPlan', () => {
       relativeCwd: '',
       timeoutSeconds: 180,
       detectedStarlightProjects: ['apps/docs'],
+      validationMatrix: ['nested-starlight', 'pnpm-command', 'nx-command'],
     });
+  });
+
+  it('records root, nested, and multi-project coverage in the validation matrix', () => {
+    expect(
+      starlightBuildValidationMatrix(
+        {
+          command: 'npm',
+          args: ['run', 'build:docs'],
+          commandText: 'npm run build:docs',
+        },
+        ['', 'apps/docs'],
+      ),
+    ).toEqual([
+      'workspace-root-starlight',
+      'nested-starlight',
+      'multiple-starlight-projects',
+      'npm-command',
+      'non-nx-command',
+    ]);
+  });
+
+  it('records no-project validation separately from the skipped no-command state', () => {
+    expect(
+      starlightBuildValidationMatrix(
+        {
+          command: 'pnpm',
+          args: ['astro', 'build'],
+          commandText: 'pnpm astro build',
+        },
+        [],
+      ),
+    ).toEqual([
+      'no-detected-starlight-project',
+      'pnpm-command',
+      'non-nx-command',
+    ]);
   });
 });
 
