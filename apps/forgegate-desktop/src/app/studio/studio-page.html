@@ -4,9 +4,8 @@
   <p class="studio-page__caveat">
     Choose a blueprint to see what a complete component of that pattern
     requires, then define its purpose, native semantics, portable contract,
-    variant/state selections, anatomy parts, and token slot mapping.
-    Behavior, fixtures, and preview from a selected blueprint are not built
-    yet.
+    variant/state selections, anatomy parts, and token slot mapping. Behavior,
+    fixtures, and preview from a selected blueprint are not built yet.
   </p>
 
   @if (!workspace.workspacePath()) {
@@ -99,9 +98,9 @@
     >
       <h3 id="proposal-form-title">Define purpose and native semantics</h3>
       <p>
-        <span aria-hidden="true">*</span> Required. Behavior, fixtures,
-        preview, and everything after is not built yet — this form stops
-        there honestly rather than pretending to continue.
+        <span aria-hidden="true">*</span> Required. Behavior, fixtures, preview,
+        and everything after is not built yet — this form stops there honestly
+        rather than pretending to continue.
       </p>
       <div class="studio-page__field">
         <label for="proposal-component-name"
@@ -288,7 +287,7 @@
         <div class="studio-page__field">
           <label [attr.for]="'variant-' + field.path"
             >{{ field.label }} @if (field.options?.length) { ({{
-            field.options?.join(', ') }}) }</label
+            field.options.join(', ') }}) }</label
           >
           <input
             [id]="'variant-' + field.path"
