@@ -1,5 +1,5 @@
 import { createValidator, describeErrors } from '@forgegate/core-domain';
-import { parse } from 'yaml';
+import { parse, stringify } from 'yaml';
 import type { ComponentProposal } from './component-proposal';
 import { componentProposalSchema } from './schemas';
 
@@ -26,4 +26,11 @@ export function parseComponentProposal(yamlText: string): ComponentProposal {
   }
 
   return parsed;
+}
+
+/** Serializes a `ComponentProposal` back to the YAML `.forgegate/proposals/<proposal-id>.yaml` stores. */
+export function serializeComponentProposal(
+  proposal: ComponentProposal,
+): string {
+  return stringify(proposal);
 }

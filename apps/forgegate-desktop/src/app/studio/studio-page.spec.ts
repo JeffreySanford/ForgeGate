@@ -1,8 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import type { Blueprint } from '@forgegate/core-manifest';
 import { StudioPage } from './studio-page';
 import { expectNoAccessibilityViolations } from '../../test-a11y';
+import { TAURI_INVOKE } from '../tauri-invoke';
 import { WorkspaceService } from '../workspace.service';
+
+const invokeMock = vi.fn();
 
 const buttonBlueprint: Blueprint = {
   id: 'blueprint.button',
@@ -41,7 +45,11 @@ describe('StudioPage', () => {
   let fixture: ReturnType<typeof TestBed.createComponent<StudioPage>>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [StudioPage] });
+    invokeMock.mockReset();
+    TestBed.configureTestingModule({
+      imports: [StudioPage],
+      providers: [{ provide: TAURI_INVOKE, useValue: invokeMock }],
+    });
     workspace = TestBed.inject(WorkspaceService);
   });
 
@@ -104,7 +112,100 @@ describe('StudioPage', () => {
     expect(compiled.textContent).toContain('default');
     expect(compiled.textContent).toContain('hover');
     expect(compiled.textContent).toContain('Background (color) — required');
-    expect(compiled.textContent).toContain('Blueprint selected');
+    expect(compiled.textContent).toContain(
+      'Define purpose and native semantics',
+    );
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('pre-fills the purpose field from the selected blueprint', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const purposeField = compiled.querySelector(
+      '#proposal-purpose',
+    ) as HTMLTextAreaElement;
+    expect(purposeField.value).toBe(
+      'Trigger a primary or secondary application action.',
+    );
+  });
+
+  it('creates and stages a real ComponentProposal from the form, then approves it', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    invokeMock.mockResolvedValueOnce({
+      stagingId: 'staging-1',
+      subdirectory: 'proposals',
+      filename: 'proposal.acme-icon-button-123.yaml',
+      previousContent: null,
+      newContent: 'identity:\n  id: proposal.acme-icon-button-123\n',
+    });
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const setInputValue = (selector: string, value: string) => {
+      const input = compiled.querySelector(selector) as
+        HTMLInputElement | HTMLTextAreaElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    };
+    setInputValue('#proposal-component-name', 'acme-icon-button');
+    setInputValue('#proposal-package-path', 'packages/acme-icon-button');
+    setInputValue('#proposal-adapter', 'framework.web-components');
+    fixture.detectChanges();
+
+    const createButton = Array.from(compiled.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Create proposal'),
+    ) as HTMLButtonElement;
+    expect(createButton.disabled).toBe(false);
+    createButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      'stage_proposal',
+      expect.objectContaining({
+        workspacePath: '/repos/example',
+        proposalId: expect.stringContaining('proposal.acme-icon-button-'),
+      }),
+    );
+    expect(compiled.textContent).toContain('Review staged proposal');
+
+    invokeMock.mockResolvedValueOnce(
+      '.forgegate/proposals/proposal.acme-icon-button-123.yaml',
+    );
+    const approveButton = Array.from(compiled.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Approve'),
+    ) as HTMLButtonElement;
+    approveButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      'approve_staged_evidence_write',
+      expect.objectContaining({ workspacePath: '/repos/example' }),
+    );
+    expect(compiled.textContent).toContain('Proposal saved to');
+    expect(workspace.proposals().length).toBe(1);
 
     await expectNoAccessibilityViolations(compiled);
   });

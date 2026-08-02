@@ -1,21 +1,19 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import type { Blueprint } from '@forgegate/core-manifest';
+import type { Blueprint, ComponentProposal } from '@forgegate/core-manifest';
 import { WorkspaceService } from '../workspace.service';
 
 /**
- * P2 first slice, item 1: "Choose the Button blueprint"
- * (`documentation/28-blueprint-studio-implementation-plan.md`'s Workstream 3
- * "Studio navigation and shell" and Release A "Proposal Studio").
+ * P2 first slice, items 1 and 2: "Choose the Button blueprint" and "Define
+ * purpose and native semantics" (`documentation/28-blueprint-studio-
+ * implementation-plan.md`'s Workstream 3 "Studio navigation and shell" and
+ * Workstream 1 "Portable proposal domain", Release A "Proposal Studio").
  *
- * Deliberately narrow and honest about what it is not: this lists real
- * discovered blueprints (`WorkspaceService.blueprints`, parsed from
- * `.forgegate/blueprints/*.yaml`) and lets a designer select one, showing
- * its real authored metadata (purpose, required states, token slots). It
- * does not yet create a `ComponentProposal` — that domain model doesn't
- * exist yet (Workstream 1, tracked separately in TODO.md) — so selecting a
- * blueprint here is a real, terminal action for now, not the start of a
- * flow that silently goes nowhere. The page says so explicitly rather than
- * implying more is built than actually is.
+ * Deliberately narrow and honest about what it is not: choosing a
+ * blueprint and drafting a `ComponentProposal`'s purpose and native
+ * semantic confirmation is real and staged/approved through the same P2
+ * entry gate 2 discipline every other domain write uses. Configuring the
+ * contract, composing variants and states, anatomy, tokens, and everything
+ * after remains unbuilt and the page says so explicitly.
  */
 @Component({
   selector: 'app-studio-page',
@@ -34,11 +32,60 @@ export class StudioPage {
     return this.workspace.blueprints().find((b) => b.id === id) ?? null;
   });
 
+  protected readonly purposeInput = signal('');
+  protected readonly componentNameInput = signal('');
+  protected readonly packagePathInput = signal('');
+  protected readonly adapterInput = signal('');
+  protected readonly nativeSemanticConfirmedInput = signal(false);
+
+  protected readonly canCreateProposal = computed(
+    () =>
+      this.purposeInput().trim().length > 0 &&
+      this.componentNameInput().trim().length > 0 &&
+      this.packagePathInput().trim().length > 0 &&
+      this.adapterInput().trim().length > 0,
+  );
+
   protected selectBlueprint(id: string): void {
     this.selectedBlueprintId.set(id);
+    const blueprint = this.workspace.blueprints().find((b) => b.id === id);
+    this.purposeInput.set(blueprint?.purpose ?? '');
+    this.componentNameInput.set('');
+    this.packagePathInput.set('');
+    this.adapterInput.set('');
+    this.nativeSemanticConfirmedInput.set(false);
   }
 
   protected clearSelection(): void {
     this.selectedBlueprintId.set(null);
+  }
+
+  protected async createProposal(): Promise<void> {
+    const blueprint = this.selectedBlueprint();
+    if (!blueprint || !this.canCreateProposal()) {
+      return;
+    }
+    const now = new Date().toISOString();
+    const componentName = this.componentNameInput().trim();
+    const proposal: ComponentProposal = {
+      identity: {
+        id: `proposal.${componentName}-${Date.now()}`,
+        status: 'draft',
+        createdAt: now,
+        updatedAt: now,
+      },
+      blueprint: {
+        blueprintId: blueprint.id,
+        blueprintVersion: blueprint.version,
+      },
+      target: {
+        componentName,
+        packagePath: this.packagePathInput().trim(),
+        adapter: this.adapterInput().trim(),
+      },
+      purpose: this.purposeInput().trim(),
+      nativeSemanticConfirmed: this.nativeSemanticConfirmedInput(),
+    };
+    await this.workspace.stageProposal(proposal);
   }
 }

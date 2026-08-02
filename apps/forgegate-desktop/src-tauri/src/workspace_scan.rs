@@ -64,6 +64,7 @@ pub struct WorkspaceScan {
     pub finding_files: Vec<String>,
     pub release_decision_files: Vec<String>,
     pub blueprint_files: Vec<String>,
+    pub proposal_files: Vec<String>,
     pub ui_technologies: Vec<UiTechnologyDetection>,
     pub ui_source_files: Vec<String>,
     pub ui_source_files_truncated: bool,
@@ -107,6 +108,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         finding_files: detect_finding_files(root),
         release_decision_files: detect_release_decision_files(root),
         blueprint_files: detect_blueprint_files(root),
+        proposal_files: detect_proposal_files(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
         ui_source_files,
         ui_source_files_truncated,
@@ -385,6 +387,27 @@ fn detect_blueprint_files(root: &Path) -> Vec<String> {
         .collect::<Vec<_>>();
     blueprints.sort();
     blueprints
+}
+
+fn detect_proposal_files(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("proposals");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut proposals = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| {
+            matches!(
+                path.extension().and_then(|ext| ext.to_str()),
+                Some("yaml" | "yml")
+            )
+        })
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    proposals.sort();
+    proposals
 }
 
 /// Mirrors `detect_exception_files` one directory over: a `Finding` is a
@@ -830,6 +853,10 @@ mod tests {
             "ForgeGate does not author blueprints for its own shell"
         );
         assert!(
+            scan.proposal_files.is_empty(),
+            "ForgeGate does not author component proposals for its own shell"
+        );
+        assert!(
             scan.ui_technologies.is_empty(),
             "Angular itself is a framework, not a detected UI library"
         );
@@ -886,6 +913,10 @@ mod tests {
             vec![".forgegate/blueprints/blueprint.button.yaml".to_string()]
         );
         assert!(
+            scan.proposal_files.is_empty(),
+            "fixture has no in-progress component proposals yet"
+        );
+        assert!(
             scan.finding_files.is_empty(),
             "the fixture's checked-in review passed every step, so no ForgeGate-authored finding should exist"
         );
@@ -922,6 +953,7 @@ mod tests {
         assert!(scan.procedure_files.is_empty());
         assert!(scan.finding_files.is_empty());
         assert!(scan.blueprint_files.is_empty());
+        assert!(scan.proposal_files.is_empty());
         assert!(scan.ui_technologies.is_empty());
         assert!(scan.ui_source_files.is_empty());
         assert!(!scan.ui_source_files_truncated);

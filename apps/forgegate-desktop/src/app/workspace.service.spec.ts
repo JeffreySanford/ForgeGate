@@ -85,6 +85,14 @@ const scanFixtureWithBlueprints = {
   ],
 };
 
+const scanFixtureWithProposals = {
+  ...scanFixture,
+  proposalFiles: [
+    '.forgegate/proposals/proposal.acme-icon-button-1.yaml',
+    '.forgegate/proposals/broken.yaml',
+  ],
+};
+
 const scanFixtureWithReleaseDecisions = {
   ...scanFixture,
   releaseDecisionFiles: [
@@ -597,6 +605,76 @@ describe('WorkspaceService', () => {
         .find(
           (diagnostic) =>
             diagnostic.id === 'blueprint:.forgegate/blueprints/broken.yaml',
+        ),
+    ).toMatchObject({ status: 'failed' });
+  });
+
+  it('loads a valid component proposal and isolates an invalid sibling record', async () => {
+    const proposalYaml = [
+      'identity:',
+      '  id: proposal.acme-icon-button-1',
+      '  status: draft',
+      '  createdAt: 2026-08-01T00:00:00.000Z',
+      '  updatedAt: 2026-08-01T00:00:00.000Z',
+      'blueprint:',
+      '  blueprintId: blueprint.button',
+      '  blueprintVersion: 1.0.0',
+      'target:',
+      '  componentName: acme-icon-button',
+      '  packagePath: packages/acme-icon-button',
+      '  adapter: framework.web-components',
+      'purpose: Trigger a compact, icon-only variant of the primary button.',
+      'nativeSemanticConfirmed: true',
+    ].join('\n');
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithProposals)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(proposalYaml)
+      .mockResolvedValueOnce('identity: [unterminated');
+
+    await service.selectWorkspace();
+
+    expect(service.proposals()).toEqual([
+      {
+        identity: {
+          id: 'proposal.acme-icon-button-1',
+          status: 'draft',
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+        blueprint: {
+          blueprintId: 'blueprint.button',
+          blueprintVersion: '1.0.0',
+        },
+        target: {
+          componentName: 'acme-icon-button',
+          packagePath: 'packages/acme-icon-button',
+          adapter: 'framework.web-components',
+        },
+        purpose: 'Trigger a compact, icon-only variant of the primary button.',
+        nativeSemanticConfirmed: true,
+      },
+    ]);
+    expect(service.proposalError()).toContain(
+      '.forgegate/proposals/broken.yaml',
+    );
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'proposal:.forgegate/proposals/proposal.acme-icon-button-1.yaml',
+        ),
+    ).toMatchObject({ status: 'loaded', error: null });
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id === 'proposal:.forgegate/proposals/broken.yaml',
         ),
     ).toMatchObject({ status: 'failed' });
   });

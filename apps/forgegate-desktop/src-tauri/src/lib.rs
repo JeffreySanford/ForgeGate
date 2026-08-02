@@ -256,6 +256,23 @@ impl From<staged_write::StagedEvidenceWrite> for StagedEvidenceWriteDto {
     }
 }
 
+/// Stages one real `ComponentProposal` — a designer's in-progress decision
+/// record from Blueprint Studio, referencing a blueprint but describing a
+/// component that does not exist in the repository yet. Same
+/// `.forgegate/proposals/` destination `detect_proposal_files` reads, same
+/// staged/approve discipline every other domain write uses — nothing lands
+/// until a matching `approve_staged_evidence_write` call.
+#[tauri::command]
+fn stage_proposal(
+    workspace_path: String,
+    proposal_id: String,
+    content: String,
+) -> Result<StagedEvidenceWriteDto, String> {
+    let workspace = resolve_workspace_path(&workspace_path)?;
+    staged_write::stage_evidence_write(&workspace, "proposals", &format!("{proposal_id}.yaml"), &content)
+        .map(Into::into)
+}
+
 /// Stages a real guided manual review the user just completed into a
 /// temporary directory, alongside whatever real content it would replace,
 /// so the frontend can render an honest diff — per P2 entry gate 2, real
@@ -2090,6 +2107,7 @@ pub fn run() {
             stage_finding,
             stage_test_execution,
             stage_release_decision,
+            stage_proposal,
             approve_staged_evidence_write,
             discard_staged_evidence_write,
             rollback_evidence_write,

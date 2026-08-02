@@ -54,8 +54,11 @@ import {
 import {
   parseBlueprint,
   parseComponentManifest,
+  parseComponentProposal,
+  serializeComponentProposal,
   type Blueprint,
   type ComponentManifest,
+  type ComponentProposal,
 } from '@forgegate/core-manifest';
 import {
   parseStorybookIndex,
@@ -294,6 +297,7 @@ export interface WorkspaceScan {
   findingFiles?: string[];
   releaseDecisionFiles?: string[];
   blueprintFiles?: string[];
+  proposalFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -589,6 +593,11 @@ export class WorkspaceService {
    * catalog of what a complete component of a given pattern requires. */
   readonly blueprints = signal<readonly Blueprint[]>([]);
   readonly blueprintError = signal<string | null>(null);
+  /** Every real `.forgegate/proposals/*.yaml` record — a designer's
+   * in-progress decision about a component that doesn't exist in the
+   * repository yet. Never treated as evidence. */
+  readonly proposals = signal<readonly ComponentProposal[]>([]);
+  readonly proposalError = signal<string | null>(null);
   /** Every real `.forgegate/findings/*.json` record — today always written
    * by ForgeGate itself, one per failed or blocked guided-review step. */
   readonly findings = signal<readonly Finding[]>([]);
@@ -675,6 +684,23 @@ export class WorkspaceService {
   readonly saveTestExecutionResult = signal<{ readonly path: string } | null>(
     null,
   );
+
+  /**
+   * A `ComponentProposal` the designer is actively drafting in Blueprint
+   * Studio, staged into a temporary directory alongside any real proposal
+   * it would replace so the UI can render a real diff — the same P2 entry
+   * gate 2 staged/approve discipline every other domain write follows.
+   * Nothing is written into `.forgegate/proposals/` until an explicit
+   * `approveStagedProposal` call.
+   */
+  readonly stagedProposal = signal<{
+    readonly proposal: ComponentProposal;
+    readonly write: StagedEvidenceWrite;
+  } | null>(null);
+  readonly stageProposalError = signal<string | null>(null);
+  readonly approveProposalRunning = signal(false);
+  readonly approveProposalError = signal<string | null>(null);
+  readonly saveProposalResult = signal<{ readonly path: string } | null>(null);
 
   starlightDefaultTemplateFor(
     manifest: ComponentManifest,
@@ -907,6 +933,7 @@ export class WorkspaceService {
       await this.loadExceptions(path, scan);
       await this.loadProcedures(path, scan);
       await this.loadBlueprints(path, scan);
+      await this.loadProposals(path, scan);
       await this.loadFindings(path, scan);
       await this.loadReleaseDecisionRecords(path, scan);
       await this.loadDesignTokens(path, scan);
@@ -1813,6 +1840,45 @@ export class WorkspaceService {
     }
     this.blueprints.set(blueprints);
     this.blueprintError.set(errors.length ? errors.join('\n') : null);
+  }
+
+  private async loadProposals(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.proposals.set([]);
+    const proposals: ComponentProposal[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.proposalFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        proposals.push(parseComponentProposal(text));
+        this.setAdapterDiagnostic({
+          id: `proposal:${relativePath}`,
+          adapter: 'component proposals',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `proposal:${relativePath}`,
+          adapter: 'component proposals',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.proposals.set(proposals);
+    this.proposalError.set(errors.length ? errors.join('\n') : null);
   }
 
   private async loadProcedures(
@@ -2833,6 +2899,85 @@ export class WorkspaceService {
       });
     } finally {
       this.stagedTestExecution.set(null);
+    }
+  }
+
+  /**
+   * Stages a real `ComponentProposal` a designer has just drafted in
+   * Blueprint Studio — choosing a blueprint, then confirming a purpose and
+   * native semantic — into `.forgegate/proposals/`, per P2 first-slice
+   * items 1 and 2. Nothing is written until `approveStagedProposal`.
+   */
+  async stageProposal(proposal: ComponentProposal): Promise<void> {
+    const path = this.workspacePath();
+    if (!path) {
+      return;
+    }
+    this.stageProposalError.set(null);
+    this.saveProposalResult.set(null);
+    this.stagedProposal.set(null);
+    try {
+      const write = await this.invoke<StagedEvidenceWrite>('stage_proposal', {
+        workspacePath: path,
+        proposalId: proposal.identity.id,
+        content: serializeComponentProposal(proposal),
+      });
+      this.stagedProposal.set({ proposal, write });
+    } catch (error) {
+      this.stageProposalError.set(String(error));
+    }
+  }
+
+  /**
+   * Commits a staged component proposal into the real workspace. Only ever
+   * called from an explicit "Approve" action after the reviewer sees the
+   * staged diff.
+   */
+  async approveStagedProposal(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedProposal();
+    if (!path || !staged || this.approveProposalRunning()) {
+      return;
+    }
+    this.approveProposalRunning.set(true);
+    this.approveProposalError.set(null);
+    try {
+      const writtenPath = await this.invoke<string>(
+        'approve_staged_evidence_write',
+        {
+          workspacePath: path,
+          stagingId: staged.write.stagingId,
+          subdirectory: staged.write.subdirectory,
+          filename: staged.write.filename,
+        },
+      );
+      this.saveProposalResult.set({ path: writtenPath });
+      this.proposals.set([...this.proposals(), staged.proposal]);
+      this.stagedProposal.set(null);
+    } catch (error) {
+      this.approveProposalError.set(String(error));
+    } finally {
+      this.approveProposalRunning.set(false);
+    }
+  }
+
+  /**
+   * Discards a staged component proposal without ever committing it into
+   * `.forgegate/proposals/`.
+   */
+  async discardStagedProposal(): Promise<void> {
+    const path = this.workspacePath();
+    const staged = this.stagedProposal();
+    if (!path || !staged) {
+      return;
+    }
+    try {
+      await this.invoke<void>('discard_staged_evidence_write', {
+        workspacePath: path,
+        stagingId: staged.write.stagingId,
+      });
+    } finally {
+      this.stagedProposal.set(null);
     }
   }
 

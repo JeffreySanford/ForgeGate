@@ -91,11 +91,125 @@
         } @else { None declared }
       </dd>
     </dl>
-    <p class="studio-page__next-steps" role="status">
-      Blueprint selected. Defining purpose and native semantics, configuring the
-      contract, composing variants and states, and everything after is not built
-      yet — this page stops here honestly rather than pretending to continue.
-    </p>
+
+    <section
+      class="studio-page__proposal fg-panel"
+      aria-labelledby="proposal-form-title"
+    >
+      <h3 id="proposal-form-title">Define purpose and native semantics</h3>
+      <p>
+        <span aria-hidden="true">*</span> Required. Configuring the contract,
+        composing variants and states, and everything after is not built yet —
+        this form stops here honestly rather than pretending to continue.
+      </p>
+      <div class="studio-page__field">
+        <label for="proposal-component-name"
+          >Component name <span aria-hidden="true">*</span></label
+        >
+        <input
+          id="proposal-component-name"
+          type="text"
+          [value]="componentNameInput()"
+          (input)="componentNameInput.set($any($event.target).value)"
+        />
+      </div>
+      <div class="studio-page__field">
+        <label for="proposal-package-path"
+          >Package path <span aria-hidden="true">*</span></label
+        >
+        <input
+          id="proposal-package-path"
+          type="text"
+          placeholder="packages/acme-icon-button"
+          [value]="packagePathInput()"
+          (input)="packagePathInput.set($any($event.target).value)"
+        />
+      </div>
+      <div class="studio-page__field">
+        <label for="proposal-adapter"
+          >Adapter <span aria-hidden="true">*</span></label
+        >
+        <input
+          id="proposal-adapter"
+          type="text"
+          placeholder="framework.web-components"
+          [value]="adapterInput()"
+          (input)="adapterInput.set($any($event.target).value)"
+        />
+      </div>
+      <div class="studio-page__field">
+        <label for="proposal-purpose"
+          >Purpose <span aria-hidden="true">*</span></label
+        >
+        <textarea
+          id="proposal-purpose"
+          rows="3"
+          [value]="purposeInput()"
+          (input)="purposeInput.set($any($event.target).value)"
+        ></textarea>
+      </div>
+      <div class="studio-page__field studio-page__field--checkbox">
+        <input
+          id="proposal-native-semantic-confirmed"
+          type="checkbox"
+          [checked]="nativeSemanticConfirmedInput()"
+          (change)="
+            nativeSemanticConfirmedInput.set($any($event.target).checked)
+          "
+        />
+        <label for="proposal-native-semantic-confirmed">
+          I confirm the blueprint's preferred native element @if
+          (blueprint.preferredNativeElement) { (<code
+            >{{ blueprint.preferredNativeElement }}</code
+          >) } applies, or have a reasoned deviation.
+        </label>
+      </div>
+      <button
+        type="button"
+        [disabled]="!canCreateProposal()"
+        (click)="createProposal()"
+      >
+        Create proposal
+      </button>
+      @if (workspace.stageProposalError(); as error) {
+      <p role="alert">Could not stage the proposal: {{ error }}</p>
+      }
+    </section>
+
+    @if (workspace.stagedProposal(); as staged) {
+    <section
+      class="studio-page__staged-proposal fg-panel"
+      aria-labelledby="staged-proposal-title"
+      role="status"
+    >
+      <h3 id="staged-proposal-title">Review staged proposal</h3>
+      <dl>
+        <dt>Proposal id</dt>
+        <dd><code>{{ staged.proposal.identity.id }}</code></dd>
+        <dt>Component name</dt>
+        <dd><code>{{ staged.proposal.target.componentName }}</code></dd>
+        <dt>Package path</dt>
+        <dd><code>{{ staged.proposal.target.packagePath }}</code></dd>
+        <dt>Native semantic confirmed</dt>
+        <dd>{{ staged.proposal.nativeSemanticConfirmed ? 'Yes' : 'No' }}</dd>
+      </dl>
+      <pre class="studio-page__diff">{{ staged.write.newContent }}</pre>
+      <div class="studio-page__staged-actions">
+        <button type="button" (click)="workspace.approveStagedProposal()">
+          Approve
+        </button>
+        <button type="button" (click)="workspace.discardStagedProposal()">
+          Discard
+        </button>
+      </div>
+      @if (workspace.approveProposalError(); as error) {
+      <p role="alert">Could not approve the proposal: {{ error }}</p>
+      }
+    </section>
+    } @if (workspace.saveProposalResult(); as result) {
+    <p role="status">Proposal saved to <code>{{ result.path }}</code>.</p>
+    }
+
     <button type="button" (click)="clearSelection()">
       Choose a different blueprint
     </button>
