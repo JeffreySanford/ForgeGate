@@ -1224,6 +1224,7 @@ describe('WorkspaceService', () => {
         'checksums.sha256',
         'documentation-status.json',
         'manifest.json',
+        'redaction-plan.json',
         'report.html',
         'test-summary.json',
       ]);

@@ -34,7 +34,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npx nx run forgegate-desktop:serve',
+    command: 'pnpm nx run forgegate-desktop:serve',
     url: baseURL,
     reuseExistingServer: true,
     timeout: 120_000,

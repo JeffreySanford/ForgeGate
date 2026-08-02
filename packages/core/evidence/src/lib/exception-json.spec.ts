@@ -22,14 +22,18 @@ describe('parseException', () => {
   });
 
   it('rejects a record missing the required rationale', () => {
-    const { rationale: _rationale, ...withoutRationale } = validException;
+    const withoutRationale = Object.fromEntries(
+      Object.entries(validException).filter(([key]) => key !== 'rationale'),
+    );
     expect(() =>
       parseException(JSON.stringify(withoutRationale)),
     ).toThrow('Exception does not match the schema');
   });
 
   it('rejects a record missing the required finding reference', () => {
-    const { findingId: _findingId, ...withoutFindingId } = validException;
+    const withoutFindingId = Object.fromEntries(
+      Object.entries(validException).filter(([key]) => key !== 'findingId'),
+    );
     expect(() =>
       parseException(JSON.stringify(withoutFindingId)),
     ).toThrow('Exception does not match the schema');

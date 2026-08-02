@@ -29,8 +29,9 @@ describe('parseFinding', () => {
   });
 
   it('rejects a record missing the required description', () => {
-    const { description: _description, ...withoutDescription } =
-      validFinding;
+    const withoutDescription = Object.fromEntries(
+      Object.entries(validFinding).filter(([key]) => key !== 'description'),
+    );
     expect(() =>
       parseFinding(JSON.stringify(withoutDescription)),
     ).toThrow('Finding does not match the schema');

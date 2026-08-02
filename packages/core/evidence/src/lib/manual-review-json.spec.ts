@@ -44,8 +44,11 @@ describe('parseManualReview', () => {
   });
 
   it('rejects a record missing the required reviewer identity', () => {
-    const { reviewerIdentity: _reviewerIdentity, ...withoutReviewer } =
-      validReview;
+    const withoutReviewer = Object.fromEntries(
+      Object.entries(validReview).filter(
+        ([key]) => key !== 'reviewerIdentity',
+      ),
+    );
     expect(() =>
       parseManualReview(JSON.stringify(withoutReviewer)),
     ).toThrow('Manual review does not match the schema');
