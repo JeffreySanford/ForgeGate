@@ -63,6 +63,7 @@ pub struct WorkspaceScan {
     pub procedure_files: Vec<String>,
     pub finding_files: Vec<String>,
     pub release_decision_files: Vec<String>,
+    pub blueprint_files: Vec<String>,
     pub ui_technologies: Vec<UiTechnologyDetection>,
     pub ui_source_files: Vec<String>,
     pub ui_source_files_truncated: bool,
@@ -105,6 +106,7 @@ pub fn scan_workspace(root: &Path) -> Result<WorkspaceScan, String> {
         procedure_files: detect_procedure_files(root),
         finding_files: detect_finding_files(root),
         release_decision_files: detect_release_decision_files(root),
+        blueprint_files: detect_blueprint_files(root),
         ui_technologies: detect_ui_technologies(root, &project_dirs),
         ui_source_files,
         ui_source_files_truncated,
@@ -362,6 +364,27 @@ fn detect_procedure_files(root: &Path) -> Vec<String> {
         .collect::<Vec<_>>();
     procedures.sort();
     procedures
+}
+
+fn detect_blueprint_files(root: &Path) -> Vec<String> {
+    let directory = root.join(".forgegate").join("blueprints");
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut blueprints = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| {
+            matches!(
+                path.extension().and_then(|ext| ext.to_str()),
+                Some("yaml" | "yml")
+            )
+        })
+        .map(|path| relative_display(root, &path))
+        .collect::<Vec<_>>();
+    blueprints.sort();
+    blueprints
 }
 
 /// Mirrors `detect_exception_files` one directory over: a `Finding` is a
@@ -803,6 +826,10 @@ mod tests {
         );
         assert!(scan.release_decision_files.is_empty());
         assert!(
+            scan.blueprint_files.is_empty(),
+            "ForgeGate does not author blueprints for its own shell"
+        );
+        assert!(
             scan.ui_technologies.is_empty(),
             "Angular itself is a framework, not a detected UI library"
         );
@@ -854,6 +881,10 @@ mod tests {
             scan.procedure_files,
             vec![".forgegate/procedures/keyboard-and-screen-reader-review.yaml".to_string()]
         );
+        assert_eq!(
+            scan.blueprint_files,
+            vec![".forgegate/blueprints/blueprint.button.yaml".to_string()]
+        );
         assert!(
             scan.finding_files.is_empty(),
             "the fixture's checked-in review passed every step, so no ForgeGate-authored finding should exist"
@@ -890,6 +921,7 @@ mod tests {
         assert!(scan.exception_files.is_empty());
         assert!(scan.procedure_files.is_empty());
         assert!(scan.finding_files.is_empty());
+        assert!(scan.blueprint_files.is_empty());
         assert!(scan.ui_technologies.is_empty());
         assert!(scan.ui_source_files.is_empty());
         assert!(!scan.ui_source_files_truncated);

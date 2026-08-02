@@ -77,6 +77,14 @@ const scanFixtureWithProcedures = {
   ],
 };
 
+const scanFixtureWithBlueprints = {
+  ...scanFixture,
+  blueprintFiles: [
+    '.forgegate/blueprints/blueprint.button.yaml',
+    '.forgegate/blueprints/broken.yaml',
+  ],
+};
+
 const scanFixtureWithReleaseDecisions = {
   ...scanFixture,
   releaseDecisionFiles: [
@@ -530,6 +538,65 @@ describe('WorkspaceService', () => {
         .find(
           (diagnostic) =>
             diagnostic.id === 'procedure:.forgegate/procedures/broken.yaml',
+        ),
+    ).toMatchObject({ status: 'failed' });
+  });
+
+  it('loads a valid blueprint and isolates an invalid sibling record', async () => {
+    const blueprintYaml = [
+      'id: blueprint.button',
+      'version: 1.0.0',
+      'name: Button',
+      'purpose: Trigger a primary or secondary application action.',
+      'requiredStates: [default, hover, focus-visible, active, disabled]',
+      'inspectorGroups: []',
+      'tokenSlots: []',
+    ].join('\n');
+    invokeMock
+      .mockResolvedValueOnce('D:/repos/ForgeGate')
+      .mockResolvedValueOnce(gitStatusFixture)
+      .mockResolvedValueOnce(scanFixtureWithBlueprints)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(blueprintYaml)
+      .mockResolvedValueOnce('id: [unterminated');
+
+    await service.selectWorkspace();
+
+    expect(service.blueprints()).toEqual([
+      {
+        id: 'blueprint.button',
+        version: '1.0.0',
+        name: 'Button',
+        purpose: 'Trigger a primary or secondary application action.',
+        requiredStates: [
+          'default',
+          'hover',
+          'focus-visible',
+          'active',
+          'disabled',
+        ],
+        inspectorGroups: [],
+        tokenSlots: [],
+      },
+    ]);
+    expect(service.blueprintError()).toContain(
+      '.forgegate/blueprints/broken.yaml',
+    );
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id ===
+            'blueprint:.forgegate/blueprints/blueprint.button.yaml',
+        ),
+    ).toMatchObject({ status: 'loaded', error: null });
+    expect(
+      service
+        .adapterDiagnostics()
+        .find(
+          (diagnostic) =>
+            diagnostic.id === 'blueprint:.forgegate/blueprints/broken.yaml',
         ),
     ).toMatchObject({ status: 'failed' });
   });

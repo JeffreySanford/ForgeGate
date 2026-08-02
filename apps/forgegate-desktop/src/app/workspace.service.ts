@@ -52,7 +52,9 @@ import {
   type NativeComponentSignal,
 } from '@forgegate/adapter-native-patterns';
 import {
+  parseBlueprint,
   parseComponentManifest,
+  type Blueprint,
   type ComponentManifest,
 } from '@forgegate/core-manifest';
 import {
@@ -291,6 +293,7 @@ export interface WorkspaceScan {
   procedureFiles?: string[];
   findingFiles?: string[];
   releaseDecisionFiles?: string[];
+  blueprintFiles?: string[];
   uiTechnologies: UiTechnologyDetection[];
   uiSourceFiles?: string[];
   uiSourceFilesTruncated?: boolean;
@@ -582,6 +585,10 @@ export class WorkspaceService {
    * human follows during a guided manual review. */
   readonly procedures = signal<readonly ManualProcedure[]>([]);
   readonly procedureError = signal<string | null>(null);
+  /** Every real `.forgegate/blueprints/*.yaml` record — Blueprint Studio's
+   * catalog of what a complete component of a given pattern requires. */
+  readonly blueprints = signal<readonly Blueprint[]>([]);
+  readonly blueprintError = signal<string | null>(null);
   /** Every real `.forgegate/findings/*.json` record — today always written
    * by ForgeGate itself, one per failed or blocked guided-review step. */
   readonly findings = signal<readonly Finding[]>([]);
@@ -899,6 +906,7 @@ export class WorkspaceService {
       await this.loadManualReviews(path, scan);
       await this.loadExceptions(path, scan);
       await this.loadProcedures(path, scan);
+      await this.loadBlueprints(path, scan);
       await this.loadFindings(path, scan);
       await this.loadReleaseDecisionRecords(path, scan);
       await this.loadDesignTokens(path, scan);
@@ -1302,8 +1310,7 @@ export class WorkspaceService {
         attachmentContents,
         externalPolicyDocument,
         manualReviews: manualReviews.filter(
-          (review) =>
-            review.componentVersionId === componentVersion,
+          (review) => review.componentVersionId === componentVersion,
         ),
         exceptions,
         persistedFindings,
@@ -1769,6 +1776,45 @@ export class WorkspaceService {
     this.exceptionError.set(errors.length ? errors.join('\n') : null);
   }
 
+  private async loadBlueprints(
+    workspacePath: string,
+    scan: WorkspaceScan,
+  ): Promise<void> {
+    this.blueprints.set([]);
+    const blueprints: Blueprint[] = [];
+    const errors: string[] = [];
+    for (const relativePath of scan.blueprintFiles ?? []) {
+      let text: string | null = null;
+      try {
+        text = await this.invoke<string>('read_text_file', {
+          workspacePath,
+          relativePath,
+        });
+        blueprints.push(parseBlueprint(text));
+        this.setAdapterDiagnostic({
+          id: `blueprint:${relativePath}`,
+          adapter: 'blueprint catalog',
+          source: relativePath,
+          status: 'loaded',
+          rawOutput: text,
+          error: null,
+        });
+      } catch (error) {
+        errors.push(`${relativePath}: ${String(error)}`);
+        this.setAdapterDiagnostic({
+          id: `blueprint:${relativePath}`,
+          adapter: 'blueprint catalog',
+          source: relativePath,
+          status: 'failed',
+          rawOutput: text,
+          error: String(error),
+        });
+      }
+    }
+    this.blueprints.set(blueprints);
+    this.blueprintError.set(errors.length ? errors.join('\n') : null);
+  }
+
   private async loadProcedures(
     workspacePath: string,
     scan: WorkspaceScan,
@@ -1883,7 +1929,9 @@ export class WorkspaceService {
       }
     }
     this.releaseDecisionRecords.set(records);
-    this.releaseDecisionRecordError.set(errors.length ? errors.join('\n') : null);
+    this.releaseDecisionRecordError.set(
+      errors.length ? errors.join('\n') : null,
+    );
   }
 
   /**
@@ -2588,8 +2636,7 @@ export class WorkspaceService {
         rawOutput: JSON.stringify(
           {
             ...result,
-            detectedStarlightProjects:
-              validationPlan.detectedStarlightProjects,
+            detectedStarlightProjects: validationPlan.detectedStarlightProjects,
             validationMatrix: validationPlan.validationMatrix,
           },
           null,
