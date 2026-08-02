@@ -200,9 +200,11 @@ describe('ComponentInventoryService', () => {
     ]);
   });
 
-  it('merges a real persisted finding into a component\'s readiness, scoped to its own componentId', () => {
+  it("merges a real persisted finding into a component's readiness, scoped to its own componentId", () => {
     workspace.angularComponents.set([
-      angularDeclaration({ sourceFile: 'apps/demo/src/app/button.component.ts' }),
+      angularDeclaration({
+        sourceFile: 'apps/demo/src/app/button.component.ts',
+      }),
     ]);
     workspace.findings.set([
       {
@@ -229,6 +231,61 @@ describe('ComponentInventoryService', () => {
     expect(
       discovery?.readiness.findingSummary.findings.map((finding) => finding.id),
     ).not.toContain('other-component-finding');
+  });
+
+  it("derives a component's latestReviewStatus from its most recently connected real ManualReview", () => {
+    workspace.angularComponents.set([
+      angularDeclaration({
+        sourceFile: 'apps/demo/src/app/button.component.ts',
+      }),
+    ]);
+    workspace.manualReviews.set([
+      {
+        id: 'older-review',
+        componentVersionId: 'acme.design-system.acme-button',
+        procedureId: 'some-procedure',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: '2026-01-01T00:00:00.000Z',
+        operatingSystem: 'Windows 11',
+        status: 'failed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+      {
+        id: 'newer-review',
+        componentVersionId: 'acme.design-system.acme-button',
+        procedureId: 'some-procedure',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: '2026-02-01T00:00:00.000Z',
+        operatingSystem: 'Windows 11',
+        status: 'passed',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+      {
+        id: 'other-component-review',
+        componentVersionId: 'some-other-component',
+        procedureId: 'some-procedure',
+        procedureVersion: '1.0.0',
+        reviewerIdentity: 'reviewer@example.com',
+        date: '2026-03-01T00:00:00.000Z',
+        operatingSystem: 'Windows 11',
+        status: 'blocked',
+        commitOrFingerprint: 'a'.repeat(40),
+      },
+    ]);
+
+    const discovery = inventory.result().discoveries[0];
+
+    expect(discovery?.latestReviewStatus).toBe('passed');
+  });
+
+  it('reports a null latestReviewStatus when no ManualReview is connected', () => {
+    workspace.angularComponents.set([angularDeclaration()]);
+
+    const discovery = inventory.result().discoveries[0];
+
+    expect(discovery?.latestReviewStatus).toBeNull();
   });
 
   it('persists an enriched scan snapshot after the inventory is complete', async () => {
@@ -328,6 +385,7 @@ describe('ComponentInventoryService', () => {
                 ]),
                 reason: null,
               },
+              latestReviewStatus: null,
             },
           ],
         },

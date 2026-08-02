@@ -266,10 +266,10 @@
     } @if (workspace.stagedReleaseDecision(); as stagedDecision) {
     <div class="component-detail__staged" role="region">
       <p>
-        Release decision <strong>{{ stagedDecision.record.outcome }}</strong>
-        is staged for <code>.forgegate/release-decisions/</code>. Review the
-        diff below, then approve to write it into repository history, or discard
-        to drop it.
+        Release decision <strong>{{ stagedDecision.record.outcome }}</strong> is
+        staged for <code>.forgegate/release-decisions/</code>. Review the diff
+        below, then approve to write it into repository history, or discard to
+        drop it.
       </p>
       <pre class="component-detail__diff">
 {{ stagedDecision.write.previousContent ?? '(new file)' }}
@@ -284,7 +284,9 @@
           {{ workspace.approveReleaseDecisionRunning() ? 'Approving?' :
           'Approve' }}
         </button>
-        <button type="button" (click)="discardReleaseDecision()">Discard</button>
+        <button type="button" (click)="discardReleaseDecision()">
+          Discard
+        </button>
       </div>
       @if (workspace.approveReleaseDecisionError(); as approveError) {
       <p role="alert">Failed to approve: {{ approveError }}</p>
@@ -475,25 +477,32 @@
     } @else if (!workspace.componentEvidenceEvents()?.configured) {
     <p class="component-detail__unavailable">
       Persistence is not configured. Set FORGEGATE_DATABASE_URL to record and
-      explain readiness changes over time.
+      explain readiness changes and manual reviews over time.
     </p>
     } @else if (!workspace.componentEvidenceEvents()?.connected) {
     <p role="alert">{{ workspace.componentEvidenceEvents()?.error }}</p>
     } @else if ((workspace.componentEvidenceEvents()?.events?.length ?? 0) ===
     0) {
     <p class="component-detail__unavailable">
-      No recorded readiness changes yet for this component. This fills in as the
-      workspace is rescanned over time.
+      No recorded readiness changes or reviews yet for this component. This
+      fills in as the workspace is rescanned over time.
     </p>
     } @else {
     <ul class="component-detail__evidence-events">
       @for (event of workspace.componentEvidenceEvents()!.events; track $index)
       {
       <li>
+        @if (event.eventKind === 'review-recorded') {
+        <strong
+          >Review recorded: {{ event.previousReviewStatus ?? 'none' }} &rarr; {{
+          event.nextReviewStatus }}</strong
+        >
+        } @else {
         <strong
           >Readiness changed: {{ event.previousReadiness }} &rarr; {{
           event.nextReadiness }}</strong
         >
+        }
         <span
           >{{ event.occurredAt }} &mdash; commit
           <code>{{ shortEventCommit(event.previousCommit) }}</code> &rarr;

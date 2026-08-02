@@ -1,5 +1,6 @@
 import type { ManualReview, TestExecution } from '@forgegate/core-evidence';
 import type { ComponentDiscovery } from './component-inventory.service';
+import type { ReleaseDecisionWorkflowRecord } from './release-decision-export';
 
 /**
  * P1.4: changed files (from `git status --porcelain`, already
@@ -21,10 +22,13 @@ import type { ComponentDiscovery } from './component-inventory.service';
  * observed directly, and the UI labels it that way rather than implying a
  * precise dependency edge.
  *
- * Release-decision cross-referencing is still genuinely not implemented:
- * a release decision is computed per component at export time rather than
- * stored, so there is no persisted decision for a changed file to point
- * at.
+ * **Release-decision cross-referencing.** This was previously recorded as
+ * genuinely blocked because "a release decision is computed per component
+ * at export time rather than stored, so there is no persisted decision for
+ * a changed file to point at" — that was true when written, but real
+ * `.forgegate/release-decisions/*.json` write-back (`stage_release_decision`,
+ * `WorkspaceService.releaseDecisionRecords`) landed since. Joined the same
+ * way as manual reviews, by the affected component's version id.
  *
  * A file with no matching component is reported as unmatched rather than
  * hidden.
@@ -40,6 +44,8 @@ export interface ChangeImpactEntry {
   readonly affectedManualReviewIds: readonly string[];
   /** Documentation page ids/paths, via each component's `documentationTargets`. */
   readonly affectedDocumentationTargets: readonly string[];
+  /** Release-decision workflow record ids, via each affected component's version id. */
+  readonly affectedReleaseDecisionIds: readonly string[];
 }
 
 function componentVersionId(manifest: {
@@ -56,6 +62,7 @@ export function computeChangeImpact(
   discoveries: readonly Pick<ComponentDiscovery, 'manifest' | 'sourceFiles'>[],
   testExecutions: readonly TestExecution[] = [],
   manualReviews: readonly ManualReview[] = [],
+  releaseDecisions: readonly ReleaseDecisionWorkflowRecord[] = [],
 ): readonly ChangeImpactEntry[] {
   // Every index below is built exactly once, so each changed file resolves
   // through O(1) lookups rather than re-scanning the component list —
@@ -111,6 +118,18 @@ export function computeChangeImpact(
     }
   }
 
+  const releaseDecisionIdsByVersionId = new Map<string, string[]>();
+  for (const decision of releaseDecisions) {
+    const ids = releaseDecisionIdsByVersionId.get(decision.componentVersionId);
+    if (ids) {
+      ids.push(decision.id);
+    } else {
+      releaseDecisionIdsByVersionId.set(decision.componentVersionId, [
+        decision.id,
+      ]);
+    }
+  }
+
   return changedFiles.map((filePath) => {
     const affectedComponentIds = componentIdsByFilePath.get(filePath) ?? [];
     return {
@@ -141,6 +160,14 @@ export function computeChangeImpact(
         affectedComponentIds.flatMap(
           (id) => documentationByComponentId.get(id) ?? [],
         ),
+      ),
+      affectedReleaseDecisionIds: dedupe(
+        affectedComponentIds.flatMap((id) => {
+          const versionId = versionIdByComponentId.get(id);
+          return versionId
+            ? (releaseDecisionIdsByVersionId.get(versionId) ?? [])
+            : [];
+        }),
       ),
     };
   });

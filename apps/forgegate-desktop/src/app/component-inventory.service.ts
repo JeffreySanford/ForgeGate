@@ -17,6 +17,7 @@ import type {
   AngularMember,
 } from './angular-components';
 import { createStoryIndexLookup } from '@forgegate/adapter-storybook';
+import type { ManualReview } from '@forgegate/core-evidence';
 import { WorkspaceService } from './workspace.service';
 import {
   componentVersionId,
@@ -37,6 +38,10 @@ export interface ComponentDiscovery {
   readonly canonicalSource: string;
   readonly declarationCount: number;
   readonly sourceFiles: readonly string[];
+  /** This component's most recently connected `ManualReview.status`, or
+   * `null` when none is connected — feeds the `review-recorded`
+   * evidence-history event kind. */
+  readonly latestReviewStatus: string | null;
 }
 
 export interface ComponentInventoryResult extends MapCemResult {
@@ -91,23 +96,26 @@ export class ComponentInventoryService {
         .componentManifestOverrides()
         .map((item) => [item.id, item]),
     );
-    const discoveredManifests = [...mapped.manifests, ...angularMapped.manifests];
-    const discoveredIds = new Set(discoveredManifests.map((manifest) => manifest.id));
-    const enriched = discoveredManifests.map(
-      (componentManifest) => {
-        const discoveredStories = lookupStories
-          ? lookupStories(componentManifest.sourceFiles)
-          : [];
-        const override = overrides.get(componentManifest.id);
-        return override
-          ? applyRepositoryOverride(
-              componentManifest,
-              override,
-              discoveredStories,
-            )
-          : { ...componentManifest, storyMappings: discoveredStories };
-      },
+    const discoveredManifests = [
+      ...mapped.manifests,
+      ...angularMapped.manifests,
+    ];
+    const discoveredIds = new Set(
+      discoveredManifests.map((manifest) => manifest.id),
     );
+    const enriched = discoveredManifests.map((componentManifest) => {
+      const discoveredStories = lookupStories
+        ? lookupStories(componentManifest.sourceFiles)
+        : [];
+      const override = overrides.get(componentManifest.id);
+      return override
+        ? applyRepositoryOverride(
+            componentManifest,
+            override,
+            discoveredStories,
+          )
+        : { ...componentManifest, storyMappings: discoveredStories };
+    });
     const manifestOnly = [...overrides.values()].filter(
       (manifest) => !discoveredIds.has(manifest.id),
     );
@@ -150,6 +158,9 @@ export class ComponentInventoryService {
         canonicalSource,
         selectedPackage?.path,
       );
+      const matchingReviews = manualReviews.filter(
+        (review) => review.componentVersionId === componentVersionId(manifest),
+      );
       return {
         manifest,
         readiness: evaluateComponentReadiness({
@@ -158,10 +169,7 @@ export class ComponentInventoryService {
             (execution) =>
               execution.componentVersionId === componentVersionId(manifest),
           ),
-          manualReviews: manualReviews.filter(
-            (review) =>
-              review.componentVersionId === componentVersionId(manifest),
-          ),
+          manualReviews: matchingReviews,
           persistedFindings: findings.filter(
             (finding) => finding.componentId === manifest.id,
           ),
@@ -180,6 +188,7 @@ export class ComponentInventoryService {
         canonicalSource,
         declarationCount: declarations.length,
         sourceFiles,
+        latestReviewStatus: latestManualReviewStatus(matchingReviews),
       };
     });
     return {
@@ -231,16 +240,19 @@ export class ComponentInventoryService {
           error: diagnostic.error,
         })),
       },
-      components: inventory.discoveries.map(({ manifest, readiness }) => ({
-        componentId: manifest.id,
-        componentVersion: manifest.componentVersion ?? null,
-        framework: manifest.framework,
-        adapter: manifest.adapter,
-        lifecycle: manifest.lifecycle,
-        sourceFiles: manifest.sourceFiles,
-        readiness: readiness.readiness,
-        findingSummary: readiness.findingSummary,
-      })),
+      components: inventory.discoveries.map(
+        ({ manifest, readiness, latestReviewStatus }) => ({
+          componentId: manifest.id,
+          componentVersion: manifest.componentVersion ?? null,
+          framework: manifest.framework,
+          adapter: manifest.adapter,
+          lifecycle: manifest.lifecycle,
+          sourceFiles: manifest.sourceFiles,
+          readiness: readiness.readiness,
+          findingSummary: readiness.findingSummary,
+          latestReviewStatus,
+        }),
+      ),
     };
     const snapshotKey = JSON.stringify({ workspacePath, snapshot });
     if (snapshotKey === this.lastPersistedSnapshotKey) {
@@ -409,4 +421,17 @@ function countBy<T extends string>(values: readonly T[]): Record<T, number> {
     counts[value] = (counts[value] ?? 0) + 1;
   }
   return counts;
+}
+
+/** Most recent review's status by real `date`, or `null` when none is
+ * connected — feeds `EnrichedComponentSnapshot.latestReviewStatus`. */
+function latestManualReviewStatus(
+  reviews: readonly ManualReview[],
+): string | null {
+  if (reviews.length === 0) {
+    return null;
+  }
+  return reviews.reduce((latest, review) =>
+    review.date > latest.date ? review : latest,
+  ).status;
 }

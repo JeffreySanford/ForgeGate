@@ -70,6 +70,7 @@ describe('computeChangeImpact', () => {
         affectedTestExecutionIds: [],
         affectedManualReviewIds: [],
         affectedDocumentationTargets: [],
+        affectedReleaseDecisionIds: [],
       },
     ]);
   });
@@ -228,6 +229,43 @@ describe('computeChangeImpact', () => {
       affectedTestExecutionIds: [],
       affectedManualReviewIds: [],
       affectedDocumentationTargets: [],
+      affectedReleaseDecisionIds: [],
     });
+  });
+
+  it("cross-references a changed file to its component version's real release decisions", () => {
+    const result = computeChangeImpact(
+      ['src/acme-button.ts'],
+      [
+        discovery('acme.design-system.acme-button', ['src/acme-button.ts'], {
+          componentVersion: '1.0.0',
+        }),
+      ],
+      [],
+      [],
+      [
+        {
+          id: 'acme-button-release-decision-workflow-record',
+          decisionId: 'acme-button-release-decision',
+          componentVersionId: 'acme.design-system.acme-button@1.0.0',
+          policyId: 'up.baseline',
+          policyVersion: '1.0.0',
+          outcome: 'authorized-candidate',
+          commit: 'a'.repeat(40),
+          decidedAt: '2026-01-01T00:00:00.000Z',
+          source: 'forgegate-export-evaluation',
+          authorization: 'human-approved',
+          approver: 'reviewer@example.com',
+          notRealApproval: false,
+          evidenceIds: [],
+          blockingFindingIds: [],
+          limitations: [],
+        },
+      ],
+    );
+
+    expect(result[0]?.affectedReleaseDecisionIds).toEqual([
+      'acme-button-release-decision-workflow-record',
+    ]);
   });
 });

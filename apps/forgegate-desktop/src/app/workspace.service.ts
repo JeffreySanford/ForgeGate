@@ -386,6 +386,12 @@ export interface EnrichedComponentSnapshot {
     readonly findings: readonly Finding[];
     readonly reason: string | null;
   };
+  /** This component's most recently connected `ManualReview.status`, or
+   * `null` when no real review is connected yet — the review signal on its
+   * own, distinct from `readiness` (which already factors review presence
+   * into a broader blocking decision). Feeds the `review-recorded`
+   * evidence-history event kind. */
+  readonly latestReviewStatus: string | null;
 }
 
 export interface EvidenceHistorySnapshot {
@@ -416,17 +422,22 @@ export interface EvidenceHistoryTrend {
 }
 
 /**
- * A real, narrow first slice of "the exact causal event that made evidence
- * stale" (evidence-history follow-up backlog in TODO.md): derived by
- * diffing a component's readiness between two consecutive enriched scans on
- * the Rust side. Only `readiness-changed` exists today — manual-review and
- * release-decision event kinds need those features to exist first.
+ * "The exact causal event that made evidence stale" (evidence-history
+ * follow-up backlog in TODO.md): derived by diffing a component's
+ * readiness or most-recently-connected manual review status between two
+ * consecutive enriched scans on the Rust side. Two real event kinds exist:
+ * `readiness-changed` (previousReadiness/nextReadiness set,
+ * previousReviewStatus/nextReviewStatus null) and `review-recorded`
+ * (the reverse). A release-decision event kind still needs a persisted
+ * release decision for this workspace to diff against.
  */
 export interface ComponentEvidenceEvent {
   readonly occurredAt: string;
   readonly eventKind: string;
-  readonly previousReadiness: string;
-  readonly nextReadiness: string;
+  readonly previousReadiness: string | null;
+  readonly nextReadiness: string | null;
+  readonly previousReviewStatus: string | null;
+  readonly nextReviewStatus: string | null;
   readonly previousCommit: string | null;
   readonly nextCommit: string | null;
 }

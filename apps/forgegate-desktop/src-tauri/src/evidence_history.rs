@@ -23,6 +23,10 @@ const MIGRATIONS: &[Migration] = &[
         version: "0003_evidence_events",
         sql: include_str!("../migrations/0003_evidence_events.sql"),
     },
+    Migration {
+        version: "0004_review_events",
+        sql: include_str!("../migrations/0004_review_events.sql"),
+    },
 ];
 
 #[cfg(test)]
@@ -60,6 +64,12 @@ pub struct EnrichedComponentSnapshot {
     pub source_files: Vec<String>,
     pub readiness: String,
     pub finding_summary: serde_json::Value,
+    /// The status of this component's most recently connected `ManualReview`
+    /// (`.forgegate/manual-reviews/*.json`), or `None` when no real review is
+    /// connected yet. Distinct from `readiness`, which already factors a
+    /// review's presence/staleness into a broader blocking decision — this
+    /// is the review signal on its own, for `diff_component_review_status`.
+    pub latest_review_status: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -91,8 +101,10 @@ pub struct EvidenceHistoryTrend {
 pub struct ComponentEvidenceEvent {
     pub occurred_at: String,
     pub event_kind: String,
-    pub previous_readiness: String,
-    pub next_readiness: String,
+    pub previous_readiness: Option<String>,
+    pub next_readiness: Option<String>,
+    pub previous_review_status: Option<String>,
+    pub next_review_status: Option<String>,
     pub previous_commit: Option<String>,
     pub next_commit: Option<String>,
 }
@@ -144,6 +156,46 @@ fn diff_component_readiness(
         .collect()
 }
 
+/// A component whose most recently connected `ManualReview` status differs
+/// between two consecutive enriched scans — the second real event kind,
+/// unblocked now that the guided manual-review flow produces real staged
+/// and approved evidence (see P0.7's shell self-review for a concrete
+/// example). Mirrors `ComponentReadinessChange` exactly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ComponentReviewChange {
+    pub component_id: String,
+    pub previous_review_status: Option<String>,
+    pub next_review_status: String,
+}
+
+/// Pure diff, same shape and rules as `diff_component_readiness`: only
+/// emits a change when a review status is genuinely new information.
+/// Unlike readiness (which every component always has some value for), a
+/// component may go from "no review connected at all" to "reviewed" —
+/// that transition is real and reported (`previous_review_status: None`),
+/// distinct from a component with `next_review_status: None`, which is not
+/// reported at all (nothing changed: still no review).
+fn diff_component_review_status(
+    previous_review_status_by_component: &std::collections::HashMap<String, String>,
+    next: &[EnrichedComponentSnapshot],
+) -> Vec<ComponentReviewChange> {
+    next.iter()
+        .filter_map(|component| {
+            let next_review_status = component.latest_review_status.clone()?;
+            let previous_review_status =
+                previous_review_status_by_component.get(&component.component_id);
+            if previous_review_status == Some(&next_review_status) {
+                return None;
+            }
+            Some(ComponentReviewChange {
+                component_id: component.component_id.clone(),
+                previous_review_status: previous_review_status.cloned(),
+                next_review_status,
+            })
+        })
+        .collect()
+}
+
 pub fn component_evidence_events_from_env(
     workspace_path: &str,
     component_id: &str,
@@ -189,6 +241,8 @@ fn component_evidence_events(
                 evidence_events.event_kind,
                 evidence_events.previous_readiness,
                 evidence_events.next_readiness,
+                evidence_events.previous_review_status,
+                evidence_events.next_review_status,
                 evidence_events.previous_commit,
                 evidence_events.next_commit
             FROM evidence_events
@@ -206,8 +260,10 @@ fn component_evidence_events(
                     event_kind: row.get(1),
                     previous_readiness: row.get(2),
                     next_readiness: row.get(3),
-                    previous_commit: row.get(4),
-                    next_commit: row.get(5),
+                    previous_review_status: row.get(4),
+                    next_review_status: row.get(5),
+                    previous_commit: row.get(6),
+                    next_commit: row.get(7),
                 })
                 .collect()
         })
@@ -350,6 +406,22 @@ pub fn enrich_latest_scan_snapshot_if_configured(
         std::collections::HashMap::new()
     };
 
+    let previous_review_status_by_component = if let Some(previous_scan) = &previous_scan {
+        let previous_scan_id: i64 = previous_scan.get(0);
+        transaction
+            .query(
+                "SELECT component_id, latest_review_status FROM component_snapshots
+                WHERE scan_snapshot_id = $1 AND latest_review_status IS NOT NULL",
+                &[&previous_scan_id],
+            )
+            .map_err(|error| format!("Failed to read previous component review status: {error}"))?
+            .into_iter()
+            .map(|row| (row.get::<_, String>(0), row.get::<_, String>(1)))
+            .collect::<std::collections::HashMap<String, String>>()
+    } else {
+        std::collections::HashMap::new()
+    };
+
     transaction
         .execute(
             "DELETE FROM component_snapshots WHERE scan_snapshot_id = $1",
@@ -371,9 +443,10 @@ pub fn enrich_latest_scan_snapshot_if_configured(
                     lifecycle,
                     source_files,
                     readiness,
-                    finding_summary
+                    finding_summary,
+                    latest_review_status
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                 &[
                     &snapshot_id,
                     &component.component_id,
@@ -384,6 +457,7 @@ pub fn enrich_latest_scan_snapshot_if_configured(
                     &source_files,
                     &component.readiness,
                     &component.finding_summary,
+                    &component.latest_review_status,
                 ],
             )
             .map_err(|error| format!("Failed to insert component snapshot: {error}"))?;
@@ -418,6 +492,38 @@ pub fn enrich_latest_scan_snapshot_if_configured(
                     &previous_scan_id,
                     &change.previous_readiness,
                     &change.next_readiness,
+                    &previous_commit,
+                    &snapshot.source_commit,
+                ],
+            )
+            .map_err(|error| format!("Failed to record evidence event: {error}"))?;
+    }
+
+    let review_changes =
+        diff_component_review_status(&previous_review_status_by_component, &snapshot.components);
+
+    for change in &review_changes {
+        transaction
+            .execute(
+                "INSERT INTO evidence_events (
+                    workspace_id,
+                    component_id,
+                    scan_snapshot_id,
+                    previous_scan_snapshot_id,
+                    event_kind,
+                    previous_review_status,
+                    next_review_status,
+                    previous_commit,
+                    next_commit
+                )
+                VALUES ($1, $2, $3, $4, 'review-recorded', $5, $6, $7, $8)",
+                &[
+                    &workspace_id,
+                    &change.component_id,
+                    &snapshot_id,
+                    &previous_scan_id,
+                    &change.previous_review_status,
+                    &change.next_review_status,
                     &previous_commit,
                     &snapshot.source_commit,
                 ],
@@ -691,6 +797,18 @@ mod tests {
     }
 
     #[test]
+    fn migration_sql_adds_the_review_recorded_event_kind_and_its_own_columns() {
+        let sql = MIGRATIONS[3].sql;
+
+        assert!(sql.contains("ALTER COLUMN previous_readiness DROP NOT NULL"));
+        assert!(sql.contains("ALTER COLUMN next_readiness DROP NOT NULL"));
+        assert!(sql.contains("ADD COLUMN previous_review_status text"));
+        assert!(sql.contains("ADD COLUMN next_review_status text"));
+        assert!(sql.contains("ADD COLUMN latest_review_status text"));
+        assert!(sql.contains("'readiness-changed', 'review-recorded'"));
+    }
+
+    #[test]
     fn diff_component_readiness_reports_only_components_whose_readiness_actually_changed() {
         let mut previous = std::collections::HashMap::new();
         previous.insert("acme.button".to_string(), "clear".to_string());
@@ -706,6 +824,7 @@ mod tests {
                 source_files: Vec::new(),
                 readiness: "stale".to_string(),
                 finding_summary: serde_json::json!({}),
+                latest_review_status: None,
             },
             EnrichedComponentSnapshot {
                 component_id: "acme.card".to_string(),
@@ -716,6 +835,7 @@ mod tests {
                 source_files: Vec::new(),
                 readiness: "warning".to_string(),
                 finding_summary: serde_json::json!({}),
+                latest_review_status: None,
             },
         ];
 
@@ -743,9 +863,79 @@ mod tests {
             source_files: Vec::new(),
             readiness: "unknown".to_string(),
             finding_summary: serde_json::json!({}),
+            latest_review_status: None,
         }];
 
         assert!(diff_component_readiness(&previous, &next).is_empty());
+    }
+
+    fn review_snapshot(
+        component_id: &str,
+        latest_review_status: Option<&str>,
+    ) -> EnrichedComponentSnapshot {
+        EnrichedComponentSnapshot {
+            component_id: component_id.to_string(),
+            component_version: None,
+            framework: "web-components".to_string(),
+            adapter: "framework.web-components".to_string(),
+            lifecycle: "candidate".to_string(),
+            source_files: Vec::new(),
+            readiness: "unknown".to_string(),
+            finding_summary: serde_json::json!({}),
+            latest_review_status: latest_review_status.map(|status| status.to_string()),
+        }
+    }
+
+    #[test]
+    fn diff_component_review_status_reports_a_component_moving_from_no_review_to_reviewed() {
+        let previous = std::collections::HashMap::new();
+        let next = vec![review_snapshot("acme.button", Some("passed"))];
+
+        let changes = diff_component_review_status(&previous, &next);
+
+        assert_eq!(
+            changes,
+            vec![ComponentReviewChange {
+                component_id: "acme.button".to_string(),
+                previous_review_status: None,
+                next_review_status: "passed".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn diff_component_review_status_reports_a_changed_review_status() {
+        let mut previous = std::collections::HashMap::new();
+        previous.insert("acme.button".to_string(), "unknown".to_string());
+        let next = vec![review_snapshot("acme.button", Some("passed"))];
+
+        let changes = diff_component_review_status(&previous, &next);
+
+        assert_eq!(
+            changes,
+            vec![ComponentReviewChange {
+                component_id: "acme.button".to_string(),
+                previous_review_status: Some("unknown".to_string()),
+                next_review_status: "passed".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn diff_component_review_status_reports_nothing_when_status_is_unchanged() {
+        let mut previous = std::collections::HashMap::new();
+        previous.insert("acme.button".to_string(), "passed".to_string());
+        let next = vec![review_snapshot("acme.button", Some("passed"))];
+
+        assert!(diff_component_review_status(&previous, &next).is_empty());
+    }
+
+    #[test]
+    fn diff_component_review_status_reports_nothing_for_a_component_with_no_review_connected() {
+        let previous = std::collections::HashMap::new();
+        let next = vec![review_snapshot("acme.newly-scanned", None)];
+
+        assert!(diff_component_review_status(&previous, &next).is_empty());
     }
 
     #[test]
@@ -899,6 +1089,7 @@ mod tests {
                         "findings": [],
                         "reason": "ForgeGate has not derived per-component readiness findings yet."
                     }),
+                    latest_review_status: None,
                 },
                 EnrichedComponentSnapshot {
                     component_id: "acme.design-system.card".to_string(),
@@ -912,6 +1103,7 @@ mod tests {
                         "status": "not-evaluated",
                         "findings": []
                     }),
+                    latest_review_status: None,
                 },
             ],
         };
@@ -1006,6 +1198,7 @@ mod tests {
             source_files: vec!["src/button.ts".to_string()],
             readiness: readiness.to_string(),
             finding_summary: serde_json::json!({}),
+            latest_review_status: None,
         };
 
         record_scan_snapshot_if_configured("D:/repos/acme", &scan)
@@ -1055,8 +1248,8 @@ mod tests {
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_kind, "readiness-changed");
-        assert_eq!(events[0].previous_readiness, "clear");
-        assert_eq!(events[0].next_readiness, "stale");
+        assert_eq!(events[0].previous_readiness.as_deref(), Some("clear"));
+        assert_eq!(events[0].next_readiness.as_deref(), Some("stale"));
         assert_eq!(
             events[0].previous_commit.as_deref(),
             Some("a".repeat(40).as_str())

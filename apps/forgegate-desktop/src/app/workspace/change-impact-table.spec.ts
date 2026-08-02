@@ -121,7 +121,7 @@ describe('ChangeImpactTable', () => {
     await expectNoAccessibilityViolations(compiled);
   });
 
-  it("cross-references a changed file to its component's real stories, test runs, manual reviews, and documentation", async () => {
+  it("cross-references a changed file to its component's real stories, test runs, manual reviews, documentation, and release decisions", async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);
     workspaceService.customElementsManifest.set(oneComponentManifest);
@@ -164,6 +164,25 @@ describe('ChangeImpactTable', () => {
         commitOrFingerprint: 'a'.repeat(40),
       },
     ]);
+    workspaceService.releaseDecisionRecords.set([
+      {
+        id: 'acme-button-release-decision-workflow-record',
+        decisionId: 'acme-button-release-decision',
+        componentVersionId: 'acme.design-system.acme-button@1.0.0',
+        policyId: 'up.baseline',
+        policyVersion: '1.0.0',
+        outcome: 'authorized-candidate',
+        commit: 'a'.repeat(40),
+        decidedAt: '2026-01-01T00:00:00.000Z',
+        source: 'forgegate-export-evaluation',
+        authorization: 'human-approved',
+        approver: 'reviewer@example.com',
+        notRealApproval: false,
+        evidenceIds: [],
+        blockingFindingIds: [],
+        limitations: [],
+      },
+    ]);
     workspaceService.gitStatus.set({
       branch: 'main',
       commit: 'a'.repeat(40),
@@ -181,6 +200,9 @@ describe('ChangeImpactTable', () => {
     expect(row?.textContent).toContain('acme-button-unit');
     expect(row?.textContent).toContain('acme-button-keyboard-review');
     expect(row?.textContent).toContain('docs/button');
+    expect(row?.textContent).toContain(
+      'acme-button-release-decision-workflow-record',
+    );
 
     // The transitive nature of the cross-reference is disclosed, not implied
     // to be a precise dependency edge.
