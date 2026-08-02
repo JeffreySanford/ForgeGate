@@ -82,6 +82,8 @@ Local drafts may be cached in the optional PostgreSQL-backed history/workflow st
 - Proposal state is distinguishable from component manifest state.
 - No repository implementation files are created.
 
+**Implementation status**: a real, narrower first slice of `ComponentProposal` exists (`packages/core/manifest/src/lib/component-proposal.ts`), covering proposal identity/lifecycle, blueprint reference, target definition, purpose, native semantic confirmation, contract draft, required states, variant selections, anatomy parts, and token-slot mappings — staged/approved into `.forgegate/proposals/<proposal-id>.yaml` through the same discipline every other domain write uses. Content fixtures, coverage requirements, findings, exceptions, generation plan metadata, and revision history are real, named gaps, not yet built.
+
 ## Workstream 2 — Blueprint authoring metadata
 
 ### Outcome
@@ -147,6 +149,8 @@ The Angular desktop application provides an accessible Studio workspace.
 - Proposal validation is readable by a screen reader.
 - Navigation warns before discarding unsaved local changes.
 
+**Implementation status**: `/studio` exists with a real blueprint catalog and a proposal form (`apps/forgegate-desktop/src/app/studio/studio-page.ts`). `/studio/new`, a separate proposal-inventory view, three-region layout, undo/redo, and revision comparison are not built — today the form is a single scrollable panel under the selected blueprint, and there is exactly one proposal draft in flight at a time.
+
 ## Workstream 4 — Button contract editor
 
 ### Outcome
@@ -170,6 +174,8 @@ A designer can define one Button proposal without editing YAML.
 - Invalid combinations are explained.
 - Changes update dependent state and coverage requirements.
 - The proposal can be exported and reopened without loss.
+
+**Implementation status**: name, purpose, package path, adapter, and native semantic confirmation are real form fields. The portable contract (inputs/outputs/content/public methods/style parts) is editable as a generic add/remove/edit member list, not yet Button-specific inspector controls (appearance/tone/size/density/width/icon placement/disabled/loading/type). Friendly labels mapped from the blueprint's own `inspectorGroups`, contextual rationale, duplicate-component warnings, invalid-combination explanations, and organization-policy inheritance are not built.
 
 ## Workstream 5 — State and variant matrix
 
@@ -197,6 +203,8 @@ Designers can visually define and inspect component coverage.
 - Large matrices remain navigable.
 - Matrix data is portable in the proposal document.
 
+**Implementation status**: required states default from the blueprint and are toggleable, plus a free-text "add a custom state" affordance; each blueprint inspector field gets one text input for its chosen variant value. This is a flat portable list (`requiredStates`, `variantSelections` on `ComponentProposal`), not a matrix — no blueprint/organization/designer indicator distinction, unsupported-combination exclusion rationale, per-cell story/test/preview/documentation markers, or preview-context selection on cell click.
+
 ## Workstream 6 — Anatomy editor
 
 ### Outcome
@@ -220,6 +228,8 @@ Designers can define meaningful component parts and public extensibility.
 - Preview highlighting has a text equivalent.
 - Public exposure requires explicit confirmation.
 - Anatomy changes update token and documentation requirements.
+
+**Implementation status**: a real, flat add/remove/edit list of named anatomy parts (id/label/required/public-slot/public-part) exists on `ComponentProposal.anatomyParts`. No anatomy tree, preview overlay, part type/role, accessible-relationship graph, token-slot association per part, or public-API cost warning is built yet.
 
 ## Workstream 7 — Token mapping
 
@@ -246,6 +256,8 @@ A designer can map required component slots to approved DTCG tokens.
 - Unresolved aliases remain visible.
 - A hard-coded value cannot masquerade as a governed token.
 - Token mappings can be used by the generation adapter.
+
+**Implementation status**: `ComponentProposal.tokenMappings` maps each of the blueprint's own required token slots to a real, discovered DTCG token path (`WorkspaceService.designTokens`), offered via a `<datalist>` of every token this workspace found. No token browser, search/filtering, alias-chain display, theme/brand mode awareness, contrast implications, or deprecated/missing-token warnings exist — a mapping's chosen path is not yet validated against the slot's declared `types`.
 
 ## Workstream 8 — Behavior and accessibility editor
 
