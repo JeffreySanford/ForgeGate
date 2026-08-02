@@ -384,6 +384,61 @@ describe('StudioPage', () => {
     await expectNoAccessibilityViolations(compiled);
   });
 
+  it('has no automated accessibility violations with every section populated', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    workspace.designTokens.set([
+      { path: 'primitive.color.blue.50', type: 'color', value: '#eef' },
+    ]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const clickButtonWithText = (text: string) => {
+      (
+        Array.from(compiled.querySelectorAll('button')).find((b) =>
+          b.textContent?.includes(text),
+        ) as HTMLButtonElement
+      ).click();
+    };
+    const setInputValue = (selector: string, value: string) => {
+      const input = compiled.querySelector(selector) as
+        HTMLInputElement | HTMLTextAreaElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    };
+
+    clickButtonWithText('Add input');
+    fixture.detectChanges();
+    setInputValue('#inputs-name-0', 'icon');
+
+    setInputValue('#proposal-custom-state', 'org-required-state');
+    fixture.detectChanges();
+    clickButtonWithText('Add state');
+
+    setInputValue('#variant-contract\\.properties\\.appearance', 'outlined');
+
+    clickButtonWithText('Add anatomy part');
+    fixture.detectChanges();
+    setInputValue('#anatomy-id-0', 'leading-icon');
+    setInputValue('#anatomy-label-0', 'Leading icon');
+
+    setInputValue(
+      '#token-mapping-root\\.background',
+      'primitive.color.blue.50',
+    );
+    fixture.detectChanges();
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
   it('"Choose a different blueprint" clears the selection', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);
