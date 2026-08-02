@@ -1,4 +1,4 @@
-import { parseBlueprint } from './blueprint-yaml';
+import { parseBlueprint, serializeBlueprint } from './blueprint-yaml';
 
 const validYaml = `
 id: blueprint.button
@@ -47,9 +47,7 @@ describe('parseBlueprint', () => {
   });
 
   it('rejects malformed YAML', () => {
-    expect(() => parseBlueprint('id: [unterminated')).toThrow(
-      'not valid YAML',
-    );
+    expect(() => parseBlueprint('id: [unterminated')).toThrow('not valid YAML');
   });
 
   it('rejects YAML that parses but fails the schema', () => {
@@ -61,5 +59,16 @@ describe('parseBlueprint', () => {
   it('rejects an inspector field with an unknown control type', () => {
     const invalid = validYaml.replace('control: segmented', 'control: slider');
     expect(() => parseBlueprint(invalid)).toThrow('does not match the schema');
+  });
+});
+
+describe('serializeBlueprint / parseBlueprint round-trip', () => {
+  it('parses back to an equivalent blueprint after serializing', () => {
+    const original = parseBlueprint(validYaml);
+
+    const yamlText = serializeBlueprint(original);
+    const parsed = parseBlueprint(yamlText);
+
+    expect(parsed).toEqual(original);
   });
 });

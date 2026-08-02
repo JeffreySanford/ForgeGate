@@ -72,10 +72,7 @@ export interface EvidenceAttachmentReference {
     | 'blocked-binary-redaction'
     | 'copied-redacted';
   readonly sourceClass:
-    | 'workspace-relative'
-    | 'absolute-path'
-    | 'temporary-path'
-    | 'unknown';
+    'workspace-relative' | 'absolute-path' | 'temporary-path' | 'unknown';
   readonly mediaClass: 'text' | 'binary-or-archive' | 'unknown';
   readonly consentStatus: 'granted' | 'not-requested';
   readonly copyBlocker?: string;
@@ -270,7 +267,9 @@ function classifyAttachmentMedia(
   ) {
     return 'binary-or-archive';
   }
-  if (/\.(txt|log|tap|json|jsonl|xml|html?|md|csv|tsv|yaml|yml)$/i.test(lower)) {
+  if (
+    /\.(txt|log|tap|json|jsonl|xml|html?|md|csv|tsv|yaml|yml)$/i.test(lower)
+  ) {
     return 'text';
   }
   return 'unknown';
@@ -711,7 +710,7 @@ export async function buildEvidenceExport(
   };
 }
 
-function sanitizeForFilename(value: string): string {
+export function sanitizeForFilename(value: string): string {
   return value.replace(/[^a-zA-Z0-9.-]+/g, '-');
 }
 
@@ -826,9 +825,7 @@ function renderEvidenceReport(input: {
                 .map((observation) =>
                   [
                     observation.label,
-                    observation.severity
-                      ? `(${observation.severity})`
-                      : '',
+                    observation.severity ? `(${observation.severity})` : '',
                     observation.detail,
                   ]
                     .filter(Boolean)
@@ -926,7 +923,9 @@ function renderEvidenceReport(input: {
         .join('')}</tbody>
     </table>
     <p class="not-connected">${escapeHtml(attachmentIndex.limitations.join(' '))}</p>`
-    : notConnected('No raw artifact refs are connected for attachment capture.');
+    : notConnected(
+        'No raw artifact refs are connected for attachment capture.',
+      );
 
   const redactionSection = `<table>
       <caption>Redaction posture</caption>
@@ -1057,7 +1056,7 @@ ${Object.entries(excludes)
 `;
 }
 
-async function sha256Hex(text: string): Promise<string> {
+export async function sha256Hex(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))

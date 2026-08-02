@@ -505,6 +505,82 @@ describe('StudioPage', () => {
     await expectNoAccessibilityViolations(compiled);
   });
 
+  it('exports a real handoff package after a proposal is approved, and never before', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    invokeMock.mockResolvedValueOnce({
+      stagingId: 'staging-1',
+      subdirectory: 'proposals',
+      filename: 'proposal.acme-icon-button-123.yaml',
+      previousContent: null,
+      newContent: 'identity:\n  id: proposal.acme-icon-button-123\n',
+    });
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).not.toContain('Hand off to engineering');
+
+    const setInputValue = (selector: string, value: string) => {
+      const input = compiled.querySelector(selector) as
+        HTMLInputElement | HTMLTextAreaElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    };
+    setInputValue('#proposal-component-name', 'acme-icon-button');
+    setInputValue('#proposal-package-path', 'packages/acme-icon-button');
+    setInputValue('#proposal-adapter', 'framework.web-components');
+    fixture.detectChanges();
+
+    const createButton = Array.from(compiled.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Create proposal'),
+    ) as HTMLButtonElement;
+    createButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).not.toContain('Hand off to engineering');
+
+    invokeMock.mockResolvedValueOnce(
+      '.forgegate/proposals/proposal.acme-icon-button-123.yaml',
+    );
+    const approveButton = Array.from(compiled.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Approve'),
+    ) as HTMLButtonElement;
+    approveButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('Hand off to engineering');
+    expect(compiled.textContent).toContain(
+      'No component, story, test, or manifest exists yet',
+    );
+
+    const handoffSpy = vi
+      .spyOn(workspace, 'exportProposalHandoff')
+      .mockResolvedValue();
+    const handoffButton = Array.from(compiled.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Export handoff package'),
+    ) as HTMLButtonElement;
+    handoffButton.click();
+    fixture.detectChanges();
+
+    expect(handoffSpy).toHaveBeenCalledTimes(1);
+    expect(handoffSpy.mock.calls[0]?.[0].target.componentName).toBe(
+      'acme-icon-button',
+    );
+    expect(handoffSpy.mock.calls[0]?.[1].id).toBe('blueprint.button');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
   it('has no automated accessibility violations with every section populated', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);

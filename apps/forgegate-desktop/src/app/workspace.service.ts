@@ -68,6 +68,7 @@ import {
   buildEvidenceExport,
   findingsFromBlockingReasons,
 } from './evidence-export';
+import { buildProposalHandoffExport } from './studio/proposal-handoff-export';
 import {
   loadVerifiedStarlightEvidencePackageRecords,
   type EvidencePackageCopiedAttachmentFile,
@@ -718,6 +719,20 @@ export class WorkspaceService {
   readonly approveProposalRunning = signal(false);
   readonly approveProposalError = signal<string | null>(null);
   readonly saveProposalResult = signal<{ readonly path: string } | null>(null);
+
+  /**
+   * P2 first-slice item 10, "Hand off to engineering...": exports an
+   * approved `ComponentProposal` as a real, checksum-verifiable package an
+   * engineer can pick up — the one real slice of that item buildable
+   * before Workstream 10's generation pipeline exists. See
+   * `buildProposalHandoffExport`'s doc comment for what "hand off" does
+   * and does not mean yet.
+   */
+  readonly proposalHandoffExportRunning = signal(false);
+  readonly proposalHandoffExportResult = signal<{
+    readonly directoryPath: string;
+  } | null>(null);
+  readonly proposalHandoffExportError = signal<string | null>(null);
 
   starlightDefaultTemplateFor(
     manifest: ComponentManifest,
@@ -2995,6 +3010,50 @@ export class WorkspaceService {
       });
     } finally {
       this.stagedProposal.set(null);
+    }
+  }
+
+  /**
+   * Exports an approved `ComponentProposal` as a real handoff package to a
+   * directory the reviewer picks via a native folder dialog. A no-op if an
+   * export is already running. Cancelling the folder dialog is a quiet
+   * no-op, matching `exportEvidencePackage`'s convention.
+   */
+  async exportProposalHandoff(
+    proposal: ComponentProposal,
+    blueprint: Blueprint,
+  ): Promise<void> {
+    if (this.proposalHandoffExportRunning()) {
+      return;
+    }
+    this.proposalHandoffExportRunning.set(true);
+    this.proposalHandoffExportError.set(null);
+    this.proposalHandoffExportResult.set(null);
+    try {
+      const parentDirectory = await this.invoke<string | null>(
+        'pick_export_directory',
+      );
+      if (!parentDirectory) {
+        return;
+      }
+      const { directoryName, files } = await buildProposalHandoffExport(
+        proposal,
+        blueprint,
+        new Date().toISOString(),
+      );
+      const directoryPath = await this.invoke<string>(
+        'write_evidence_package',
+        {
+          parentDirectory,
+          directoryName,
+          files,
+        },
+      );
+      this.proposalHandoffExportResult.set({ directoryPath });
+    } catch (error) {
+      this.proposalHandoffExportError.set(String(error));
+    } finally {
+      this.proposalHandoffExportRunning.set(false);
     }
   }
 

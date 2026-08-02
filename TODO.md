@@ -418,7 +418,7 @@ Audited against real code before starting P2 work, not assumed:
 - [ ] Review proposed implementation, stories, tests, manifest, tokens, procedures, and documentation.
 - [ ] Approve selected writes.
 - [ ] Run targeted validation.
-- [ ] Hand off to engineering and open the resulting component assurance record.
+- [X} Hand off to engineering and open the resulting component assurance record. **Real for the "hand off" half — "open the resulting component assurance record" remains genuinely blocked, since there is no generated component for a record to describe.** An approved proposal can now be exported as a real, self-contained, checksum-verifiable handoff package (`apps/forgegate-desktop/src/app/studio/proposal-handoff-export.ts`, `buildProposalHandoffExport`), mirroring `buildEvidenceExport`'s real shape (`handoff-manifest.json` + checksummed `proposal.yaml`/`blueprint.yaml` + `checksums.sha256`) scoped to what a proposal handoff actually needs. `handoff-manifest.json`'s `generationStatus` field says explicitly that no repository component, story, test, or manifest exists yet — never implying otherwise. `StudioPage` shows a real "Hand off to engineering" section only after a proposal is actually approved (not before), wired through `WorkspaceService.exportProposalHandoff` reusing the existing `pick_export_directory`/`write_evidence_package` Tauri commands — no new Rust needed. New `serializeBlueprint` (`packages/core/manifest`) enables a lossless blueprint round-trip for the export. 5 new pure-module tests, 4 new service-level tests (mirroring `exportEvidencePackage`'s), and 1 new `studio-page.spec.ts` test (spying on the service call, matching this codebase's established pattern for async-export UI wiring).
 
 ---
 

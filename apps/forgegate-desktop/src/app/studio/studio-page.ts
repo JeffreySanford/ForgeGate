@@ -112,6 +112,12 @@ export class StudioPage {
 
   protected readonly previewedStateInput = signal<string | null>(null);
 
+  /** The proposal just approved into `.forgegate/proposals/`, kept only so
+   * the "Hand off to engineering" action below has something real to
+   * export — cleared on a fresh blueprint selection. */
+  protected readonly approvedProposalForHandoff =
+    signal<ComponentProposal | null>(null);
+
   protected readonly previewTokenValues = computed(() =>
     computePreviewTokenValues(
       this.tokenMappingsInput(),
@@ -157,6 +163,7 @@ export class StudioPage {
     this.anatomyPartsInput.set([]);
     this.tokenMappingsInput.set([]);
     this.previewedStateInput.set(null);
+    this.approvedProposalForHandoff.set(null);
   }
 
   protected setPreviewedState(state: string): void {
@@ -310,5 +317,21 @@ export class StudioPage {
       tokenMappings: this.tokenMappingsInput(),
     };
     await this.workspace.stageProposal(proposal);
+  }
+
+  protected async approveProposal(proposal: ComponentProposal): Promise<void> {
+    await this.workspace.approveStagedProposal();
+    if (!this.workspace.approveProposalError()) {
+      this.approvedProposalForHandoff.set(proposal);
+    }
+  }
+
+  protected async handOffToEngineering(): Promise<void> {
+    const proposal = this.approvedProposalForHandoff();
+    const blueprint = this.selectedBlueprint();
+    if (!proposal || !blueprint) {
+      return;
+    }
+    await this.workspace.exportProposalHandoff(proposal, blueprint);
   }
 }

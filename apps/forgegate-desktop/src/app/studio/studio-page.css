@@ -74,7 +74,8 @@
 }
 
 .studio-page__proposal,
-.studio-page__staged-proposal {
+.studio-page__staged-proposal,
+.studio-page__handoff {
   margin-top: var(--fg-space-4);
   padding: var(--fg-space-3);
   border-left: 3px solid var(--fg-color-border-strong);

@@ -531,7 +531,7 @@
       </dl>
       <pre class="studio-page__diff">{{ staged.write.newContent }}</pre>
       <div class="studio-page__staged-actions">
-        <button type="button" (click)="workspace.approveStagedProposal()">
+        <button type="button" (click)="approveProposal(staged.proposal)">
           Approve
         </button>
         <button type="button" (click)="workspace.discardStagedProposal()">
@@ -544,6 +544,30 @@
     </section>
     } @if (workspace.saveProposalResult(); as result) {
     <p role="status">Proposal saved to <code>{{ result.path }}</code>.</p>
+    } @if (approvedProposalForHandoff(); as approved) {
+    <section
+      class="studio-page__handoff fg-panel"
+      aria-labelledby="handoff-title"
+    >
+      <h3 id="handoff-title">Hand off to engineering</h3>
+      <p>
+        Exports this approved proposal and its blueprint as a real,
+        checksum-verifiable package — the proposal decision record only.
+        <strong>No component, story, test, or manifest exists yet</strong>;
+        opening the resulting component assurance record still requires the
+        generation pipeline this Studio does not have.
+      </p>
+      <button type="button" (click)="handOffToEngineering()">
+        Export handoff package…
+      </button>
+      @if (workspace.proposalHandoffExportResult(); as result) {
+      <p role="status">
+        Handoff package saved to <code>{{ result.directoryPath }}</code>.
+      </p>
+      } @if (workspace.proposalHandoffExportError(); as error) {
+      <p role="alert">Could not export the handoff package: {{ error }}</p>
+      }
+    </section>
     }
 
     <button type="button" (click)="clearSelection()">

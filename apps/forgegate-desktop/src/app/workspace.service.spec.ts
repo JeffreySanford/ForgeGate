@@ -1844,6 +1844,135 @@ describe('WorkspaceService', () => {
     });
   });
 
+  describe('exportProposalHandoff', () => {
+    const blueprint = {
+      id: 'blueprint.button',
+      version: '1.0.0',
+      name: 'Button',
+      purpose: 'Trigger a primary or secondary application action.',
+      preferredNativeElement: 'button',
+      requiredStates: [
+        'default',
+        'hover',
+        'focus-visible',
+        'active',
+        'disabled',
+      ],
+      inspectorGroups: [],
+      tokenSlots: [],
+    };
+    const proposal = {
+      identity: {
+        id: 'proposal.acme-icon-button-123',
+        status: 'draft' as const,
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z',
+      },
+      blueprint: { blueprintId: 'blueprint.button', blueprintVersion: '1.0.0' },
+      target: {
+        componentName: 'acme-icon-button',
+        packagePath: 'packages/acme-icon-button',
+        adapter: 'framework.web-components',
+      },
+      purpose: 'Trigger a compact, icon-only variant of the primary button.',
+      nativeSemanticConfirmed: true,
+      contract: {
+        inputs: [],
+        outputs: [],
+        content: [],
+        publicMethods: [],
+        styleParts: [],
+      },
+      requiredStates: [
+        'default',
+        'hover',
+        'focus-visible',
+        'active',
+        'disabled',
+      ],
+      variantSelections: [],
+      anatomyParts: [],
+      tokenMappings: [],
+    };
+
+    it('does nothing if an export is already running', async () => {
+      service.proposalHandoffExportRunning.set(true);
+
+      await service.exportProposalHandoff(proposal, blueprint);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+
+    it('is a quiet no-op when the user cancels the folder dialog', async () => {
+      invokeMock.mockResolvedValueOnce(null);
+
+      await service.exportProposalHandoff(proposal, blueprint);
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(invokeMock).toHaveBeenCalledWith('pick_export_directory');
+      expect(service.proposalHandoffExportResult()).toBeNull();
+      expect(service.proposalHandoffExportError()).toBeNull();
+      expect(service.proposalHandoffExportRunning()).toBe(false);
+    });
+
+    it('writes a real, checksum-verifiable handoff package once a destination is chosen', async () => {
+      invokeMock
+        .mockResolvedValueOnce('/home/user/handoffs')
+        .mockResolvedValueOnce(
+          '/home/user/handoffs/acme-icon-button-handoff-proposal.acme-icon-button-123',
+        );
+
+      await service.exportProposalHandoff(proposal, blueprint);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'pick_export_directory');
+      const [secondCallName, secondCallArgs] = invokeMock.mock.calls[1] as [
+        string,
+        {
+          parentDirectory: string;
+          directoryName: string;
+          files: Record<string, string>;
+        },
+      ];
+      expect(secondCallName).toBe('write_evidence_package');
+      expect(secondCallArgs.parentDirectory).toBe('/home/user/handoffs');
+      expect(secondCallArgs.directoryName).toBe(
+        'acme-icon-button-handoff-proposal.acme-icon-button-123',
+      );
+      expect(secondCallArgs.files['proposal.yaml']).toContain(
+        'acme-icon-button-123',
+      );
+      expect(secondCallArgs.files['blueprint.yaml']).toContain(
+        'blueprint.button',
+      );
+      const manifest = JSON.parse(
+        secondCallArgs.files['handoff-manifest.json'] ?? '{}',
+      );
+      expect(manifest.generationStatus).toContain('not-generated');
+      expect(secondCallArgs.files['checksums.sha256']).toContain(
+        'proposal.yaml',
+      );
+      expect(service.proposalHandoffExportResult()).toEqual({
+        directoryPath:
+          '/home/user/handoffs/acme-icon-button-handoff-proposal.acme-icon-button-123',
+      });
+      expect(service.proposalHandoffExportRunning()).toBe(false);
+    });
+
+    it('reports a real error when writing the handoff package fails', async () => {
+      invokeMock
+        .mockResolvedValueOnce('/home/user/handoffs')
+        .mockRejectedValueOnce(new Error('permission denied'));
+
+      await service.exportProposalHandoff(proposal, blueprint);
+
+      expect(service.proposalHandoffExportError()).toContain(
+        'permission denied',
+      );
+      expect(service.proposalHandoffExportResult()).toBeNull();
+      expect(service.proposalHandoffExportRunning()).toBe(false);
+    });
+  });
+
   describe('filesystem watch', () => {
     async function selectWithScanFixture(): Promise<void> {
       invokeMock

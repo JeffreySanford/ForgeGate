@@ -413,6 +413,8 @@ Design and engineering can review the same structured proposal.
 - Accepted differences update the contract deliberately.
 - Unresolved drift becomes a visible finding.
 
+**Implementation status**: the "pull-request-friendly export" deliverable has a real first slice — an approved proposal exports as a checksum-verifiable handoff package (`proposal-handoff-export.ts`) an engineer can pick up outside the app. Review checkpoints, field-level comments, open questions, requested changes, approval records, and proposal-to-implementation comparison are not built — there is no generated implementation yet for a comparison to run against.
+
 ## Workstream 14 — Assurance transition
 
 ### Outcome

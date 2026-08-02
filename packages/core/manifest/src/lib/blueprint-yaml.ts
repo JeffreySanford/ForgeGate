@@ -1,5 +1,5 @@
 import { createValidator, describeErrors } from '@forgegate/core-domain';
-import { parse } from 'yaml';
+import { parse, stringify } from 'yaml';
 import type { Blueprint } from './blueprint';
 import { blueprintSchema } from './schemas';
 
@@ -19,8 +19,15 @@ export function parseBlueprint(yamlText: string): Blueprint {
   }
 
   if (!validate(parsed)) {
-    throw new Error(`Blueprint does not match the schema: ${describeErrors(validate)}`);
+    throw new Error(
+      `Blueprint does not match the schema: ${describeErrors(validate)}`,
+    );
   }
 
   return parsed;
+}
+
+/** Serializes a `Blueprint` back to the YAML `.forgegate/blueprints/<blueprint-id>.yaml` stores — a lossless round-trip since `blueprintSchema` is `additionalProperties: false`. */
+export function serializeBlueprint(blueprint: Blueprint): string {
+  return stringify(blueprint);
 }
