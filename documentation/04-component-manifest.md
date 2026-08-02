@@ -266,6 +266,13 @@ Publication mappings identify Storybook, Starlight, Zeroheight, and future docum
 
 Policy inheritance allows a component to receive organization, workspace, library, package, and blueprint rules while documenting explicit overrides.
 
+Current implementation note: a component manifest may author `policyId` and
+`policyVersion`. A repository can now map that pair to a concrete
+workspace-relative policy document through `.forgegate/config.yaml`
+`policyMappings`, allowing evidence export and Starlight report data to snapshot
+the policy document's provenance. The release evaluator still uses ForgeGate's
+narrow built-in rules until a fuller external policy engine exists.
+
 ## Adapter extensions
 
 Framework-specific extensions should live under namespaced keys:

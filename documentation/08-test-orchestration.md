@@ -91,6 +91,18 @@ The desktop UI should display the resolved command, arguments, and working direc
 
 **Implementation status.** The real configuration shape is narrower than the structured example above: `.forgegate/config.yaml`'s real `commandMappings` is a flat `Record<string, string>` (mapping name → a raw shell-style command string, parsed by `parseWorkspaceCommandMapping`), not a per-gate object with its own `cwd`/`timeoutSeconds`. Three real mapping names exist today for actually _running_ a gate — `commandMappings.unitTest`, `lint`, and `build` (`process-gate.ts`'s `PROCESS_GATE_DEFINITIONS`, one generalized definition all three read) — wired to `WorkspaceService.runGate`, invoked from a component's own assurance record ("Run a gate" on `ComponentDetailPage`), scoped to that component's real `packagePath` as the working directory. `storybookTest`/`playwright`/etc. from the example are aspirational; only `unitTest`/`lint`/`build` and `starlightBuild` (a Starlight-specific validation step, not a gate) are real mapping names anywhere in the codebase. The desktop UI does display the resolved command before running, per the requirement above — the "Run a gate" caveat text names the exact config key each button reads.
 
+The same repository config now also supports `policyMappings`, an explicit
+mapping from `policyId` + `policyVersion` to a workspace-relative policy
+document path. That mapping feeds evidence export and Starlight policy
+provenance; it is not a command and does not execute anything.
+
+```yaml
+policyMappings:
+  - policyId: acme.baseline
+    policyVersion: 1.0.0
+    path: .forgegate/policies/acme-baseline.yaml
+```
+
 ## Command lifecycle
 
 ```text

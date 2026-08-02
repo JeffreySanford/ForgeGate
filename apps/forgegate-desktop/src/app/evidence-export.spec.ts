@@ -597,6 +597,56 @@ describe('buildEvidenceExport', () => {
     );
   });
 
+  it('includes an external policy document snapshot in policy-snapshot.json and report.html', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+      repositoryCommit: 'a'.repeat(40),
+      externalPolicyDocument: {
+        id: 'acme.baseline-2.1.0-policy-document',
+        policyId: 'acme.baseline',
+        policyVersion: '2.1.0',
+        source: 'repository-policy-document',
+        path: '.forgegate/policies/acme-baseline.yaml',
+        format: 'yaml',
+        loadedAt: '2026-01-01T00:00:00.000Z',
+        commit: 'a'.repeat(40),
+        checksumSha256: 'b'.repeat(64),
+        sizeBytes: 42,
+        excerpt: 'id: acme.baseline',
+        limitations: ['Snapshot only.'],
+      },
+    });
+
+    const policySnapshot = JSON.parse(
+      requireFile(result, 'policy-snapshot.json'),
+    );
+    expect(policySnapshot.externalPolicyDocument).toMatchObject({
+      path: '.forgegate/policies/acme-baseline.yaml',
+      checksumSha256: 'b'.repeat(64),
+    });
+    expect(policySnapshot.limitations.join(' ')).toContain(
+      'external repository policy document is snapshotted',
+    );
+    const report = requireFile(result, 'report.html');
+    expect(report).toContain('External policy document');
+    expect(report).toContain('.forgegate/policies/acme-baseline.yaml');
+    expect(report).toContain('b'.repeat(64));
+  });
+
   it('explains why no policy snapshot is written without a commit', async () => {
     const manifest = createComponentManifest({
       id: 'acme.lib.button',

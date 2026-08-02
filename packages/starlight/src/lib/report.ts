@@ -97,6 +97,20 @@ export interface ForgeGatePolicySnapshotReport {
   readonly manifestPath: string;
   readonly status: 'authored-reference';
   readonly detail: string;
+  readonly externalPolicyDocument?: {
+    readonly id: string;
+    readonly policyId: string;
+    readonly policyVersion: string;
+    readonly source: 'repository-policy-document';
+    readonly path: string;
+    readonly format: 'yaml' | 'json' | 'markdown' | 'text';
+    readonly loadedAt: string;
+    readonly commit: string | null;
+    readonly checksumSha256: string;
+    readonly sizeBytes: number;
+    readonly excerpt: string;
+    readonly limitations: readonly string[];
+  };
 }
 
 export interface ForgeGateDocumentationStatusReport {

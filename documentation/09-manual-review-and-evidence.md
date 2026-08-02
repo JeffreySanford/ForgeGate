@@ -234,6 +234,13 @@ Required action:
 > evidence ids, finding ids, evaluated rule outcomes, and explicit limitations.
 > It does not load an external policy document, compliance control catalog,
 > expiry calendar, or organization-specific waiver rules.
+> ForgeGate can now load a repository-owned external policy/ruleset document
+> through `.forgegate/config.yaml` `policyMappings` when the component's
+> `policyId` and `policyVersion` match. The snapshot records path, format,
+> size, SHA-256, excerpt, commit, and limitations in `policy-snapshot.json`
+> and the HTML report. This is policy-document provenance, not a complete
+> external policy evaluator; the current release decision still uses the
+> built-in rules named in this snapshot.
 >
 > **Attachments and redaction.** ForgeGate now writes `attachments/index.json`
 > when connected evidence records carry a real raw artifact reference. That file
@@ -246,6 +253,12 @@ Required action:
 > `attachments/files/*.txt` after narrow text redaction. Binary files, absolute
 > paths, temporary command artifacts, unreadable refs, and richer image/trace
 > redaction remain future work.
+>
+> **Next implementation order.** Richer evidence-bundle loading comes next for
+> Starlight/export, then fuller
+> Starlight plugin discovery and registration. Broad binary/temp attachment
+> copying follows only after consent, size-limit, retention, and redaction rules
+> are designed.
 
 Suggested export:
 

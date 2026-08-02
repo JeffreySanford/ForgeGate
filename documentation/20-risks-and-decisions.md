@@ -280,7 +280,7 @@ As of 2026-07-22, none of these have occurred. Product interviews and a working 
 
 ## Open architecture decisions
 
-- SQLite access library
+- PostgreSQL deployment posture outside development Docker
 - JSON Schema validator
 - YAML library and comment preservation
 - AST strategy per framework

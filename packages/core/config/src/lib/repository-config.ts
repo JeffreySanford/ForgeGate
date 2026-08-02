@@ -23,6 +23,12 @@ export interface DocumentationMappings {
   readonly storybook?: { readonly configDir: string };
 }
 
+export interface PolicyMapping {
+  readonly policyId: string;
+  readonly policyVersion: string;
+  readonly path: string;
+}
+
 /** Opaque per-adapter configuration blobs; each adapter owns and validates its own shape. */
 export type AdapterConfiguration = Readonly<Record<string, unknown>>;
 
@@ -32,6 +38,7 @@ export interface RepositoryConfig {
   readonly packageMappings: readonly PackageMapping[];
   readonly commandMappings: CommandMappings;
   readonly documentationMappings: DocumentationMappings;
+  readonly policyMappings: readonly PolicyMapping[];
   readonly adapterConfiguration: AdapterConfiguration;
   readonly ignorePatterns: readonly string[];
   /**
@@ -49,6 +56,7 @@ export function createRepositoryConfig(input: {
   packageMappings?: readonly PackageMapping[];
   commandMappings?: CommandMappings;
   documentationMappings?: DocumentationMappings;
+  policyMappings?: readonly PolicyMapping[];
   adapterConfiguration?: AdapterConfiguration;
   ignorePatterns?: readonly string[];
   safeWriteLocations: readonly string[];
@@ -64,6 +72,7 @@ export function createRepositoryConfig(input: {
     packageMappings: input.packageMappings ?? [],
     commandMappings: input.commandMappings ?? {},
     documentationMappings: input.documentationMappings ?? {},
+    policyMappings: input.policyMappings ?? [],
     adapterConfiguration: input.adapterConfiguration ?? {},
     ignorePatterns: input.ignorePatterns ?? [],
     safeWriteLocations: input.safeWriteLocations,

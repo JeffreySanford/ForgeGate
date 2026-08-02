@@ -23,6 +23,17 @@ const packageMappingSchema = {
   additionalProperties: false,
 } as const;
 
+const policyMappingSchema = {
+  type: 'object',
+  properties: {
+    policyId: { type: 'string', minLength: 1 },
+    policyVersion: { type: 'string', minLength: 1 },
+    path: { type: 'string', minLength: 1 },
+  },
+  required: ['policyId', 'policyVersion', 'path'],
+  additionalProperties: false,
+} as const;
+
 export const repositoryConfigSchema = {
   $id: 'https://forgegate.dev/schemas/repository-config.schema.json',
   type: 'object',
@@ -31,6 +42,7 @@ export const repositoryConfigSchema = {
     projectMappings: { type: 'array', items: projectMappingSchema },
     packageMappings: { type: 'array', items: packageMappingSchema },
     commandMappings: { type: 'object', additionalProperties: { type: 'string' } },
+    policyMappings: { type: 'array', items: policyMappingSchema },
     documentationMappings: {
       type: 'object',
       properties: {
@@ -64,6 +76,7 @@ export const repositoryConfigSchema = {
     'projectMappings',
     'packageMappings',
     'commandMappings',
+    'policyMappings',
     'documentationMappings',
     'adapterConfiguration',
     'ignorePatterns',

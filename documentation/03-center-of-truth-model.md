@@ -181,7 +181,7 @@ Critical records should be exportable as:
 - Evidence attachments
 - Checksums
 
-A release evidence package must remain understandable after the local SQLite cache is deleted.
+A release evidence package must remain understandable without ForgeGate's optional PostgreSQL history store.
 
 ## Conflict handling
 

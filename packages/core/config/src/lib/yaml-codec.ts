@@ -19,6 +19,8 @@ export function parseRepositoryConfig(yamlText: string): RepositoryConfig {
     throw new Error(`.forgegate/config.yaml is not valid YAML: ${String(error)}`);
   }
 
+  parsed = normalizeRepositoryConfig(parsed);
+
   if (!validate(parsed)) {
     throw new Error(`.forgegate/config.yaml does not match the repository config schema: ${describeErrors(validate)}`);
   }
@@ -28,4 +30,15 @@ export function parseRepositoryConfig(yamlText: string): RepositoryConfig {
 
 export function serializeRepositoryConfig(config: RepositoryConfig): string {
   return stringify(config);
+}
+
+function normalizeRepositoryConfig(parsed: unknown): unknown {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return parsed;
+  }
+  const record = parsed as Record<string, unknown>;
+  return {
+    ...record,
+    policyMappings: record['policyMappings'] ?? [],
+  };
 }

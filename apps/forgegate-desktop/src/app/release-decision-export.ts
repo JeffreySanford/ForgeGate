@@ -1,6 +1,7 @@
 import type { Finding } from '@forgegate/core-evidence';
 import type { ComponentManifest } from '@forgegate/core-manifest';
 import { createReleaseDecision, type ReleaseDecision } from '@forgegate/core-policy';
+import type { ExternalPolicyDocumentSnapshot } from './policy-document';
 
 /**
  * Where an approval actually came from. This exists because ForgeGate has
@@ -54,6 +55,7 @@ export interface PolicySnapshotExport {
   readonly commit: string;
   readonly evidenceIds: readonly string[];
   readonly findingIds: readonly string[];
+  readonly externalPolicyDocument?: ExternalPolicyDocumentSnapshot;
   readonly rules: readonly {
     readonly id: string;
     readonly description: string;
@@ -104,6 +106,7 @@ export function computePolicySnapshot(input: {
   evaluatedAt: string;
   evidenceIds: readonly string[];
   approver?: EvidenceApprover | null;
+  externalPolicyDocument?: ExternalPolicyDocumentSnapshot | null;
 }): PolicySnapshotExport | { unavailable: PolicySnapshotUnavailableReason } {
   const unavailable = policyInputsUnavailable(input.manifest, input.commit);
   if (unavailable) {
@@ -129,6 +132,9 @@ export function computePolicySnapshot(input: {
     commit,
     evidenceIds: input.evidenceIds,
     findingIds,
+    ...(input.externalPolicyDocument
+      ? { externalPolicyDocument: input.externalPolicyDocument }
+      : {}),
     rules: [
       {
         id: 'blocking-findings-block-release',
@@ -151,7 +157,9 @@ export function computePolicySnapshot(input: {
     ],
     limitations: [
       "This snapshot captures ForgeGate's current built-in release-decision rules only.",
-      'It does not load an external policy document, compliance control catalog, expiry calendar, or organization-specific waiver rules.',
+      input.externalPolicyDocument
+        ? 'An external repository policy document is snapshotted for provenance, but the current evaluator still applies only the built-in release-decision rules.'
+        : 'It does not load an external policy document, compliance control catalog, expiry calendar, or organization-specific waiver rules.',
     ],
   };
 }

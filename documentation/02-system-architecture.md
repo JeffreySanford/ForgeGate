@@ -220,9 +220,11 @@ Suggested `.forgegate/` structure:
 
 The exact layout remains a design decision, but repository-owned data must be schema-valid and versioned.
 
-### SQLite local cache
+### Optional PostgreSQL history store
 
-SQLite may store:
+ForgeGate originally considered a local SQLite cache, but the implemented persistence path now skips SQLite and uses opt-in PostgreSQL for longitudinal assurance history. If `FORGEGATE_DATABASE_URL` is not configured, the desktop app keeps its current-session in-memory behavior and does not require a database to launch or scan a repository.
+
+PostgreSQL may store:
 
 - Connected workspaces
 - Scan indexes
@@ -233,7 +235,7 @@ SQLite may store:
 - Cached remote metadata
 - User preferences
 
-SQLite should not be the only copy of approved release evidence.
+The database should not be the only copy of approved release evidence. Repository-owned manifests, policies, reviews, exceptions, evidence files, generated documentation, and exported packages remain the portable durable records.
 
 ### Raw artifacts
 

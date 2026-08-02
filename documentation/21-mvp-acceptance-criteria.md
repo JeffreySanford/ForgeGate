@@ -39,7 +39,7 @@ This document defines the full MVP acceptance bar. The current build has real sl
 | Stale evidence | Commit-level stale detection and changed-file explanation exist; dependency-aware invalidation by change type remains future work. |
 | Policy and readiness | Blocking/readiness explanations and export-time blocked decisions exist in narrow form; durable release workflow records and real authorized approvals remain open. |
 | Documentation | Staged Starlight component and registry generation exists with manifest-backed report data, protected regions, richer evidence status, matching exception records, manifest-authored policy reference snapshots, local `@forgegate/starlight` components, a minimal Astro integration entrypoint, fixture build validation, and one external Starlight build validation. Full plugin lifecycle remains future work. |
-| Evidence export | Real manifest-indexed export exists with checksums, report HTML, a built-in release-policy snapshot, redaction plan, attachment capture index, and safe redacted text attachment copies; binary/absolute/temp attachment handling, external policy-document loading, and fuller approval evidence remain open. |
+| Evidence export | Real manifest-indexed export exists with checksums, report HTML, a built-in release-policy snapshot, external policy-document provenance snapshots, redaction plan, attachment capture index, and safe redacted text attachment copies; binary/absolute/temp attachment handling, full external policy evaluation, and fuller approval evidence remain open. |
 | Security | Path validation, approved writes, approved command execution, sensitive manifest/lockfile write denial, and local Storybook fetch restrictions exist; complete secret redaction/vault/update posture remains future work. |
 | Accessibility of ForgeGate | Automated axe, forced-colors, reduced-motion, narrow-window, visual regression, and semantic-alternative checks exist; human screen-reader review remains open. |
 
@@ -199,6 +199,8 @@ ForgeGate exports:
 - Checksums
 
 The package is understandable without ForgeGate and contains no stored credentials.
+
+Current implementation note: the export already includes the core manifest-indexed package, built-in policy snapshot, external policy-document provenance snapshots when mapped in repository config, redaction plan, attachment index, safe redacted text copies, selected automated/manual/finding/exception records, report HTML, and checksums. MVP closure still requires full external policy evaluation, richer evidence details where parsed adapters already have them, broader attachment handling, and durable release approval records.
 
 ### 14. Error handling
 

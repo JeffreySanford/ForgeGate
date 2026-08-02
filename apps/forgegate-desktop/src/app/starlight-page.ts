@@ -5,6 +5,7 @@ import type {
   ManualReview,
   TestExecution,
 } from '@forgegate/core-evidence';
+import type { ExternalPolicyDocumentSnapshot } from './policy-document';
 import type {
   ComponentManifest,
   ContractMember,
@@ -343,6 +344,7 @@ function policySnapshotReport(manifest: ComponentManifest):
       readonly manifestPath: string;
       readonly status: 'authored-reference';
       readonly detail: string;
+      readonly externalPolicyDocument?: ExternalPolicyDocumentSnapshot;
     }
   | undefined {
   if (!manifest.policyId || !manifest.policyVersion) {
@@ -397,6 +399,7 @@ export function buildStarlightComponentReport(
   exceptions: readonly Exception[],
   evidenceCommit: string,
   tier: string,
+  externalPolicyDocument?: ExternalPolicyDocumentSnapshot | null,
 ): unknown {
   const storiesByState = new Map(
     manifest.storyMappings.map((mapping) => [
@@ -443,6 +446,15 @@ export function buildStarlightComponentReport(
     findingIds: connectedFindings.map((finding) => finding.id),
   });
   const policySnapshot = policySnapshotReport(manifest);
+  const connectedPolicySnapshot =
+    policySnapshot && externalPolicyDocument
+      ? {
+          ...policySnapshot,
+          externalPolicyDocument,
+          detail:
+            'This report includes the component manifest policy reference and a snapshotted repository policy document. ForgeGate still evaluates release readiness with its narrow built-in rules.',
+        }
+      : policySnapshot;
   const notConnected = [
     ...(automatedEvidence.length
       ? []
@@ -482,14 +494,22 @@ export function buildStarlightComponentReport(
           },
         ]
       : []),
-    ...(policySnapshot
-      ? [
-          {
-            section: 'policy ruleset snapshot',
-            reason:
-              'Only the manifest-authored policy id and version are connected; the full evaluated policy ruleset is not loaded into Starlight report data yet.',
-          },
-        ]
+    ...(connectedPolicySnapshot
+      ? externalPolicyDocument
+        ? [
+            {
+              section: 'policy ruleset evaluation',
+              reason:
+                'A repository policy document is snapshotted for provenance; ForgeGate has not implemented a full external policy evaluator yet.',
+            },
+          ]
+        : [
+            {
+              section: 'policy ruleset snapshot',
+              reason:
+                'Only the manifest-authored policy id and version are connected; the full evaluated policy ruleset is not loaded into Starlight report data yet.',
+            },
+          ]
       : [
           {
             section: 'policy snapshot',
@@ -610,7 +630,9 @@ export function buildStarlightComponentReport(
           : 'No raw artifact references are connected yet; ForgeGate still records the redaction posture so missing attachments are explicit.',
       },
       releaseDecision: decision,
-      ...(policySnapshot ? { policySnapshot } : {}),
+      ...(connectedPolicySnapshot
+        ? { policySnapshot: connectedPolicySnapshot }
+        : {}),
       notConnected,
     },
     documentation: documentationStatusReport(manifest),
@@ -631,6 +653,7 @@ export function generateStarlightComponentReportData(
       input.exceptions ?? [],
       input.evidenceCommit,
       templateAudience(template),
+      input.externalPolicyDocument ?? null,
     ),
   )}\n`;
 }
@@ -715,6 +738,7 @@ export interface StarlightPageInput {
   /** The commit the generated evidence summary should be pinned to —
    * `WorkspaceService.gitStatus()?.commit`, never fabricated. */
   readonly evidenceCommit: string;
+  readonly externalPolicyDocument?: ExternalPolicyDocumentSnapshot | null;
   /** Real text extracted from a previously generated page's protected
    * overview section (`extractProtectedOverview`), if one exists. */
   readonly existingOverview?: string | null;

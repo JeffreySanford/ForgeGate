@@ -207,6 +207,42 @@ describe('computePolicySnapshot', () => {
     );
   });
 
+  it('embeds an external policy document snapshot when one is connected', () => {
+    const result = computePolicySnapshot({
+      manifest: manifestWithPolicy(),
+      findings: [],
+      commit: COMMIT,
+      evaluatedAt: '2026-01-01T00:00:00.000Z',
+      evidenceIds: ['run-1'],
+      externalPolicyDocument: {
+        id: 'acme.baseline-2.1.0-policy-document',
+        policyId: 'acme.baseline',
+        policyVersion: '2.1.0',
+        source: 'repository-policy-document',
+        path: '.forgegate/policies/acme-baseline.yaml',
+        format: 'yaml',
+        loadedAt: '2026-01-01T00:00:00.000Z',
+        commit: COMMIT,
+        checksumSha256: 'b'.repeat(64),
+        sizeBytes: 42,
+        excerpt: 'id: acme.baseline',
+        limitations: ['Snapshot only.'],
+      },
+    });
+
+    expect('unavailable' in result).toBe(false);
+    if ('unavailable' in result) {
+      throw new Error(result.unavailable);
+    }
+    expect(result.externalPolicyDocument).toMatchObject({
+      path: '.forgegate/policies/acme-baseline.yaml',
+      checksumSha256: 'b'.repeat(64),
+    });
+    expect(result.limitations.join(' ')).toContain(
+      'external repository policy document is snapshotted',
+    );
+  });
+
   it('records approver-gate failure for a clean component without approval', () => {
     const result = computePolicySnapshot({
       manifest: manifestWithPolicy(),

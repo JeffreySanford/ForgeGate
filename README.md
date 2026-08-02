@@ -184,7 +184,7 @@ ForgeGate separates three kinds of truth:
 2. **Execution truth** — normalized results produced by testing, build, accessibility, visual, and CI tools.
 3. **Review truth** — human observations, approvals, accepted exceptions, release decisions, and re-review requirements.
 
-The desktop application is the operational control center, but durable state must be exportable and repository-friendly. SQLite may cache local state; it must not become the only place where critical evidence or proposals exist.
+The desktop application is the operational control center, but durable state must be exportable and repository-friendly. ForgeGate now uses opt-in PostgreSQL for longitudinal history when `FORGEGATE_DATABASE_URL` is configured; without that database the app remains local-first and current-session only. The database must not become the only place where critical manifests, evidence, policies, or proposals exist.
 
 ## Proposed desktop architecture
 
@@ -192,7 +192,7 @@ The desktop application is the operational control center, but durable state mus
 - Framework-neutral core domain model
 - Angular desktop user interface
 - Rust/Tauri command boundary for filesystem, process, Git, credential, and operating-system capabilities
-- SQLite for local indexing, drafts, and cache state
+- Optional PostgreSQL for longitudinal evidence history, scan snapshots, derived component snapshots, and future team/CI records
 - Operating-system credential vault for tokens and secrets
 - Sandboxed remote previews with no privileged filesystem or process bridge
 - Adapter SDK for frameworks, workspaces, tests, documentation systems, tokens, version control, CI providers, and later Blueprint Studio generation

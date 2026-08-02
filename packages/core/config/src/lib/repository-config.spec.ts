@@ -5,6 +5,7 @@ describe('createRepositoryConfig', () => {
     const config = createRepositoryConfig({ safeWriteLocations: ['src/content/docs/generated/**'] });
     expect(config.projectMappings).toEqual([]);
     expect(config.commandMappings).toEqual({});
+    expect(config.policyMappings).toEqual([]);
     expect(config.configVersion).toBe('0.1.0');
   });
 

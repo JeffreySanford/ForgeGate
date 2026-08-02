@@ -387,6 +387,56 @@ describe('generateDesignerStarlightComponentPage', () => {
     ]);
   });
 
+  it('adds a snapshotted external policy document when supplied', () => {
+    const data = JSON.parse(
+      generateStarlightComponentReportData({
+        manifest: createComponentManifest({
+          id: 'acme.design-system.acme-button',
+          framework: 'web-components',
+          adapter: 'framework.web-components',
+          packagePath: '.',
+          componentVersion: '1.2.0',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+        }),
+        procedures: [],
+        testExecutions: [],
+        manualReviews: [],
+        findings: [],
+        evidenceCommit: 'b91d20e',
+        template: 'designer',
+        externalPolicyDocument: {
+          id: 'acme.baseline-1.0.0-policy-document',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+          source: 'repository-policy-document',
+          path: '.forgegate/policies/acme-baseline.yaml',
+          format: 'yaml',
+          loadedAt: '2026-08-02T12:00:00.000Z',
+          commit: 'b91d20e',
+          checksumSha256: 'c'.repeat(64),
+          sizeBytes: 128,
+          excerpt: 'id: acme.baseline',
+          limitations: ['Snapshot only.'],
+        },
+      }),
+    );
+
+    expect(data.evidence.policySnapshot.externalPolicyDocument).toMatchObject({
+      source: 'repository-policy-document',
+      path: '.forgegate/policies/acme-baseline.yaml',
+      checksumSha256: 'c'.repeat(64),
+    });
+    expect(data.evidence.policySnapshot.detail).toContain(
+      'snapshotted repository policy document',
+    );
+    expect(data.evidence.notConnected).toContainEqual({
+      section: 'policy ruleset evaluation',
+      reason:
+        'A repository policy document is snapshotted for provenance; ForgeGate has not implemented a full external policy evaluator yet.',
+    });
+  });
+
   it('keeps the underlying report facts identical across audience tiers', () => {
     const designerData = JSON.parse(
       generateStarlightComponentReportData({

@@ -29,6 +29,17 @@ ForgeGate is still closing the Web Components assurance MVP and the P2 Starlight
 4. Validate against real repositories incrementally: Web Components fixture first, then Public Sector Federation when Angular/Nx coverage is ready enough for a real pilot.
 5. Keep Blueprint Studio as post-MVP planning/schema work only until existing-component assurance, safe artifact generation, and Starlight reporting are proven end to end.
 
+## Active P2 execution plan
+
+This is the ordered work queue for the current P2 Starlight/reporting lane. It supersedes older broad "do P2" wording without deleting the historical checklist below.
+
+1. [X} **External policy document snapshot loading, first slice.** `RepositoryConfig.policyMappings` now maps a `policyId`/`policyVersion` pair to a guarded workspace-relative `.yaml`, `.json`, `.md`, `.mdx`, or `.txt` document. `WorkspaceService` reads the mapped file through `read_text_file`, snapshots path, format, size, SHA-256, excerpt, commit, and limitations, then carries that snapshot into `policy-snapshot.json`, `report.html`, and Starlight report data. Still open under a later policy-engine slice: parsing/evaluating organization-specific rules, compliance-control catalogs, expiry calendars, waiver logic, and reviewer-role matrices. The built-in release-decision rules remain the evaluator today.
+2. [ ] **Fuller evidence bundle loading.** Extend report-data and evidence-export assembly beyond summary records: preserve richer parsed automated evidence details where existing import adapters already know them, connect exported bundle records back into the Starlight report model, and keep missing detail explicit rather than presenting a thin summary as full evidence.
+3. [ ] **Fuller Starlight plugin discovery and registration.** Mature `@forgegate/starlight` from a presentation package plus minimal Astro integration into a documented plugin lifecycle: generated-data discovery, component registration conventions, version compatibility diagnostics, fixture coverage, and migration guidance while keeping the generated MDX import paths stable.
+4. [ ] **Arbitrary target-repo Starlight validation matrix.** Expand approved-write validation across nested docs apps, non-Nx Starlight sites, npm and pnpm command variants, missing commands, failing builds, and generated import/path failures. Validation remains reported separately from the approved write until a rollback workflow is intentionally designed.
+5. [ ] **Binary, absolute-path, and temporary attachment capture.** Design explicit consent, size limits, binary-safe streaming, redaction/review posture, retention rules, and safe target paths before copying anything beyond the current guarded workspace-relative text artifacts.
+6. [ ] **Release-decision persistence and real authorization flow.** Persist release decisions as durable workflow records, distinguish blocked evaluations from human-authorized candidate decisions, and connect those records to evidence freshness and Starlight reports without using the test-harness approval path outside tests.
+
 ## Current product sequence
 
 ```text
@@ -481,12 +492,14 @@ See [`TODO-DETAILED.md`](TODO-DETAILED.md) for the full task-level plan.
 
 # Immediate next work queue
 
-Stale as of this update — items 1–10 below (the original P0/early-P1 bootstrap sequence) are all long since shipped and verified; this section had drifted out of sync with the rest of the file. Replaced with what's actually next:
+Updated after the Starlight/report and safe text-attachment slices. The live queue is now the P2 execution plan above plus the one human-only P0 dogfood item that remains outside code.
 
 1. [X} First remediation workflow slice on the component assurance record. `ComponentDetailPage` now derives structured remediation actions from the same readiness gaps that already feed blocking reasons: each action includes the gap, the next human/engineering action, source path or evidence source, concrete evidence detail, and an in-page destination. This is deliberately read-only — no auto-writing component manifests and no fabricated manual-review approvals.
 2. [ ] Manual keyboard and screen-reader review of the Button assurance record and ForgeGate's own shell (the one human-only item still blocking P0's own definition of done, per P0.7).
 3. [X} Filesystem watcher that feeds rescan snapshots — see "Reactive architecture" above for the full writeup. Remaining P1 follow-up: route/rescan motion choreography, or move directly to P2 entry-gate work — see "P1 follow-up backlog" above and "P2 entry gates" below.
-4. [ ] Work the P2 entry gates in order once the above is settled.
+4. [X} Work `Active P2 execution plan` item 1 next: external policy document snapshot loading first slice.
+5. [ ] Work item 2 next: fuller evidence bundle loading for Starlight and export.
+6. [ ] Then work item 3: fuller `@forgegate/starlight` plugin discovery and registration.
 
 <details>
 <summary>Original bootstrap sequence (completed, kept for history)</summary>

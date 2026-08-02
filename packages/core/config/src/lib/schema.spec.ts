@@ -10,6 +10,13 @@ describe('repositoryConfigSchema', () => {
       projectMappings: [{ projectId: 'up.design-system', path: 'packages/design-system', kind: 'library' }],
       commandMappings: { unit: 'pnpm nx test design-system' },
       documentationMappings: { starlight: { contentRoot: 'src/content/docs' } },
+      policyMappings: [
+        {
+          policyId: 'up.baseline',
+          policyVersion: '2026.1.0',
+          path: '.forgegate/policies/up.baseline.yaml',
+        },
+      ],
       safeWriteLocations: ['src/content/docs/generated/**'],
     });
     expect(validate(config)).toBe(true);
@@ -22,6 +29,7 @@ describe('repositoryConfigSchema', () => {
         projectMappings: [{ projectId: 'p', path: 'x', kind: 'not-a-real-kind' }],
         packageMappings: [],
         commandMappings: {},
+        policyMappings: [],
         documentationMappings: {},
         adapterConfiguration: {},
         ignorePatterns: [],
@@ -37,6 +45,7 @@ describe('repositoryConfigSchema', () => {
         projectMappings: [],
         packageMappings: [],
         commandMappings: {},
+        policyMappings: [],
         documentationMappings: {},
         adapterConfiguration: {},
         ignorePatterns: [],

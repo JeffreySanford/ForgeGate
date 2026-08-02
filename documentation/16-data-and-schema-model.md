@@ -159,6 +159,11 @@ ForgeGate should publish versioned schemas for:
 - Evidence package manifest
 - Adapter capability declaration
 
+Current repository config schema includes `policyMappings`, a list of
+`{ policyId, policyVersion, path }` records. The path must resolve to a guarded
+workspace-relative text policy document before ForgeGate will snapshot it for an
+evidence package or Starlight report.
+
 ## Schema versioning
 
 Schema versions should use semantic versioning principles:
@@ -212,17 +217,18 @@ Important fields should carry provenance where discovery or transformation occur
 - User confirmation
 - Transformation history
 
-## Local database
+## Local and longitudinal database
 
-SQLite tables may include:
+ForgeGate has no SQLite implementation today. The implemented persistence path is opt-in PostgreSQL for longitudinal assurance history; without `FORGEGATE_DATABASE_URL`, the desktop app keeps current-session state in memory and still works. Database records are derived history and workflow support, not the only authoritative copy of approved repository evidence.
+
+PostgreSQL tables may include:
 
 - workspaces
-- projects
 - scan_snapshots
-- components_index
-- adapter_results
+- component_snapshots
+- evidence_events
 - command_runs
-- evidence_cache
+- evidence_cache or imported-evidence indexes
 - review_drafts
 - remote_metadata_cache
 - user_preferences
@@ -245,7 +251,7 @@ Dirty worktrees require a deterministic fingerprint of relevant files.
 
 ## Migrations
 
-Both repository schemas and SQLite need migrations.
+Both repository schemas and the optional PostgreSQL history store need migrations.
 
 Requirements:
 

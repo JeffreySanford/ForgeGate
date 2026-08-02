@@ -1378,6 +1378,68 @@ describe('WorkspaceService', () => {
       );
     });
 
+    it('reads a configured external policy document into the exported policy snapshot', async () => {
+      service.workspacePath.set('/repo');
+      service.gitStatus.set(gitStatusFixture);
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {},
+        documentationMappings: {},
+        policyMappings: [
+          {
+            policyId: 'acme.baseline',
+            policyVersion: '1.0.0',
+            path: '.forgegate/policies/acme-baseline.yaml',
+          },
+        ],
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: ['src/content/docs/generated/**'],
+      });
+      const policyManifest = createComponentManifest({
+        id: 'acme.lib.button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '1.0.0',
+        policyId: 'acme.baseline',
+        policyVersion: '1.0.0',
+      });
+      invokeMock
+        .mockResolvedValueOnce('/home/user/exports')
+        .mockResolvedValueOnce('id: acme.baseline\nversion: 1.0.0\n')
+        .mockResolvedValueOnce(
+          '/home/user/exports/acme.lib.button-1.0.0-evidence-uuid',
+        );
+
+      await service.exportEvidencePackage(policyManifest, []);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'read_text_file', {
+        workspacePath: '/repo',
+        relativePath: '.forgegate/policies/acme-baseline.yaml',
+      });
+      const [, thirdCallArgs] = invokeMock.mock.calls[2] as [
+        string,
+        { files: Record<string, string> },
+      ];
+      const snapshot = JSON.parse(
+        thirdCallArgs.files['policy-snapshot.json'] ?? '{}',
+      );
+      expect(snapshot.externalPolicyDocument).toMatchObject({
+        policyId: 'acme.baseline',
+        policyVersion: '1.0.0',
+        source: 'repository-policy-document',
+        path: '.forgegate/policies/acme-baseline.yaml',
+        format: 'yaml',
+        commit: gitStatusFixture.commit,
+      });
+      expect(snapshot.externalPolicyDocument.checksumSha256).toMatch(
+        /^[a-f0-9]{64}$/,
+      );
+    });
+
     it('writes a real findings/<id>.json file for each real blocking reason passed in', async () => {
       invokeMock
         .mockResolvedValueOnce('/home/user/exports')

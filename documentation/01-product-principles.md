@@ -61,7 +61,7 @@ The first implementation may invalidate conservatively. Later versions may use d
 
 ## 8. The operational center must not become a data prison
 
-ForgeGate may index and cache data in SQLite, but durable manifests, policies, mappings, and evidence exports should use documented, portable formats.
+ForgeGate may index and cache data in an optional database, currently PostgreSQL for longitudinal history when configured, but durable manifests, policies, mappings, and evidence exports should use documented, portable formats.
 
 A team should be able to inspect, version, archive, and process important records without the desktop application.
 

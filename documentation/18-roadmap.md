@@ -8,6 +8,10 @@ The roadmap therefore moves through vertical slices rather than building every s
 
 The root [`TODO.md`](../TODO.md) contains the detailed implementation checklist. This document explains the delivery sequence and product outcomes.
 
+## Current roadmap truth
+
+This roadmap is the intended product sequence, not a claim that each stage is untouched until the previous one is perfect. The current implementation has real slices through workspace discovery, component records, configured unit/lint/build gates, guided manual review, narrow policy/readiness, Starlight generation, and evidence export. The MVP is still not complete because Storybook/axe/Playwright execution, external policy-document loading, durable release approvals, binary/temp attachment capture, pilot validation, and the human ForgeGate screen-reader pass remain open. The active P2 work is therefore Starlight/reporting and evidence depth, not P3 or full Blueprint Studio UI.
+
 ## Stage 0 — Product definition
 
 Outcome:
@@ -156,6 +160,8 @@ Scope:
 - Checksums
 
 This completes the first commercially meaningful vertical slice.
+
+Current implementation note: a real manifest-indexed export exists with checksums, report HTML, built-in policy snapshot, redaction plan, attachment index, and safe redacted text attachment copies. It is not complete until external policy documents, richer evidence details, broader attachment handling, and real release approval records are connected.
 
 ## Stage 8 — Component blueprint expansion
 

@@ -72,7 +72,7 @@ Initial storage should be repository-friendly YAML or JSON under a configurable 
 .forgegate/proposals/<proposal-id>.yaml
 ```
 
-Local drafts may be cached in SQLite, but the user must be able to export them and critical state must not exist only in the database.
+Local drafts may be cached in the optional PostgreSQL-backed history/workflow store or a future local store, but the user must be able to export them and critical state must not exist only in the database.
 
 ### Acceptance criteria
 

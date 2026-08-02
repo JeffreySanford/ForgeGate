@@ -17,6 +17,7 @@ import {
   type EvidenceApprover,
   type PolicySnapshotExport,
 } from './release-decision-export';
+import type { ExternalPolicyDocumentSnapshot } from './policy-document';
 
 /**
  * Real target for evidence export, per `documentation/09-manual-review-and-evidence.md`'s
@@ -283,6 +284,7 @@ export interface EvidenceExportInput {
    */
   readonly persistedFindings?: readonly Finding[];
   readonly attachmentContents?: Readonly<Record<string, string>>;
+  readonly externalPolicyDocument?: ExternalPolicyDocumentSnapshot | null;
   readonly starlightProjects: readonly string[];
   readonly blockingReasons?: readonly string[];
   /**
@@ -355,6 +357,7 @@ export async function buildEvidenceExport(
     evaluatedAt: exportedAt,
     evidenceIds,
     approver: input.approver,
+    externalPolicyDocument: input.externalPolicyDocument ?? null,
   });
   const releaseDecision = computeReleaseDecision({
     manifest,
@@ -738,6 +741,11 @@ function renderEvidenceReport(input: {
     ? `<dl>
       <dt>Policy</dt><dd><code>${escapeHtml(`${policySnapshot.policyId} @ ${policySnapshot.policyVersion}`)}</code></dd>
       <dt>Engine</dt><dd><code>${escapeHtml(`${policySnapshot.engine} ${policySnapshot.engineVersion}`)}</code></dd>
+      ${
+        policySnapshot.externalPolicyDocument
+          ? `<dt>External policy document</dt><dd><code>${escapeHtml(policySnapshot.externalPolicyDocument.path)}</code> (${escapeHtml(policySnapshot.externalPolicyDocument.format)}, SHA-256 <code>${escapeHtml(policySnapshot.externalPolicyDocument.checksumSha256)}</code>)</dd>`
+          : ''
+      }
       <dt>Commit</dt><dd><code>${escapeHtml(policySnapshot.commit)}</code></dd>
       <dt>Finding inputs</dt><dd>${policySnapshot.findingIds.length}</dd>
       <dt>Evidence inputs</dt><dd>${policySnapshot.evidenceIds.length}</dd>

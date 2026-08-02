@@ -7,6 +7,13 @@ describe('serializeRepositoryConfig / parseRepositoryConfig round-trip', () => {
       projectMappings: [{ projectId: 'up.design-system', path: 'packages/design-system', kind: 'library' }],
       commandMappings: { unit: 'pnpm nx test design-system', axe: 'pnpm nx run design-system:axe' },
       documentationMappings: { starlight: { contentRoot: 'src/content/docs' } },
+      policyMappings: [
+        {
+          policyId: 'up.baseline',
+          policyVersion: '2026.1.0',
+          path: '.forgegate/policies/up.baseline.yaml',
+        },
+      ],
       ignorePatterns: ['**/*.stories.tsx'],
       safeWriteLocations: ['src/content/docs/generated/**'],
     });

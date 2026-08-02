@@ -36,6 +36,7 @@ import {
   starlightTemplateForManifest,
   starlightRegistryIndexPath,
   starlightRegistryReportDataPath,
+  type StarlightPageInput,
 } from './starlight-page';
 import {
   createStarlightBuildValidationPlan,
@@ -59,6 +60,12 @@ import {
   type StorybookIndex,
 } from '@forgegate/adapter-storybook';
 import { buildEvidenceExport } from './evidence-export';
+import {
+  buildExternalPolicyDocumentSnapshot,
+  findPolicyMappingForManifest,
+  isWorkspaceRelativePolicyDocumentPath,
+  type ExternalPolicyDocumentSnapshot,
+} from './policy-document';
 import { parseDtcgTokens, type DtcgToken } from './dtcg-tokens';
 import { computeWorkspaceWatchDirectories } from './workspace-watch-directories';
 import {
@@ -1159,6 +1166,10 @@ export class WorkspaceService {
         ...testExecutions,
         ...automatedArtifacts,
       ]);
+      const externalPolicyDocument = await this.readExternalPolicyDocument(
+        manifest,
+        new Date().toISOString(),
+      );
       const { directoryName, files } = await buildEvidenceExport({
         id: crypto.randomUUID(),
         exportedAt: new Date().toISOString(),
@@ -1166,6 +1177,7 @@ export class WorkspaceService {
         testExecutions,
         automatedArtifacts,
         attachmentContents,
+        externalPolicyDocument,
         manualReviews: manualReviews.filter(
           (review) =>
             review.componentVersionId === componentVersion,
@@ -1219,6 +1231,63 @@ export class WorkspaceService {
       }
     }
     return contents;
+  }
+
+  private async readExternalPolicyDocument(
+    manifest: ComponentManifest,
+    loadedAt: string,
+  ): Promise<ExternalPolicyDocumentSnapshot | null> {
+    const workspacePath = this.workspacePath();
+    const mapping = findPolicyMappingForManifest(
+      manifest,
+      this.repositoryConfig()?.policyMappings ?? [],
+    );
+    if (!workspacePath || !mapping) {
+      return null;
+    }
+    if (!isWorkspaceRelativePolicyDocumentPath(mapping.path)) {
+      this.setAdapterDiagnostic({
+        id: `policy-document:${manifest.id}`,
+        adapter: 'policy document adapter',
+        source: mapping.path,
+        status: 'failed',
+        rawOutput: null,
+        error:
+          'Policy mapping path must be a workspace-relative .yaml, .json, .md, .mdx, or .txt file.',
+      });
+      return null;
+    }
+    try {
+      const content = await this.invoke<string>('read_text_file', {
+        workspacePath,
+        relativePath: mapping.path,
+      });
+      const snapshot = await buildExternalPolicyDocumentSnapshot({
+        mapping,
+        content,
+        loadedAt,
+        commit: this.gitStatus()?.commit ?? null,
+      });
+      this.setAdapterDiagnostic({
+        id: `policy-document:${manifest.id}`,
+        adapter: 'policy document adapter',
+        source: mapping.path,
+        status: 'loaded',
+        rawOutput: content,
+        error: null,
+      });
+      return snapshot;
+    } catch (error) {
+      this.setAdapterDiagnostic({
+        id: `policy-document:${manifest.id}`,
+        adapter: 'policy document adapter',
+        source: mapping.path,
+        status: 'failed',
+        rawOutput: null,
+        error: String(error),
+      });
+      return null;
+    }
   }
 
   /**
@@ -1882,21 +1951,31 @@ export class WorkspaceService {
               evidenceCommit,
               existingOverview,
               template,
+              externalPolicyDocument: await this.readExternalPolicyDocument(
+                manifest,
+                new Date().toISOString(),
+              ),
             };
-      const registryComponentPageInputs =
-        template === 'registry-index'
-          ? registryManifests.map((registryManifest) => ({
-              manifest: registryManifest,
-              procedures: this.procedures(),
-              testExecutions: this.testExecutions(),
-              manualReviews: this.manualReviews(),
-              findings: this.findings(),
-              exceptions: this.exceptions(),
-              evidenceCommit,
-              existingOverview: null,
-              template: 'designer' as const,
-            }))
-          : [];
+      const registryComponentPageInputs: StarlightPageInput[] = [];
+      if (template === 'registry-index') {
+        for (const registryManifest of registryManifests) {
+          registryComponentPageInputs.push({
+            manifest: registryManifest,
+            procedures: this.procedures(),
+            testExecutions: this.testExecutions(),
+            manualReviews: this.manualReviews(),
+            findings: this.findings(),
+            exceptions: this.exceptions(),
+            evidenceCommit,
+            existingOverview: null,
+            template: 'designer' as const,
+            externalPolicyDocument: await this.readExternalPolicyDocument(
+              registryManifest,
+              new Date().toISOString(),
+            ),
+          });
+        }
+      }
       const content = componentPageInput
         ? generateStarlightComponentPage(componentPageInput)
         : generateStarlightRegistryIndexPage({
