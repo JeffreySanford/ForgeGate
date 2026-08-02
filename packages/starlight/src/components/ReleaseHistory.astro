@@ -1,16 +1,71 @@
 ---
 interface Props {
   component: string;
+  report?: import('../lib/report').ForgeGateComponentReport;
 }
 
-const { component } = Astro.props;
+const { component, report } = Astro.props;
+const decision = report?.evidence.releaseDecision;
+const policySnapshot = report?.evidence.policySnapshot;
 ---
 
 <section class="forgegate-panel" data-forgegate-component={component}>
   <p class="forgegate-eyebrow">Release governance</p>
   <h3>Release history</h3>
-  <p>
-    Release decisions for <code>{component}</code> will appear in chronological
-    order when connected.
-  </p>
+  {
+    decision ? (
+      <dl>
+        <div>
+          <dt>Status</dt>
+          <dd><span class="forgegate-badge">{decision.status}</span></dd>
+        </div>
+        {decision.policyId ? (
+          <div>
+            <dt>Policy</dt>
+            <dd>
+              <code>{decision.policyId}</code>
+              {decision.policyVersion ? ` @ ${decision.policyVersion}` : ''}
+            </dd>
+          </div>
+        ) : null}
+        {decision.commit ? (
+          <div>
+            <dt>Commit</dt>
+            <dd><code>{decision.commit}</code></dd>
+          </div>
+        ) : null}
+        <div>
+          <dt>Blocking findings</dt>
+          <dd>{decision.blockingFindingIds.length}</dd>
+        </div>
+        {decision.reason ? (
+          <div>
+            <dt>Reason</dt>
+            <dd>{decision.reason}</dd>
+          </div>
+        ) : null}
+        {policySnapshot ? (
+          <div>
+            <dt>Policy source</dt>
+            <dd>
+              <code>{policySnapshot.manifestPath}</code>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+    ) : (
+      <>
+        <p>
+          Release decisions for <code>{component}</code> will appear in chronological
+          order when connected.
+        </p>
+        {policySnapshot ? (
+          <p>
+            Current policy reference: <code>{policySnapshot.policyId}</code> @ {policySnapshot.policyVersion}
+            from <code>{policySnapshot.manifestPath}</code>.
+          </p>
+        ) : null}
+      </>
+    )
+  }
 </section>

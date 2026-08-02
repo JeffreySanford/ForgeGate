@@ -177,9 +177,9 @@ Generated MDX uses MDX comment markers (`{/* forgegate:user-content:start overvi
 
 ## ForgeGate Starlight package
 
-ForgeGate now includes a first local package at `packages/starlight`, imported as `@forgegate/starlight` by generated MDX. This is intentionally a narrow presentation package today: it exports Astro components matching the generated page contract and proves those imports in the buildable Acme fixture. Generated component pages import a manifest-backed `forgegateReport` object from `src/data/forgegate/components/`, and generated registry pages import `forgegateRegistry` plus the per-component report data needed for embedded summaries from the same data root. The components render real manifest provenance, status, state, token, API, accessibility, automated-evidence, manual-review, finding, and registry data from those objects with report-grade spacing, badges, metrics, and table styling. Page generation records each data path in frontmatter as `forgegate.reportData`, so future plugin consumption has a stable generated-data location while the current MDX stays buildable through ordinary Astro/Vite JSON imports.
+ForgeGate now includes a first local package at `packages/starlight`, imported as `@forgegate/starlight` by generated MDX. This is intentionally a narrow presentation package today: it exports Astro components matching the generated page contract and proves those imports in the buildable Acme fixture. Generated component pages import a manifest-backed `forgegateReport` object from `src/data/forgegate/components/`, and generated registry pages import `forgegateRegistry` plus the per-component report data needed for embedded summaries from the same data root. The components render real manifest provenance, status, state, token, API, accessibility, automated-evidence, manual-review, finding, documentation drift, release-decision, and registry data from those objects with report-grade spacing, badges, metrics, and table styling. When the manifest authors both `policyId` and `policyVersion`, report data includes a `policySnapshot` entry that is deliberately labeled as a manifest-authored policy reference rather than a full evaluated ruleset snapshot. Page generation records each data path in frontmatter as `forgegate.reportData`, so future plugin consumption has a stable generated-data location while the current MDX stays buildable through ordinary Astro/Vite JSON imports.
 
-The package exports `FORGEGATE_REPORT_DATA_ROOT`, `forgeGateComponentReportDataPath()`, and `forgeGateRegistryReportDataPath()` as the current naming convention for future plugin discovery.
+The package exports `FORGEGATE_REPORT_DATA_ROOT`, `forgeGateComponentReportDataPath()`, and `forgeGateRegistryReportDataPath()` as the current naming convention for future plugin discovery. It also now exports `forgeGateStarlightIntegration()`, a minimal Astro integration entrypoint with the stable integration name `@forgegate/starlight` and a configurable report-data root. That is a real lifecycle foothold, not the final plugin: it does not yet auto-register components or discover generated data.
 
 Build validation currently runs through:
 
@@ -188,6 +188,16 @@ pnpm nx run starlight:fixture-build
 ```
 
 That command builds `fixtures/acme-button-library` with Astro Starlight and a checked-in generated MDX page.
+
+## Remaining Starlight work
+
+The current Starlight path is real enough to generate and validate polished component and registry reports, but it is not the final Starlight integration model. The next work should stay focused on the following planning and implementation steps before treating this as complete:
+
+1. **Real plugin lifecycle.** The first Astro integration entrypoint exists. Next, turn it into a fuller Astro/Starlight integration with documented installation, version compatibility, generated-data discovery, component registration conventions, fixture coverage, and migration guidance. The current generated MDX import path should remain stable so existing generated pages do not need to be rewritten when the plugin matures.
+2. **Richer evidence loading.** Report-data assembly now includes release-decision summaries, documentation drift status, a manifest-authored policy reference snapshot, matching exception records, and explicit not-connected reasons alongside automated evidence, manual reviews, and findings. Next, connect fuller evidence bundle reading: full evaluated policy ruleset snapshots when available, richer automated evidence details, attachments, and redaction-aware evidence presentation. Missing evidence must continue to render as a polished "not connected" state rather than an empty or optimistic section.
+3. **Arbitrary target-repo build validation after approval.** Keep the current `commandMappings.starlightBuild` behavior, now backed by a testable validation plan that records the detected Starlight project set in diagnostics, but validate it across more repository shapes after approved writes: nested docs apps, non-Nx Starlight sites, npm/pnpm command variants, missing commands, failing builds, and generated import/path failures. ForgeGate should report validation as passed, failed, or skipped without rolling back an already approved write unless a later rollback workflow is explicitly designed.
+
+These are planned follow-ups, not blockers for the current P2 report slice. The active bar for this slice remains: generated pages are designer-level, manifest-provenanced, evidence-honest, protected-content-safe, and build-validated in the fixture plus selected real target repositories.
 
 ## Future ForgeGate Starlight plugin
 

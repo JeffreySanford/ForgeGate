@@ -9,5 +9,6 @@ export { default as StateMatrix } from './components/StateMatrix.astro';
 export { default as StoryPreview } from './components/StoryPreview.astro';
 export { default as TokenTable } from './components/TokenTable.astro';
 export * from './lib/component-names';
+export * from './lib/plugin';
 export * from './lib/report';
 export * from './lib/report-data';

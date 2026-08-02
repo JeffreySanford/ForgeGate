@@ -598,7 +598,7 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 
 - [ ] ForgeGate can explain why a component is ready or blocked.
 - [ ] All blocking decisions are traceable to policy and evidence.
-- [ ] Accepted exceptions are visible and expire as configured.
+- [ ] Accepted exceptions are visible and expire as configured. Partly implemented in Starlight report data: matching exception records are rendered only when they approve one of the component's connected findings, including `approvedBy`, `approvedAt`, rationale, and optional `expiresAt`. Still open for full release governance: expiry is displayed but not evaluated as an active blocking/revalidation rule.
 
 ---
 
@@ -635,7 +635,7 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 - [x] Show Git diff before writing.
 - [x] Preserve user-authored protected regions.
 - [x] Validate Starlight build after generation.
-- [ ] Create a reusable Starlight plugin package.
+- [ ] Create a reusable Starlight plugin package. Partly implemented: `packages/starlight` now exports the local `@forgegate/starlight` Astro presentation components, report-data helpers, and a minimal `forgeGateStarlightIntegration()` entrypoint with a stable integration name and configurable report-data root. Still open: full generated-data discovery, auto-registration, compatibility docs, and lifecycle hooks.
 
 ## Audience-tier templates
 
@@ -884,7 +884,7 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 - [ ] Manual-review templates.
 - [ ] Manifest templates.
 - [ ] Token templates.
-- [ ] Starlight templates.
+- [X} Starlight templates. Real designer, balanced, developer, and registry-index generation exists with manifest-backed companion JSON, protected overview regions, and local `@forgegate/starlight` presentation components. Remaining work lives under Phase 9's plugin lifecycle, optional dual-page publication, and fuller evidence loading bullets rather than the template primitive itself.
 - [ ] Storybook MDX templates.
 
 ## Git integration
@@ -1058,8 +1058,8 @@ A first real slice landed early, from Phase 4 (see "Component discovery" above):
 - [ ] Reduced-motion support.
 - [ ] Error prevention and recovery.
 - [ ] Accessible data visualizations.
-- [ ] Automated and manual review of ForgeGate releases.
-- [ ] Dogfood ForgeGate against ForgeGate components.
+- [ ] Automated and manual review of ForgeGate releases. Partly implemented: `/accessibility-review` provides a real guided manual review mechanism for the ForgeGate shell and records real `ManualReview` evidence after approval. Still open: a human has not performed the assistive-technology pass, and automated release gating for ForgeGate itself is not wired as a release requirement.
+- [ ] Dogfood ForgeGate against ForgeGate components. Partly implemented for the accessibility/evidence-freshness axis: ForgeGate can review its own shell and mark the latest self-review evidence current or stale against the workspace commit. Still blocked for documentation and release gates until ForgeGate has a real shell component identity and documentation target rather than a synthetic component.
 
 ## Performance
 
@@ -1120,7 +1120,7 @@ These are the first items to work in order.
 - [ ] Run one configured test command.
 - [ ] Normalize one axe or Storybook accessibility result.
 - [ ] Complete one guided keyboard review.
-- [ ] Generate one Starlight component page.
+- [X} Generate one Starlight component page.
 - [ ] Export one evidence package.
 
 # MVP definition of done
@@ -1138,6 +1138,6 @@ The first MVP is complete only when all of the following are true:
 - [ ] ForgeGate ties evidence to the current commit.
 - [ ] ForgeGate marks prior approval stale after a relevant source change.
 - [ ] ForgeGate explains every blocking release condition.
-- [ ] ForgeGate generates a Starlight page.
+- [X} ForgeGate generates a Starlight page.
 - [ ] ForgeGate exports a portable evidence package.
 - [ ] ForgeGate itself passes its required accessibility and quality gates.

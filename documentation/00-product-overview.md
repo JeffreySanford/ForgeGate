@@ -145,10 +145,10 @@ ForgeGate may generate code, tests, manifests, and documentation, but every repo
 
 ## Initial vertical slice
 
-The first end-to-end demonstration should use one Angular/Nx button component and prove the full lifecycle:
+The first end-to-end demonstration should use one Lit or vanilla Web Components button repository and prove the full lifecycle. Angular/Nx remains the second validation target, because proving the same assurance model against both a framework-neutral component layer and a compiler-driven framework is what makes the platform claim credible.
 
 1. Open the repository.
-2. Detect Git, pnpm, Nx, Angular, Storybook, tests, tokens, and Starlight.
+2. Detect Git, pnpm or npm, Web Components tooling, Storybook, tests, tokens, and Starlight.
 3. Discover the button implementation.
 4. Associate the button with stories and tests.
 5. Load or create the component manifest.

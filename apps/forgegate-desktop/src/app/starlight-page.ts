@@ -1,4 +1,5 @@
 import type {
+  Exception,
   Finding,
   ManualProcedure,
   ManualReview,
@@ -243,6 +244,121 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function documentationStatusReport(manifest: ComponentManifest): readonly {
+  readonly adapter: string;
+  readonly pathOrPageId?: string;
+  readonly status: 'current' | 'drifted' | 'not-evaluated';
+  readonly detail: string;
+}[] {
+  return manifest.documentationTargets.map((target) => {
+    if (!manifest.componentVersion || !target.publishedVersion) {
+      return {
+        adapter: target.adapter,
+        ...(target.pathOrPageId ? { pathOrPageId: target.pathOrPageId } : {}),
+        status: 'not-evaluated' as const,
+        detail:
+          'Component version or published documentation version is not recorded.',
+      };
+    }
+    if (target.publishedVersion === manifest.componentVersion) {
+      return {
+        adapter: target.adapter,
+        ...(target.pathOrPageId ? { pathOrPageId: target.pathOrPageId } : {}),
+        status: 'current' as const,
+        detail: `Published version ${target.publishedVersion} matches component version ${manifest.componentVersion}.`,
+      };
+    }
+    return {
+      adapter: target.adapter,
+      ...(target.pathOrPageId ? { pathOrPageId: target.pathOrPageId } : {}),
+      status: 'drifted' as const,
+      detail: `Published version ${target.publishedVersion} does not match component version ${manifest.componentVersion}.`,
+    };
+  });
+}
+
+function releaseDecisionReport(input: {
+  readonly manifest: ComponentManifest;
+  readonly evidenceCommit: string;
+  readonly evidenceIds: readonly string[];
+  readonly findingIds: readonly string[];
+}): {
+  readonly status: 'blocked' | 'authorized-candidate' | 'not-connected';
+  readonly reason?: string;
+  readonly policyId?: string;
+  readonly policyVersion?: string;
+  readonly blockingFindingIds: readonly string[];
+  readonly evidenceIds: readonly string[];
+  readonly commit?: string;
+} {
+  const { manifest, evidenceCommit, evidenceIds, findingIds } = input;
+  if (!manifest.policyId || !manifest.policyVersion) {
+    return {
+      status: 'not-connected',
+      reason:
+        'No policy id and version are authored for this component, so ForgeGate cannot summarize release readiness.',
+      blockingFindingIds: [],
+      evidenceIds,
+      ...(evidenceCommit !== 'unknown' ? { commit: evidenceCommit } : {}),
+    };
+  }
+  if (evidenceCommit === 'unknown') {
+    return {
+      status: 'not-connected',
+      reason:
+        'No repository commit is available, so ForgeGate cannot tie a release decision to source state.',
+      policyId: manifest.policyId,
+      policyVersion: manifest.policyVersion,
+      blockingFindingIds: findingIds,
+      evidenceIds,
+    };
+  }
+  if (findingIds.length) {
+    return {
+      status: 'blocked',
+      policyId: manifest.policyId,
+      policyVersion: manifest.policyVersion,
+      blockingFindingIds: findingIds,
+      evidenceIds,
+      commit: evidenceCommit,
+    };
+  }
+  return {
+    status: 'not-connected',
+    reason:
+      'No blocking findings remain, but authorizing a release candidate requires a named human approver and ForgeGate has no approval flow yet.',
+    policyId: manifest.policyId,
+    policyVersion: manifest.policyVersion,
+    blockingFindingIds: [],
+    evidenceIds,
+    commit: evidenceCommit,
+  };
+}
+
+function policySnapshotReport(manifest: ComponentManifest):
+  | {
+      readonly policyId: string;
+      readonly policyVersion: string;
+      readonly source: 'component-manifest';
+      readonly manifestPath: string;
+      readonly status: 'authored-reference';
+      readonly detail: string;
+    }
+  | undefined {
+  if (!manifest.policyId || !manifest.policyVersion) {
+    return undefined;
+  }
+  return {
+    policyId: manifest.policyId,
+    policyVersion: manifest.policyVersion,
+    source: 'component-manifest',
+    manifestPath: componentManifestPath(manifest.id),
+    status: 'authored-reference',
+    detail:
+      'This report includes the component manifest policy reference. ForgeGate has not loaded a full policy ruleset snapshot yet.',
+  };
+}
+
 function templateSlugSuffix(template: StarlightComponentPageTemplate): string {
   switch (template) {
     case 'designer':
@@ -278,6 +394,7 @@ export function buildStarlightComponentReport(
   testExecutions: readonly TestExecution[],
   manualReviews: readonly ManualReview[],
   findings: readonly Finding[],
+  exceptions: readonly Exception[],
   evidenceCommit: string,
   tier: string,
 ): unknown {
@@ -300,6 +417,83 @@ export function buildStarlightComponentReport(
   const connectedFindings = findings.filter(
     (finding) => finding.componentId === manifest.id,
   );
+  const connectedFindingIds = new Set(
+    connectedFindings.map((finding) => finding.id),
+  );
+  const connectedExceptions = exceptions.filter((exception) =>
+    connectedFindingIds.has(exception.findingId),
+  );
+  const evidenceIds = [
+    ...automatedEvidence.map((execution) => execution.id),
+    ...connectedManualReviews.map((review) => review.id),
+    ...connectedExceptions.map((exception) => exception.id),
+  ];
+  const decision = releaseDecisionReport({
+    manifest,
+    evidenceCommit,
+    evidenceIds,
+    findingIds: connectedFindings.map((finding) => finding.id),
+  });
+  const policySnapshot = policySnapshotReport(manifest);
+  const notConnected = [
+    ...(automatedEvidence.length
+      ? []
+      : [
+          {
+            section: 'automated evidence',
+            reason:
+              'No automated evidence is connected for this component version yet.',
+          },
+        ]),
+    ...(connectedManualReviews.length
+      ? []
+      : [
+          {
+            section: 'manual reviews',
+            reason:
+              'No manual review evidence is connected for this component version yet.',
+          },
+        ]),
+    ...(manifest.documentationTargets.length
+      ? []
+      : [
+          {
+            section: 'documentation status',
+            reason: 'No documentation target is connected for this component.',
+          },
+        ]),
+    ...(decision.status === 'not-connected' && decision.reason
+      ? [{ section: 'release decision', reason: decision.reason }]
+      : []),
+    ...(connectedFindings.length && !connectedExceptions.length
+      ? [
+          {
+            section: 'exceptions',
+            reason:
+              'No exception evidence approves any connected finding for this component yet.',
+          },
+        ]
+      : []),
+    ...(policySnapshot
+      ? [
+          {
+            section: 'policy ruleset snapshot',
+            reason:
+              'Only the manifest-authored policy id and version are connected; the full evaluated policy ruleset is not loaded into Starlight report data yet.',
+          },
+        ]
+      : [
+          {
+            section: 'policy snapshot',
+            reason:
+              'No policy id and version are authored for this component, so no policy snapshot can be summarized.',
+          },
+        ]),
+    {
+      section: 'attachments',
+      reason: 'Evidence attachments are not connected to Starlight reports yet.',
+    },
+  ];
   return {
     componentId: manifest.id,
     version: manifest.componentVersion ?? 'unreleased',
@@ -373,7 +567,25 @@ export function buildStarlightComponentReport(
         severity: finding.severity,
         status: finding.status,
       })),
+      ...(connectedExceptions.length
+        ? {
+            exceptions: connectedExceptions.map((exception) => ({
+              id: exception.id,
+              findingId: exception.findingId,
+              approvedBy: exception.approvedBy,
+              approvedAt: exception.approvedAt,
+              rationale: exception.rationale,
+              ...(exception.expiresAt
+                ? { expiresAt: exception.expiresAt }
+                : {}),
+            })),
+          }
+        : {}),
+      releaseDecision: decision,
+      ...(policySnapshot ? { policySnapshot } : {}),
+      notConnected,
     },
+    documentation: documentationStatusReport(manifest),
   };
 }
 
@@ -388,6 +600,7 @@ export function generateStarlightComponentReportData(
       input.testExecutions ?? [],
       input.manualReviews ?? [],
       input.findings ?? [],
+      input.exceptions ?? [],
       input.evidenceCommit,
       templateAudience(template),
     ),
@@ -470,6 +683,7 @@ export interface StarlightPageInput {
   readonly testExecutions?: readonly TestExecution[];
   readonly manualReviews?: readonly ManualReview[];
   readonly findings?: readonly Finding[];
+  readonly exceptions?: readonly Exception[];
   /** The commit the generated evidence summary should be pinned to —
    * `WorkspaceService.gitStatus()?.commit`, never fabricated. */
   readonly evidenceCommit: string;
@@ -668,7 +882,9 @@ export function generateStarlightComponentPage(
     lines.push('');
     lines.push('## Release history');
     lines.push('');
-    lines.push(`<ReleaseHistory component="${escapedComponentId}" />`);
+    lines.push(
+      `<ReleaseHistory component="${escapedComponentId}" report={forgegateReport} />`,
+    );
   }
   lines.push('');
 

@@ -53,6 +53,47 @@ export interface ForgeGateFindingReport {
   readonly status: string;
 }
 
+export interface ForgeGateExceptionReport {
+  readonly id: string;
+  readonly findingId: string;
+  readonly approvedBy: string;
+  readonly approvedAt: string;
+  readonly rationale: string;
+  readonly expiresAt?: string;
+}
+
+export interface ForgeGateNotConnectedReport {
+  readonly section: string;
+  readonly reason: string;
+}
+
+export interface ForgeGateReleaseDecisionReport {
+  readonly status: 'blocked' | 'authorized-candidate' | 'not-connected';
+  readonly reason?: string;
+  readonly policyId?: string;
+  readonly policyVersion?: string;
+  readonly blockingFindingIds: readonly string[];
+  readonly evidenceIds: readonly string[];
+  readonly commit?: string;
+  readonly notRealApproval?: boolean;
+}
+
+export interface ForgeGatePolicySnapshotReport {
+  readonly policyId: string;
+  readonly policyVersion: string;
+  readonly source: 'component-manifest';
+  readonly manifestPath: string;
+  readonly status: 'authored-reference';
+  readonly detail: string;
+}
+
+export interface ForgeGateDocumentationStatusReport {
+  readonly adapter: string;
+  readonly pathOrPageId?: string;
+  readonly status: 'current' | 'drifted' | 'not-evaluated';
+  readonly detail: string;
+}
+
 export interface ForgeGateManifestProvenanceReport {
   readonly schemaVersion: string;
   readonly path: string;
@@ -90,7 +131,12 @@ export interface ForgeGateComponentReport {
     readonly automated: readonly ForgeGateAutomatedEvidenceReport[];
     readonly manualReviews: readonly ForgeGateManualReviewEvidenceReport[];
     readonly findings: readonly ForgeGateFindingReport[];
+    readonly exceptions?: readonly ForgeGateExceptionReport[];
+    readonly releaseDecision?: ForgeGateReleaseDecisionReport;
+    readonly policySnapshot?: ForgeGatePolicySnapshotReport;
+    readonly notConnected?: readonly ForgeGateNotConnectedReport[];
   };
+  readonly documentation: readonly ForgeGateDocumentationStatusReport[];
 }
 
 export interface ForgeGateRegistryComponentReport {
@@ -129,4 +175,10 @@ export function openFindingCount(
     report?.evidence.findings.filter((finding) => finding.status === 'open')
       .length ?? 0
   );
+}
+
+export function notConnectedCount(
+  report: ForgeGateComponentReport | undefined,
+): number {
+  return report?.evidence.notConnected?.length ?? 0;
 }

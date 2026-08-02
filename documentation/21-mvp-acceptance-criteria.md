@@ -21,6 +21,28 @@ Web Components is the MVP target framework rather than Angular because it is the
 
 Other operating systems, workspace managers, target frameworks, and remote Storybooks are not required for MVP completion, although the core contracts must not prevent them. Angular repository support is the next validation target immediately after the Web Components MVP, to confirm the same contracts hold for a compiler-driven framework.
 
+## Current implementation status
+
+This document defines the full MVP acceptance bar. The current build has real slices, but the MVP is not complete.
+
+| Area | Current status |
+|---|---|
+| Install and launch | Windows/Tauri/Angular shell is real; production packaging/signing remains outside the current slice. |
+| Open workspace | Real workspace selection, Git/package/workspace detection, Starlight/Storybook/token/test/CI discovery, CEM discovery, and diagnostics exist. |
+| Configuration | Repository config is read and used for command mappings; broad schema-backed configuration proposal/editing is not complete. |
+| Discover button component | Real Web Components Acme button fixture, CEM parsing, manifest merge, inventory, and component record exist. |
+| Manifest | Real component manifest type/schema/YAML parsing and fixture manifests exist; policy/compliance completeness is still expanding. |
+| Storybook | Static Storybook index parsing and a local live-index check exist; starting Storybook and running Storybook tests are not built. |
+| Automated gates | Unit/lint/build can run through approved configured commands. Storybook interaction, axe, Playwright, Jest, and Vitest evidence can be imported; Storybook/axe/Playwright execution is not yet orchestrated by ForgeGate. |
+| Result interpretation | Current/stale evidence display and raw diagnostic preservation exist; finding creation/linking from every failing result is not complete. |
+| Manual review | Guided component review and ForgeGate self-review flows exist and stage real `ManualReview` evidence; the required human ForgeGate screen-reader pass has not been performed. |
+| Stale evidence | Commit-level stale detection and changed-file explanation exist; dependency-aware invalidation by change type remains future work. |
+| Policy and readiness | Blocking/readiness explanations and export-time blocked decisions exist in narrow form; durable release workflow records and real authorized approvals remain open. |
+| Documentation | Staged Starlight component and registry generation exists with manifest-backed report data, protected regions, richer evidence status, matching exception records, manifest-authored policy reference snapshots, local `@forgegate/starlight` components, a minimal Astro integration entrypoint, fixture build validation, and one external Starlight build validation. Full plugin lifecycle remains future work. |
+| Evidence export | Real manifest-indexed export exists with checksums and report HTML; policy snapshot, attachments, redaction, and fuller approval evidence remain open. |
+| Security | Path validation, approved writes, approved command execution, sensitive manifest/lockfile write denial, and local Storybook fetch restrictions exist; complete secret redaction/vault/update posture remains future work. |
+| Accessibility of ForgeGate | Automated axe, forced-colors, reduced-motion, narrow-window, visual regression, and semantic-alternative checks exist; human screen-reader review remains open. |
+
 ## Scenario
 
 The fixture or pilot repository contains:

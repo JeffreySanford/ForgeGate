@@ -51,7 +51,7 @@ No generation, remote services, or team collaboration is required.
 
 Outcome:
 
-ForgeGate discovers one Angular button and presents a complete record.
+ForgeGate discovers one Lit or vanilla Web Components button and presents a complete record. Angular/Nx follows as the second validation target after the Web Components slice proves the portable model.
 
 Scope:
 
@@ -264,11 +264,11 @@ Add:
 
 Do not advance to broad multi-framework claims until:
 
-- The Angular vertical slice works end to end.
+- The Web Components vertical slice works end to end.
 - Evidence freshness is trustworthy.
 - Repository writes are safe.
 - ForgeGate itself is accessible.
-- The core model supports a second framework without redesign.
+- The core model supports Angular/Nx as a second framework without redesign.
 - At least one potential customer validates the workflow.
 
 ## Commercial milestone

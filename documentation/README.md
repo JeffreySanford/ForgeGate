@@ -56,3 +56,20 @@ Blueprint Studio is now explicitly preserved as a first-class post-MVP initiativ
 The next implementation work should continue against [`TODO.md`](../TODO.md). Blueprint Studio domain and schema exploration may proceed in parallel only when it does not delay the existing-component assurance vertical slice.
 
 As engineering proceeds, these documents should be refined into validated contracts, schemas, prototypes, examples, and acceptance evidence.
+
+## Current implementation truth
+
+Use this section as the quick status map. Narrative documents describe the intended platform; [`TODO.md`](../TODO.md) remains the active execution queue.
+
+| Capability | Current truth | Primary status source |
+|---|---|---|
+| Web Components MVP path | Implemented as a narrow Acme button fixture slice; still needs full MVP closure and pilot validation. | [`21-mvp-acceptance-criteria.md`](21-mvp-acceptance-criteria.md), [`TODO.md`](../TODO.md) |
+| Manifest and component registry | Real component manifests, CEM parsing/mapping, inventory, and registry-style Starlight output exist; manifest completeness still grows with policy/release work. | [`04-component-manifest.md`](04-component-manifest.md), [`12-starlight-integration.md`](12-starlight-integration.md) |
+| Evidence freshness | Real commit comparison and stale/current display exist for component evidence, timeline entries, and ForgeGate self-review; durable causal event history remains partial. | [`08-test-orchestration.md`](08-test-orchestration.md), [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md) |
+| Manual review | Real guided component review and ForgeGate self-review flows exist; the human ForgeGate screen-reader pass has not been performed. | [`09-manual-review-and-evidence.md`](09-manual-review-and-evidence.md), [`TODO.md`](../TODO.md) |
+| Unit/lint/build execution | Real approved target-repository command execution exists for unit, lint, and build, recorded as exit-code-based `TestExecution` evidence. | [`08-test-orchestration.md`](08-test-orchestration.md) |
+| Storybook/axe/Playwright evidence | Structured evidence import exists; ForgeGate-triggered execution for these gates is not built yet. | [`08-test-orchestration.md`](08-test-orchestration.md) |
+| Starlight report generation | Real staged component and registry generation exists with manifest-backed report JSON, richer evidence status, matching exception records, manifest-authored policy reference snapshots, local `@forgegate/starlight` components, a minimal Astro integration entrypoint, fixture build validation, and one external Starlight build validation. A full Starlight plugin lifecycle remains future work. | [`12-starlight-integration.md`](12-starlight-integration.md) |
+| Evidence export | Real manifest-indexed export exists with reports/checksums and several sections; `policy-snapshot.json`, attachments, redaction, and fuller release approval flow remain open. | [`09-manual-review-and-evidence.md`](09-manual-review-and-evidence.md) |
+| ForgeGate dogfooding | Accessibility mechanism and evidence-freshness display are real; documentation and release gates for ForgeGate's own shell need a real shell component identity. | [`01-product-principles.md`](01-product-principles.md), [`TODO.md`](../TODO.md) |
+| Blueprint Studio | Product boundary, implementation plan, blueprint schema/parser, and adapter-generation capability declarations exist; Studio UI and component generation remain post-MVP. | [`27-blueprint-studio.md`](27-blueprint-studio.md), [`28-blueprint-studio-implementation-plan.md`](28-blueprint-studio-implementation-plan.md) |

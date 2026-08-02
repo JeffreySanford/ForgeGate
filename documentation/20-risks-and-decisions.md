@@ -169,7 +169,7 @@ Mitigation:
 - Build accessibility into the desktop UI.
 - Add automated and manual testing.
 - Support keyboard, screen readers, forced colors, zoom, and reduced motion.
-- Dogfood ForgeGate. **Real as of the accessibility axis**: `/accessibility-review` guides and records a real manual screen-reader pass against ForgeGate's own shell (see documentation/01 principle 16, documentation/09). The pass itself still has not been performed by anyone — the mechanism exists, the evidence does not yet.
+- Dogfood ForgeGate. **Real as of the accessibility axis**: `/accessibility-review` guides and records a real manual screen-reader pass against ForgeGate's own shell, and the same view now reports whether that self-review evidence is current or stale against the workspace commit (see documentation/01 principle 16, documentation/09). The pass itself still has not been performed by anyone — the mechanism exists, but the human evidence does not yet. Documentation and release gates for ForgeGate's own shell still need a real shell component identity before they can be honestly evaluated.
 
 ## Federal and regulated-buyer risks
 
@@ -236,7 +236,7 @@ These no longer need discussion in this document; see [`decisions/`](decisions/R
 
 - Primary MVP user (engineer, accessibility specialist secondary) — [`decisions/0001-primary-mvp-user.md`](decisions/0001-primary-mvp-user.md).
 - Initial buyer (regulated design-system leader, federal leading example not federal-only) — [`decisions/0002-initial-buyer.md`](decisions/0002-initial-buyer.md).
-- Pilot repository (Public Sector Federation for the real demo, a small synthetic fixture for CI) — [`decisions/0003-pilot-repository.md`](decisions/0003-pilot-repository.md). This ADR also records an **unresolved tension**: it assumes an Angular/Nx pilot repository, while the framework-sequencing decision above picks Web Components as the first adapter. Revisit before adapter work begins.
+- Pilot repository (Public Sector Federation for the real demo, a small synthetic fixture for CI) — [`decisions/0003-pilot-repository.md`](decisions/0003-pilot-repository.md). The original adapter-sequencing tension is now resolved in favor of Web Components first; the remaining question is when the Public Sector Federation pilot should begin, because it likely depends on Angular/Nx validation.
 - MVP generation scope (assure existing components; propose but do not generate new ones) — [`decisions/0004-mvp-generation-scope.md`](decisions/0004-mvp-generation-scope.md).
 - Workspace architecture (pnpm, Nx, Angular UI, Tauri 2, Rust boundary only, TypeScript everywhere else) — [`decisions/0005-workspace-architecture.md`](decisions/0005-workspace-architecture.md).
 
@@ -280,9 +280,6 @@ As of 2026-07-22, none of these have occurred. Product interviews and a working 
 
 ## Open architecture decisions
 
-- Nx versus a simpler pnpm workspace for ForgeGate itself
-- Angular desktop UI architecture and state management
-- Rust versus TypeScript ownership of scanning and Git operations
 - SQLite access library
 - JSON Schema validator
 - YAML library and comment preservation

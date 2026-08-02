@@ -2,7 +2,7 @@
 
 ## Context
 
-[`02-system-architecture.md`](../02-system-architecture.md) already proposes Tauri 2, an Angular desktop UI, and a framework-neutral core. [`20-risks-and-decisions.md`](../20-risks-and-decisions.md) leaves "Nx versus a simpler pnpm workspace" and "Rust versus TypeScript ownership of scanning and Git operations" as open architecture decisions. Implementation cannot start without settling the workspace shape.
+[`02-system-architecture.md`](../02-system-architecture.md) already proposes Tauri 2, an Angular desktop UI, and a framework-neutral core. At the time of this ADR, [`20-risks-and-decisions.md`](../20-risks-and-decisions.md) still left "Nx versus a simpler pnpm workspace" and "Rust versus TypeScript ownership of scanning and Git operations" as open architecture decisions. This ADR closes those questions so implementation can proceed against a settled workspace shape.
 
 ## Decision
 

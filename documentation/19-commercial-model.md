@@ -264,5 +264,5 @@ Do not spend heavily on multi-framework implementation until:
 - At least five target users confirm the problem.
 - At least two buyers confirm budget ownership.
 - One design partner provides a real repository.
-- The Angular vertical slice reduces measurable work.
+- The Web Components vertical slice reduces measurable work, and Angular/Nx validation shows the same model can cross framework boundaries.
 - The customer values stale-evidence and release-assurance capabilities beyond ordinary Storybook reporting.

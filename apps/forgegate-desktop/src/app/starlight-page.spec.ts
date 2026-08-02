@@ -1,5 +1,6 @@
 import { createComponentManifest } from '@forgegate/core-manifest';
 import type {
+  Exception,
   Finding,
   ManualProcedure,
   ManualReview,
@@ -183,6 +184,14 @@ describe('generateDesignerStarlightComponentPage', () => {
       severity: 'moderate',
       status: 'open',
     };
+    const exception: Exception = {
+      id: 'focus-visible-risk-acceptance',
+      findingId: 'acme-button-focus-visible',
+      approvedBy: 'lead-reviewer@example.test',
+      approvedAt: '2026-07-31T12:30:00.000Z',
+      rationale: 'Accepted until the next token contrast update.',
+      expiresAt: '2026-09-01T00:00:00.000Z',
+    };
     const data = generateStarlightComponentReportData({
       manifest,
       procedures: [procedure],
@@ -202,6 +211,14 @@ describe('generateDesignerStarlightComponentPage', () => {
         finding,
         { ...finding, id: 'other-finding', componentId: 'other' },
       ],
+      exceptions: [
+        exception,
+        {
+          ...exception,
+          id: 'other-exception',
+          findingId: 'other-finding',
+        },
+      ],
       evidenceCommit: 'b91d20e',
       template: 'designer',
     });
@@ -212,9 +229,13 @@ describe('generateDesignerStarlightComponentPage', () => {
     expect(data).toContain('"reviewerRole": "Design systems reviewer"');
     expect(data).toContain('"findings": [');
     expect(data).toContain('Focus-visible treatment needs stronger contrast.');
+    expect(data).toContain('"exceptions": [');
+    expect(data).toContain('"id": "focus-visible-risk-acceptance"');
+    expect(data).toContain('Accepted until the next token contrast update.');
     expect(data).not.toContain('"id": "axe-other"');
     expect(data).not.toContain('"id": "review-other"');
     expect(data).not.toContain('"id": "other-finding"');
+    expect(data).not.toContain('"id": "other-exception"');
   });
 
   it('generates the same scoped report as a companion JSON data artifact', () => {
@@ -251,8 +272,102 @@ describe('generateDesignerStarlightComponentPage', () => {
       },
       evidence: {
         automated: [{ id: 'axe-acme-button', status: 'passed' }],
+        releaseDecision: {
+          status: 'not-connected',
+          reason:
+            'No policy id and version are authored for this component, so ForgeGate cannot summarize release readiness.',
+          blockingFindingIds: [],
+          evidenceIds: ['axe-acme-button'],
+        },
+        notConnected: expect.arrayContaining([
+          {
+            section: 'manual reviews',
+            reason:
+              'No manual review evidence is connected for this component version yet.',
+          },
+          {
+            section: 'policy snapshot',
+            reason:
+              'No policy id and version are authored for this component, so no policy snapshot can be summarized.',
+          },
+        ]),
       },
+      documentation: [],
     });
+  });
+
+  it('adds a blocked release summary and documentation status when real inputs exist', () => {
+    const data = JSON.parse(
+      generateStarlightComponentReportData({
+        manifest: createComponentManifest({
+          id: 'acme.design-system.acme-button',
+          framework: 'web-components',
+          adapter: 'framework.web-components',
+          packagePath: '.',
+          componentVersion: '1.2.0',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+          documentationTargets: [
+            {
+              adapter: 'starlight',
+              pathOrPageId: 'src/content/docs/components/button.mdx',
+              publishedVersion: '1.1.0',
+            },
+          ],
+        }),
+        procedures: [],
+        testExecutions: [],
+        manualReviews: [],
+        findings: [
+          {
+            id: 'button-finding',
+            componentId: 'acme.design-system.acme-button',
+            description: 'A real blocking finding.',
+            severity: 'serious',
+            status: 'open',
+          },
+        ],
+        evidenceCommit: 'b91d20e',
+        template: 'designer',
+      }),
+    );
+
+    expect(data.evidence.releaseDecision).toMatchObject({
+      status: 'blocked',
+      policyId: 'acme.baseline',
+      policyVersion: '1.0.0',
+      blockingFindingIds: ['button-finding'],
+      commit: 'b91d20e',
+    });
+    expect(data.evidence.policySnapshot).toEqual({
+      policyId: 'acme.baseline',
+      policyVersion: '1.0.0',
+      source: 'component-manifest',
+      manifestPath:
+        '.forgegate/components/acme.design-system.acme-button.yaml',
+      status: 'authored-reference',
+      detail:
+        'This report includes the component manifest policy reference. ForgeGate has not loaded a full policy ruleset snapshot yet.',
+    });
+    expect(data.evidence.notConnected).toContainEqual({
+      section: 'policy ruleset snapshot',
+      reason:
+        'Only the manifest-authored policy id and version are connected; the full evaluated policy ruleset is not loaded into Starlight report data yet.',
+    });
+    expect(data.evidence.notConnected).toContainEqual({
+      section: 'exceptions',
+      reason:
+        'No exception evidence approves any connected finding for this component yet.',
+    });
+    expect(data.documentation).toEqual([
+      {
+        adapter: 'starlight',
+        pathOrPageId: 'src/content/docs/components/button.mdx',
+        status: 'drifted',
+        detail:
+          'Published version 1.1.0 does not match component version 1.2.0.',
+      },
+    ]);
   });
 
   it('keeps the underlying report facts identical across audience tiers', () => {

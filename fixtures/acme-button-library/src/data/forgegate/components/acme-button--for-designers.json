@@ -143,6 +143,48 @@
         "severity": "serious",
         "status": "open"
       }
+    ],
+    "releaseDecision": {
+      "status": "blocked",
+      "policyId": "acme.baseline",
+      "policyVersion": "1.0.0",
+      "blockingFindingIds": ["acme-button-keyboard-review-1-step-2"],
+      "evidenceIds": [
+        "axe-acme-button",
+        "storybook-acme-button",
+        "acme-button-keyboard-review-1"
+      ],
+      "commit": "fixture"
+    },
+    "policySnapshot": {
+      "policyId": "acme.baseline",
+      "policyVersion": "1.0.0",
+      "source": "component-manifest",
+      "manifestPath": ".forgegate/components/acme.button-library.acme-button.yaml",
+      "status": "authored-reference",
+      "detail": "This report includes the component manifest policy reference. ForgeGate has not loaded a full policy ruleset snapshot yet."
+    },
+    "notConnected": [
+      {
+        "section": "exceptions",
+        "reason": "No exception evidence approves any connected finding for this component yet."
+      },
+      {
+        "section": "policy ruleset snapshot",
+        "reason": "Only the manifest-authored policy id and version are connected; the full evaluated policy ruleset is not loaded into Starlight report data yet."
+      },
+      {
+        "section": "attachments",
+        "reason": "Evidence attachments are not connected to Starlight reports yet."
+      }
     ]
-  }
+  },
+  "documentation": [
+    {
+      "adapter": "starlight",
+      "pathOrPageId": "src/content/docs/components/button.md",
+      "status": "current",
+      "detail": "Published version 0.1.0 matches component version 0.1.0."
+    }
+  ]
 }

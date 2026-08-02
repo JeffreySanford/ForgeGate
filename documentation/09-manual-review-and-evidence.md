@@ -206,8 +206,11 @@ Required action:
 > and in the report's "Not connected" section rather than silently omitted:
 > `policy-snapshot.json` and `attachments/`. See TODO.md's "Evidence export
 > remaining sections" for what each one is blocked on. ForgeGate still imports
-> externally produced automated evidence; it does not yet orchestrate
-> target-repository commands itself.
+> externally produced Storybook interaction, axe, Playwright, Jest, and Vitest
+> evidence. It also now orchestrates three configured target-repository command
+> gates itself — unit, lint, and build — through explicit approval and records
+> their real exit-code result as `TestExecution` evidence. Storybook, axe, and
+> Playwright execution are not yet run by ForgeGate; those remain import-only.
 >
 > **`release-decision.json` and approvals.** A `blocked` outcome requires no
 > approver, so it is produced from real data today whenever the repository has

@@ -37,6 +37,10 @@ import {
   starlightRegistryIndexPath,
   starlightRegistryReportDataPath,
 } from './starlight-page';
+import {
+  createStarlightBuildValidationPlan,
+  starlightBuildValidationSkippedReason,
+} from './starlight-build-validation';
 import { assertValidGeneratedStarlightMdx } from './starlight-page-validation';
 import {
   parseCustomElementsManifest,
@@ -1824,6 +1828,7 @@ export class WorkspaceService {
               testExecutions: this.testExecutions(),
               manualReviews: this.manualReviews(),
               findings: this.findings(),
+              exceptions: this.exceptions(),
               evidenceCommit,
               existingOverview,
               template,
@@ -1836,6 +1841,7 @@ export class WorkspaceService {
               testExecutions: this.testExecutions(),
               manualReviews: this.manualReviews(),
               findings: this.findings(),
+              exceptions: this.exceptions(),
               evidenceCommit,
               existingOverview: null,
               template: 'designer' as const,
@@ -1944,7 +1950,7 @@ export class WorkspaceService {
       this.repositoryConfig()?.commandMappings[STARLIGHT_BUILD_COMMAND_MAPPING];
     if (!commandText) {
       this.starlightBuildSkipped.set(
-        `No ${STARLIGHT_BUILD_COMMAND_MAPPING} command is configured in .forgegate/config.yaml.`,
+        starlightBuildValidationSkippedReason(STARLIGHT_BUILD_COMMAND_MAPPING),
       );
       return;
     }
@@ -1964,22 +1970,35 @@ export class WorkspaceService {
       });
       return;
     }
+    const validationPlan = createStarlightBuildValidationPlan(
+      plan,
+      this.workspaceScan()?.starlightProjects ?? [],
+      STARLIGHT_BUILD_TIMEOUT_SECONDS,
+    );
 
     try {
       const result = await this.invoke<CommandResult>('run_workspace_command', {
         workspacePath,
-        relativeCwd: '',
-        command: plan.command,
-        args: [...plan.args],
-        timeoutSeconds: STARLIGHT_BUILD_TIMEOUT_SECONDS,
+        relativeCwd: validationPlan.relativeCwd,
+        command: validationPlan.command,
+        args: [...validationPlan.args],
+        timeoutSeconds: validationPlan.timeoutSeconds,
       });
       this.starlightBuildResult.set(result);
       this.setAdapterDiagnostic({
         id: 'starlight-build-command',
         adapter: 'Starlight build validation',
-        source: plan.commandText,
+        source: validationPlan.commandText,
         status: result.exitCode === 0 ? 'loaded' : 'failed',
-        rawOutput: JSON.stringify(result, null, 2),
+        rawOutput: JSON.stringify(
+          {
+            ...result,
+            detectedStarlightProjects:
+              validationPlan.detectedStarlightProjects,
+          },
+          null,
+          2,
+        ),
         error:
           result.exitCode === 0
             ? null
@@ -1992,7 +2011,7 @@ export class WorkspaceService {
       this.setAdapterDiagnostic({
         id: 'starlight-build-command',
         adapter: 'Starlight build validation',
-        source: plan.commandText,
+        source: validationPlan.commandText,
         status: 'failed',
         rawOutput: null,
         error: String(error),

@@ -5,7 +5,7 @@ interface Props {
   report?: import('../lib/report').ForgeGateComponentReport;
 }
 
-import { contractMemberCount, openFindingCount } from '../lib/report';
+import { contractMemberCount, notConnectedCount, openFindingCount } from '../lib/report';
 
 const { component, tier = 'balanced', report } = Astro.props;
 const evidenceCommit = report?.evidenceCommit ?? 'unknown';
@@ -16,7 +16,11 @@ const procedureCount = report?.manualProcedures.length ?? 0;
 const automatedCount = report?.evidence.automated.length ?? 0;
 const manualReviewCount = report?.evidence.manualReviews.length ?? 0;
 const findingCount = report?.evidence.findings.length ?? 0;
+const exceptionCount = report?.evidence.exceptions?.length ?? 0;
 const unresolvedFindingCount = openFindingCount(report);
+const notConnected = notConnectedCount(report);
+const releaseDecision = report?.evidence.releaseDecision;
+const policySnapshot = report?.evidence.policySnapshot;
 
 function statusClass(status: string): string {
   if (status === 'passed' || status === 'resolved') {
@@ -73,10 +77,51 @@ function severityClass(severity: string): string {
       <dd>{findingCount}</dd>
     </div>
     <div>
+      <dt>Exceptions</dt>
+      <dd>{exceptionCount}</dd>
+    </div>
+    <div>
       <dt>Open findings</dt>
       <dd>{unresolvedFindingCount}</dd>
     </div>
+    <div>
+      <dt>Not connected</dt>
+      <dd>{notConnected}</dd>
+    </div>
   </dl>
+  {
+    releaseDecision ? (
+      <section class="forgegate-evidence-list">
+        <h4>Release decision</h4>
+        <p>
+          <span class={statusClass(releaseDecision.status)}>{releaseDecision.status}</span>
+          {releaseDecision.reason ? <span> {releaseDecision.reason}</span> : null}
+        </p>
+        {releaseDecision.policyId ? (
+          <p>
+            Policy <code>{releaseDecision.policyId}</code>
+            {releaseDecision.policyVersion ? ` @ ${releaseDecision.policyVersion}` : ''}
+          </p>
+        ) : null}
+      </section>
+    ) : null
+  }
+  {
+    policySnapshot ? (
+      <section class="forgegate-evidence-list">
+        <h4>Policy snapshot</h4>
+        <p>
+          <span class="forgegate-chip forgegate-chip--success">authored reference</span>
+          <span>
+            Policy <code>{policySnapshot.policyId}</code> @ {policySnapshot.policyVersion}
+          </span>
+        </p>
+        <p>
+          Source <code>{policySnapshot.manifestPath}</code>. {policySnapshot.detail}
+        </p>
+      </section>
+    ) : null
+  }
   {
     report?.evidence.automated.length ? (
       <section class="forgegate-evidence-list">
@@ -122,6 +167,40 @@ function severityClass(severity: string): string {
               <span class={statusClass(finding.status)}>{finding.status}</span>
               <span class={severityClass(finding.severity)}>{finding.severity}</span>
               <span class="forgegate-evidence-list__title">{finding.description}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+  }
+  {
+    report?.evidence.exceptions?.length ? (
+      <section class="forgegate-evidence-list">
+        <h4>Exceptions</h4>
+        <ul>
+          {report.evidence.exceptions.map((exception) => (
+            <li>
+              <span class="forgegate-chip forgegate-chip--muted">accepted risk</span>
+              <span class="forgegate-evidence-list__title">{exception.findingId}</span>
+              <span>{exception.rationale}</span>
+              <span>{exception.approvedBy}</span>
+              <code>{exception.expiresAt ?? exception.approvedAt}</code>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+  }
+  {
+    report?.evidence.notConnected?.length ? (
+      <section class="forgegate-evidence-list">
+        <h4>Not connected</h4>
+        <ul>
+          {report.evidence.notConnected.map((gap) => (
+            <li>
+              <span class="forgegate-chip forgegate-chip--muted">not connected</span>
+              <span class="forgegate-evidence-list__title">{gap.section}</span>
+              <span>{gap.reason}</span>
             </li>
           ))}
         </ul>

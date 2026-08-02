@@ -214,8 +214,8 @@ Adapter diagnostics should be visible in the desktop UI:
 
 The SDK should not be finalized until:
 
-- The Angular vertical slice is complete.
-- At least one non-Angular adapter is implemented.
+- The Web Components vertical slice is complete.
+- At least one second-framework validation adapter is implemented, likely Angular/Nx.
 - Storybook and Starlight adapters have real-world use.
 - Evidence schemas are stable enough for CI.
 - Security boundaries have been threat modeled.
