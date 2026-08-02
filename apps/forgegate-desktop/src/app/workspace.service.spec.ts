@@ -625,6 +625,12 @@ describe('WorkspaceService', () => {
       '  adapter: framework.web-components',
       'purpose: Trigger a compact, icon-only variant of the primary button.',
       'nativeSemanticConfirmed: true',
+      'contract:',
+      '  inputs: []',
+      '  outputs: []',
+      '  content: []',
+      '  publicMethods: []',
+      '  styleParts: []',
     ].join('\n');
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
@@ -655,6 +661,13 @@ describe('WorkspaceService', () => {
         },
         purpose: 'Trigger a compact, icon-only variant of the primary button.',
         nativeSemanticConfirmed: true,
+        contract: {
+          inputs: [],
+          outputs: [],
+          content: [],
+          publicMethods: [],
+          styleParts: [],
+        },
       },
     ]);
     expect(service.proposalError()).toContain(

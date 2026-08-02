@@ -141,6 +141,37 @@ describe('StudioPage', () => {
     );
   });
 
+  it('adds and removes a contract member from a category', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const addInputButton = Array.from(compiled.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Add input'),
+    ) as HTMLButtonElement;
+    addInputButton.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#inputs-name-0')).not.toBeNull();
+
+    const removeButton = compiled.querySelector(
+      '.studio-page__contract-member button',
+    ) as HTMLButtonElement;
+    removeButton.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#inputs-name-0')).toBeNull();
+  });
+
   it('creates and stages a real ComponentProposal from the form, then approves it', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);
@@ -173,6 +204,15 @@ describe('StudioPage', () => {
     setInputValue('#proposal-adapter', 'framework.web-components');
     fixture.detectChanges();
 
+    (
+      Array.from(compiled.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Add input'),
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    setInputValue('#inputs-name-0', 'icon');
+    fixture.detectChanges();
+
     const createButton = Array.from(compiled.querySelectorAll('button')).find(
       (b) => b.textContent?.includes('Create proposal'),
     ) as HTMLButtonElement;
@@ -186,6 +226,7 @@ describe('StudioPage', () => {
       expect.objectContaining({
         workspacePath: '/repos/example',
         proposalId: expect.stringContaining('proposal.acme-icon-button-'),
+        content: expect.stringContaining('icon'),
       }),
     );
     expect(compiled.textContent).toContain('Review staged proposal');

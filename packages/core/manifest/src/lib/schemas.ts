@@ -1,6 +1,6 @@
 /** JSON Schemas for the core-manifest entities, per documentation/16-data-and-schema-model.md. */
 
-const contractMemberSchema = {
+export const contractMemberSchema = {
   type: 'object',
   properties: {
     name: { type: 'string', minLength: 1 },
@@ -230,6 +230,19 @@ const proposalTargetDefinitionSchema = {
   additionalProperties: false,
 } as const;
 
+const proposalContractDraftSchema = {
+  type: 'object',
+  properties: {
+    inputs: { type: 'array', items: contractMemberSchema },
+    outputs: { type: 'array', items: contractMemberSchema },
+    content: { type: 'array', items: contractMemberSchema },
+    publicMethods: { type: 'array', items: contractMemberSchema },
+    styleParts: { type: 'array', items: contractMemberSchema },
+  },
+  required: ['inputs', 'outputs', 'content', 'publicMethods', 'styleParts'],
+  additionalProperties: false,
+} as const;
+
 export const componentProposalSchema = {
   $id: 'https://forgegate.dev/schemas/component-proposal.schema.json',
   type: 'object',
@@ -239,6 +252,7 @@ export const componentProposalSchema = {
     target: proposalTargetDefinitionSchema,
     purpose: { type: 'string', minLength: 1 },
     nativeSemanticConfirmed: { type: 'boolean' },
+    contract: proposalContractDraftSchema,
   },
   required: [
     'identity',
@@ -246,6 +260,7 @@ export const componentProposalSchema = {
     'target',
     'purpose',
     'nativeSemanticConfirmed',
+    'contract',
   ],
   additionalProperties: false,
 } as const;

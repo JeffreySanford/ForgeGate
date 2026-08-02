@@ -15,6 +15,16 @@ target:
   adapter: framework.web-components
 purpose: Trigger a compact, icon-only variant of the primary button.
 nativeSemanticConfirmed: true
+contract:
+  inputs:
+    - name: icon
+      type: string
+      required: true
+      description: The icon glyph to render.
+  outputs: []
+  content: []
+  publicMethods: []
+  styleParts: []
 `;
 
 describe('parseComponentProposal', () => {
@@ -29,6 +39,22 @@ describe('parseComponentProposal', () => {
       'Trigger a compact, icon-only variant of the primary button.',
     );
     expect(proposal.nativeSemanticConfirmed).toBe(true);
+    expect(proposal.contract.inputs).toEqual([
+      {
+        name: 'icon',
+        type: 'string',
+        required: true,
+        description: 'The icon glyph to render.',
+      },
+    ]);
+    expect(proposal.contract.outputs).toEqual([]);
+  });
+
+  it('rejects a proposal missing the required contract field', () => {
+    const invalid = validYaml.replace(/contract:[\s\S]*$/, '');
+    expect(() => parseComponentProposal(invalid)).toThrow(
+      'does not match the schema',
+    );
   });
 
   it('rejects malformed YAML', () => {

@@ -124,3 +124,37 @@
   gap: var(--fg-space-2);
   margin-top: var(--fg-space-3);
 }
+
+.studio-page__contract-category {
+  display: grid;
+  gap: var(--fg-space-2);
+  margin: var(--fg-space-3) 0;
+  padding: var(--fg-space-2) var(--fg-space-3);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+}
+
+.studio-page__contract-category legend {
+  font-weight: 600;
+  padding: 0 var(--fg-space-1);
+}
+
+.studio-page__contract-member {
+  display: grid;
+  grid-template-columns: 2fr 2fr auto auto;
+  align-items: end;
+  gap: var(--fg-space-2);
+}
+
+.studio-page__contract-member label {
+  font-size: var(--fg-type-size-sm);
+}
+
+.studio-page__contract-member input[type='text'] {
+  padding: var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  font: inherit;
+}

@@ -164,6 +164,78 @@
           >) } applies, or have a reasoned deviation.
         </label>
       </div>
+
+      <h3>Configure the portable public contract</h3>
+      <p>
+        Real, portable contract members — the same shape a generated component's
+        own contract would use. Configuring variants, states, anatomy, and
+        tokens against these members is not built yet.
+      </p>
+      @for (category of contractCategories; track category.key) {
+      <fieldset class="studio-page__contract-category">
+        <legend>{{ category.label }}</legend>
+        @for (member of contractDraft()[category.key]; track $index) {
+        <div class="studio-page__contract-member">
+          <label [attr.for]="category.key + '-name-' + $index"
+            >Name <span aria-hidden="true">*</span></label
+          >
+          <input
+            [id]="category.key + '-name-' + $index"
+            type="text"
+            [value]="member.name"
+            (input)="
+              updateContractMember(
+                category.key,
+                $index,
+                'name',
+                $any($event.target).value
+              )
+            "
+          />
+          <label [attr.for]="category.key + '-type-' + $index">Type</label>
+          <input
+            [id]="category.key + '-type-' + $index"
+            type="text"
+            [value]="member.type ?? ''"
+            (input)="
+              updateContractMember(
+                category.key,
+                $index,
+                'type',
+                $any($event.target).value
+              )
+            "
+          />
+          <label [attr.for]="category.key + '-required-' + $index"
+            >Required</label
+          >
+          <input
+            [id]="category.key + '-required-' + $index"
+            type="checkbox"
+            [checked]="member.required ?? false"
+            (change)="
+              updateContractMember(
+                category.key,
+                $index,
+                'required',
+                $any($event.target).checked
+              )
+            "
+          />
+          <button
+            type="button"
+            (click)="removeContractMember(category.key, $index)"
+          >
+            Remove
+          </button>
+        </div>
+        }
+        <button type="button" (click)="addContractMember(category.key)">
+          {{ category.addLabel }}
+        </button>
+      </fieldset>
+      }
+
       <button
         type="button"
         [disabled]="!canCreateProposal()"
