@@ -5,9 +5,14 @@ import {
   classifyForgeGateReportDataPath,
   discoverForgeGateReportDataFiles,
   forgeGateComponentReportDataPath,
+  forgeGateComponentReportRoutePath,
+  forgeGateReportDataHref,
   forgeGateReportDataDiscovery,
   forgeGateRegistryReportDataPath,
+  forgeGateRegistryReportRoutePath,
+  registerForgeGateReportData,
   safeReportDataRoot,
+  safeReportRouteBase,
   safeReportDataSlug,
 } from './report-data';
 
@@ -38,6 +43,22 @@ describe('ForgeGate report data conventions', () => {
   it('names registry report data under the same generated data root', () => {
     expect(forgeGateRegistryReportDataPath()).toBe(
       'src/data/forgegate/components/index.json',
+    );
+  });
+
+  it('maps report data slugs to deterministic Starlight route paths', () => {
+    expect(forgeGateRegistryReportRoutePath()).toBe('components');
+    expect(forgeGateComponentReportRoutePath('acme-button--for-designers')).toBe(
+      'components/acme-button--for-designers',
+    );
+    expect(
+      forgeGateComponentReportRoutePath(
+        'acme-button--for-designers',
+        'design-system/components',
+      ),
+    ).toBe('design-system/components/acme-button--for-designers');
+    expect(forgeGateReportDataHref('components/acme-button')).toBe(
+      '/components/acme-button/',
     );
   });
 
@@ -167,6 +188,87 @@ describe('ForgeGate report data conventions', () => {
     });
   });
 
+  it('registers discovered report data as stable Starlight route entries', async () => {
+    const workspaceRoot = await makeTemporaryWorkspace();
+    const reportDataRoot = 'docs/src/data/forgegate/components';
+    const absoluteReportDataRoot = path.join(
+      workspaceRoot,
+      ...reportDataRoot.split('/'),
+    );
+    await mkdir(absoluteReportDataRoot, { recursive: true });
+    await writeFile(path.join(absoluteReportDataRoot, 'index.json'), '{}');
+    await writeFile(
+      path.join(absoluteReportDataRoot, 'acme-button--for-designers.json'),
+      '{}',
+    );
+    await writeFile(
+      path.join(absoluteReportDataRoot, 'acme-card--for-developers.json'),
+      '{}',
+    );
+
+    const discovery = await discoverForgeGateReportDataFiles({
+      workspaceRoot,
+      reportDataRoot,
+    });
+
+    expect(
+      registerForgeGateReportData(discovery, {
+        routeBase: 'design-system/components',
+      }),
+    ).toEqual({
+      reportDataRoot,
+      routeBase: 'design-system/components',
+      entries: [
+        {
+          kind: 'registry',
+          label: 'Component registry',
+          reportDataPath: 'docs/src/data/forgegate/components/index.json',
+          routePath: 'design-system/components',
+          href: '/design-system/components/',
+        },
+        {
+          kind: 'component',
+          label: 'Acme Button For Designers',
+          reportDataPath:
+            'docs/src/data/forgegate/components/acme-button--for-designers.json',
+          routePath: 'design-system/components/acme-button--for-designers',
+          href: '/design-system/components/acme-button--for-designers/',
+          slug: 'acme-button--for-designers',
+        },
+        {
+          kind: 'component',
+          label: 'Acme Card For Developers',
+          reportDataPath:
+            'docs/src/data/forgegate/components/acme-card--for-developers.json',
+          routePath: 'design-system/components/acme-card--for-developers',
+          href: '/design-system/components/acme-card--for-developers/',
+          slug: 'acme-card--for-developers',
+        },
+      ],
+      limitations: [],
+    });
+  });
+
+  it('reports registration limitations when component reports are missing', async () => {
+    const workspaceRoot = await makeTemporaryWorkspace();
+    const reportDataRoot = 'docs/src/data/forgegate/components';
+    const absoluteReportDataRoot = path.join(
+      workspaceRoot,
+      ...reportDataRoot.split('/'),
+    );
+    await mkdir(absoluteReportDataRoot, { recursive: true });
+    await writeFile(path.join(absoluteReportDataRoot, 'index.json'), '{}');
+
+    const discovery = await discoverForgeGateReportDataFiles({
+      workspaceRoot,
+      reportDataRoot,
+    });
+
+    expect(registerForgeGateReportData(discovery).limitations).toEqual([
+      'No ForgeGate component report data files were discovered under docs/src/data/forgegate/components.',
+    ]);
+  });
+
   it('rejects report data roots that would escape the Starlight project', () => {
     expect(() => safeReportDataRoot('../data')).toThrow(
       'Unsafe ForgeGate report data root',
@@ -183,6 +285,18 @@ describe('ForgeGate report data conventions', () => {
     expect(() => safeReportDataSlug('nested/path')).toThrow(
       'Unsafe ForgeGate report data slug',
     );
+  });
+
+  it('rejects route paths that would escape Starlight routing', () => {
+    expect(() => safeReportRouteBase('../components')).toThrow(
+      'Unsafe ForgeGate Starlight route path',
+    );
+    expect(() => safeReportRouteBase('D:/docs/components')).toThrow(
+      'Unsafe ForgeGate Starlight route path',
+    );
+    expect(() =>
+      forgeGateComponentReportRoutePath('../escape'),
+    ).toThrow('Unsafe ForgeGate report data slug');
   });
 
   async function makeTemporaryWorkspace(): Promise<string> {

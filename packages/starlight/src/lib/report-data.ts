@@ -46,6 +46,29 @@ export interface ForgeGateReportDataFilesystemDiscovery {
   readonly limitations: readonly string[];
 }
 
+export type ForgeGateReportDataRegistrationKind = 'component' | 'registry';
+
+export interface ForgeGateReportDataRegistrationOptions {
+  readonly routeBase?: string;
+  readonly registryLabel?: string;
+}
+
+export interface ForgeGateReportDataRegistrationEntry {
+  readonly kind: ForgeGateReportDataRegistrationKind;
+  readonly label: string;
+  readonly reportDataPath: string;
+  readonly routePath: string;
+  readonly href: string;
+  readonly slug?: string;
+}
+
+export interface ForgeGateReportDataRegistration {
+  readonly reportDataRoot: string;
+  readonly routeBase: string;
+  readonly entries: readonly ForgeGateReportDataRegistrationEntry[];
+  readonly limitations: readonly string[];
+}
+
 export function forgeGateComponentReportDataPath(
   slug: string,
   reportDataRoot = FORGEGATE_REPORT_DATA_ROOT,
@@ -74,6 +97,21 @@ export function forgeGateReportDataDiscovery(
       'Generated MDX should keep importing JSON directly from this root until the full plugin can discover and register report data automatically.',
     ],
   };
+}
+
+export function forgeGateComponentReportRoutePath(
+  slug: string,
+  routeBase = 'components',
+): string {
+  return `${safeReportRouteBase(routeBase)}/${safeReportDataSlug(slug)}`;
+}
+
+export function forgeGateRegistryReportRoutePath(routeBase = 'components'): string {
+  return safeReportRouteBase(routeBase);
+}
+
+export function forgeGateReportDataHref(routePath: string): string {
+  return `/${safeReportRoutePath(routePath)}/`;
 }
 
 export function classifyForgeGateReportDataPath(
@@ -199,6 +237,54 @@ export async function discoverForgeGateReportDataFiles(
   };
 }
 
+export function registerForgeGateReportData(
+  discovery: ForgeGateReportDataFilesystemDiscovery,
+  options: ForgeGateReportDataRegistrationOptions = {},
+): ForgeGateReportDataRegistration {
+  const routeBase = safeReportRouteBase(options.routeBase ?? 'components');
+  const entries: ForgeGateReportDataRegistrationEntry[] = [];
+
+  if (discovery.registryPath) {
+    const routePath = forgeGateRegistryReportRoutePath(routeBase);
+    entries.push({
+      kind: 'registry',
+      label: options.registryLabel ?? 'Component registry',
+      reportDataPath: discovery.registryPath,
+      routePath,
+      href: forgeGateReportDataHref(routePath),
+    });
+  }
+
+  for (const componentReport of discovery.componentReports) {
+    const routePath = forgeGateComponentReportRoutePath(
+      componentReport.slug,
+      routeBase,
+    );
+    entries.push({
+      kind: 'component',
+      label: reportDataSlugLabel(componentReport.slug),
+      reportDataPath: componentReport.path,
+      routePath,
+      href: forgeGateReportDataHref(routePath),
+      slug: componentReport.slug,
+    });
+  }
+
+  const limitations = [...discovery.limitations];
+  if (discovery.componentReports.length === 0) {
+    limitations.push(
+      `No ForgeGate component report data files were discovered under ${discovery.reportDataRoot}.`,
+    );
+  }
+
+  return {
+    reportDataRoot: discovery.reportDataRoot,
+    routeBase,
+    entries,
+    limitations,
+  };
+}
+
 export function safeReportDataRoot(root: string): string {
   const normalized = normalizePath(root);
   if (
@@ -225,8 +311,34 @@ export function safeReportDataSlug(slug: string): string {
   return trimmed;
 }
 
+export function safeReportRouteBase(routeBase: string): string {
+  return safeReportRoutePath(routeBase);
+}
+
 function normalizePath(path: string): string {
   return path.trim().replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
+}
+
+function safeReportRoutePath(routePath: string): string {
+  const normalized = normalizePath(routePath);
+  if (
+    !normalized ||
+    normalized.startsWith('/') ||
+    /^[A-Za-z]:\//.test(normalized) ||
+    normalized.split('/').includes('..')
+  ) {
+    throw new Error(`Unsafe ForgeGate Starlight route path "${routePath}".`);
+  }
+  return normalized;
+}
+
+function reportDataSlugLabel(slug: string): string {
+  return slug
+    .replace(/--/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function normalizeAbsolutePath(value: string): string {

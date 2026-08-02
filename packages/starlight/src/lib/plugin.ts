@@ -3,9 +3,11 @@ import { fileURLToPath } from 'node:url';
 import {
   discoverForgeGateReportDataFiles,
   forgeGateReportDataDiscovery,
+  registerForgeGateReportData,
   safeReportDataRoot,
   type ForgeGateReportDataFilesystemDiscovery,
   type ForgeGateReportDataDiscovery,
+  type ForgeGateReportDataRegistration,
 } from './report-data';
 
 export const FORGEGATE_STARLIGHT_INTEGRATION_NAME = '@forgegate/starlight';
@@ -20,6 +22,7 @@ export interface ForgeGateStarlightIntegrationOptions {
    */
   readonly reportDataRoot?: string;
   readonly filesystemDiscovery?: boolean;
+  readonly routeBase?: string;
   readonly workspaceRoot?: string;
   readonly astroVersion?: string;
   readonly starlightVersion?: string;
@@ -61,13 +64,13 @@ export function forgeGateStarlightLifecycleStatus(
       'generated-data discovery conventions',
       'component and registry report-data classification',
       'filesystem-backed report-data scanning when enabled',
+      'deterministic report route registration plan',
       'version compatibility diagnostics',
       'manual MDX imports of ForgeGate presentation components',
       'manifest-backed component and registry report JSON',
     ],
     planned: [
-      'component auto-registration',
-      'generated Starlight route registration',
+      'Astro route injection from discovered report data',
       'migration guidance for generated MDX pages',
     ],
   };
@@ -149,6 +152,18 @@ export function forgeGateStarlightIntegration(
             ? `ForgeGate discovered registry report data at ${discovery.registryPath}.`
             : `ForgeGate did not discover registry report data under ${discovery.reportDataRoot}.`,
         );
+        const registration = forgeGateStarlightReportDataRegistration(
+          discovery,
+          options,
+        );
+        logger.debug(
+          `ForgeGate prepared ${registration.entries.length} report route registration entries under ${registration.routeBase}.`,
+        );
+        for (const entry of registration.entries) {
+          logger.debug(
+            `ForgeGate report registration ${entry.kind}: ${entry.reportDataPath} -> ${entry.href}`,
+          );
+        }
         for (const ignoredReport of discovery.ignoredReports) {
           logger.warn(
             `[ignored-report-data] ${ignoredReport.path}: ${ignoredReport.reason}`,
@@ -168,6 +183,15 @@ export function forgeGateStarlightFilesystemDiscovery(
   return discoverForgeGateReportDataFiles({
     workspaceRoot: options.workspaceRoot,
     reportDataRoot: options.reportDataRoot,
+  });
+}
+
+export function forgeGateStarlightReportDataRegistration(
+  discovery: ForgeGateReportDataFilesystemDiscovery,
+  options: ForgeGateStarlightIntegrationOptions = {},
+): ForgeGateReportDataRegistration {
+  return registerForgeGateReportData(discovery, {
+    routeBase: options.routeBase,
   });
 }
 

@@ -8,6 +8,7 @@ import {
   forgeGateStarlightFilesystemDiscovery,
   forgeGateStarlightIntegration,
   forgeGateStarlightLifecycleStatus,
+  forgeGateStarlightReportDataRegistration,
 } from './plugin';
 
 describe('forgeGateStarlightIntegration', () => {
@@ -81,13 +82,13 @@ describe('forgeGateStarlightIntegration', () => {
         'generated-data discovery conventions',
         'component and registry report-data classification',
         'filesystem-backed report-data scanning when enabled',
+        'deterministic report route registration plan',
         'version compatibility diagnostics',
         'manual MDX imports of ForgeGate presentation components',
         'manifest-backed component and registry report JSON',
       ],
       planned: [
-        'component auto-registration',
-        'generated Starlight route registration',
+        'Astro route injection from discovered report data',
         'migration guidance for generated MDX pages',
       ],
     });
@@ -106,6 +107,7 @@ describe('forgeGateStarlightIntegration', () => {
     const integration = forgeGateStarlightIntegration({
       reportDataRoot,
       filesystemDiscovery: true,
+      routeBase: 'design-system/components',
     });
     const debug = vi.fn();
     const warn = vi.fn();
@@ -123,6 +125,15 @@ describe('forgeGateStarlightIntegration', () => {
     );
     expect(debug).toHaveBeenCalledWith(
       'ForgeGate discovered registry report data at docs/src/data/forgegate/components/index.json.',
+    );
+    expect(debug).toHaveBeenCalledWith(
+      'ForgeGate prepared 2 report route registration entries under design-system/components.',
+    );
+    expect(debug).toHaveBeenCalledWith(
+      'ForgeGate report registration registry: docs/src/data/forgegate/components/index.json -> /design-system/components/',
+    );
+    expect(debug).toHaveBeenCalledWith(
+      'ForgeGate report registration component: docs/src/data/forgegate/components/acme-button.json -> /design-system/components/acme-button/',
     );
     expect(warn).not.toHaveBeenCalled();
   });
@@ -142,6 +153,47 @@ describe('forgeGateStarlightIntegration', () => {
         'ForgeGate report data root docs/src/data/forgegate/components was not found.',
       ],
     });
+  });
+
+  it('exposes route registration as a testable plugin lifecycle boundary', async () => {
+    const workspaceRoot = await makeTemporaryWorkspace();
+    const reportDataRoot = 'docs/src/data/forgegate/components';
+    const absoluteReportDataRoot = path.join(
+      workspaceRoot,
+      ...reportDataRoot.split('/'),
+    );
+    await mkdir(absoluteReportDataRoot, { recursive: true });
+    await writeFile(path.join(absoluteReportDataRoot, 'index.json'), '{}');
+    await writeFile(
+      path.join(absoluteReportDataRoot, 'acme-button.json'),
+      '{}',
+    );
+    const discovery = await forgeGateStarlightFilesystemDiscovery({
+      workspaceRoot,
+      reportDataRoot,
+    });
+
+    expect(
+      forgeGateStarlightReportDataRegistration(discovery, {
+        routeBase: 'components',
+      }).entries,
+    ).toEqual([
+      {
+        kind: 'registry',
+        label: 'Component registry',
+        reportDataPath: 'docs/src/data/forgegate/components/index.json',
+        routePath: 'components',
+        href: '/components/',
+      },
+      {
+        kind: 'component',
+        label: 'Acme Button',
+        reportDataPath: 'docs/src/data/forgegate/components/acme-button.json',
+        routePath: 'components/acme-button',
+        href: '/components/acme-button/',
+        slug: 'acme-button',
+      },
+    ]);
   });
 
   it('reports compatibility diagnostics without requiring filesystem access', () => {
