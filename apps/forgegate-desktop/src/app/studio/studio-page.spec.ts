@@ -274,6 +274,127 @@ describe('StudioPage', () => {
     expect(mappingInput.value).toBe('primitive.color.blue.50');
   });
 
+  it('renders a real reference preview reflecting a mapped token, and labels it as not a repository implementation', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    workspace.designTokens.set([
+      { path: 'primitive.color.blue.50', type: 'color', value: '#3366ff' },
+    ]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('not a repository implementation');
+
+    const mappingInput = compiled.querySelector(
+      '#token-mapping-root\\.background',
+    ) as HTMLInputElement;
+    mappingInput.value = 'primitive.color.blue.50';
+    mappingInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const surface = compiled.querySelector(
+      '.studio-page__preview-surface',
+    ) as HTMLElement;
+    expect(surface.style.backgroundColor).toBe('rgb(51, 102, 255)');
+    expect(compiled.textContent).toContain('root.background');
+    expect(compiled.textContent).toContain('#3366ff');
+
+    await expectNoAccessibilityViolations(compiled);
+  });
+
+  it('reports an unmapped token slot in the reference preview honestly rather than fabricating a value', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('No token slots mapped yet');
+  });
+
+  it('lets a designer select a required state to preview, labeling that appearance does not yet vary by state', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const stateSelect = compiled.querySelector(
+      '#preview-state',
+    ) as HTMLSelectElement;
+    stateSelect.value = 'hover';
+    stateSelect.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const surface = compiled.querySelector(
+      '.studio-page__preview-surface',
+    ) as HTMLElement;
+    expect(surface.getAttribute('data-state')).toBe('hover');
+    expect(compiled.textContent).toContain('Previewing state:');
+    expect(compiled.textContent).toContain(
+      'appearance does not yet vary by state',
+    );
+  });
+
+  it('lists real anatomy parts and a real accessibility summary in the reference preview', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    (
+      Array.from(compiled.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Add anatomy part'),
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    const labelInput = compiled.querySelector(
+      '#anatomy-label-0',
+    ) as HTMLInputElement;
+    labelInput.value = 'Leading icon';
+    labelInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const checkbox = compiled.querySelector(
+      '#proposal-native-semantic-confirmed',
+    ) as HTMLInputElement;
+    checkbox.click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('Leading icon');
+    expect(compiled.textContent).toContain('Native semantic confirmed: Yes');
+  });
+
   it('adds and removes a contract member from a category', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);

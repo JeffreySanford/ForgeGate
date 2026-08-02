@@ -307,6 +307,8 @@ The Studio can demonstrate proposal changes before framework generation exists.
 - Unsupported behavior is labeled.
 - Preview controls work with keyboard and screen reader.
 
+**Implementation status**: a real, narrow first slice exists in `StudioPage`'s "Reference preview" panel, built entirely from the in-progress proposal form's own data — a labeled preview surface (never claiming to be repository implementation), real resolved-DTCG-token color application for the `background`/`foreground` slot-name convention, a real state selector over the proposal's own required states, a semantic anatomy-parts list, and a real accessibility summary. Not yet built: theme/brand mode, viewport/locale/direction controls, spatial anatomy-overlay coordinates, and per-state visual variation (today's state selector only labels which state is being inspected — it does not change what renders, since the proposal model has no per-state token data yet).
+
 ## Workstream 10 — Temporary coded preview
 
 ### Outcome

@@ -8,7 +8,12 @@ import type {
   ProposalTokenMapping,
   ProposalVariantSelection,
 } from '@forgegate/core-manifest';
+import { resolveDtcgAliases } from '../dtcg-tokens';
 import { WorkspaceService } from '../workspace.service';
+import {
+  computePreviewTokenValues,
+  previewSurfaceStyle,
+} from './reference-preview';
 
 /** The five portable contract member categories, per `ProposalContractDraft`. */
 export type ContractMemberCategory = keyof ProposalContractDraft;
@@ -40,29 +45,33 @@ function emptyContractDraft(): ProposalContractDraft {
 }
 
 /**
- * P2 first slice, items 1 through 4 plus part of item 5: "Choose the
- * Button blueprint", "Define purpose and native semantics", "Configure the
- * portable public contract", "Compose variants and required states", and
- * anatomy parts plus token-slot mapping from "define anatomy, slots,
- * parts, token slots, behavior, and fixtures"
+ * P2 first slice, items 1 through 4 plus part of item 5 and item 6:
+ * "Choose the Button blueprint", "Define purpose and native semantics",
+ * "Configure the portable public contract", "Compose variants and
+ * required states", anatomy parts plus token-slot mapping from "define
+ * anatomy, slots, parts, token slots, behavior, and fixtures", and a real
+ * reference preview
  * (`documentation/28-blueprint-studio-implementation-plan.md`'s Workstream
  * 3 "Studio navigation and shell", Workstream 1 "Portable proposal
  * domain", Workstream 4 "Button contract editor", Workstream 5 "State and
- * variant matrix", Workstream 6 "Anatomy editor", and Workstream 7 "Token
- * mapping", Release A "Proposal Studio").
+ * variant matrix", Workstream 6 "Anatomy editor", Workstream 7 "Token
+ * mapping", and Workstream 9 "Reference preview", Release A "Proposal
+ * Studio").
  *
  * Deliberately narrow and honest about what it is not: choosing a
  * blueprint, drafting purpose and native semantic confirmation, editing a
  * portable public contract, choosing required states plus a value per
- * blueprint inspector field, naming anatomy parts, and mapping the
- * blueprint's own token slots to real discovered DTCG tokens is real and
- * staged/approved through the same P2 entry gate 2 discipline every other
- * domain write uses. This is not yet Workstream 4's full inspector-driven
- * contract editor, Workstream 5's full variant×state coverage matrix,
- * Workstream 6's anatomy tree with preview overlay, or Workstream 7's
- * `$type` validation against a slot's declared types — just real, generic,
- * portable lists. Behavior, fixtures, preview, and everything after
- * remains unbuilt and the page says so explicitly.
+ * blueprint inspector field, naming anatomy parts, mapping the blueprint's
+ * own token slots to real discovered DTCG tokens, and previewing that data
+ * before generation exists is real and staged/approved through the same
+ * P2 entry gate 2 discipline every other domain write uses. This is not
+ * yet Workstream 4's full inspector-driven contract editor, Workstream
+ * 5's full variant×state coverage matrix, Workstream 6's anatomy tree
+ * with spatial preview overlay, Workstream 7's `$type` validation against
+ * a slot's declared types, or Workstream 9's theme/viewport/locale/
+ * direction controls and true anatomy overlay — just real, generic,
+ * portable lists and a plain reference surface. Behavior, fixtures, and
+ * everything after item 6 remains unbuilt and the page says so explicitly.
  */
 @Component({
   selector: 'app-studio-page',
@@ -101,6 +110,30 @@ export class StudioPage {
     readonly ProposalTokenMapping[]
   >([]);
 
+  protected readonly previewedStateInput = signal<string | null>(null);
+
+  protected readonly previewTokenValues = computed(() =>
+    computePreviewTokenValues(
+      this.tokenMappingsInput(),
+      resolveDtcgAliases(this.workspace.designTokens()),
+    ),
+  );
+
+  protected readonly previewSurfaceStyle = computed(() =>
+    previewSurfaceStyle(this.previewTokenValues()),
+  );
+
+  protected readonly totalContractMemberCount = computed(() => {
+    const draft = this.contractDraft();
+    return (
+      draft.inputs.length +
+      draft.outputs.length +
+      draft.content.length +
+      draft.publicMethods.length +
+      draft.styleParts.length
+    );
+  });
+
   protected readonly canCreateProposal = computed(
     () =>
       this.purposeInput().trim().length > 0 &&
@@ -123,6 +156,11 @@ export class StudioPage {
     this.variantSelectionsInput.set([]);
     this.anatomyPartsInput.set([]);
     this.tokenMappingsInput.set([]);
+    this.previewedStateInput.set(null);
+  }
+
+  protected setPreviewedState(state: string): void {
+    this.previewedStateInput.set(state || null);
   }
 
   protected clearSelection(): void {

@@ -222,3 +222,40 @@
   color: var(--fg-color-text);
   font: inherit;
 }
+
+.studio-page__reference-preview {
+  display: grid;
+  gap: var(--fg-space-2);
+  margin: var(--fg-space-3) 0;
+  padding: var(--fg-space-3);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+}
+
+.studio-page__preview-disclaimer {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  margin: 0;
+}
+
+.studio-page__preview-surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: var(--fg-space-3) var(--fg-space-4);
+  border: 1px dashed var(--fg-color-border-strong);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+}
+
+.studio-page__preview-state-note {
+  color: var(--fg-color-text-muted);
+  font-size: var(--fg-type-size-sm);
+  margin: 0;
+}
+
+.studio-page__unmatched {
+  color: var(--fg-color-text-muted);
+}

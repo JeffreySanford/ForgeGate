@@ -848,9 +848,10 @@ mod tests {
             vec![".forgegate/procedures/forgegate-shell-accessibility-review.yaml".to_string()]
         );
         assert!(scan.release_decision_files.is_empty());
-        assert!(
-            scan.blueprint_files.is_empty(),
-            "ForgeGate does not author blueprints for its own shell"
+        assert_eq!(
+            scan.blueprint_files,
+            vec![".forgegate/blueprints/blueprint.button.yaml".to_string()],
+            "ForgeGate now dogfoods Blueprint Studio against its own shell with a real button blueprint"
         );
         assert!(
             scan.proposal_files.is_empty(),

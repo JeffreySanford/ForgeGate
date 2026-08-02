@@ -4,8 +4,9 @@
   <p class="studio-page__caveat">
     Choose a blueprint to see what a complete component of that pattern
     requires, then define its purpose, native semantics, portable contract,
-    variant/state selections, anatomy parts, and token slot mapping. Behavior,
-    fixtures, and preview from a selected blueprint are not built yet.
+    variant/state selections, anatomy parts, token slot mapping, and a real
+    reference preview. Behavior and fixtures from a selected blueprint are not
+    built yet.
   </p>
 
   @if (!workspace.workspacePath()) {
@@ -98,9 +99,9 @@
     >
       <h3 id="proposal-form-title">Define purpose and native semantics</h3>
       <p>
-        <span aria-hidden="true">*</span> Required. Behavior, fixtures, preview,
-        and everything after is not built yet — this form stops there honestly
-        rather than pretending to continue.
+        <span aria-hidden="true">*</span> Required. Behavior, fixtures, and
+        everything after the reference preview below is not built yet — this
+        form stops there honestly rather than pretending to continue.
       </p>
       <div class="studio-page__field">
         <label for="proposal-component-name"
@@ -412,6 +413,92 @@
         }
       </fieldset>
       }
+
+      <section
+        class="studio-page__reference-preview fg-panel"
+        aria-labelledby="reference-preview-title"
+      >
+        <h3 id="reference-preview-title">Reference preview</h3>
+        <p role="status" class="studio-page__preview-disclaimer">
+          This is a reference preview built from this proposal's own data — it
+          is not a repository implementation, and never will be one.
+        </p>
+
+        @if (requiredStatesInput().length) {
+        <div class="studio-page__field">
+          <label for="preview-state">Previewing state</label>
+          <select
+            id="preview-state"
+            [value]="previewedStateInput() ?? ''"
+            (change)="setPreviewedState($any($event.target).value)"
+          >
+            <option value="">(none selected)</option>
+            @for (state of requiredStatesInput(); track state) {
+            <option [value]="state">{{ state }}</option>
+            }
+          </select>
+        </div>
+        }
+
+        <div
+          class="studio-page__preview-surface"
+          [attr.data-state]="previewedStateInput()"
+          [style]="previewSurfaceStyle()"
+        >
+          {{ componentNameInput() || blueprint.name }}
+        </div>
+        @if (previewedStateInput()) {
+        <p class="studio-page__preview-state-note">
+          Previewing state: <code>{{ previewedStateInput() }}</code> —
+          appearance does not yet vary by state; this only labels which state is
+          being inspected.
+        </p>
+        }
+
+        <h4>Token mapping status</h4>
+        @if (previewTokenValues().length) {
+        <ul class="studio-page__inline-list">
+          @for (value of previewTokenValues(); track value.slotId) {
+          <li>
+            {{ value.slotId }}: @if (value.cssValue) {
+            <code>{{ value.cssValue }}</code>
+            } @else {
+            <span class="studio-page__unmatched"
+              >Unresolved — no preview value available</span
+            >
+            }
+          </li>
+          }
+        </ul>
+        } @else {
+        <p class="fg-empty-state">No token slots mapped yet.</p>
+        }
+
+        <h4>Anatomy</h4>
+        @if (anatomyPartsInput().length) {
+        <ul class="studio-page__inline-list">
+          @for (part of anatomyPartsInput(); track $index) {
+          <li>
+            {{ part.label || part.id || '(unnamed part)' }}{{ part.required ? '
+            — required' : '' }}{{ part.publicSlot ? ', public slot' : '' }}{{
+            part.publicPart ? ', public CSS part' : '' }}
+          </li>
+          }
+        </ul>
+        } @else {
+        <p class="fg-empty-state">No anatomy parts defined yet.</p>
+        }
+
+        <h4>Accessibility summary</h4>
+        <ul class="studio-page__inline-list">
+          <li>
+            Native semantic confirmed: {{ nativeSemanticConfirmedInput() ? 'Yes'
+            : 'No' }}
+          </li>
+          <li>Required states committed: {{ requiredStatesInput().length }}</li>
+          <li>Public contract members: {{ totalContractMemberCount() }}</li>
+        </ul>
+      </section>
 
       <button
         type="button"
