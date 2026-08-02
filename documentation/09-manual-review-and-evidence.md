@@ -265,11 +265,14 @@ Required action:
 > copy consent, size limits, binary-safe streaming, destination naming, and
 > retention rules exist.
 >
-> **Next implementation order.** Direct Starlight regeneration from verified
-> exported packages comes next for Starlight/export, then fuller Starlight
-> plugin discovery and registration. Broad binary/temp attachment copying
-> follows only after the current consent-policy classification is wired to an
-> explicit UI flow and binary-safe file handling.
+> **Next implementation order.** The report-data primitive for direct
+> Starlight regeneration from verified exported package records now exists:
+> imported verified records can be merged into generated component report data,
+> with live workspace records remaining authoritative on duplicate ids. The
+> desktop import/regeneration UI comes next, then fuller Starlight plugin
+> discovery and registration. Broad binary/temp attachment copying follows only
+> after the current consent-policy classification is wired to an explicit UI
+> flow and binary-safe file handling.
 
 Suggested export:
 
@@ -337,8 +340,9 @@ ForgeGate now verifies `manifest.json` and `checksums.sha256` when loading an
 already-read package file map for Starlight consumption. Missing, modified,
 conflicting, or unlisted evidence files are reported as package-integrity
 limitations, and unverified content is not passed into the Starlight record
-loader. A desktop package-import UI and organization trust/signing policy remain
-future work.
+loader. Those verified records can now feed generated Starlight component
+report data directly. A desktop package-import UI and organization trust/signing
+policy remain future work.
 
 ## Privacy
 

@@ -23,6 +23,7 @@ import {
   starlightRegistryReportDataPath,
 } from './starlight-page';
 import { validateGeneratedStarlightMdx } from './starlight-page-validation';
+import type { StarlightEvidencePackageRecords } from './evidence-package-records';
 
 describe('componentDisplayName', () => {
   it('title-cases the last dotted, hyphenated segment of a manifest id', () => {
@@ -346,6 +347,186 @@ describe('generateDesignerStarlightComponentPage', () => {
       },
       documentation: [],
     });
+  });
+
+  it('can regenerate Starlight report data from verified evidence-package records', () => {
+    const packageRecords: StarlightEvidencePackageRecords = {
+      testExecutions: [
+        {
+          id: 'package-unit-run',
+          componentVersionId: 'acme.design-system.acme-button@1.2.0',
+          gate: 'unit',
+          tool: 'vitest',
+          toolVersion: '4.1.10',
+          adapterVersion: '0.1.0',
+          status: 'passed',
+          startedAt: '2026-08-02T12:00:00.000Z',
+          commitOrFingerprint: 'c'.repeat(40),
+        },
+      ],
+      automatedDetails: [
+        {
+          id: 'package-unit-run-detail',
+          sourceArtifactId: 'package-unit-run',
+          kind: 'vitest-json',
+          gate: 'unit',
+          tool: 'vitest',
+          summary: 'Vitest reported 5 passed tests.',
+          metrics: [{ label: 'Passed', value: 5 }],
+          observations: [],
+          limitations: ['Loaded from a checksum-verified evidence package.'],
+        },
+      ],
+      manualReviews: [
+        {
+          id: 'package-review',
+          componentVersionId: 'acme.design-system.acme-button@1.2.0',
+          procedureId: 'keyboard-and-screen-reader-review',
+          procedureVersion: '1.0.0',
+          reviewerIdentity: 'reviewer@example.test',
+          reviewerRole: 'Accessibility reviewer',
+          date: '2026-08-02T12:30:00.000Z',
+          operatingSystem: 'Windows 11',
+          status: 'passed',
+          commitOrFingerprint: 'c'.repeat(40),
+        },
+      ],
+      findings: [
+        {
+          id: 'package-finding',
+          componentId: 'acme.design-system.acme-button',
+          description: 'Imported package finding still needs disposition.',
+          severity: 'moderate',
+          status: 'open',
+        },
+      ],
+      exceptions: [],
+      releaseDecisionRecords: [
+        {
+          id: 'package-release-workflow-record',
+          decisionId: 'package-release-decision',
+          componentVersionId: 'acme.design-system.acme-button@1.2.0',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+          outcome: 'blocked',
+          commit: 'c'.repeat(40),
+          decidedAt: '2026-08-02T13:00:00.000Z',
+          source: 'forgegate-export-evaluation',
+          authorization: 'blocked-no-approval-required',
+          notRealApproval: false,
+          evidenceIds: ['package-unit-run', 'package-review'],
+          blockingFindingIds: ['package-finding'],
+          limitations: ['Package-scoped release history.'],
+        },
+      ],
+      limitations: ['checksums.sha256 verified 6 package files.'],
+    };
+
+    const data = JSON.parse(
+      generateStarlightComponentReportData({
+        manifest: createComponentManifest({
+          id: 'acme.design-system.acme-button',
+          framework: 'web-components',
+          adapter: 'framework.web-components',
+          packagePath: '.',
+          componentVersion: '1.2.0',
+          policyId: 'acme.baseline',
+          policyVersion: '1.0.0',
+        }),
+        procedures: [procedure],
+        evidenceCommit: 'c'.repeat(40),
+        template: 'designer',
+        evidencePackageRecords: packageRecords,
+      }),
+    );
+
+    expect(data.evidence.automated).toEqual([
+      expect.objectContaining({
+        id: 'package-unit-run',
+        details: expect.objectContaining({
+          summary: 'Vitest reported 5 passed tests.',
+        }),
+      }),
+    ]);
+    expect(data.evidence.manualReviews).toEqual([
+      expect.objectContaining({
+        id: 'package-review',
+        reviewerRole: 'Accessibility reviewer',
+      }),
+    ]);
+    expect(data.evidence.findings).toEqual([
+      expect.objectContaining({
+        id: 'package-finding',
+      }),
+    ]);
+    expect(data.evidence.releaseDecision).toMatchObject({
+      status: 'blocked',
+      policyId: 'acme.baseline',
+      policyVersion: '1.0.0',
+      authorization: 'blocked-no-approval-required',
+      decidedAt: '2026-08-02T13:00:00.000Z',
+      blockingFindingIds: ['package-finding'],
+      evidenceIds: ['package-unit-run', 'package-review'],
+    });
+    expect(data.evidence.notConnected).toContainEqual({
+      section: 'imported evidence package',
+      reason: 'checksums.sha256 verified 6 package files.',
+    });
+  });
+
+  it('keeps live workspace records authoritative over imported package duplicates', () => {
+    const packageRecords: StarlightEvidencePackageRecords = {
+      testExecutions: [
+        {
+          id: 'unit-run',
+          componentVersionId: 'acme.design-system.acme-button@1.2.0',
+          gate: 'unit',
+          tool: 'vitest',
+          toolVersion: '4.1.10',
+          adapterVersion: '0.1.0',
+          status: 'failed',
+          startedAt: '2026-08-01T12:00:00.000Z',
+          commitOrFingerprint: 'b'.repeat(40),
+        },
+      ],
+      automatedDetails: [],
+      manualReviews: [],
+      findings: [],
+      exceptions: [],
+      releaseDecisionRecords: [],
+      limitations: [],
+    };
+
+    const data = JSON.parse(
+      generateStarlightComponentReportData({
+        manifest,
+        procedures: [procedure],
+        testExecutions: [
+          {
+            id: 'unit-run',
+            componentVersionId: 'acme.design-system.acme-button@1.2.0',
+            gate: 'unit',
+            tool: 'vitest',
+            toolVersion: '4.1.10',
+            adapterVersion: '0.1.0',
+            status: 'passed',
+            startedAt: '2026-08-02T12:00:00.000Z',
+            commitOrFingerprint: 'c'.repeat(40),
+          },
+        ],
+        evidenceCommit: 'c'.repeat(40),
+        template: 'designer',
+        evidencePackageRecords: packageRecords,
+      }),
+    );
+
+    expect(data.evidence.automated).toEqual([
+      expect.objectContaining({
+        id: 'unit-run',
+        status: 'passed',
+        commitOrFingerprint: 'c'.repeat(40),
+      }),
+    ]);
   });
 
   it('adds a blocked release summary and documentation status when real inputs exist', () => {

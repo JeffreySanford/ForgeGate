@@ -115,6 +115,12 @@ export interface ForgeGateReleaseDecisionReport {
   readonly blockingFindingIds: readonly string[];
   readonly evidenceIds: readonly string[];
   readonly commit?: string;
+  readonly authorization?:
+    | 'blocked-no-approval-required'
+    | 'human-approved'
+    | 'test-harness-not-real';
+  readonly approver?: string;
+  readonly decidedAt?: string;
   readonly notRealApproval?: boolean;
 }
 

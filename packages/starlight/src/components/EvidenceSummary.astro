@@ -114,6 +114,18 @@ function severityClass(severity: string): string {
             {releaseDecision.policyVersion ? ` @ ${releaseDecision.policyVersion}` : ''}
           </p>
         ) : null}
+        {releaseDecision.authorization ? (
+          <p>
+            Authorization <code>{releaseDecision.authorization}</code>
+            {releaseDecision.approver ? ` by ${releaseDecision.approver}` : ''}
+            {releaseDecision.decidedAt ? ` at ${releaseDecision.decidedAt}` : ''}
+          </p>
+        ) : null}
+        {releaseDecision.notRealApproval ? (
+          <p class="forgegate-evidence-list__warning">
+            Test-harness authorization only. This is not a real release approval.
+          </p>
+        ) : null}
       </section>
     ) : null
   }
@@ -331,6 +343,11 @@ function severityClass(severity: string): string {
     font-weight: 700;
   }
 
+  .forgegate-evidence-list__warning {
+    color: #8a1f2d;
+    font-weight: 700;
+  }
+
   .forgegate-evidence-detail {
     grid-column: 1 / -1;
     display: grid;
@@ -394,6 +411,10 @@ function severityClass(severity: string): string {
   :root[data-theme='dark'] .forgegate-chip--warning {
     border-color: #b96d1f;
     background: #3d3011;
+  }
+
+  :root[data-theme='dark'] .forgegate-evidence-list__warning {
+    color: #ff9aa5;
   }
 
   .forgegate-chip--muted {

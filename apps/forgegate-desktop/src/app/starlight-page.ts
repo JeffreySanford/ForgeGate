@@ -9,6 +9,9 @@ import type {
 import type { ExternalPolicyDocumentSnapshot } from './policy-document';
 import { buildAutomatedEvidenceDetails } from './evidence-detail';
 import type {
+  StarlightEvidencePackageRecords,
+} from './evidence-package-records';
+import type {
   ComponentManifest,
   ContractMember,
 } from '@forgegate/core-manifest';
@@ -285,6 +288,7 @@ function releaseDecisionReport(input: {
   readonly evidenceCommit: string;
   readonly evidenceIds: readonly string[];
   readonly findingIds: readonly string[];
+  readonly packageRecords?: StarlightEvidencePackageRecords;
 }): {
   readonly status: 'blocked' | 'authorized-candidate' | 'not-connected';
   readonly reason?: string;
@@ -293,8 +297,37 @@ function releaseDecisionReport(input: {
   readonly blockingFindingIds: readonly string[];
   readonly evidenceIds: readonly string[];
   readonly commit?: string;
+  readonly authorization?:
+    | 'blocked-no-approval-required'
+    | 'human-approved'
+    | 'test-harness-not-real';
+  readonly approver?: string;
+  readonly decidedAt?: string;
+  readonly notRealApproval?: boolean;
 } {
   const { manifest, evidenceCommit, evidenceIds, findingIds } = input;
+  const componentVersion = manifest.componentVersion
+    ? `${manifest.id}@${manifest.componentVersion}`
+    : manifest.id;
+  const importedDecision = [...(input.packageRecords?.releaseDecisionRecords ?? [])]
+    .filter((record) => record.componentVersionId === componentVersion)
+    .sort((left, right) => right.decidedAt.localeCompare(left.decidedAt))[0];
+  if (importedDecision) {
+    return {
+      status: importedDecision.outcome,
+      policyId: importedDecision.policyId,
+      policyVersion: importedDecision.policyVersion,
+      blockingFindingIds: importedDecision.blockingFindingIds,
+      evidenceIds: importedDecision.evidenceIds,
+      commit: importedDecision.commit,
+      authorization: importedDecision.authorization,
+      ...(importedDecision.approver
+        ? { approver: importedDecision.approver }
+        : {}),
+      decidedAt: importedDecision.decidedAt,
+      notRealApproval: importedDecision.notRealApproval,
+    };
+  }
   if (!manifest.policyId || !manifest.policyVersion) {
     return {
       status: 'not-connected',
@@ -403,6 +436,7 @@ export function buildStarlightComponentReport(
   evidenceCommit: string,
   tier: string,
   externalPolicyDocument?: ExternalPolicyDocumentSnapshot | null,
+  evidencePackageRecords?: StarlightEvidencePackageRecords,
 ): unknown {
   const storiesByState = new Map(
     manifest.storyMappings.map((mapping) => [
@@ -414,26 +448,41 @@ export function buildStarlightComponentReport(
   const componentVersion = manifest.componentVersion
     ? `${manifest.id}@${manifest.componentVersion}`
     : manifest.id;
-  const automatedEvidence = testExecutions.filter(
+  const automatedEvidence = mergeById(
+    evidencePackageRecords?.testExecutions ?? [],
+    testExecutions,
+  ).filter(
     (execution) => execution.componentVersionId === componentVersion,
   );
   const automatedDetailsByArtifactId = new Map(
-    buildAutomatedEvidenceDetails(
-      automatedArtifacts.filter(
-        (artifact) => artifact.componentVersionId === componentVersion,
+    [
+      ...(evidencePackageRecords?.automatedDetails ?? []),
+      ...buildAutomatedEvidenceDetails(
+        automatedArtifacts.filter(
+          (artifact) => artifact.componentVersionId === componentVersion,
+        ),
       ),
-    ).map((detail) => [detail.sourceArtifactId, detail]),
+    ].map((detail) => [detail.sourceArtifactId, detail]),
   );
-  const connectedManualReviews = manualReviews.filter(
+  const connectedManualReviews = mergeById(
+    evidencePackageRecords?.manualReviews ?? [],
+    manualReviews,
+  ).filter(
     (review) => review.componentVersionId === componentVersion,
   );
-  const connectedFindings = findings.filter(
+  const connectedFindings = mergeById(
+    evidencePackageRecords?.findings ?? [],
+    findings,
+  ).filter(
     (finding) => finding.componentId === manifest.id,
   );
   const connectedFindingIds = new Set(
     connectedFindings.map((finding) => finding.id),
   );
-  const connectedExceptions = exceptions.filter((exception) =>
+  const connectedExceptions = mergeById(
+    evidencePackageRecords?.exceptions ?? [],
+    exceptions,
+  ).filter((exception) =>
     connectedFindingIds.has(exception.findingId),
   );
   const evidenceIds = [
@@ -454,6 +503,7 @@ export function buildStarlightComponentReport(
     evidenceCommit,
     evidenceIds,
     findingIds: connectedFindings.map((finding) => finding.id),
+    packageRecords: evidencePackageRecords,
   });
   const policySnapshot = policySnapshotReport(manifest);
   const connectedPolicySnapshot =
@@ -542,6 +592,14 @@ export function buildStarlightComponentReport(
               'No raw artifact references are connected for attachment capture yet.',
           },
         ]),
+    ...(evidencePackageRecords?.limitations.length
+      ? [
+          {
+            section: 'imported evidence package',
+            reason: evidencePackageRecords.limitations.join(' '),
+          },
+        ]
+      : []),
   ];
   return {
     componentId: manifest.id,
@@ -668,8 +726,23 @@ export function generateStarlightComponentReportData(
       input.evidenceCommit,
       templateAudience(template),
       input.externalPolicyDocument ?? null,
+      input.evidencePackageRecords,
     ),
   )}\n`;
+}
+
+function mergeById<T extends { readonly id: string }>(
+  importedRecords: readonly T[],
+  workspaceRecords: readonly T[],
+): readonly T[] {
+  const records = new Map<string, T>();
+  for (const record of importedRecords) {
+    records.set(record.id, record);
+  }
+  for (const record of workspaceRecords) {
+    records.set(record.id, record);
+  }
+  return [...records.values()];
 }
 
 export function buildStarlightRegistryReport(
@@ -754,6 +827,7 @@ export interface StarlightPageInput {
    * `WorkspaceService.gitStatus()?.commit`, never fabricated. */
   readonly evidenceCommit: string;
   readonly externalPolicyDocument?: ExternalPolicyDocumentSnapshot | null;
+  readonly evidencePackageRecords?: StarlightEvidencePackageRecords;
   /** Real text extracted from a previously generated page's protected
    * overview section (`extractProtectedOverview`), if one exists. */
   readonly existingOverview?: string | null;
