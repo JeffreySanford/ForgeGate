@@ -39,7 +39,7 @@ This document defines the full MVP acceptance bar. The current build has real sl
 | Stale evidence | Commit-level stale detection and changed-file explanation exist; dependency-aware invalidation by change type remains future work. |
 | Policy and readiness | Blocking/readiness explanations and export-time blocked decisions exist in narrow form; durable release workflow records and real authorized approvals remain open. |
 | Documentation | Staged Starlight component and registry generation exists with manifest-backed report data, protected regions, richer evidence status, matching exception records, manifest-authored policy reference snapshots, local `@forgegate/starlight` components, a minimal Astro integration entrypoint, fixture build validation, and one external Starlight build validation. Full plugin lifecycle remains future work. |
-| Evidence export | Real manifest-indexed export exists with checksums and report HTML; policy snapshot, attachments, redaction, and fuller approval evidence remain open. |
+| Evidence export | Real manifest-indexed export exists with checksums, report HTML, and a built-in release-policy snapshot; attachments, redaction, external policy-document loading, and fuller approval evidence remain open. |
 | Security | Path validation, approved writes, approved command execution, sensitive manifest/lockfile write denial, and local Storybook fetch restrictions exist; complete secret redaction/vault/update posture remains future work. |
 | Accessibility of ForgeGate | Automated axe, forced-colors, reduced-motion, narrow-window, visual regression, and semantic-alternative checks exist; human screen-reader review remains open. |
 

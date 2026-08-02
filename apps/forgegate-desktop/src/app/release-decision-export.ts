@@ -26,7 +26,9 @@ export interface EvidenceApprover {
   readonly provenance: ApproverProvenance;
 }
 
-export function isRealApproval(approver: EvidenceApprover | null | undefined): boolean {
+export function isRealApproval(
+  approver: EvidenceApprover | null | undefined,
+): boolean {
   return approver?.provenance === 'human';
 }
 
@@ -41,12 +43,118 @@ export interface ReleaseDecisionExport {
   readonly notRealApproval: boolean;
 }
 
+export interface PolicySnapshotExport {
+  readonly id: string;
+  readonly componentVersionId: string;
+  readonly policyId: string;
+  readonly policyVersion: string;
+  readonly engine: 'forgegate.release-decision';
+  readonly engineVersion: '0.1.0';
+  readonly evaluatedAt: string;
+  readonly commit: string;
+  readonly evidenceIds: readonly string[];
+  readonly findingIds: readonly string[];
+  readonly rules: readonly {
+    readonly id: string;
+    readonly description: string;
+    readonly outcome: 'passed' | 'blocked' | 'not-applicable';
+    readonly evidence: readonly string[];
+  }[];
+  readonly limitations: readonly string[];
+}
+
 /**
  * Why a release decision could not be produced, in the caller's words —
  * surfaced in `manifest.json`'s `excludes` map so an absent
  * `release-decision.json` always says why.
  */
 export type ReleaseDecisionUnavailableReason = string;
+export type PolicySnapshotUnavailableReason = string;
+
+function policyInputsUnavailable(
+  manifest: ComponentManifest,
+  commit: string | null,
+): PolicySnapshotUnavailableReason | null {
+  if (!manifest.policyId || !manifest.policyVersion) {
+    return 'No policy is authored for this component — a policy snapshot must cite both a policy id and its version.';
+  }
+  if (!commit) {
+    return 'No repository commit is available — a policy snapshot must be tied to the exact source state it evaluated.';
+  }
+  return null;
+}
+
+function componentVersionId(manifest: ComponentManifest): string {
+  return manifest.componentVersion
+    ? `${manifest.id}@${manifest.componentVersion}`
+    : manifest.id;
+}
+
+/**
+ * Captures the current built-in ForgeGate release-policy ruleset and the
+ * exact inputs it evaluated. This is a real snapshot of today's narrow
+ * policy behavior, not a general policy engine: the `limitations` field is
+ * intentionally part of the artifact so downstream readers cannot mistake
+ * it for a complete organizational policy evaluation.
+ */
+export function computePolicySnapshot(input: {
+  manifest: ComponentManifest;
+  findings: readonly Finding[];
+  commit: string | null;
+  evaluatedAt: string;
+  evidenceIds: readonly string[];
+  approver?: EvidenceApprover | null;
+}): PolicySnapshotExport | { unavailable: PolicySnapshotUnavailableReason } {
+  const unavailable = policyInputsUnavailable(input.manifest, input.commit);
+  if (unavailable) {
+    return { unavailable };
+  }
+  const policyId = input.manifest.policyId;
+  const policyVersion = input.manifest.policyVersion;
+  const commit = input.commit;
+  if (!policyId || !policyVersion || !commit) {
+    return { unavailable: 'Policy snapshot inputs became unavailable.' };
+  }
+  const approver = input.approver ?? null;
+  const findingIds = input.findings.map((finding) => finding.id);
+  const hasBlockingFindings = findingIds.length > 0;
+  return {
+    id: `${input.manifest.id}-policy-snapshot`,
+    componentVersionId: componentVersionId(input.manifest),
+    policyId,
+    policyVersion,
+    engine: 'forgegate.release-decision',
+    engineVersion: '0.1.0',
+    evaluatedAt: input.evaluatedAt,
+    commit,
+    evidenceIds: input.evidenceIds,
+    findingIds,
+    rules: [
+      {
+        id: 'blocking-findings-block-release',
+        description:
+          'Any connected finding blocks release authorization until resolved or dispositioned.',
+        outcome: hasBlockingFindings ? 'blocked' : 'passed',
+        evidence: findingIds,
+      },
+      {
+        id: 'authorized-candidate-requires-approver',
+        description:
+          'A clean component can only be marked authorized-candidate when a named approver is supplied.',
+        outcome: hasBlockingFindings
+          ? 'not-applicable'
+          : approver
+            ? 'passed'
+            : 'blocked',
+        evidence: approver ? [approver.identity] : [],
+      },
+    ],
+    limitations: [
+      "This snapshot captures ForgeGate's current built-in release-decision rules only.",
+      'It does not load an external policy document, compliance control catalog, expiry calendar, or organization-specific waiver rules.',
+    ],
+  };
+}
 
 /**
  * Produces a real `ReleaseDecision` when ForgeGate genuinely has the inputs
@@ -78,17 +186,16 @@ export function computeReleaseDecision(input: {
   const { manifest, findings, commit, decidedAt, evidenceIds } = input;
   const approver = input.approver ?? null;
 
-  if (!manifest.policyId || !manifest.policyVersion) {
+  const unavailable = policyInputsUnavailable(manifest, commit);
+  if (unavailable) {
     return {
-      unavailable:
-        'No policy is authored for this component — a release decision must cite both a policy id and its version.',
+      unavailable: unavailable.replace('policy snapshot', 'release decision'),
     };
   }
-  if (!commit) {
-    return {
-      unavailable:
-        'No repository commit is available — a release decision must be tied to the exact source state it evaluated.',
-    };
+  const policyId = manifest.policyId;
+  const policyVersion = manifest.policyVersion;
+  if (!policyId || !policyVersion || !commit) {
+    return { unavailable: 'Release decision inputs became unavailable.' };
   }
 
   const blockingFindingIds = findings.map((finding) => finding.id);
@@ -102,9 +209,9 @@ export function computeReleaseDecision(input: {
 
   const decision = createReleaseDecision({
     id: `${manifest.id}-release-decision`,
-    componentVersionId: manifest.componentVersion ? `${manifest.id}@${manifest.componentVersion}` : manifest.id,
-    policyId: manifest.policyId,
-    policyVersion: manifest.policyVersion,
+    componentVersionId: componentVersionId(manifest),
+    policyId,
+    policyVersion,
     evidenceIds,
     commit,
     blockingFindingIds,
@@ -116,6 +223,7 @@ export function computeReleaseDecision(input: {
 
   return {
     decision,
-    notRealApproval: decision.outcome === 'authorized-candidate' && !isRealApproval(approver),
+    notRealApproval:
+      decision.outcome === 'authorized-candidate' && !isRealApproval(approver),
   };
 }

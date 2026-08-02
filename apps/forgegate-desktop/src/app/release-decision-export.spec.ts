@@ -1,6 +1,11 @@
 import { createFinding, type Finding } from '@forgegate/core-evidence';
 import { createComponentManifest } from '@forgegate/core-manifest';
-import { computeReleaseDecision, isRealApproval, type EvidenceApprover } from './release-decision-export';
+import {
+  computePolicySnapshot,
+  computeReleaseDecision,
+  isRealApproval,
+  type EvidenceApprover,
+} from './release-decision-export';
 
 const COMMIT = 'a'.repeat(40);
 
@@ -165,5 +170,88 @@ describe('computeReleaseDecision', () => {
     });
 
     expect('unavailable' in result && result.unavailable).toContain('No repository commit');
+  });
+});
+
+describe('computePolicySnapshot', () => {
+  it('captures the current built-in policy ruleset and evaluated inputs', () => {
+    const result = computePolicySnapshot({
+      manifest: manifestWithPolicy(),
+      findings: [blockingFinding],
+      commit: COMMIT,
+      evaluatedAt: '2026-01-01T00:00:00.000Z',
+      evidenceIds: ['run-1'],
+    });
+
+    expect('unavailable' in result).toBe(false);
+    if ('unavailable' in result) {
+      throw new Error(result.unavailable);
+    }
+    expect(result).toMatchObject({
+      id: 'acme.lib.button-policy-snapshot',
+      componentVersionId: 'acme.lib.button@1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
+      engine: 'forgegate.release-decision',
+      engineVersion: '0.1.0',
+      commit: COMMIT,
+      evidenceIds: ['run-1'],
+      findingIds: ['acme.lib.button-blocking-0'],
+    });
+    expect(result.rules.map((rule) => [rule.id, rule.outcome])).toEqual([
+      ['blocking-findings-block-release', 'blocked'],
+      ['authorized-candidate-requires-approver', 'not-applicable'],
+    ]);
+    expect(result.limitations.join(' ')).toContain(
+      'not load an external policy document',
+    );
+  });
+
+  it('records approver-gate failure for a clean component without approval', () => {
+    const result = computePolicySnapshot({
+      manifest: manifestWithPolicy(),
+      findings: [],
+      commit: COMMIT,
+      evaluatedAt: '2026-01-01T00:00:00.000Z',
+      evidenceIds: [],
+    });
+
+    expect('unavailable' in result).toBe(false);
+    if ('unavailable' in result) {
+      throw new Error(result.unavailable);
+    }
+    expect(result.rules.map((rule) => [rule.id, rule.outcome])).toEqual([
+      ['blocking-findings-block-release', 'passed'],
+      ['authorized-candidate-requires-approver', 'blocked'],
+    ]);
+  });
+
+  it('explains missing policy or commit inputs instead of fabricating a snapshot', () => {
+    const withoutPolicy = computePolicySnapshot({
+      manifest: createComponentManifest({
+        id: 'acme.lib.button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+      }),
+      findings: [],
+      commit: COMMIT,
+      evaluatedAt: '2026-01-01T00:00:00.000Z',
+      evidenceIds: [],
+    });
+    expect('unavailable' in withoutPolicy && withoutPolicy.unavailable).toContain(
+      'No policy is authored',
+    );
+
+    const withoutCommit = computePolicySnapshot({
+      manifest: manifestWithPolicy(),
+      findings: [],
+      commit: null,
+      evaluatedAt: '2026-01-01T00:00:00.000Z',
+      evidenceIds: [],
+    });
+    expect('unavailable' in withoutCommit && withoutCommit.unavailable).toContain(
+      'No repository commit',
+    );
   });
 });

@@ -427,8 +427,67 @@ describe('buildEvidenceExport', () => {
     expect(Object.keys(manifestJson.excludes)).not.toContain(
       'release-decision.json',
     );
+    expect(Object.keys(manifestJson.excludes)).not.toContain(
+      'policy-snapshot.json',
+    );
+    expect(manifestJson.contents).toContain('policy-snapshot.json');
+
+    const policySnapshot = JSON.parse(
+      requireFile(result, 'policy-snapshot.json'),
+    );
+    expect(policySnapshot).toMatchObject({
+      componentVersionId: 'acme.lib.button@1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
+      engine: 'forgegate.release-decision',
+      engineVersion: '0.1.0',
+      commit: 'a'.repeat(40),
+      findingIds: ['acme.lib.button-blocking-0'],
+    });
+    expect(policySnapshot.rules).toContainEqual({
+      id: 'blocking-findings-block-release',
+      description:
+        'Any connected finding blocks release authorization until resolved or dispositioned.',
+      outcome: 'blocked',
+      evidence: ['acme.lib.button-blocking-0'],
+    });
+    expect(policySnapshot.limitations.join(' ')).toContain(
+      'current built-in release-decision rules only',
+    );
+    expect(requireFile(result, 'report.html')).toContain(
+      '<h2>Policy snapshot</h2>',
+    );
     expect(requireFile(result, 'report.html')).not.toContain(
       'NOT A REAL APPROVAL',
+    );
+  });
+
+  it('explains why no policy snapshot is written without a commit', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+      policyId: 'acme.baseline',
+      policyVersion: '2.1.0',
+    });
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: [],
+      starlightProjects: [],
+    });
+
+    expect(result.files['policy-snapshot.json']).toBeUndefined();
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.excludes['policy-snapshot.json']).toContain(
+      'No repository commit is available',
+    );
+    expect(requireFile(result, 'report.html')).toContain(
+      'No repository commit is available',
     );
   });
 

@@ -12,8 +12,10 @@ import type { ComponentManifest } from '@forgegate/core-manifest';
 import { computeDocumentationDriftState } from './documentation-drift';
 import type { ReleaseDecision } from '@forgegate/core-policy';
 import {
+  computePolicySnapshot,
   computeReleaseDecision,
   type EvidenceApprover,
+  type PolicySnapshotExport,
 } from './release-decision-export';
 
 /**
@@ -35,13 +37,13 @@ import {
  * export's own_ real findings (an exception approves a specific finding,
  * not a component version in general). Everything the documented shape
  * also lists (`policy-snapshot.json`, `release-decision.json`,
- * `attachments/`) is honestly absent — `manifest.json`'s `excludes` field
- * says why for each, rather than silently omitting them or fabricating
- * empty placeholders.
+ * `attachments/`) is honestly absent unless the real inputs exist —
+ * `manifest.json`'s `excludes` field says why for each absent section,
+ * rather than silently omitting it or fabricating empty placeholders.
  */
 const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'policy-snapshot.json':
-    'No policy evaluation has run for this component yet.',
+    'No policy id/version and repository commit are available for the built-in policy snapshot.',
   'automated/':
     'No imported automated result artifact is connected for this component yet.',
   'manual/': 'No manual review result is connected for this component yet.',
@@ -177,12 +179,21 @@ export async function buildEvidenceExport(
     findingIds.has(exception.findingId),
   );
 
+  const evidenceIds = testExecutions.map((execution) => execution.id);
+  const policySnapshot = computePolicySnapshot({
+    manifest,
+    findings,
+    commit: repositoryCommit,
+    evaluatedAt: exportedAt,
+    evidenceIds,
+    approver: input.approver,
+  });
   const releaseDecision = computeReleaseDecision({
     manifest,
     findings,
     commit: repositoryCommit,
     decidedAt: exportedAt,
-    evidenceIds: testExecutions.map((execution) => execution.id),
+    evidenceIds,
     approver: input.approver,
   });
   const excludes: Record<string, string> = { ...EXCLUDED_SECTIONS };
@@ -192,6 +203,16 @@ export async function buildEvidenceExport(
     'test-summary.json': JSON.stringify(testExecutions, null, 2),
     'documentation-status.json': JSON.stringify(documentationStatus, null, 2),
   };
+  if ('unavailable' in policySnapshot) {
+    excludes['policy-snapshot.json'] = policySnapshot.unavailable;
+  } else {
+    delete excludes['policy-snapshot.json'];
+    contentFiles['policy-snapshot.json'] = JSON.stringify(
+      policySnapshot,
+      null,
+      2,
+    );
+  }
   const playwrightArtifacts = automatedArtifacts.filter(
     (artifact) => artifact.kind === 'playwright-json',
   );
@@ -313,6 +334,9 @@ export async function buildEvidenceExport(
     exceptions: relevantExceptions,
     documentationStatus,
     findings,
+    policySnapshot: 'unavailable' in policySnapshot ? null : policySnapshot,
+    policySnapshotUnavailable:
+      'unavailable' in policySnapshot ? policySnapshot.unavailable : null,
     releaseDecision:
       'unavailable' in releaseDecision ? null : releaseDecision.decision,
     releaseDecisionUnavailable:
@@ -414,6 +438,8 @@ function renderEvidenceReport(input: {
   exceptions: readonly Exception[];
   documentationStatus: readonly DocumentationStatusRow[];
   findings: readonly Finding[];
+  policySnapshot: PolicySnapshotExport | null;
+  policySnapshotUnavailable: string | null;
   releaseDecision: ReleaseDecision | null;
   releaseDecisionUnavailable: string | null;
   notRealApproval: boolean;
@@ -429,6 +455,8 @@ function renderEvidenceReport(input: {
     exceptions,
     documentationStatus,
     findings,
+    policySnapshot,
+    policySnapshotUnavailable,
   } = input;
   const {
     releaseDecision,
@@ -495,6 +523,29 @@ function renderEvidenceReport(input: {
         .join('')}</tbody>
     </table>`
     : notConnected("No exception approves any of this export's findings.");
+
+  const policySnapshotSection = policySnapshot
+    ? `<dl>
+      <dt>Policy</dt><dd><code>${escapeHtml(`${policySnapshot.policyId} @ ${policySnapshot.policyVersion}`)}</code></dd>
+      <dt>Engine</dt><dd><code>${escapeHtml(`${policySnapshot.engine} ${policySnapshot.engineVersion}`)}</code></dd>
+      <dt>Commit</dt><dd><code>${escapeHtml(policySnapshot.commit)}</code></dd>
+      <dt>Finding inputs</dt><dd>${policySnapshot.findingIds.length}</dd>
+      <dt>Evidence inputs</dt><dd>${policySnapshot.evidenceIds.length}</dd>
+    </dl>
+    <table>
+      <caption>Policy rules evaluated</caption>
+      <thead><tr><th scope="col">Rule</th><th scope="col">Outcome</th><th scope="col">Evidence</th></tr></thead>
+      <tbody>${policySnapshot.rules
+        .map(
+          (rule) =>
+            `<tr><th scope="row">${escapeHtml(rule.id)}</th><td>${escapeHtml(rule.outcome)}</td><td>${escapeHtml(rule.evidence.join(', ') || 'None')}</td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>
+    <p class="not-connected">${escapeHtml(policySnapshot.limitations.join(' '))}</p>`
+    : notConnected(
+        policySnapshotUnavailable ?? 'No policy snapshot is available.',
+      );
 
   const releaseDecisionSection = releaseDecision
     ? `<dl>
@@ -583,6 +634,9 @@ ${findingsSection}
 
 <h2>Exceptions</h2>
 ${exceptionsSection}
+
+<h2>Policy snapshot</h2>
+${policySnapshotSection}
 
 <h2>Release decision</h2>
 ${releaseDecisionSection}

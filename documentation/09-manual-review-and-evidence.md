@@ -197,14 +197,15 @@ Required action:
 > structure (`apps/forgegate-desktop/src/app/evidence-export.ts`, reachable from
 > the "Export evidence package" button on a component's detail page). Implemented
 > today: `manifest.json` (including the real repository commit and a
-> `checksums` map), `test-summary.json`, `documentation-status.json`,
+> `checksums` map), `policy-snapshot.json` for ForgeGate's current built-in
+> release-decision ruleset, `test-summary.json`, `documentation-status.json`,
 > `automated/` for imported Playwright, axe, Storybook interaction, Jest, and
 > Vitest reports, `manual/` (one real file per connected `ManualReview`),
 > `findings/`, `exceptions/` (scoped to findings this export actually includes),
 > `release-decision.json`, `report.html`, and `checksums.sha256`.
 > Not yet implemented, and named explicitly in `manifest.json`'s `excludes` map
 > and in the report's "Not connected" section rather than silently omitted:
-> `policy-snapshot.json` and `attachments/`. See TODO.md's "Evidence export
+> `attachments/`. See TODO.md's "Evidence export
 > remaining sections" for what each one is blocked on. ForgeGate still imports
 > externally produced Storybook interaction, axe, Playwright, Jest, and Vitest
 > evidence. It also now orchestrates three configured target-repository command
@@ -222,6 +223,13 @@ Required action:
 > exercised end to end; anything produced that way is flagged `notRealApproval`
 > in both `release-decision.json` and `manifest.json`, and banner-marked in
 > `report.html`, so it can never be mistaken for a real approval.
+>
+> **`policy-snapshot.json`.** This is now a real snapshot of ForgeGate's narrow
+> built-in release-decision rules, not a complete organizational policy engine.
+> It records the authored `policyId`/`policyVersion`, repository commit,
+> evidence ids, finding ids, evaluated rule outcomes, and explicit limitations.
+> It does not load an external policy document, compliance control catalog,
+> expiry calendar, or organization-specific waiver rules.
 
 Suggested export:
 
