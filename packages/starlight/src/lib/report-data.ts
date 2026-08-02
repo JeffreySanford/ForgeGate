@@ -1,3 +1,6 @@
+import { readdir } from 'node:fs/promises';
+import path from 'node:path';
+
 export const FORGEGATE_REPORT_DATA_ROOT = 'src/data/forgegate/components';
 
 export type ForgeGateReportDataKind = 'component' | 'registry' | 'unknown';
@@ -15,6 +18,32 @@ export interface ForgeGateReportDataClassification {
   readonly path: string;
   readonly slug?: string;
   readonly reason?: string;
+}
+
+export interface ForgeGateReportDataFilesystemDiscoveryOptions {
+  readonly workspaceRoot: string;
+  readonly reportDataRoot?: string;
+  readonly maxDepth?: number;
+}
+
+export interface ForgeGateDiscoveredComponentReportData {
+  readonly path: string;
+  readonly slug: string;
+}
+
+export interface ForgeGateIgnoredReportDataFile {
+  readonly path: string;
+  readonly reason: string;
+}
+
+export interface ForgeGateReportDataFilesystemDiscovery {
+  readonly workspaceRoot: string;
+  readonly reportDataRoot: string;
+  readonly scannedRoot: string;
+  readonly registryPath?: string;
+  readonly componentReports: readonly ForgeGateDiscoveredComponentReportData[];
+  readonly ignoredReports: readonly ForgeGateIgnoredReportDataFile[];
+  readonly limitations: readonly string[];
 }
 
 export function forgeGateComponentReportDataPath(
@@ -92,6 +121,84 @@ export function classifyForgeGateReportDataPath(
   return { kind: 'component', path: normalizedPath, slug };
 }
 
+export async function discoverForgeGateReportDataFiles(
+  options: ForgeGateReportDataFilesystemDiscoveryOptions,
+): Promise<ForgeGateReportDataFilesystemDiscovery> {
+  const workspaceRoot = normalizeAbsolutePath(options.workspaceRoot);
+  const reportDataRoot = safeReportDataRoot(
+    options.reportDataRoot ?? FORGEGATE_REPORT_DATA_ROOT,
+  );
+  const scannedRoot = resolveWorkspaceRelativePath(workspaceRoot, reportDataRoot);
+  const discoveredJsonPaths = await readJsonPaths(scannedRoot, options.maxDepth ?? 4);
+  const componentReports: ForgeGateDiscoveredComponentReportData[] = [];
+  const ignoredReports: ForgeGateIgnoredReportDataFile[] = [];
+  const limitations: string[] = [];
+  let registryPath: string | undefined;
+
+  if (discoveredJsonPaths === undefined) {
+    return {
+      workspaceRoot,
+      reportDataRoot,
+      scannedRoot,
+      componentReports,
+      ignoredReports,
+      limitations: [
+        `ForgeGate report data root ${reportDataRoot} was not found.`,
+      ],
+    };
+  }
+
+  for (const relativeJsonPath of discoveredJsonPaths) {
+    const reportPath = `${reportDataRoot}/${relativeJsonPath}`;
+    const classification = classifyForgeGateReportDataPath(
+      reportPath,
+      reportDataRoot,
+    );
+    if (classification.kind === 'registry') {
+      registryPath = classification.path;
+      continue;
+    }
+    if (classification.kind === 'component') {
+      if (!classification.slug) {
+        ignoredReports.push({
+          path: classification.path,
+          reason: 'Component report data did not include a slug.',
+        });
+        continue;
+      }
+      componentReports.push({
+        path: classification.path,
+        slug: classification.slug,
+      });
+      continue;
+    }
+    ignoredReports.push({
+      path: classification.path,
+      reason: classification.reason ?? 'File does not match ForgeGate report data conventions.',
+    });
+  }
+
+  componentReports.sort((left, right) => left.slug.localeCompare(right.slug));
+  ignoredReports.sort((left, right) => left.path.localeCompare(right.path));
+  if (!registryPath) {
+    limitations.push(
+      `ForgeGate registry report ${forgeGateRegistryReportDataPath(
+        reportDataRoot,
+      )} was not found.`,
+    );
+  }
+
+  return {
+    workspaceRoot,
+    reportDataRoot,
+    scannedRoot,
+    registryPath,
+    componentReports,
+    ignoredReports,
+    limitations,
+  };
+}
+
 export function safeReportDataRoot(root: string): string {
   const normalized = normalizePath(root);
   if (
@@ -120,4 +227,68 @@ export function safeReportDataSlug(slug: string): string {
 
 function normalizePath(path: string): string {
   return path.trim().replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
+}
+
+function normalizeAbsolutePath(value: string): string {
+  const resolved = path.resolve(value);
+  return normalizePath(resolved);
+}
+
+function resolveWorkspaceRelativePath(
+  workspaceRoot: string,
+  relativePath: string,
+): string {
+  const nativeWorkspaceRoot = path.resolve(workspaceRoot);
+  const targetPath = path.resolve(nativeWorkspaceRoot, ...relativePath.split('/'));
+  const relativeToWorkspace = path.relative(nativeWorkspaceRoot, targetPath);
+  if (
+    relativeToWorkspace.startsWith('..') ||
+    path.isAbsolute(relativeToWorkspace)
+  ) {
+    throw new Error(
+      `ForgeGate report data root ${relativePath} resolves outside ${workspaceRoot}.`,
+    );
+  }
+  return normalizePath(targetPath);
+}
+
+async function readJsonPaths(
+  directory: string,
+  maxDepth: number,
+  prefix = '',
+): Promise<readonly string[] | undefined> {
+  let entries: readonly {
+    readonly name: string;
+    isDirectory(): boolean;
+    isFile(): boolean;
+  }[];
+  try {
+    entries = await readdir(directory, {
+      encoding: 'utf8',
+      withFileTypes: true,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return undefined;
+    }
+    throw error;
+  }
+
+  const jsonPaths: string[] = [];
+  for (const entry of entries) {
+    const relativeEntryPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory() && maxDepth > 0) {
+      const nestedPaths = await readJsonPaths(
+        path.join(directory, entry.name),
+        maxDepth - 1,
+        relativeEntryPath,
+      );
+      jsonPaths.push(...(nestedPaths ?? []));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith('.json')) {
+      jsonPaths.push(relativeEntryPath);
+    }
+  }
+  return jsonPaths.sort((left, right) => left.localeCompare(right));
 }

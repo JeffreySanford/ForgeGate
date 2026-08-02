@@ -1,7 +1,10 @@
 import type { AstroIntegration } from 'astro';
+import { fileURLToPath } from 'node:url';
 import {
+  discoverForgeGateReportDataFiles,
   forgeGateReportDataDiscovery,
   safeReportDataRoot,
+  type ForgeGateReportDataFilesystemDiscovery,
   type ForgeGateReportDataDiscovery,
 } from './report-data';
 
@@ -16,6 +19,8 @@ export interface ForgeGateStarlightIntegrationOptions {
    * generated MDX import paths to change.
    */
   readonly reportDataRoot?: string;
+  readonly filesystemDiscovery?: boolean;
+  readonly workspaceRoot?: string;
   readonly astroVersion?: string;
   readonly starlightVersion?: string;
 }
@@ -24,7 +29,8 @@ export interface ForgeGateStarlightLifecycleStatus {
   readonly integrationName: typeof FORGEGATE_STARLIGHT_INTEGRATION_NAME;
   readonly reportDataRoot: string;
   readonly reportData: ForgeGateReportDataDiscovery;
-  readonly lifecycle: 'discovery-contract';
+  readonly filesystemDiscovery: boolean;
+  readonly lifecycle: 'discovery-contract' | 'filesystem-discovery';
   readonly supports: readonly string[];
   readonly planned: readonly string[];
 }
@@ -45,19 +51,23 @@ export function forgeGateStarlightLifecycleStatus(
     integrationName: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
     reportDataRoot,
     reportData: forgeGateReportDataDiscovery(reportDataRoot),
-    lifecycle: 'discovery-contract',
+    filesystemDiscovery: options.filesystemDiscovery ?? false,
+    lifecycle: options.filesystemDiscovery
+      ? 'filesystem-discovery'
+      : 'discovery-contract',
     supports: [
       'stable Astro integration name',
       'configurable generated report-data root',
       'generated-data discovery conventions',
       'component and registry report-data classification',
+      'filesystem-backed report-data scanning when enabled',
       'version compatibility diagnostics',
       'manual MDX imports of ForgeGate presentation components',
       'manifest-backed component and registry report JSON',
     ],
     planned: [
-      'filesystem-backed generated-data auto-discovery',
       'component auto-registration',
+      'generated Starlight route registration',
       'migration guidance for generated MDX pages',
     ],
   };
@@ -104,7 +114,7 @@ export function forgeGateStarlightIntegration(
   return {
     name: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
     hooks: {
-      'astro:config:setup': ({ logger }) => {
+      'astro:config:setup': async ({ config, logger }) => {
         logger.debug(
           `ForgeGate report data root configured as ${status.reportDataRoot}.`,
         );
@@ -122,9 +132,43 @@ export function forgeGateStarlightIntegration(
             logger.debug(line);
           }
         }
+        if (!status.filesystemDiscovery) {
+          return;
+        }
+        const discovery = await forgeGateStarlightFilesystemDiscovery({
+          ...options,
+          workspaceRoot:
+            options.workspaceRoot ??
+            (config?.root ? fileURLToPath(config.root) : process.cwd()),
+        });
+        logger.debug(
+          `ForgeGate discovered ${discovery.componentReports.length} component report data file(s).`,
+        );
+        logger.debug(
+          discovery.registryPath
+            ? `ForgeGate discovered registry report data at ${discovery.registryPath}.`
+            : `ForgeGate did not discover registry report data under ${discovery.reportDataRoot}.`,
+        );
+        for (const ignoredReport of discovery.ignoredReports) {
+          logger.warn(
+            `[ignored-report-data] ${ignoredReport.path}: ${ignoredReport.reason}`,
+          );
+        }
+        for (const limitation of discovery.limitations) {
+          logger.warn(`[report-data-discovery-limitation] ${limitation}`);
+        }
       },
     },
   };
+}
+
+export function forgeGateStarlightFilesystemDiscovery(
+  options: ForgeGateStarlightIntegrationOptions & { readonly workspaceRoot: string },
+): Promise<ForgeGateReportDataFilesystemDiscovery> {
+  return discoverForgeGateReportDataFiles({
+    workspaceRoot: options.workspaceRoot,
+    reportDataRoot: options.reportDataRoot,
+  });
 }
 
 function minimumVersionDiagnostics(input: {
