@@ -31,8 +31,12 @@ export interface EvidencePackageCopiedAttachmentFile {
   readonly redactedPreview: string;
   readonly previewTruncated: boolean;
   readonly reviewStatus: 'requires-review';
-  readonly reviewDecision: 'excluded-from-report';
+  readonly reviewDecision: EvidencePackageCopiedAttachmentReviewDecision;
 }
+
+export type EvidencePackageCopiedAttachmentReviewDecision =
+  | 'excluded-from-report'
+  | 'approved-for-future-policy';
 
 export interface EvidencePackageIntegrityReport {
   readonly status: 'verified' | 'failed' | 'unavailable';

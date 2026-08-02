@@ -367,6 +367,10 @@ describe('StarlightPageGenerator', () => {
       workspace,
       'discardStarlightEvidencePackageAttachmentReview',
     );
+    const decisionSpy = vi.spyOn(
+      workspace,
+      'setStarlightEvidencePackageAttachmentDecision',
+    );
 
     fixture = TestBed.createComponent(HostComponent);
     fixture.componentInstance.manifest = manifest();
@@ -387,6 +391,12 @@ describe('StarlightPageGenerator', () => {
       fixture.nativeElement.querySelectorAll('button'),
     ) as HTMLButtonElement[];
     buttons
+      .find((button) => button.textContent?.includes('Approve for future policy'))
+      ?.click();
+    buttons
+      .find((button) => button.textContent?.includes('Exclude from report'))
+      ?.click();
+    buttons
       .find((button) =>
         button.textContent?.includes('Regenerate without copied attachment'),
       )
@@ -395,6 +405,14 @@ describe('StarlightPageGenerator', () => {
       .find((button) => button.textContent?.includes('Discard package import'))
       ?.click();
 
+    expect(decisionSpy).toHaveBeenCalledWith(
+      'attachments/files/package-unit-run.txt',
+      'approved-for-future-policy',
+    );
+    expect(decisionSpy).toHaveBeenCalledWith(
+      'attachments/files/package-unit-run.txt',
+      'excluded-from-report',
+    );
     expect(continueSpy).toHaveBeenCalledTimes(1);
     expect(discardSpy).toHaveBeenCalledTimes(1);
   });

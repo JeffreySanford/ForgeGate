@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import type { ComponentManifest } from '@forgegate/core-manifest';
+import type { EvidencePackageCopiedAttachmentReviewDecision } from '../evidence-package-records';
 import type { StarlightPageTemplate } from '../starlight-page';
 import { WorkspaceService } from '../workspace.service';
 
@@ -78,5 +79,15 @@ export class StarlightPageGenerator implements OnInit {
 
   protected discardAttachmentReview(): void {
     this.workspace.discardStarlightEvidencePackageAttachmentReview();
+  }
+
+  protected setAttachmentDecision(
+    targetPath: string,
+    decision: EvidencePackageCopiedAttachmentReviewDecision,
+  ): void {
+    this.workspace.setStarlightEvidencePackageAttachmentDecision(
+      targetPath,
+      decision,
+    );
   }
 }

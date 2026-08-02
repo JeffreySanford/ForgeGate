@@ -110,6 +110,27 @@
   font-size: var(--fg-type-size-sm);
 }
 
+.starlight-page-generator__attachment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fg-space-2);
+}
+
+.starlight-page-generator__attachment-actions button {
+  padding: var(--fg-space-1) var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-sm);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  cursor: pointer;
+}
+
+.starlight-page-generator__attachment-actions button[aria-pressed='true'] {
+  border-color: var(--fg-color-border-strong);
+  background: var(--fg-color-action);
+  color: var(--fg-color-text-inverse);
+}
+
 .starlight-page-generator__diff {
   margin: 0;
   padding: var(--fg-space-2);

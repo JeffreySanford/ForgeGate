@@ -99,6 +99,36 @@
         @if (attachment.previewTruncated) {
         <span>Preview truncated.</span>
         }
+        <div class="starlight-page-generator__attachment-actions">
+          <button
+            type="button"
+            [attr.aria-pressed]="
+              attachment.reviewDecision === 'excluded-from-report'
+            "
+            (click)="
+              setAttachmentDecision(
+                attachment.targetPath,
+                'excluded-from-report'
+              )
+            "
+          >
+            Exclude from report
+          </button>
+          <button
+            type="button"
+            [attr.aria-pressed]="
+              attachment.reviewDecision === 'approved-for-future-policy'
+            "
+            (click)="
+              setAttachmentDecision(
+                attachment.targetPath,
+                'approved-for-future-policy'
+              )
+            "
+          >
+            Approve for future policy
+          </button>
+        </div>
       </li>
       }
     </ul>

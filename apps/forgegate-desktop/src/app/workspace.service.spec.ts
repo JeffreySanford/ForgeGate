@@ -2173,6 +2173,13 @@ describe('WorkspaceService', () => {
       previousContent: null,
       newContent: '{"componentCount":1}\n',
     };
+    const stagedAttachmentReviewWrite = {
+      stagingId: 'stg-4',
+      relativePath:
+        '.forgegate/attachment-reviews/acme.design-system.acme-button-designer-imported-attachments.json',
+      previousContent: null,
+      newContent: '{"kind":"forgegate.imported-attachment-review"}\n',
+    };
 
     it('does nothing if no workspace is open', async () => {
       await service.generateAndStageStarlightPage(manifest);
@@ -2461,11 +2468,20 @@ describe('WorkspaceService', () => {
           }),
         ],
       });
+      service.setStarlightEvidencePackageAttachmentDecision(
+        'attachments/files/package-unit-run.txt',
+        'approved-for-future-policy',
+      );
+      expect(
+        service.starlightEvidencePackageAttachmentReview()
+          ?.copiedAttachmentFiles[0]?.reviewDecision,
+      ).toBe('approved-for-future-policy');
 
       invokeMock
         .mockRejectedValueOnce('not a file')
         .mockResolvedValueOnce(stagedPageWrite)
-        .mockResolvedValueOnce(stagedReportDataWrite);
+        .mockResolvedValueOnce(stagedReportDataWrite)
+        .mockResolvedValueOnce(stagedAttachmentReviewWrite);
 
       await service.continueStarlightEvidencePackageImportWithoutAttachments();
 
@@ -2479,11 +2495,32 @@ describe('WorkspaceService', () => {
       expect(invokeMock.mock.calls[4]?.[1].content).not.toContain(
         'attachments/files/package-unit-run.txt',
       );
+      expect(invokeMock).toHaveBeenNthCalledWith(6, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath:
+          '.forgegate/attachment-reviews/acme.design-system.acme-button-designer-imported-attachments.json',
+        content: expect.stringContaining(
+          '"kind": "forgegate.imported-attachment-review"',
+        ),
+      });
+      const reviewRecord = JSON.parse(invokeMock.mock.calls[5]?.[1].content);
+      expect(reviewRecord.attachments).toEqual([
+        expect.objectContaining({
+          sourceEvidenceId: 'package-unit-run',
+          targetPath: 'attachments/files/package-unit-run.txt',
+          reviewDecision: 'approved-for-future-policy',
+        }),
+      ]);
+      expect(JSON.stringify(reviewRecord)).not.toContain('TOKEN=[REDACTED]');
       expect(service.stagedStarlightPage()).toEqual({
         componentId: manifest.id,
         template: 'designer',
         write: stagedPageWrite,
-        writes: [stagedPageWrite, stagedReportDataWrite],
+        writes: [
+          stagedPageWrite,
+          stagedReportDataWrite,
+          stagedAttachmentReviewWrite,
+        ],
       });
     });
 

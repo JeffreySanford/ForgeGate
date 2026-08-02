@@ -63,6 +63,7 @@ import { buildEvidenceExport } from './evidence-export';
 import {
   loadVerifiedStarlightEvidencePackageRecords,
   type EvidencePackageCopiedAttachmentFile,
+  type EvidencePackageCopiedAttachmentReviewDecision,
   type StarlightEvidencePackageRecords,
   type VerifiedStarlightEvidencePackageRecords,
 } from './evidence-package-records';
@@ -166,6 +167,7 @@ interface PendingStarlightEvidencePackageImport {
   readonly template: StarlightPageTemplate;
   readonly registryManifests: readonly ComponentManifest[];
   readonly records: VerifiedStarlightEvidencePackageRecords;
+  readonly directoryPath: string;
 }
 
 export function isWorkspaceRelativeRawArtifactRef(
@@ -182,6 +184,50 @@ export function isWorkspaceRelativeRawArtifactRef(
     return false;
   }
   return !/\.(png|jpe?g|gif|webp|zip|gz|br|pdf)$/i.test(value);
+}
+
+export function attachmentReviewRecordPath(
+  componentId: string,
+  template: StarlightPageTemplate,
+): string {
+  return `.forgegate/attachment-reviews/${sanitizeForWorkspaceFilename(
+    `${componentId}-${template}-imported-attachments`,
+  )}.json`;
+}
+
+export function buildImportedAttachmentReviewRecord(input: {
+  readonly componentId: string;
+  readonly componentVersion: string | null;
+  readonly directoryPath: string;
+  readonly template: StarlightPageTemplate;
+  readonly copiedAttachmentFiles: readonly EvidencePackageCopiedAttachmentFile[];
+}): unknown {
+  return {
+    schemaVersion: '0.1.0',
+    kind: 'forgegate.imported-attachment-review',
+    componentId: input.componentId,
+    componentVersion: input.componentVersion,
+    evidencePackageDirectory: input.directoryPath,
+    starlightTemplate: input.template,
+    generatedAt: new Date().toISOString(),
+    policy:
+      'Copied attachment contents are not consumed by generated Starlight report data in this version. approved-for-future-policy records reviewer intent only.',
+    attachments: input.copiedAttachmentFiles.map((attachment) => ({
+      sourceEvidenceId: attachment.sourceEvidenceId,
+      sourcePath: attachment.sourcePath,
+      targetPath: attachment.targetPath,
+      sizeBytes: attachment.sizeBytes,
+      lineCount: attachment.lineCount,
+      previewTruncated: attachment.previewTruncated,
+      reviewStatus: attachment.reviewStatus,
+      reviewDecision: attachment.reviewDecision,
+      redactionRequired: attachment.redactionRequired,
+    })),
+  };
+}
+
+function sanitizeForWorkspaceFilename(value: string): string {
+  return value.replace(/[^a-zA-Z0-9.-]+/g, '-');
 }
 
 export interface ComponentPackageCandidate {
@@ -2139,6 +2185,7 @@ export class WorkspaceService {
           template,
           registryManifests,
           records,
+          directoryPath,
         };
         this.starlightEvidencePackageAttachmentReview.set({
           directoryPath,
@@ -2166,8 +2213,12 @@ export class WorkspaceService {
 
   async continueStarlightEvidencePackageImportWithoutAttachments(): Promise<void> {
     const pending = this.pendingStarlightEvidencePackageImport;
+    const review = this.starlightEvidencePackageAttachmentReview();
+    const path = this.workspacePath();
     if (
       !pending ||
+      !review ||
+      !path ||
       this.starlightEvidencePackageImportRunning() ||
       this.starlightPageRunning()
     ) {
@@ -2184,11 +2235,57 @@ export class WorkspaceService {
         pending.registryManifests,
         pending.records,
       );
+      const staged = this.stagedStarlightPage();
+      if (staged) {
+        const reviewWrite = await this.invoke<StagedRelativeWrite>(
+          'stage_starlight_page',
+          {
+            workspacePath: path,
+            relativePath: attachmentReviewRecordPath(
+              pending.manifest.id,
+              pending.template,
+            ),
+            content: JSON.stringify(
+              buildImportedAttachmentReviewRecord({
+                componentId: pending.manifest.id,
+                componentVersion: pending.manifest.componentVersion ?? null,
+                directoryPath: pending.directoryPath,
+                template: pending.template,
+                copiedAttachmentFiles: review.copiedAttachmentFiles,
+              }),
+              null,
+              2,
+            ),
+          },
+        );
+        this.stagedStarlightPage.set({
+          ...staged,
+          writes: [...staged.writes, reviewWrite],
+        });
+      }
     } catch (error) {
       this.starlightEvidencePackageImportError.set(String(error));
     } finally {
       this.starlightEvidencePackageImportRunning.set(false);
     }
+  }
+
+  setStarlightEvidencePackageAttachmentDecision(
+    targetPath: string,
+    decision: EvidencePackageCopiedAttachmentReviewDecision,
+  ): void {
+    const review = this.starlightEvidencePackageAttachmentReview();
+    if (!review) {
+      return;
+    }
+    this.starlightEvidencePackageAttachmentReview.set({
+      ...review,
+      copiedAttachmentFiles: review.copiedAttachmentFiles.map((attachment) =>
+        attachment.targetPath === targetPath
+          ? { ...attachment, reviewDecision: decision }
+          : attachment,
+      ),
+    });
   }
 
   discardStarlightEvidencePackageAttachmentReview(): void {
