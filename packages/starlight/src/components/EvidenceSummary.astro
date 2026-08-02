@@ -5,7 +5,12 @@ interface Props {
   report?: import('../lib/report').ForgeGateComponentReport;
 }
 
-import { contractMemberCount, notConnectedCount, openFindingCount } from '../lib/report';
+import {
+  attachmentReferenceCount,
+  contractMemberCount,
+  notConnectedCount,
+  openFindingCount,
+} from '../lib/report';
 
 const { component, tier = 'balanced', report } = Astro.props;
 const evidenceCommit = report?.evidenceCommit ?? 'unknown';
@@ -17,10 +22,12 @@ const automatedCount = report?.evidence.automated.length ?? 0;
 const manualReviewCount = report?.evidence.manualReviews.length ?? 0;
 const findingCount = report?.evidence.findings.length ?? 0;
 const exceptionCount = report?.evidence.exceptions?.length ?? 0;
+const attachmentCount = attachmentReferenceCount(report);
 const unresolvedFindingCount = openFindingCount(report);
 const notConnected = notConnectedCount(report);
 const releaseDecision = report?.evidence.releaseDecision;
 const policySnapshot = report?.evidence.policySnapshot;
+const redaction = report?.evidence.redaction;
 
 function statusClass(status: string): string {
   if (status === 'passed' || status === 'resolved') {
@@ -81,6 +88,10 @@ function severityClass(severity: string): string {
       <dd>{exceptionCount}</dd>
     </div>
     <div>
+      <dt>Attachment refs</dt>
+      <dd>{attachmentCount}</dd>
+    </div>
+    <div>
       <dt>Open findings</dt>
       <dd>{unresolvedFindingCount}</dd>
     </div>
@@ -119,6 +130,31 @@ function severityClass(severity: string): string {
         <p>
           Source <code>{policySnapshot.manifestPath}</code>. {policySnapshot.detail}
         </p>
+      </section>
+    ) : null
+  }
+  {
+    report?.evidence.attachments?.length || redaction ? (
+      <section class="forgegate-evidence-list">
+        <h4>Attachments and redaction</h4>
+        {redaction ? (
+          <p>
+            <span class="forgegate-chip forgegate-chip--muted">{redaction.status}</span>
+            <span> {redaction.detail}</span>
+          </p>
+        ) : null}
+        {report?.evidence.attachments?.length ? (
+          <ul>
+            {report.evidence.attachments.map((attachment) => (
+              <li>
+                <span class="forgegate-chip forgegate-chip--muted">{attachment.status}</span>
+                <span class="forgegate-evidence-list__title">{attachment.sourceEvidenceId}</span>
+                <code>{attachment.sourcePath}</code>
+                <span>{attachment.redactionRequired ? 'redaction required' : 'redaction not flagged'}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
     ) : null
   }

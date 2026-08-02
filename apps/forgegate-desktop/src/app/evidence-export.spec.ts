@@ -296,6 +296,7 @@ describe('buildEvidenceExport', () => {
       'checksums.sha256',
       'documentation-status.json',
       'manifest.json',
+      'redaction-plan.json',
       'report.html',
       'test-summary.json',
     ]);
@@ -315,6 +316,9 @@ describe('buildEvidenceExport', () => {
     // No policy authored on this fixture, so the exclusion explains itself.
     expect(manifestJson.excludes['release-decision.json']).toContain(
       'No policy is authored',
+    );
+    expect(requireFile(result, 'redaction-plan.json')).toContain(
+      'planning-only',
     );
   });
 
@@ -393,6 +397,86 @@ describe('buildEvidenceExport', () => {
     expect(report).toContain('policy-snapshot.json');
     expect(report).toContain('release-decision.json');
     expect(report).toContain('exceptions/');
+    expect(report).toContain('<h2>Attachments and redaction</h2>');
+  });
+
+  it('writes an attachment capture index for real raw artifact refs without copying raw files yet', async () => {
+    const manifest = createComponentManifest({
+      id: 'acme.lib.button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: '.',
+      componentVersion: '1.0.0',
+    });
+    const executions = [
+      execution({
+        id: 'axe-summary',
+        rawArtifactRef: '.forgegate/evidence/raw/axe-results.json',
+      }),
+    ];
+    const artifacts = [
+      playwrightArtifact({
+        id: 'playwright-trace',
+        rawArtifactRef: '.forgegate/evidence/raw/playwright-report.json',
+      }),
+    ];
+
+    const result = await buildEvidenceExport({
+      id: 'export-1',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      manifest,
+      testExecutions: executions,
+      automatedArtifacts: artifacts,
+      starlightProjects: [],
+    });
+
+    const attachmentIndex = JSON.parse(
+      requireFile(result, 'attachments/index.json'),
+    );
+    expect(attachmentIndex).toMatchObject({
+      componentVersionId: 'acme.lib.button@1.0.0',
+      status: 'capture-plan',
+    });
+    expect(attachmentIndex.attachments).toEqual([
+      {
+        id: 'axe-summary-attachment',
+        sourceEvidenceId: 'axe-summary',
+        sourceKind: 'test-execution',
+        sourcePath: '.forgegate/evidence/raw/axe-results.json',
+        targetPath: 'attachments/files/axe-summary',
+        status: 'referenced-not-copied',
+        redactionRequired: true,
+      },
+      {
+        id: 'playwright-trace-attachment',
+        sourceEvidenceId: 'playwright-trace',
+        sourceKind: 'automated-artifact',
+        sourcePath: '.forgegate/evidence/raw/playwright-report.json',
+        targetPath: 'attachments/files/playwright-trace',
+        status: 'referenced-not-copied',
+        redactionRequired: true,
+      },
+    ]);
+
+    const redactionPlan = JSON.parse(requireFile(result, 'redaction-plan.json'));
+    expect(redactionPlan.rules).toContainEqual({
+      id: 'raw-attachments-require-redaction-before-copy',
+      scope: 'attachments/files/',
+      action: 'block binary copy until redaction is implemented',
+      reason:
+        'Raw test artifacts can contain screenshots, traces, environment details, URLs, tokens, or user-entered content.',
+    });
+
+    const manifestJson = JSON.parse(requireFile(result, 'manifest.json'));
+    expect(manifestJson.contents).toContain('attachments/index.json');
+    expect(Object.keys(manifestJson.excludes)).not.toContain('attachments/');
+    expect(manifestJson.excludes['attachments/files/']).toContain(
+      'raw files are not copied',
+    );
+
+    const report = requireFile(result, 'report.html');
+    expect(report).toContain('Attachment capture plan');
+    expect(report).toContain('referenced-not-copied');
   });
 
   it('exports a fully real blocked release decision, with no approver involved', async () => {

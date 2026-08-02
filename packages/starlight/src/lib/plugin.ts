@@ -11,18 +11,51 @@ export interface ForgeGateStarlightIntegrationOptions {
   readonly reportDataRoot?: string;
 }
 
+export interface ForgeGateStarlightLifecycleStatus {
+  readonly integrationName: typeof FORGEGATE_STARLIGHT_INTEGRATION_NAME;
+  readonly reportDataRoot: string;
+  readonly lifecycle: 'presentation-package';
+  readonly supports: readonly string[];
+  readonly planned: readonly string[];
+}
+
+export function forgeGateStarlightLifecycleStatus(
+  options: ForgeGateStarlightIntegrationOptions = {},
+): ForgeGateStarlightLifecycleStatus {
+  return {
+    integrationName: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
+    reportDataRoot:
+      options.reportDataRoot ?? 'src/data/forgegate/components',
+    lifecycle: 'presentation-package',
+    supports: [
+      'stable Astro integration name',
+      'configurable generated report-data root',
+      'manual MDX imports of ForgeGate presentation components',
+      'manifest-backed component and registry report JSON',
+    ],
+    planned: [
+      'generated-data discovery',
+      'component auto-registration conventions',
+      'version compatibility diagnostics',
+      'migration guidance for generated MDX pages',
+    ],
+  };
+}
+
 export function forgeGateStarlightIntegration(
   options: ForgeGateStarlightIntegrationOptions = {},
 ): AstroIntegration {
-  const reportDataRoot =
-    options.reportDataRoot ?? 'src/data/forgegate/components';
+  const status = forgeGateStarlightLifecycleStatus(options);
 
   return {
     name: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
     hooks: {
       'astro:config:setup': ({ logger }) => {
         logger.debug(
-          `ForgeGate report data root configured as ${reportDataRoot}.`,
+          `ForgeGate report data root configured as ${status.reportDataRoot}.`,
+        );
+        logger.debug(
+          `ForgeGate Starlight lifecycle stage: ${status.lifecycle}.`,
         );
       },
     },

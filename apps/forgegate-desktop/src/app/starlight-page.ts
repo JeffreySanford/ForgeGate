@@ -428,6 +428,14 @@ export function buildStarlightComponentReport(
     ...connectedManualReviews.map((review) => review.id),
     ...connectedExceptions.map((exception) => exception.id),
   ];
+  const attachmentReferences = automatedEvidence
+    .filter((execution) => Boolean(execution.rawArtifactRef))
+    .map((execution) => ({
+      sourceEvidenceId: execution.id,
+      sourcePath: execution.rawArtifactRef ?? '',
+      status: 'referenced-not-copied' as const,
+      redactionRequired: true,
+    }));
   const decision = releaseDecisionReport({
     manifest,
     evidenceCommit,
@@ -489,10 +497,21 @@ export function buildStarlightComponentReport(
               'No policy id and version are authored for this component, so no policy snapshot can be summarized.',
           },
         ]),
-    {
-      section: 'attachments',
-      reason: 'Evidence attachments are not connected to Starlight reports yet.',
-    },
+    ...(attachmentReferences.length
+      ? [
+          {
+            section: 'attachment files',
+            reason:
+              'Raw attachment files are referenced for reviewer traceability, but binary files are not copied into generated Starlight report data yet.',
+          },
+        ]
+      : [
+          {
+            section: 'attachments',
+            reason:
+              'No raw artifact references are connected for attachment capture yet.',
+          },
+        ]),
   ];
   return {
     componentId: manifest.id,
@@ -581,6 +600,15 @@ export function buildStarlightComponentReport(
             })),
           }
         : {}),
+      ...(attachmentReferences.length
+        ? { attachments: attachmentReferences }
+        : {}),
+      redaction: {
+        status: 'planning-only',
+        detail: attachmentReferences.length
+          ? 'Referenced raw artifacts require redaction before ForgeGate can copy them into portable Starlight evidence bundles.'
+          : 'No raw artifact references are connected yet; ForgeGate still records the redaction posture so missing attachments are explicit.',
+      },
       releaseDecision: decision,
       ...(policySnapshot ? { policySnapshot } : {}),
       notConnected,

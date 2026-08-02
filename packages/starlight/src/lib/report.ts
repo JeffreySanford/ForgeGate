@@ -62,6 +62,18 @@ export interface ForgeGateExceptionReport {
   readonly expiresAt?: string;
 }
 
+export interface ForgeGateAttachmentReferenceReport {
+  readonly sourceEvidenceId: string;
+  readonly sourcePath: string;
+  readonly status: 'referenced-not-copied';
+  readonly redactionRequired: boolean;
+}
+
+export interface ForgeGateRedactionReport {
+  readonly status: 'planning-only' | 'not-connected';
+  readonly detail: string;
+}
+
 export interface ForgeGateNotConnectedReport {
   readonly section: string;
   readonly reason: string;
@@ -132,6 +144,8 @@ export interface ForgeGateComponentReport {
     readonly manualReviews: readonly ForgeGateManualReviewEvidenceReport[];
     readonly findings: readonly ForgeGateFindingReport[];
     readonly exceptions?: readonly ForgeGateExceptionReport[];
+    readonly attachments?: readonly ForgeGateAttachmentReferenceReport[];
+    readonly redaction?: ForgeGateRedactionReport;
     readonly releaseDecision?: ForgeGateReleaseDecisionReport;
     readonly policySnapshot?: ForgeGatePolicySnapshotReport;
     readonly notConnected?: readonly ForgeGateNotConnectedReport[];
@@ -181,4 +195,10 @@ export function notConnectedCount(
   report: ForgeGateComponentReport | undefined,
 ): number {
   return report?.evidence.notConnected?.length ?? 0;
+}
+
+export function attachmentReferenceCount(
+  report: ForgeGateComponentReport | undefined,
+): number {
+  return report?.evidence.attachments?.length ?? 0;
 }

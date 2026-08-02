@@ -232,6 +232,13 @@ describe('generateDesignerStarlightComponentPage', () => {
     expect(data).toContain('"exceptions": [');
     expect(data).toContain('"id": "focus-visible-risk-acceptance"');
     expect(data).toContain('Accepted until the next token contrast update.');
+    expect(data).toContain('"attachments": [');
+    expect(data).toContain('"sourceEvidenceId": "axe-acme-button"');
+    expect(data).toContain('"status": "referenced-not-copied"');
+    expect(data).toContain('"redaction": {');
+    expect(data).toContain(
+      'Referenced raw artifacts require redaction before ForgeGate can copy them into portable Starlight evidence bundles.',
+    );
     expect(data).not.toContain('"id": "axe-other"');
     expect(data).not.toContain('"id": "review-other"');
     expect(data).not.toContain('"id": "other-finding"');
@@ -290,7 +297,17 @@ describe('generateDesignerStarlightComponentPage', () => {
             reason:
               'No policy id and version are authored for this component, so no policy snapshot can be summarized.',
           },
+          {
+            section: 'attachments',
+            reason:
+              'No raw artifact references are connected for attachment capture yet.',
+          },
         ]),
+        redaction: {
+          status: 'planning-only',
+          detail:
+            'No raw artifact references are connected yet; ForgeGate still records the redaction posture so missing attachments are explicit.',
+        },
       },
       documentation: [],
     });

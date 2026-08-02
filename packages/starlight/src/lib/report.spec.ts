@@ -1,5 +1,10 @@
 import type { ForgeGateComponentReport } from './report';
-import { contractMemberCount, notConnectedCount, openFindingCount } from './report';
+import {
+  attachmentReferenceCount,
+  contractMemberCount,
+  notConnectedCount,
+  openFindingCount,
+} from './report';
 
 describe('contractMemberCount', () => {
   it('counts every public contract group in a component report', () => {
@@ -127,6 +132,52 @@ describe('notConnectedCount', () => {
           notConnected: [
             { section: 'automated', reason: 'No automated evidence.' },
           ],
+        },
+        documentation: [],
+      }),
+    ).toBe(1);
+  });
+});
+
+describe('attachmentReferenceCount', () => {
+  it('counts referenced attachments in report evidence', () => {
+    expect(
+      attachmentReferenceCount({
+        componentId: 'acme.button-library.acme-button',
+        version: '0.1.0',
+        lifecycle: 'candidate',
+        evidenceCommit: 'fixture',
+        packagePath: '.',
+        tier: 'balanced',
+        states: [],
+        tokens: [],
+        contract: {
+          inputs: [],
+          outputs: [],
+          content: [],
+          publicMethods: [],
+          styleParts: [],
+        },
+        manualProcedures: [],
+        evidence: {
+          automated: [],
+          manualReviews: [],
+          findings: [],
+          attachments: [
+            {
+              sourceEvidenceId: 'axe-run',
+              sourcePath: '.forgegate/evidence/raw/axe.json',
+              status: 'referenced-not-copied',
+              redactionRequired: true,
+            },
+          ],
+          releaseDecision: {
+            status: 'not-connected',
+            reason: 'No policy is authored.',
+            blockingFindingIds: [],
+            evidenceIds: [],
+          },
+          notConnected: [],
         },
         documentation: [],
       }),

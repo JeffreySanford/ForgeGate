@@ -37,9 +37,12 @@ import {
  * export's own_ real findings (an exception approves a specific finding,
  * not a component version in general). Everything the documented shape
  * also lists (`policy-snapshot.json`, `release-decision.json`,
- * `attachments/`) is honestly absent unless the real inputs exist —
- * `manifest.json`'s `excludes` field says why for each absent section,
- * rather than silently omitting it or fabricating empty placeholders.
+ * `attachments/`) is honestly absent unless the real inputs exist. When
+ * raw artifact references exist, ForgeGate writes an `attachments/index.json`
+ * capture plan that names those real refs and discloses that the binary
+ * files are not copied yet. `manifest.json`'s `excludes` field says why
+ * for each absent section, rather than silently omitting it or fabricating
+ * empty placeholders.
  */
 const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'policy-snapshot.json':
@@ -50,6 +53,39 @@ const EXCLUDED_SECTIONS: Readonly<Record<string, string>> = {
   'exceptions/': "No exception approves any of this export's findings yet.",
   'attachments/': 'No attachments have been captured yet.',
 };
+
+export interface EvidenceAttachmentReference {
+  readonly id: string;
+  readonly sourceEvidenceId: string;
+  readonly sourceKind: 'test-execution' | 'automated-artifact';
+  readonly sourcePath: string;
+  readonly targetPath: string;
+  readonly status: 'referenced-not-copied';
+  readonly redactionRequired: true;
+}
+
+export interface EvidenceAttachmentIndex {
+  readonly id: string;
+  readonly componentVersionId: string;
+  readonly generatedAt: string;
+  readonly status: 'capture-plan';
+  readonly attachments: readonly EvidenceAttachmentReference[];
+  readonly limitations: readonly string[];
+}
+
+export interface EvidenceRedactionPlan {
+  readonly id: string;
+  readonly componentVersionId: string;
+  readonly generatedAt: string;
+  readonly status: 'planning-only';
+  readonly rules: readonly {
+    readonly id: string;
+    readonly scope: string;
+    readonly action: string;
+    readonly reason: string;
+  }[];
+  readonly limitations: readonly string[];
+}
 
 /**
  * Converts each real blocking reason `ComponentDetailPage` already
@@ -96,6 +132,112 @@ export function componentVersionId(manifest: ComponentManifest): string {
   return manifest.componentVersion
     ? `${manifest.id}@${manifest.componentVersion}`
     : manifest.id;
+}
+
+function buildAttachmentIndex(input: {
+  versionId: string;
+  exportedAt: string;
+  testExecutions: readonly TestExecution[];
+  automatedArtifacts: readonly AutomatedEvidenceArtifact[];
+}): EvidenceAttachmentIndex | null {
+  const references: EvidenceAttachmentReference[] = [];
+  for (const execution of input.testExecutions) {
+    if (!execution.rawArtifactRef) {
+      continue;
+    }
+    references.push(
+      attachmentReference({
+        sourceEvidenceId: execution.id,
+        sourceKind: 'test-execution',
+        sourcePath: execution.rawArtifactRef,
+      }),
+    );
+  }
+  for (const artifact of input.automatedArtifacts) {
+    if (!artifact.rawArtifactRef) {
+      continue;
+    }
+    references.push(
+      attachmentReference({
+        sourceEvidenceId: artifact.id,
+        sourceKind: 'automated-artifact',
+        sourcePath: artifact.rawArtifactRef,
+      }),
+    );
+  }
+  if (!references.length) {
+    return null;
+  }
+  return {
+    id: `${input.versionId}-attachments`,
+    componentVersionId: input.versionId,
+    generatedAt: input.exportedAt,
+    status: 'capture-plan',
+    attachments: references,
+    limitations: [
+      'ForgeGate has identified real source artifact references, but this export does not copy binary or external files into attachments/ yet.',
+      'Each referenced file must pass the redaction plan before a future export can embed it as portable evidence.',
+    ],
+  };
+}
+
+function attachmentReference(input: {
+  sourceEvidenceId: string;
+  sourceKind: 'test-execution' | 'automated-artifact';
+  sourcePath: string;
+}): EvidenceAttachmentReference {
+  return {
+    id: `${sanitizeForFilename(input.sourceEvidenceId)}-attachment`,
+    sourceEvidenceId: input.sourceEvidenceId,
+    sourceKind: input.sourceKind,
+    sourcePath: input.sourcePath,
+    targetPath: `attachments/files/${sanitizeForFilename(input.sourceEvidenceId)}`,
+    status: 'referenced-not-copied',
+    redactionRequired: true,
+  };
+}
+
+function buildRedactionPlan(input: {
+  versionId: string;
+  exportedAt: string;
+  attachmentIndex: EvidenceAttachmentIndex | null;
+}): EvidenceRedactionPlan {
+  return {
+    id: `${input.versionId}-redaction-plan`,
+    componentVersionId: input.versionId,
+    generatedAt: input.exportedAt,
+    status: 'planning-only',
+    rules: [
+      {
+        id: 'manifest-and-normalized-json-no-credentials',
+        scope:
+          'manifest.json, test-summary.json, documentation-status.json, findings/, exceptions/, release-decision.json, policy-snapshot.json',
+        action: 'export normalized JSON only',
+        reason:
+          'ForgeGate domain records are designed to avoid stored credentials and keep package contents reviewable.',
+      },
+      {
+        id: 'raw-attachments-require-redaction-before-copy',
+        scope: 'attachments/files/',
+        action: input.attachmentIndex
+          ? 'block binary copy until redaction is implemented'
+          : 'no raw attachments were referenced in this export',
+        reason:
+          'Raw test artifacts can contain screenshots, traces, environment details, URLs, tokens, or user-entered content.',
+      },
+      {
+        id: 'html-report-escape-repository-text',
+        scope: 'report.html',
+        action: 'escape repository-derived text before rendering',
+        reason:
+          'Component ids, paths, finding descriptions, and tool output references come from the reviewed repository.',
+      },
+    ],
+    limitations: [
+      'This is a disclosure and implementation plan, not a full secret-scanning or image-redaction engine.',
+      'ForgeGate does not yet copy raw attachment files into the export package.',
+    ],
+  };
 }
 
 export interface EvidenceExportInput {
@@ -198,10 +340,22 @@ export async function buildEvidenceExport(
   });
   const excludes: Record<string, string> = { ...EXCLUDED_SECTIONS };
   let notRealApproval = false;
+  const attachmentIndex = buildAttachmentIndex({
+    versionId,
+    exportedAt,
+    testExecutions,
+    automatedArtifacts,
+  });
+  const redactionPlan = buildRedactionPlan({
+    versionId,
+    exportedAt,
+    attachmentIndex,
+  });
 
   const contentFiles: Record<string, string> = {
     'test-summary.json': JSON.stringify(testExecutions, null, 2),
     'documentation-status.json': JSON.stringify(documentationStatus, null, 2),
+    'redaction-plan.json': JSON.stringify(redactionPlan, null, 2),
   };
   if ('unavailable' in policySnapshot) {
     excludes['policy-snapshot.json'] = policySnapshot.unavailable;
@@ -308,6 +462,16 @@ export async function buildEvidenceExport(
         JSON.stringify(exception, null, 2);
     }
   }
+  if (attachmentIndex) {
+    delete excludes['attachments/'];
+    excludes['attachments/files/'] =
+      'Attachment source refs are indexed, but raw files are not copied until redaction and binary-capture support exist.';
+    contentFiles['attachments/index.json'] = JSON.stringify(
+      attachmentIndex,
+      null,
+      2,
+    );
+  }
 
   if ('unavailable' in releaseDecision) {
     excludes['release-decision.json'] = releaseDecision.unavailable;
@@ -334,6 +498,8 @@ export async function buildEvidenceExport(
     exceptions: relevantExceptions,
     documentationStatus,
     findings,
+    attachmentIndex,
+    redactionPlan,
     policySnapshot: 'unavailable' in policySnapshot ? null : policySnapshot,
     policySnapshotUnavailable:
       'unavailable' in policySnapshot ? policySnapshot.unavailable : null,
@@ -438,6 +604,8 @@ function renderEvidenceReport(input: {
   exceptions: readonly Exception[];
   documentationStatus: readonly DocumentationStatusRow[];
   findings: readonly Finding[];
+  attachmentIndex: EvidenceAttachmentIndex | null;
+  redactionPlan: EvidenceRedactionPlan;
   policySnapshot: PolicySnapshotExport | null;
   policySnapshotUnavailable: string | null;
   releaseDecision: ReleaseDecision | null;
@@ -455,6 +623,8 @@ function renderEvidenceReport(input: {
     exceptions,
     documentationStatus,
     findings,
+    attachmentIndex,
+    redactionPlan,
     policySnapshot,
     policySnapshotUnavailable,
   } = input;
@@ -547,6 +717,32 @@ function renderEvidenceReport(input: {
         policySnapshotUnavailable ?? 'No policy snapshot is available.',
       );
 
+  const attachmentSection = attachmentIndex
+    ? `<table>
+      <caption>Attachment capture plan</caption>
+      <thead><tr><th scope="col">Evidence</th><th scope="col">Source</th><th scope="col">Planned target</th><th scope="col">Status</th></tr></thead>
+      <tbody>${attachmentIndex.attachments
+        .map(
+          (attachment) =>
+            `<tr><th scope="row">${escapeHtml(attachment.sourceEvidenceId)}</th><td><code>${escapeHtml(attachment.sourcePath)}</code></td><td><code>${escapeHtml(attachment.targetPath)}</code></td><td>${escapeHtml(attachment.status)}</td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>
+    <p class="not-connected">${escapeHtml(attachmentIndex.limitations.join(' '))}</p>`
+    : notConnected('No raw artifact refs are connected for attachment capture.');
+
+  const redactionSection = `<table>
+      <caption>Redaction posture</caption>
+      <thead><tr><th scope="col">Rule</th><th scope="col">Scope</th><th scope="col">Action</th><th scope="col">Reason</th></tr></thead>
+      <tbody>${redactionPlan.rules
+        .map(
+          (rule) =>
+            `<tr><th scope="row">${escapeHtml(rule.id)}</th><td>${escapeHtml(rule.scope)}</td><td>${escapeHtml(rule.action)}</td><td>${escapeHtml(rule.reason)}</td></tr>`,
+        )
+        .join('')}</tbody>
+    </table>
+    <p class="not-connected">${escapeHtml(redactionPlan.limitations.join(' '))}</p>`;
+
   const releaseDecisionSection = releaseDecision
     ? `<dl>
       <dt>Outcome</dt><dd><strong>${escapeHtml(releaseDecision.outcome)}</strong></dd>
@@ -637,6 +833,10 @@ ${exceptionsSection}
 
 <h2>Policy snapshot</h2>
 ${policySnapshotSection}
+
+<h2>Attachments and redaction</h2>
+${attachmentSection}
+${redactionSection}
 
 <h2>Release decision</h2>
 ${releaseDecisionSection}

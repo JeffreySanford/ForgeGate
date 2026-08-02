@@ -144,6 +144,18 @@
         "status": "open"
       }
     ],
+    "attachments": [
+      {
+        "sourceEvidenceId": "axe-acme-button",
+        "sourcePath": ".forgegate/evidence/axe-acme-button.json",
+        "status": "referenced-not-copied",
+        "redactionRequired": true
+      }
+    ],
+    "redaction": {
+      "status": "planning-only",
+      "detail": "Referenced raw artifacts require redaction before ForgeGate can copy them into portable Starlight evidence bundles."
+    },
     "releaseDecision": {
       "status": "blocked",
       "policyId": "acme.baseline",
@@ -174,8 +186,8 @@
         "reason": "Only the manifest-authored policy id and version are connected; the full evaluated policy ruleset is not loaded into Starlight report data yet."
       },
       {
-        "section": "attachments",
-        "reason": "Evidence attachments are not connected to Starlight reports yet."
+        "section": "attachment files",
+        "reason": "Raw attachment files are referenced for reviewer traceability, but binary files are not copied into generated Starlight report data yet."
       }
     ]
   },

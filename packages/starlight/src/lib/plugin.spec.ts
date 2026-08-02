@@ -1,6 +1,7 @@
 import {
   FORGEGATE_STARLIGHT_INTEGRATION_NAME,
   forgeGateStarlightIntegration,
+  forgeGateStarlightLifecycleStatus,
 } from './plugin';
 
 describe('forgeGateStarlightIntegration', () => {
@@ -24,5 +25,32 @@ describe('forgeGateStarlightIntegration', () => {
     expect(debug).toHaveBeenCalledWith(
       'ForgeGate report data root configured as apps/docs/src/data/forgegate/components.',
     );
+    expect(debug).toHaveBeenCalledWith(
+      'ForgeGate Starlight lifecycle stage: presentation-package.',
+    );
+  });
+
+  it('publishes the current plugin lifecycle boundary for docs and diagnostics', () => {
+    expect(
+      forgeGateStarlightLifecycleStatus({
+        reportDataRoot: 'src/data/forgegate/components',
+      }),
+    ).toEqual({
+      integrationName: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
+      reportDataRoot: 'src/data/forgegate/components',
+      lifecycle: 'presentation-package',
+      supports: [
+        'stable Astro integration name',
+        'configurable generated report-data root',
+        'manual MDX imports of ForgeGate presentation components',
+        'manifest-backed component and registry report JSON',
+      ],
+      planned: [
+        'generated-data discovery',
+        'component auto-registration conventions',
+        'version compatibility diagnostics',
+        'migration guidance for generated MDX pages',
+      ],
+    });
   });
 });
