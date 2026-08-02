@@ -405,7 +405,7 @@ Audited against real code before starting P2 work, not assumed:
 
 ## P2 first slice
 
-- [ ] Choose the Button blueprint.
+- [X} Choose the Button blueprint. Real: `.forgegate/blueprints/*.yaml` is now discovered (`detect_blueprint_files`, mirroring `detect_procedure_files`) and parsed (`WorkspaceService.blueprints`, mirroring `loadProcedures`), and `StudioPage` (`/studio`, new nav entry) lists every real discovered blueprint and shows its full authored metadata — purpose, required states, token slots, inspector groups — on selection. Verified against the real checked-in `blueprint.button.yaml` fixture, live in the browser and in 6 component tests. Honestly scoped: selecting a blueprint is a real, terminal action for now — no `ComponentProposal` exists to attach the selection to yet (next item, and Workstream 1 of documentation/28's implementation plan).
 - [ ] Define purpose and native semantics visually.
 - [ ] Configure the portable public contract.
 - [ ] Compose variants and required states.

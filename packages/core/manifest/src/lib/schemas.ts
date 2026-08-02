@@ -25,7 +25,15 @@ export const componentContractSchema = {
     styleParts: { type: 'array', items: contractMemberSchema },
     frameworkExtensions: { type: 'object' },
   },
-  required: ['id', 'componentVersionId', 'inputs', 'outputs', 'content', 'publicMethods', 'styleParts'],
+  required: [
+    'id',
+    'componentVersionId',
+    'inputs',
+    'outputs',
+    'content',
+    'publicMethods',
+    'styleParts',
+  ],
   additionalProperties: false,
 } as const;
 
@@ -64,7 +72,17 @@ export const tokenReferenceSchema = {
     id: { type: 'string', minLength: 1 },
     componentVersionId: { type: 'string', minLength: 1 },
     tokenPath: { type: 'string', minLength: 1 },
-    category: { enum: ['color', 'spacing', 'typography', 'motion', 'elevation', 'border', 'other'] },
+    category: {
+      enum: [
+        'color',
+        'spacing',
+        'typography',
+        'motion',
+        'elevation',
+        'border',
+        'other',
+      ],
+    },
     required: { type: 'boolean' },
   },
   required: ['id', 'componentVersionId', 'tokenPath', 'category', 'required'],
@@ -164,6 +182,70 @@ export const blueprintSchema = {
     tokenSlots: { type: 'array', items: blueprintTokenSlotSchema },
     constraints: { type: 'array', items: blueprintConstraintSchema },
   },
-  required: ['id', 'version', 'name', 'purpose', 'requiredStates', 'inspectorGroups', 'tokenSlots'],
+  required: [
+    'id',
+    'version',
+    'name',
+    'purpose',
+    'requiredStates',
+    'inspectorGroups',
+    'tokenSlots',
+  ],
+  additionalProperties: false,
+} as const;
+
+const proposalIdentitySchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    status: {
+      type: 'string',
+      enum: ['draft', 'in-review', 'approved', 'generated', 'abandoned'],
+    },
+    createdAt: { type: 'string', minLength: 1 },
+    updatedAt: { type: 'string', minLength: 1 },
+  },
+  required: ['id', 'status', 'createdAt', 'updatedAt'],
+  additionalProperties: false,
+} as const;
+
+const blueprintReferenceSchema = {
+  type: 'object',
+  properties: {
+    blueprintId: { type: 'string', minLength: 1 },
+    blueprintVersion: { type: 'string', minLength: 1 },
+  },
+  required: ['blueprintId', 'blueprintVersion'],
+  additionalProperties: false,
+} as const;
+
+const proposalTargetDefinitionSchema = {
+  type: 'object',
+  properties: {
+    componentName: { type: 'string', minLength: 1 },
+    packagePath: { type: 'string', minLength: 1 },
+    adapter: { type: 'string', minLength: 1 },
+  },
+  required: ['componentName', 'packagePath', 'adapter'],
+  additionalProperties: false,
+} as const;
+
+export const componentProposalSchema = {
+  $id: 'https://forgegate.dev/schemas/component-proposal.schema.json',
+  type: 'object',
+  properties: {
+    identity: proposalIdentitySchema,
+    blueprint: blueprintReferenceSchema,
+    target: proposalTargetDefinitionSchema,
+    purpose: { type: 'string', minLength: 1 },
+    nativeSemanticConfirmed: { type: 'boolean' },
+  },
+  required: [
+    'identity',
+    'blueprint',
+    'target',
+    'purpose',
+    'nativeSemanticConfirmed',
+  ],
   additionalProperties: false,
 } as const;
