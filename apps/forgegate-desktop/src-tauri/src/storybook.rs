@@ -136,7 +136,10 @@ mod tests {
     /// not something to paper over with a retry.
     fn spawn_real_local_server(body: &'static str) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").expect("should bind an ephemeral port");
-        let port = listener.local_addr().expect("should have a local addr").port();
+        let port = listener
+            .local_addr()
+            .expect("should have a local addr")
+            .port();
         thread::spawn(move || {
             if let Ok((socket, _)) = listener.accept() {
                 let mut reader = BufReader::new(socket);
@@ -180,7 +183,10 @@ mod tests {
         // Bind then immediately drop, freeing the port but making it very
         // unlikely anything else grabbed it in between.
         let listener = TcpListener::bind("127.0.0.1:0").expect("should bind an ephemeral port");
-        let port = listener.local_addr().expect("should have a local addr").port();
+        let port = listener
+            .local_addr()
+            .expect("should have a local addr")
+            .port();
         drop(listener);
 
         let result = fetch_storybook_index(&format!("http://127.0.0.1:{port}"));
@@ -191,7 +197,10 @@ mod tests {
     #[test]
     fn reports_a_non_200_response_status_as_a_real_error() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("should bind an ephemeral port");
-        let port = listener.local_addr().expect("should have a local addr").port();
+        let port = listener
+            .local_addr()
+            .expect("should have a local addr")
+            .port();
         thread::spawn(move || {
             if let Ok((socket, _)) = listener.accept() {
                 let mut reader = BufReader::new(socket);

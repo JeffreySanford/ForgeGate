@@ -265,14 +265,14 @@ Required action:
 > copy consent, size limits, binary-safe streaming, destination naming, and
 > retention rules exist.
 >
-> **Next implementation order.** The report-data primitive for direct
-> Starlight regeneration from verified exported package records now exists:
-> imported verified records can be merged into generated component report data,
-> with live workspace records remaining authoritative on duplicate ids. The
-> desktop import/regeneration UI comes next, then fuller Starlight plugin
-> discovery and registration. Broad binary/temp attachment copying follows only
-> after the current consent-policy classification is wired to an explicit UI
-> flow and binary-safe file handling.
+> **Next implementation order.** The report-data primitive and first desktop UI
+> path for direct Starlight regeneration from verified exported package records
+> now exist: imported verified records can be merged into generated component
+> report data, with live workspace records remaining authoritative on duplicate
+> ids, and the generated files still stage for diff review before approval.
+> Fuller Starlight plugin discovery and registration comes next. Broad
+> binary/temp attachment copying follows only after the current consent-policy
+> classification is wired to an explicit UI flow and binary-safe file handling.
 
 Suggested export:
 
@@ -341,8 +341,11 @@ already-read package file map for Starlight consumption. Missing, modified,
 conflicting, or unlisted evidence files are reported as package-integrity
 limitations, and unverified content is not passed into the Starlight record
 loader. Those verified records can now feed generated Starlight component
-report data directly. A desktop package-import UI and organization trust/signing
-policy remain future work.
+report data directly. The first desktop import/regeneration UI uses a dedicated
+package-directory picker, reads only safe evidence-package-relative text files
+from that selected directory, verifies the package, and stages regenerated
+Starlight output for review before any write lands in the workspace.
+Organization trust/signing policy remains future work.
 
 ## Privacy
 

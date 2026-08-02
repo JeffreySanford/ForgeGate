@@ -92,6 +92,23 @@ async fn pick_export_directory(app: tauri::AppHandle) -> Option<String> {
         .map(|p| p.display().to_string())
 }
 
+/// Opens the native folder picker for choosing an existing ForgeGate
+/// evidence package to import for Starlight report regeneration. Separate
+/// from workspace selection and export destination selection so the UI can
+/// describe the access being requested precisely.
+#[tauri::command]
+async fn pick_evidence_package_directory(app: tauri::AppHandle) -> Option<String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog().file().pick_folder(move |folder| {
+        let _ = tx.send(folder);
+    });
+    rx.recv()
+        .ok()
+        .flatten()
+        .and_then(|f| f.into_path().ok())
+        .map(|p| p.display().to_string())
+}
+
 /// A real filename `write_evidence_package` will write: forward-slash
 /// separated, at most one subdirectory deep (matching the documented
 /// evidence-package shape's `findings/`, `automated/`, `manual/`,
@@ -158,6 +175,65 @@ fn write_evidence_package(
     Ok(export_dir.display().to_string())
 }
 
+/// Reads a previously exported ForgeGate evidence package as a constrained
+/// file map for frontend-side checksum verification and Starlight
+/// regeneration. The caller supplies a directory selected through
+/// `pick_evidence_package_directory`; this function reads only files whose
+/// package-relative paths match `is_safe_relative_artifact_path`.
+#[tauri::command]
+fn read_evidence_package_files(
+    package_directory: String,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let package_dir = PathBuf::from(&package_directory);
+    if !package_dir.is_absolute() {
+        return Err("Evidence package path must be absolute".to_string());
+    }
+    let package_dir = package_dir
+        .canonicalize()
+        .map_err(|_| "Evidence package path does not exist".to_string())?;
+    if !package_dir.is_dir() {
+        return Err("Evidence package path is not a directory".to_string());
+    }
+
+    let mut files = std::collections::HashMap::new();
+    let mut pending = vec![package_dir.clone()];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(&directory)
+            .map_err(|error| format!("Failed to read {}: {error}", directory.display()))?
+        {
+            let entry = entry.map_err(|error| {
+                format!("Failed to read entry in {}: {error}", directory.display())
+            })?;
+            let file_type = entry.file_type().map_err(|error| {
+                format!("Failed to inspect {}: {error}", entry.path().display())
+            })?;
+            if file_type.is_dir() {
+                pending.push(entry.path());
+                continue;
+            }
+            if !file_type.is_file() {
+                continue;
+            }
+            let relative_path = entry
+                .path()
+                .strip_prefix(&package_dir)
+                .map_err(|_| "Evidence package file escaped its package directory".to_string())?
+                .components()
+                .map(|component| component.as_os_str().to_string_lossy().to_string())
+                .collect::<Vec<_>>()
+                .join("/");
+            if !is_safe_relative_artifact_path(&relative_path) {
+                continue;
+            }
+            let content = fs::read_to_string(entry.path())
+                .map_err(|error| format!("Failed to read {}: {error}", entry.path().display()))?;
+            files.insert(relative_path, content);
+        }
+    }
+
+    Ok(files)
+}
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct StagedEvidenceWriteDto {
@@ -194,8 +270,13 @@ fn stage_manual_review(
     content: String,
 ) -> Result<StagedEvidenceWriteDto, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
-    staged_write::stage_evidence_write(&workspace, "manual-reviews", &format!("{review_id}.json"), &content)
-        .map(Into::into)
+    staged_write::stage_evidence_write(
+        &workspace,
+        "manual-reviews",
+        &format!("{review_id}.json"),
+        &content,
+    )
+    .map(Into::into)
 }
 
 /// Stages one real `Finding` — derived from a failed or blocked guided
@@ -209,8 +290,13 @@ fn stage_finding(
     content: String,
 ) -> Result<StagedEvidenceWriteDto, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
-    staged_write::stage_evidence_write(&workspace, "findings", &format!("{finding_id}.json"), &content)
-        .map(Into::into)
+    staged_write::stage_evidence_write(
+        &workspace,
+        "findings",
+        &format!("{finding_id}.json"),
+        &content,
+    )
+    .map(Into::into)
 }
 
 /// Stages one real `TestExecution` — the result of ForgeGate actually
@@ -227,8 +313,13 @@ fn stage_test_execution(
     content: String,
 ) -> Result<StagedEvidenceWriteDto, String> {
     let workspace = resolve_workspace_path(&workspace_path)?;
-    staged_write::stage_evidence_write(&workspace, "evidence", &format!("{execution_id}.json"), &content)
-        .map(Into::into)
+    staged_write::stage_evidence_write(
+        &workspace,
+        "evidence",
+        &format!("{execution_id}.json"),
+        &content,
+    )
+    .map(Into::into)
 }
 
 /// Commits a previously staged evidence write into the real conventional
@@ -493,9 +584,7 @@ fn read_commit_diff_files(path: String, from_commit: String) -> Result<Vec<Strin
         return Err(format!("{} is not a Git repository", workspace.display()));
     }
     if !is_git_commit_hash(&from_commit) {
-        return Err(format!(
-            "\"{from_commit}\" is not a real Git commit hash"
-        ));
+        return Err(format!("\"{from_commit}\" is not a real Git commit hash"));
     }
 
     let output = Command::new("git")
@@ -1157,7 +1246,9 @@ mod tests {
     #[test]
     fn is_git_commit_hash_accepts_and_rejects_the_expected_shapes() {
         assert!(is_git_commit_hash(&"a".repeat(40)));
-        assert!(is_git_commit_hash("95e7160868275025e94ff0ff0d3a397785a92868"));
+        assert!(is_git_commit_hash(
+            "95e7160868275025e94ff0ff0d3a397785a92868"
+        ));
         assert!(!is_git_commit_hash("keyboard-and-screen-reader-review"));
         assert!(!is_git_commit_hash(&"a".repeat(39)));
         assert!(!is_git_commit_hash(&"a".repeat(41)));
@@ -1772,10 +1863,9 @@ mod tests {
         )
         .expect("rollback should succeed");
 
-        assert!(
-            !dir.join(".forgegate/manual-reviews/acme-button-keyboard-review.json")
-                .exists()
-        );
+        assert!(!dir
+            .join(".forgegate/manual-reviews/acme-button-keyboard-review.json")
+            .exists());
 
         fs::remove_dir_all(&dir).ok();
     }
@@ -1796,8 +1886,7 @@ mod tests {
         )
         .expect("stage should succeed");
         assert!(
-            !dir.join("src/content/docs/components/button.mdx")
-                .exists(),
+            !dir.join("src/content/docs/components/button.mdx").exists(),
             "staging must not touch the real target"
         );
 
@@ -1862,12 +1951,49 @@ mod tests {
         )
         .expect("rollback should succeed");
 
-        assert!(
-            !dir.join("src/content/docs/components/button.mdx")
-                .exists()
-        );
+        assert!(!dir.join("src/content/docs/components/button.mdx").exists());
 
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reads_only_safe_text_files_from_an_evidence_package_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "forgegate-read-evidence-package-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        fs::create_dir_all(dir.join("automated")).expect("should create automated dir");
+        fs::create_dir_all(dir.join("attachments/files"))
+            .expect("should create attachment files dir");
+        fs::create_dir_all(dir.join("deep/nested")).expect("should create deep dir");
+        fs::write(dir.join("manifest.json"), "{}").expect("should write manifest");
+        fs::write(dir.join("checksums.sha256"), "").expect("should write checksums");
+        fs::write(dir.join("automated/details.json"), "[]").expect("should write details");
+        fs::write(dir.join("attachments/files/unit-run.txt"), "redacted")
+            .expect("should write attachment");
+        fs::write(dir.join("deep/nested/ignored.json"), "{}").expect("should write ignored file");
+
+        let files = read_evidence_package_files(dir.display().to_string())
+            .expect("read package should succeed");
+
+        assert_eq!(files.get("manifest.json"), Some(&"{}".to_string()));
+        assert_eq!(files.get("automated/details.json"), Some(&"[]".to_string()));
+        assert_eq!(
+            files.get("attachments/files/unit-run.txt"),
+            Some(&"redacted".to_string())
+        );
+        assert!(!files.contains_key("deep/nested/ignored.json"));
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_to_read_an_evidence_package_from_a_relative_path() {
+        let error = read_evidence_package_files("relative/package".to_string())
+            .expect_err("relative package path should be rejected");
+
+        assert_eq!(error, "Evidence package path must be absolute");
     }
 }
 
@@ -1896,6 +2022,8 @@ pub fn run() {
             read_text_file,
             run_workspace_command,
             cancel_workspace_command,
+            pick_evidence_package_directory,
+            read_evidence_package_files,
             pick_export_directory,
             write_evidence_package,
             stage_manual_review,

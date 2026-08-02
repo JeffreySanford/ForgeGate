@@ -95,6 +95,48 @@ describe('StarlightPageGenerator', () => {
     );
   });
 
+  it('imports a verified evidence package and regenerates through the workspace service', () => {
+    workspace.workspaceScan.set({
+      packageName: null,
+      packageManager: null,
+      workspaceManager: null,
+      storybookProjects: [],
+      starlightProjects: ['apps/starlight'],
+      hasZeroheight: false,
+      tokenFiles: [],
+      testRunners: [],
+      visualRegressionProviders: [],
+      ciProviders: [],
+      customElementsManifests: [],
+      componentPackages: [],
+    });
+    const importSpy = vi
+      .spyOn(workspace, 'importEvidencePackageAndStageStarlightPage')
+      .mockResolvedValue();
+
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifest = manifest();
+    fixture.componentInstance.registryManifests = [
+      fixture.componentInstance.manifest,
+    ];
+    fixture.detectChanges();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ) as HTMLButtonElement[];
+    buttons
+      .find((button) =>
+        button.textContent?.includes('Import verified evidence package'),
+      )
+      ?.click();
+
+    expect(importSpy).toHaveBeenCalledWith(
+      fixture.componentInstance.manifest,
+      'designer',
+      [fixture.componentInstance.manifest],
+    );
+  });
+
   it('starts from the manifest/config default template before manual selection', () => {
     workspace.workspaceScan.set({
       packageName: null,
@@ -237,6 +279,47 @@ describe('StarlightPageGenerator', () => {
       'Starlight build validation passed',
     );
     expect(fixture.nativeElement.textContent).toContain('1200ms');
+  });
+
+  it('shows verified evidence package import status', () => {
+    workspace.workspaceScan.set({
+      packageName: null,
+      packageManager: null,
+      workspaceManager: null,
+      storybookProjects: [],
+      starlightProjects: ['apps/starlight'],
+      hasZeroheight: false,
+      tokenFiles: [],
+      testRunners: [],
+      visualRegressionProviders: [],
+      ciProviders: [],
+      customElementsManifests: [],
+      componentPackages: [],
+    });
+    workspace.starlightEvidencePackageImportResult.set({
+      directoryPath: 'D:/exports/acme-button',
+      integrityStatus: 'verified',
+      verifiedContentCount: 6,
+      limitationCount: 1,
+      testExecutionCount: 2,
+      automatedDetailCount: 1,
+      manualReviewCount: 1,
+      findingCount: 1,
+      exceptionCount: 0,
+      releaseDecisionRecordCount: 1,
+    });
+
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.manifest = manifest();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Evidence package verified',
+    );
+    expect(fixture.nativeElement.textContent).toContain('6 verified file');
+    expect(fixture.nativeElement.textContent).toContain(
+      '1 release workflow record',
+    );
   });
 
   it('shows when Starlight build validation was skipped', () => {

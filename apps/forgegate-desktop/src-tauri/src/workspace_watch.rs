@@ -215,7 +215,10 @@ mod tests {
         let event = rx
             .recv_timeout(StdDuration::from_secs(5))
             .expect("expected a real debounced event");
-        assert!(event.changed_paths.iter().any(|p| p.contains("component.ts")));
+        assert!(event
+            .changed_paths
+            .iter()
+            .any(|p| p.contains("component.ts")));
 
         std::fs::remove_dir_all(&root).ok();
     }
@@ -344,8 +347,14 @@ mod tests {
     fn dedupes_the_same_path_reported_more_than_once_in_a_batch() {
         let root = std::path::Path::new("/workspace");
         let events = vec![
-            notify_debouncer_mini::DebouncedEvent::new(root.join("src/one.ts"), DebouncedEventKind::Any),
-            notify_debouncer_mini::DebouncedEvent::new(root.join("src/one.ts"), DebouncedEventKind::Any),
+            notify_debouncer_mini::DebouncedEvent::new(
+                root.join("src/one.ts"),
+                DebouncedEventKind::Any,
+            ),
+            notify_debouncer_mini::DebouncedEvent::new(
+                root.join("src/one.ts"),
+                DebouncedEventKind::Any,
+            ),
         ];
 
         let result = build_changed_event(&events, root).expect("expected a real event");

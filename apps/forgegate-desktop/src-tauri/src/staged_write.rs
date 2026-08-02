@@ -69,7 +69,10 @@ pub(crate) fn stage_evidence_write(
         ));
     }
 
-    let target_path = workspace.join(".forgegate").join(subdirectory).join(filename);
+    let target_path = workspace
+        .join(".forgegate")
+        .join(subdirectory)
+        .join(filename);
     let previous_content = fs::read_to_string(&target_path).ok();
 
     let staging_id = new_staging_id();
@@ -162,7 +165,10 @@ pub(crate) fn rollback_committed_write(
         ));
     }
 
-    let target_path = workspace.join(".forgegate").join(subdirectory).join(filename);
+    let target_path = workspace
+        .join(".forgegate")
+        .join(subdirectory)
+        .join(filename);
     match previous_content {
         Some(content) => {
             fs::write(&target_path, content)
@@ -255,7 +261,9 @@ pub(crate) fn stage_relative_write(
     let previous_content = fs::read_to_string(&target_path).ok();
 
     let staging_id = new_staging_id();
-    let staging_target = staging_root(workspace).join(&staging_id).join(relative_path);
+    let staging_target = staging_root(workspace)
+        .join(&staging_id)
+        .join(relative_path);
     if let Some(parent) = staging_target.parent() {
         fs::create_dir_all(parent)
             .map_err(|error| format!("Failed to create {}: {error}", parent.display()))?;
@@ -426,8 +434,9 @@ mod tests {
     #[test]
     fn approves_a_staged_write_into_the_real_directory_and_clears_staging() {
         let dir = temp_workspace("approve");
-        let staged = stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
-            .expect("stage should succeed");
+        let staged =
+            stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
+                .expect("stage should succeed");
 
         let result_path =
             approve_staged_write(&dir, &staged.staging_id, "findings", "finding.json")
@@ -456,8 +465,9 @@ mod tests {
     #[test]
     fn discards_a_staged_write_without_ever_creating_the_real_file() {
         let dir = temp_workspace("discard");
-        let staged = stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
-            .expect("stage should succeed");
+        let staged =
+            stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
+                .expect("stage should succeed");
 
         discard_staged_write(&dir, &staged.staging_id).expect("discard should succeed");
 
@@ -503,8 +513,9 @@ mod tests {
     fn rolls_back_a_committed_write_by_removing_a_file_it_newly_created() {
         let dir = temp_workspace("rollback-new");
 
-        let staged = stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
-            .expect("stage should succeed");
+        let staged =
+            stage_evidence_write(&dir, "findings", "finding.json", "{\"status\":\"open\"}")
+                .expect("stage should succeed");
         approve_staged_write(&dir, &staged.staging_id, "findings", "finding.json")
             .expect("approve should succeed");
         assert!(dir.join(".forgegate/findings/finding.json").exists());
@@ -553,16 +564,11 @@ mod tests {
     fn stages_a_relative_write_without_touching_the_real_target() {
         let dir = temp_workspace("relative-stage");
 
-        let staged = stage_relative_write(
-            &dir,
-            "src/content/docs/components/button.mdx",
-            "# Button",
-        )
-        .expect("stage should succeed");
+        let staged =
+            stage_relative_write(&dir, "src/content/docs/components/button.mdx", "# Button")
+                .expect("stage should succeed");
 
-        assert!(!dir
-            .join("src/content/docs/components/button.mdx")
-            .exists());
+        assert!(!dir.join("src/content/docs/components/button.mdx").exists());
         assert_eq!(staged.previous_content, None);
         assert_eq!(staged.new_content, "# Button");
 
@@ -623,12 +629,9 @@ mod tests {
     #[test]
     fn approves_a_staged_relative_write_creating_nested_directories() {
         let dir = temp_workspace("relative-approve");
-        let staged = stage_relative_write(
-            &dir,
-            "src/content/docs/components/button.mdx",
-            "# Button",
-        )
-        .expect("stage should succeed");
+        let staged =
+            stage_relative_write(&dir, "src/content/docs/components/button.mdx", "# Button")
+                .expect("stage should succeed");
 
         let result_path = approve_staged_relative_write(
             &dir,

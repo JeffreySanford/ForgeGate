@@ -54,6 +54,16 @@ export class StarlightPageGenerator implements OnInit {
     );
   }
 
+  protected importPackageAndGenerate(): void {
+    void this.workspace.importEvidencePackageAndStageStarlightPage(
+      this.manifest(),
+      this.selectedTemplate(),
+      this.registryManifests().length
+        ? this.registryManifests()
+        : [this.manifest()],
+    );
+  }
+
   protected approve(): void {
     void this.workspace.approveStagedStarlightPage();
   }

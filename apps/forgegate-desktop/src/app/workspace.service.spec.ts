@@ -86,6 +86,41 @@ const gitStatusFixture = {
 
 const listenMock = vi.fn();
 
+async function sha256Hex(text: string): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function evidencePackageFiles(
+  files: Readonly<Record<string, string>>,
+): Promise<Readonly<Record<string, string>>> {
+  const checksums: Record<string, string> = {};
+  for (const [path, content] of Object.entries(files)) {
+    checksums[path] = await sha256Hex(content);
+  }
+  return {
+    ...files,
+    'manifest.json': JSON.stringify(
+      {
+        id: 'package-1',
+        componentVersionId: 'acme.design-system.acme-button@1.0.0',
+        exportedAt: '2026-08-02T12:00:00.000Z',
+        checksums,
+        contents: Object.keys(files),
+        includesCredentials: false,
+      },
+      null,
+      2,
+    ),
+    'checksums.sha256': `${Object.entries(checksums)
+      .map(([path, hash]) => `${hash}  ${path}`)
+      .join('\n')}\n`,
+  };
+}
+
 describe('parseWorkspaceCommandMapping', () => {
   it('splits a repository-configured command into executable and args', () => {
     expect(
@@ -2249,6 +2284,121 @@ describe('WorkspaceService', () => {
         writes: [stagedPageWrite, stagedReportDataWrite],
       });
       expect(service.starlightPageRunning()).toBe(false);
+    });
+
+    it('imports a verified evidence package and stages regenerated Starlight data from it', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({
+        ...scanFixture,
+        starlightProjects: ['apps/starlight'],
+      });
+      const files = await evidencePackageFiles({
+        'test-summary.json': JSON.stringify([
+          {
+            id: 'package-unit-run',
+            componentVersionId: 'acme.design-system.acme-button@1.0.0',
+            gate: 'unit',
+            tool: 'vitest',
+            toolVersion: '4.1.10',
+            adapterVersion: '0.1.0',
+            status: 'passed',
+            startedAt: '2026-08-02T12:00:00.000Z',
+            commitOrFingerprint: 'b'.repeat(40),
+          },
+        ]),
+        'automated/details.json': JSON.stringify([
+          {
+            id: 'package-unit-run-detail',
+            sourceArtifactId: 'package-unit-run',
+            kind: 'vitest-json',
+            gate: 'unit',
+            tool: 'vitest',
+            summary: 'Vitest reported 5 passed tests.',
+            metrics: [{ label: 'Passed', value: 5 }],
+            observations: [],
+            limitations: ['Loaded from package.'],
+          },
+        ]),
+        'release-decisions/acme-button-release-workflow-record.json':
+          JSON.stringify({
+            id: 'acme-button-release-workflow-record',
+            decisionId: 'acme-button-release-decision',
+            componentVersionId: 'acme.design-system.acme-button@1.0.0',
+            policyId: 'acme.baseline',
+            policyVersion: '1.0.0',
+            outcome: 'blocked',
+            commit: 'b'.repeat(40),
+            decidedAt: '2026-08-02T13:00:00.000Z',
+            source: 'forgegate-export-evaluation',
+            authorization: 'blocked-no-approval-required',
+            notRealApproval: false,
+            evidenceIds: ['package-unit-run'],
+            blockingFindingIds: [],
+            limitations: [],
+          }),
+      });
+      invokeMock
+        .mockResolvedValueOnce('D:/exports/acme-button-evidence')
+        .mockResolvedValueOnce(files)
+        .mockRejectedValueOnce('not a file')
+        .mockResolvedValueOnce(stagedPageWrite)
+        .mockResolvedValueOnce(stagedReportDataWrite);
+
+      await service.importEvidencePackageAndStageStarlightPage(manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        1,
+        'pick_evidence_package_directory',
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        2,
+        'read_evidence_package_files',
+        { packageDirectory: 'D:/exports/acme-button-evidence' },
+      );
+      expect(invokeMock).toHaveBeenNthCalledWith(5, 'stage_starlight_page', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath:
+          'apps/starlight/src/data/forgegate/components/acme-button--for-designers.json',
+        content: expect.stringContaining('"id": "package-unit-run"'),
+      });
+      expect(invokeMock.mock.calls[4]?.[1].content).toContain(
+        'Vitest reported 5 passed tests.',
+      );
+      expect(invokeMock.mock.calls[4]?.[1].content).toContain(
+        '"authorization": "blocked-no-approval-required"',
+      );
+      expect(service.starlightEvidencePackageImportResult()).toMatchObject({
+        directoryPath: 'D:/exports/acme-button-evidence',
+        integrityStatus: 'verified',
+        testExecutionCount: 1,
+        automatedDetailCount: 1,
+        releaseDecisionRecordCount: 1,
+      });
+      expect(service.stagedStarlightPage()).toEqual({
+        componentId: manifest.id,
+        template: 'designer',
+        write: stagedPageWrite,
+        writes: [stagedPageWrite, stagedReportDataWrite],
+      });
+    });
+
+    it('does not stage Starlight output when package integrity is unavailable', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.workspaceScan.set({
+        ...scanFixture,
+        starlightProjects: ['apps/starlight'],
+      });
+      invokeMock
+        .mockResolvedValueOnce('D:/exports/broken-package')
+        .mockResolvedValueOnce({ 'test-summary.json': '[]' });
+
+      await service.importEvidencePackageAndStageStarlightPage(manifest);
+
+      expect(invokeMock).toHaveBeenCalledTimes(2);
+      expect(service.starlightEvidencePackageImportError()).toContain(
+        'manifest.json is not present',
+      );
+      expect(service.stagedStarlightPage()).toBeNull();
     });
 
     it('derives the default Starlight template from repository adapter configuration', () => {

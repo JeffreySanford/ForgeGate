@@ -61,6 +61,10 @@ import {
 } from '@forgegate/adapter-storybook';
 import { buildEvidenceExport } from './evidence-export';
 import {
+  loadVerifiedStarlightEvidencePackageRecords,
+  type StarlightEvidencePackageRecords,
+} from './evidence-package-records';
+import {
   buildExternalPolicyDocumentSnapshot,
   findPolicyMappingForManifest,
   isWorkspaceRelativePolicyDocumentPath,
@@ -133,6 +137,19 @@ export interface StagedStarlightPage {
   readonly template: StarlightPageTemplate;
   readonly write: StagedRelativeWrite;
   readonly writes: readonly StagedRelativeWrite[];
+}
+
+export interface StarlightEvidencePackageImportResult {
+  readonly directoryPath: string;
+  readonly integrityStatus: 'verified' | 'failed' | 'unavailable';
+  readonly verifiedContentCount: number;
+  readonly limitationCount: number;
+  readonly testExecutionCount: number;
+  readonly automatedDetailCount: number;
+  readonly manualReviewCount: number;
+  readonly findingCount: number;
+  readonly exceptionCount: number;
+  readonly releaseDecisionRecordCount: number;
 }
 
 export function isWorkspaceRelativeRawArtifactRef(
@@ -514,6 +531,10 @@ export class WorkspaceService {
   readonly starlightBuildResult = signal<CommandResult | null>(null);
   readonly starlightBuildError = signal<string | null>(null);
   readonly starlightBuildSkipped = signal<string | null>(null);
+  readonly starlightEvidencePackageImportRunning = signal(false);
+  readonly starlightEvidencePackageImportError = signal<string | null>(null);
+  readonly starlightEvidencePackageImportResult =
+    signal<StarlightEvidencePackageImportResult | null>(null);
   readonly starlightTemplates = STARLIGHT_TEMPLATE_OPTIONS;
 
   /**
@@ -1892,6 +1913,7 @@ export class WorkspaceService {
     manifest: ComponentManifest,
     template: StarlightPageTemplate = 'designer',
     registryManifests: readonly ComponentManifest[] = [manifest],
+    evidencePackageRecords?: StarlightEvidencePackageRecords,
   ): Promise<void> {
     const path = this.workspacePath();
     if (!path || this.starlightPageRunning()) {
@@ -1956,6 +1978,7 @@ export class WorkspaceService {
                 manifest,
                 new Date().toISOString(),
               ),
+              evidencePackageRecords,
             };
       const registryComponentPageInputs: StarlightPageInput[] = [];
       if (template === 'registry-index') {
@@ -1975,6 +1998,7 @@ export class WorkspaceService {
               registryManifest,
               new Date().toISOString(),
             ),
+            evidencePackageRecords,
           });
         }
       }
@@ -2030,6 +2054,71 @@ export class WorkspaceService {
       this.starlightPageError.set(String(error));
     } finally {
       this.starlightPageRunning.set(false);
+    }
+  }
+
+  /**
+   * Imports a user-selected ForgeGate evidence package directory, verifies its
+   * manifest/checksum contract, and then regenerates the selected Starlight
+   * output through the same staged diff/approve path as ordinary generation.
+   * This is the desktop workflow bridge for P2's verified package-record
+   * Starlight regeneration path; it does not consume copied attachment files
+   * directly, so redaction review remains explicit future UI work.
+   */
+  async importEvidencePackageAndStageStarlightPage(
+    manifest: ComponentManifest,
+    template: StarlightPageTemplate = 'designer',
+    registryManifests: readonly ComponentManifest[] = [manifest],
+  ): Promise<void> {
+    if (
+      this.starlightEvidencePackageImportRunning() ||
+      this.starlightPageRunning()
+    ) {
+      return;
+    }
+    this.starlightEvidencePackageImportRunning.set(true);
+    this.starlightEvidencePackageImportError.set(null);
+    this.starlightEvidencePackageImportResult.set(null);
+    try {
+      const directoryPath = await this.invoke<string | null>(
+        'pick_evidence_package_directory',
+      );
+      if (!directoryPath) {
+        return;
+      }
+      const files = await this.invoke<Readonly<Record<string, string>>>(
+        'read_evidence_package_files',
+        { packageDirectory: directoryPath },
+      );
+      const records = await loadVerifiedStarlightEvidencePackageRecords(files);
+      this.starlightEvidencePackageImportResult.set({
+        directoryPath,
+        integrityStatus: records.integrity.status,
+        verifiedContentCount: records.integrity.verifiedContentPaths.length,
+        limitationCount: records.limitations.length,
+        testExecutionCount: records.testExecutions.length,
+        automatedDetailCount: records.automatedDetails.length,
+        manualReviewCount: records.manualReviews.length,
+        findingCount: records.findings.length,
+        exceptionCount: records.exceptions.length,
+        releaseDecisionRecordCount: records.releaseDecisionRecords.length,
+      });
+      if (records.integrity.status === 'unavailable') {
+        this.starlightEvidencePackageImportError.set(
+          records.integrity.limitations.join(' '),
+        );
+        return;
+      }
+      await this.generateAndStageStarlightPage(
+        manifest,
+        template,
+        registryManifests,
+        records,
+      );
+    } catch (error) {
+      this.starlightEvidencePackageImportError.set(String(error));
+    } finally {
+      this.starlightEvidencePackageImportRunning.set(false);
     }
   }
 

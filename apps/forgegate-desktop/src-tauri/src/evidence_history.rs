@@ -157,9 +157,9 @@ pub fn component_evidence_events_from_env(
         };
     };
 
-    match connect_and_migrate(&database_url)
-        .and_then(|mut client| component_evidence_events(&mut client, workspace_path, component_id, 20))
-    {
+    match connect_and_migrate(&database_url).and_then(|mut client| {
+        component_evidence_events(&mut client, workspace_path, component_id, 20)
+    }) {
         Ok(events) => ComponentEvidenceEvents {
             configured: true,
             connected: true,
@@ -1016,11 +1016,10 @@ mod tests {
 
         // No previous enriched scan yet, so a first-ever readiness has
         // nothing to compare against and must not produce an event.
-        assert!(diff_component_readiness(
-            &std::collections::HashMap::new(),
-            &[button("clear")]
-        )
-        .is_empty());
+        assert!(
+            diff_component_readiness(&std::collections::HashMap::new(), &[button("clear")])
+                .is_empty()
+        );
 
         record_scan_snapshot_if_configured("D:/repos/acme", &scan)
             .expect("second raw snapshot insert should succeed");
@@ -1049,8 +1048,14 @@ mod tests {
         assert_eq!(events[0].event_kind, "readiness-changed");
         assert_eq!(events[0].previous_readiness, "clear");
         assert_eq!(events[0].next_readiness, "stale");
-        assert_eq!(events[0].previous_commit.as_deref(), Some("a".repeat(40).as_str()));
-        assert_eq!(events[0].next_commit.as_deref(), Some("b".repeat(40).as_str()));
+        assert_eq!(
+            events[0].previous_commit.as_deref(),
+            Some("a".repeat(40).as_str())
+        );
+        assert_eq!(
+            events[0].next_commit.as_deref(),
+            Some("b".repeat(40).as_str())
+        );
     }
 
     #[test]

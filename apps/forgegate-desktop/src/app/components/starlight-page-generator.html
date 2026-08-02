@@ -32,9 +32,34 @@
     {{ workspace.starlightPageRunning() ? 'Generating…' : 'Generate selected
     Starlight page' }}
   </button>
+  <button
+    type="button"
+    [disabled]="
+      workspace.starlightPageRunning() ||
+      workspace.starlightEvidencePackageImportRunning() ||
+      !!workspace.stagedStarlightPage()
+    "
+    (click)="importPackageAndGenerate()"
+  >
+    {{
+      workspace.starlightEvidencePackageImportRunning()
+        ? 'Importing package…'
+        : 'Import verified evidence package and regenerate'
+    }}
+  </button>
 
   @if (workspace.starlightPageResult(); as result) {
   <p role="status">Starlight page written to <code>{{ result.path }}</code></p>
+  } @if (workspace.starlightEvidencePackageImportResult(); as result) {
+  <p [attr.role]="result.integrityStatus === 'verified' ? 'status' : 'alert'">
+    Evidence package {{ result.integrityStatus }}:
+    {{ result.verifiedContentCount }} verified file(s),
+    {{ result.testExecutionCount }} automated run(s),
+    {{ result.manualReviewCount }} manual review(s),
+    {{ result.findingCount }} finding(s),
+    {{ result.releaseDecisionRecordCount }} release workflow record(s),
+    {{ result.limitationCount }} limitation(s).
+  </p>
   } @if (workspace.starlightBuildResult(); as result) {
   <p [attr.role]="result.exitCode === 0 ? 'status' : 'alert'">
     Starlight build validation {{ result.exitCode === 0 ? 'passed' : 'failed' }}
@@ -44,6 +69,8 @@
   <p role="status">{{ skipped }}</p>
   } @if (workspace.starlightBuildError(); as error) {
   <p role="alert">Starlight build validation could not run: {{ error }}</p>
+  } @if (workspace.starlightEvidencePackageImportError(); as error) {
+  <p role="alert">Failed to import evidence package: {{ error }}</p>
   } @if (workspace.starlightPageError(); as error) {
   <p role="alert">Failed to generate documentation page: {{ error }}</p>
   } @if (workspace.stagedStarlightPage(); as staged) {
