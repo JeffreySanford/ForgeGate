@@ -415,7 +415,7 @@ describe('AccessibilityReviewPage', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
-    areaButtons(compiled)[3]?.click();
+    areaButtons(compiled)[SELF_REVIEW_AREAS.length]?.click();
     fixture.detectChanges();
 
     expect(compiled.textContent).toContain(
@@ -431,7 +431,7 @@ describe('AccessibilityReviewPage', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
-    areaButtons(compiled)[3]?.click();
+    areaButtons(compiled)[SELF_REVIEW_AREAS.length]?.click();
     fixture.detectChanges();
 
     const groups = compiled.querySelectorAll(
@@ -479,7 +479,7 @@ describe('AccessibilityReviewPage', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
-    areaButtons(compiled)[3]?.click();
+    areaButtons(compiled)[SELF_REVIEW_AREAS.length]?.click();
     fixture.detectChanges();
 
     const headings = Array.from(
@@ -516,7 +516,7 @@ describe('AccessibilityReviewPage', () => {
     fillFormField(compiled, 3, 'NVDA 2025.3');
     fixture.detectChanges();
 
-    areaButtons(compiled)[3]?.click();
+    areaButtons(compiled)[SELF_REVIEW_AREAS.length]?.click();
     fixture.detectChanges();
 
     const [firstComponentSelect] = stepStatusSelects(compiled);

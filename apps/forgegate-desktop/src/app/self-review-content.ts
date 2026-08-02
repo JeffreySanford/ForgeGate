@@ -3,15 +3,16 @@
  * manual accessibility gate (TODO.md P0.7) that genuinely cannot be
  * completed by an agent.
  *
- * Three areas below (`SELF_REVIEW_AREAS`) are fixed, hand-authored content:
+ * Four areas below (`SELF_REVIEW_AREAS`) are fixed, hand-authored content:
  * they name ForgeGate's own real, shipped shell surfaces (nav, workspace
- * command center, inventory), which are identical regardless of which
- * repository is open, so a static checklist is honest here. The fourth
- * area — "Component assurance records" — is deliberately NOT fixed
- * content: which components exist, and how many, is entirely repo-specific,
- * so `buildComponentRecordSteps` generates real per-component checks from
- * whatever the currently open workspace actually discovered, rather than
- * naming one example component as a stand-in for all of them.
+ * command center, inventory, Blueprint Studio), which are identical
+ * regardless of which repository is open, so a static checklist is honest
+ * here. The fifth area — "Component assurance records" — is deliberately
+ * NOT fixed content: which components exist, and how many, is entirely
+ * repo-specific, so `buildComponentRecordSteps` generates real
+ * per-component checks from whatever the currently open workspace
+ * actually discovered, rather than naming one example component as a
+ * stand-in for all of them.
  */
 
 export interface SelfReviewStep {
@@ -108,6 +109,37 @@ export const SELF_REVIEW_AREAS: readonly SelfReviewArea[] = [
           "Use your screen reader's table-navigation shortcut (e.g. NVDA's Ctrl+Alt+Arrow keys) to move through the inventory table.",
         expected:
           'Each cell is announced together with its column header, not as anonymous text.',
+      },
+    ],
+  },
+  {
+    id: 'studio',
+    title: 'Blueprint Studio',
+    summary: 'The blueprint catalog and the component proposal form.',
+    steps: [
+      {
+        action:
+          'Tab through the blueprint catalog on the Studio page, then select a blueprint using only the keyboard.',
+        expected:
+          'Each catalog entry announces its name and purpose, its pressed state, and selecting one moves focus sensibly into the proposal form that appears.',
+      },
+      {
+        action:
+          'Fill out the proposal form — component name, package path, adapter, purpose, and the native-semantic-confirmation checkbox — using only the keyboard and screen reader.',
+        expected:
+          "Every field announces its label and required state, and the checkbox announces the blueprint's preferred native element it refers to.",
+      },
+      {
+        action:
+          'Add a contract member, toggle a required state, add a custom state, set a variant selection, add an anatomy part, and map a token slot — all without a mouse.',
+        expected:
+          'Every add/remove button and input in each of these sections is reachable, announces a clear purpose, and no focus is lost or trapped when a row is added or removed.',
+      },
+      {
+        action:
+          'Create a proposal, review the staged diff, then Approve it using only the keyboard and screen reader.',
+        expected:
+          'The staged diff region is announced when it appears, and the Approve/Discard buttons announce their purpose and any resulting error or success message.',
       },
     ],
   },
