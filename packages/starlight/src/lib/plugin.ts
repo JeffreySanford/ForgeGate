@@ -1,4 +1,6 @@
-import type { AstroIntegration } from 'astro';
+import type { AstroIntegration, InjectedRoute } from 'astro';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   discoverForgeGateReportDataFiles,
@@ -7,6 +9,7 @@ import {
   safeReportDataRoot,
   type ForgeGateReportDataFilesystemDiscovery,
   type ForgeGateReportDataDiscovery,
+  type ForgeGateReportDataRegistrationEntry,
   type ForgeGateReportDataRegistration,
 } from './report-data';
 
@@ -23,6 +26,7 @@ export interface ForgeGateStarlightIntegrationOptions {
   readonly reportDataRoot?: string;
   readonly filesystemDiscovery?: boolean;
   readonly routeBase?: string;
+  readonly routeInjection?: boolean;
   readonly workspaceRoot?: string;
   readonly astroVersion?: string;
   readonly starlightVersion?: string;
@@ -36,6 +40,15 @@ export interface ForgeGateStarlightLifecycleStatus {
   readonly lifecycle: 'discovery-contract' | 'filesystem-discovery';
   readonly supports: readonly string[];
   readonly planned: readonly string[];
+}
+
+export interface ForgeGateStarlightInjectedRoute {
+  readonly kind: ForgeGateReportDataRegistrationEntry['kind'];
+  readonly label: string;
+  readonly reportDataPath: string;
+  readonly routePath: string;
+  readonly pattern: string;
+  readonly entrypoint: string;
 }
 
 export interface ForgeGateStarlightCompatibilityDiagnostic {
@@ -66,11 +79,11 @@ export function forgeGateStarlightLifecycleStatus(
       'filesystem-backed report-data scanning when enabled',
       'deterministic report route registration plan',
       'version compatibility diagnostics',
+      'optional Astro route injection from discovered report data',
       'manual MDX imports of ForgeGate presentation components',
       'manifest-backed component and registry report JSON',
     ],
     planned: [
-      'Astro route injection from discovered report data',
       'migration guidance for generated MDX pages',
     ],
   };
@@ -117,7 +130,12 @@ export function forgeGateStarlightIntegration(
   return {
     name: FORGEGATE_STARLIGHT_INTEGRATION_NAME,
     hooks: {
-      'astro:config:setup': async ({ config, logger }) => {
+      'astro:config:setup': async ({
+        config,
+        logger,
+        createCodegenDir,
+        injectRoute,
+      }) => {
         logger.debug(
           `ForgeGate report data root configured as ${status.reportDataRoot}.`,
         );
@@ -164,6 +182,24 @@ export function forgeGateStarlightIntegration(
             `ForgeGate report registration ${entry.kind}: ${entry.reportDataPath} -> ${entry.href}`,
           );
         }
+        if (options.routeInjection) {
+          const injectedRoutes = await forgeGateStarlightInjectReportDataRoutes(
+            registration,
+            {
+              workspaceRoot: discovery.workspaceRoot,
+              createCodegenDir,
+              injectRoute,
+            },
+          );
+          logger.debug(
+            `ForgeGate injected ${injectedRoutes.length} generated report route(s).`,
+          );
+          for (const route of injectedRoutes) {
+            logger.debug(
+              `ForgeGate injected ${route.kind} route ${route.pattern} from ${route.reportDataPath}.`,
+            );
+          }
+        }
         for (const ignoredReport of discovery.ignoredReports) {
           logger.warn(
             `[ignored-report-data] ${ignoredReport.path}: ${ignoredReport.reason}`,
@@ -193,6 +229,53 @@ export function forgeGateStarlightReportDataRegistration(
   return registerForgeGateReportData(discovery, {
     routeBase: options.routeBase,
   });
+}
+
+export async function forgeGateStarlightInjectReportDataRoutes(
+  registration: ForgeGateReportDataRegistration,
+  options: {
+    readonly workspaceRoot: string;
+    readonly createCodegenDir: () => URL;
+    readonly injectRoute: (route: InjectedRoute) => void;
+  },
+): Promise<readonly ForgeGateStarlightInjectedRoute[]> {
+  if (registration.entries.length === 0) {
+    return [];
+  }
+  const codegenDir = options.createCodegenDir();
+  const codegenPath = fileURLToPath(codegenDir);
+  await mkdir(codegenPath, { recursive: true });
+
+  const injectedRoutes: ForgeGateStarlightInjectedRoute[] = [];
+  for (const entry of registration.entries) {
+    const entrypoint = path.join(
+      codegenPath,
+      `${entry.routePath.replace(/[^\w.-]+/g, '__')}.astro`,
+    );
+    await writeFile(
+      entrypoint,
+      renderInjectedRoute(entry, {
+        codegenPath,
+        workspaceRoot: options.workspaceRoot,
+      }),
+      'utf8',
+    );
+    const route: InjectedRoute = {
+      pattern: `/${entry.routePath}`,
+      entrypoint,
+      prerender: true,
+    };
+    options.injectRoute(route);
+    injectedRoutes.push({
+      kind: entry.kind,
+      label: entry.label,
+      reportDataPath: entry.reportDataPath,
+      routePath: entry.routePath,
+      pattern: route.pattern,
+      entrypoint,
+    });
+  }
+  return injectedRoutes;
 }
 
 function minimumVersionDiagnostics(input: {
@@ -233,6 +316,102 @@ function compareVersions(left: string, right: string): number {
     }
   }
   return 0;
+}
+
+function renderInjectedRoute(
+  entry: ForgeGateReportDataRegistrationEntry,
+  options: {
+    readonly codegenPath: string;
+    readonly workspaceRoot: string;
+  },
+): string {
+  const reportDataPath = path.resolve(
+    options.workspaceRoot,
+    ...entry.reportDataPath.split('/'),
+  );
+  const importPath = normalizeImportPath(
+    path.relative(options.codegenPath, reportDataPath),
+  );
+  return entry.kind === 'registry'
+    ? renderInjectedRegistryRoute(entry, importPath)
+    : renderInjectedComponentRoute(entry, importPath);
+}
+
+function renderInjectedRegistryRoute(
+  entry: ForgeGateReportDataRegistrationEntry,
+  importPath: string,
+): string {
+  return `---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { ComponentRegistry } from '@forgegate/starlight';
+import forgegateRegistry from ${JSON.stringify(importPath)};
+
+const title = ${JSON.stringify(entry.label)};
+const description = 'Generated ForgeGate component registry overview.';
+---
+
+<StarlightPage frontmatter={{ title, description }}>
+  <ComponentRegistry report={forgegateRegistry} />
+</StarlightPage>
+`;
+}
+
+function renderInjectedComponentRoute(
+  entry: ForgeGateReportDataRegistrationEntry,
+  importPath: string,
+): string {
+  return `---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import {
+  AccessibilityRequirements,
+  ApiTable,
+  ComponentStatus,
+  ConsumerValidation,
+  EvidenceSummary,
+  ReleaseHistory,
+  StateMatrix,
+  TokenTable,
+} from '@forgegate/starlight';
+import forgegateReport from ${JSON.stringify(importPath)};
+
+const componentId = forgegateReport.componentId ?? ${JSON.stringify(entry.label)};
+const tier = forgegateReport.tier ?? 'balanced';
+const title = ${JSON.stringify(entry.label)};
+const description = \`Manifest-backed ForgeGate report for \${componentId}.\`;
+---
+
+<StarlightPage frontmatter={{ title, description }}>
+  <ComponentStatus component={componentId} tier={tier} report={forgegateReport} />
+
+  <h2>Overview</h2>
+  <p>
+    This report summarizes the component contract, required design states, token mappings, accessibility procedure,
+    and current assurance evidence from repository-owned ForgeGate report data.
+  </p>
+
+  <h2>States</h2>
+  <StateMatrix component={componentId} tier={tier} report={forgegateReport} />
+
+  <h2>Tokens</h2>
+  <TokenTable component={componentId} tier={tier} report={forgegateReport} />
+
+  <h2>API</h2>
+  <ApiTable component={componentId} tier={tier} report={forgegateReport} />
+
+  <h2>Accessibility</h2>
+  <AccessibilityRequirements component={componentId} tier={tier} report={forgegateReport} />
+
+  <h2>Assurance</h2>
+  <EvidenceSummary component={componentId} tier={tier} report={forgegateReport} />
+  <ConsumerValidation component={componentId} tier={tier} report={forgegateReport} />
+  <ReleaseHistory component={componentId} tier={tier} report={forgegateReport} />
+</StarlightPage>
+`;
+}
+
+function normalizeImportPath(relativePath: string): string {
+  const normalized = relativePath.replace(/\\/g, '/');
+  return normalized.startsWith('.') ? normalized : `./${normalized}`;
 }
 
 function versionParts(version: string): readonly [number, number, number] {

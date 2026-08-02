@@ -74,7 +74,7 @@ describe('ForgeGate report data conventions', () => {
       conventions: [
         'index.json is the generated component registry report.',
         '<component-slug>.json is a generated component report.',
-        'Generated MDX should keep importing JSON directly from this root until the full plugin can discover and register report data automatically.',
+        'Generated MDX can keep importing JSON directly from this root; the Astro integration can also discover the same files and inject generated report routes when routeInjection is enabled.',
       ],
     });
   });

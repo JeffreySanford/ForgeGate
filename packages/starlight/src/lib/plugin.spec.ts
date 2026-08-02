@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -6,6 +6,7 @@ import {
   FORGEGATE_STARLIGHT_INTEGRATION_NAME,
   forgeGateStarlightCompatibilityDiagnostics,
   forgeGateStarlightFilesystemDiscovery,
+  forgeGateStarlightInjectReportDataRoutes,
   forgeGateStarlightIntegration,
   forgeGateStarlightLifecycleStatus,
   forgeGateStarlightReportDataRegistration,
@@ -71,7 +72,7 @@ describe('forgeGateStarlightIntegration', () => {
         conventions: [
           'index.json is the generated component registry report.',
           '<component-slug>.json is a generated component report.',
-          'Generated MDX should keep importing JSON directly from this root until the full plugin can discover and register report data automatically.',
+          'Generated MDX can keep importing JSON directly from this root; the Astro integration can also discover the same files and inject generated report routes when routeInjection is enabled.',
         ],
       },
       filesystemDiscovery: false,
@@ -84,13 +85,11 @@ describe('forgeGateStarlightIntegration', () => {
         'filesystem-backed report-data scanning when enabled',
         'deterministic report route registration plan',
         'version compatibility diagnostics',
+        'optional Astro route injection from discovered report data',
         'manual MDX imports of ForgeGate presentation components',
         'manifest-backed component and registry report JSON',
       ],
-      planned: [
-        'Astro route injection from discovered report data',
-        'migration guidance for generated MDX pages',
-      ],
+      planned: ['migration guidance for generated MDX pages'],
     });
   });
 
@@ -134,6 +133,54 @@ describe('forgeGateStarlightIntegration', () => {
     );
     expect(debug).toHaveBeenCalledWith(
       'ForgeGate report registration component: docs/src/data/forgegate/components/acme-button.json -> /design-system/components/acme-button/',
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('injects generated Starlight report routes when route injection is explicitly enabled', async () => {
+    const workspaceRoot = await makeTemporaryWorkspace();
+    const reportDataRoot = 'docs/src/data/forgegate/components';
+    const absoluteReportDataRoot = path.join(
+      workspaceRoot,
+      ...reportDataRoot.split('/'),
+    );
+    const codegenRoot = path.join(workspaceRoot, '.astro/forgegate');
+    await mkdir(absoluteReportDataRoot, { recursive: true });
+    await writeFile(path.join(absoluteReportDataRoot, 'index.json'), '{}');
+    await writeFile(path.join(absoluteReportDataRoot, 'acme-button.json'), '{}');
+    const integration = forgeGateStarlightIntegration({
+      reportDataRoot,
+      filesystemDiscovery: true,
+      routeInjection: true,
+      routeBase: 'forgegate/reports',
+    });
+    const debug = vi.fn();
+    const warn = vi.fn();
+    const injectRoute = vi.fn();
+
+    await integration.hooks['astro:config:setup']?.({
+      config: { root: pathToFileURL(`${workspaceRoot}/`) },
+      createCodegenDir: () => pathToFileURL(`${codegenRoot}/`),
+      injectRoute,
+      logger: { debug, warn },
+    } as never);
+
+    expect(injectRoute).toHaveBeenCalledTimes(2);
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: '/forgegate/reports',
+      entrypoint: path.join(codegenRoot, 'forgegate__reports.astro'),
+      prerender: true,
+    });
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: '/forgegate/reports/acme-button',
+      entrypoint: path.join(codegenRoot, 'forgegate__reports__acme-button.astro'),
+      prerender: true,
+    });
+    expect(debug).toHaveBeenCalledWith(
+      'ForgeGate injected 2 generated report route(s).',
+    );
+    expect(debug).toHaveBeenCalledWith(
+      'ForgeGate injected component route /forgegate/reports/acme-button from docs/src/data/forgegate/components/acme-button.json.',
     );
     expect(warn).not.toHaveBeenCalled();
   });
@@ -194,6 +241,67 @@ describe('forgeGateStarlightIntegration', () => {
         slug: 'acme-button',
       },
     ]);
+  });
+
+  it('writes route entrypoint files from report-data registration entries', async () => {
+    const workspaceRoot = await makeTemporaryWorkspace();
+    const reportDataRoot = 'docs/src/data/forgegate/components';
+    const absoluteReportDataRoot = path.join(
+      workspaceRoot,
+      ...reportDataRoot.split('/'),
+    );
+    const codegenRoot = path.join(workspaceRoot, '.astro/forgegate');
+    await mkdir(absoluteReportDataRoot, { recursive: true });
+    await writeFile(path.join(absoluteReportDataRoot, 'index.json'), '{}');
+    await writeFile(
+      path.join(absoluteReportDataRoot, 'acme-button.json'),
+      '{}',
+    );
+    const discovery = await forgeGateStarlightFilesystemDiscovery({
+      workspaceRoot,
+      reportDataRoot,
+    });
+    const registration = forgeGateStarlightReportDataRegistration(discovery, {
+      routeBase: 'forgegate/reports',
+    });
+    const injectedRoutes = await forgeGateStarlightInjectReportDataRoutes(
+      registration,
+      {
+        workspaceRoot,
+        createCodegenDir: () => pathToFileURL(`${codegenRoot}/`),
+        injectRoute: vi.fn(),
+      },
+    );
+
+    expect(injectedRoutes).toEqual([
+      {
+        kind: 'registry',
+        label: 'Component registry',
+        reportDataPath: 'docs/src/data/forgegate/components/index.json',
+        routePath: 'forgegate/reports',
+        pattern: '/forgegate/reports',
+        entrypoint: path.join(codegenRoot, 'forgegate__reports.astro'),
+      },
+      {
+        kind: 'component',
+        label: 'Acme Button',
+        reportDataPath: 'docs/src/data/forgegate/components/acme-button.json',
+        routePath: 'forgegate/reports/acme-button',
+        pattern: '/forgegate/reports/acme-button',
+        entrypoint: path.join(codegenRoot, 'forgegate__reports__acme-button.astro'),
+      },
+    ]);
+    await expect(
+      readFile(path.join(codegenRoot, 'forgegate__reports.astro'), 'utf8'),
+    ).resolves.toContain('<ComponentRegistry report={forgegateRegistry} />');
+    await expect(
+      readFile(
+        path.join(codegenRoot, 'forgegate__reports__acme-button.astro'),
+        'utf8',
+      ),
+    ).resolves.toContain(
+      '<EvidenceSummary component={componentId} tier={tier} report={forgegateReport} />',
+    );
   });
 
   it('reports compatibility diagnostics without requiring filesystem access', () => {

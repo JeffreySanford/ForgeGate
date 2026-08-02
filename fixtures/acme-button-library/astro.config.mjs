@@ -28,6 +28,8 @@ export default defineConfig({
     }),
     forgeGateStarlightIntegration({
       filesystemDiscovery: true,
+      routeInjection: true,
+      routeBase: 'forgegate/reports',
       reportDataRoot: 'src/data/forgegate/components',
     }),
   ],
