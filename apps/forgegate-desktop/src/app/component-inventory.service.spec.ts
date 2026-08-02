@@ -288,6 +288,77 @@ describe('ComponentInventoryService', () => {
     expect(discovery?.latestReviewStatus).toBeNull();
   });
 
+  it("derives a component's latestDecisionOutcome from its most recently connected real release decision", () => {
+    workspace.angularComponents.set([
+      angularDeclaration({
+        sourceFile: 'apps/demo/src/app/button.component.ts',
+      }),
+    ]);
+    workspace.releaseDecisionRecords.set([
+      {
+        id: 'older-decision',
+        decisionId: 'acme-button-release-decision-1',
+        componentVersionId: 'acme.design-system.acme-button',
+        policyId: 'up.baseline',
+        policyVersion: '1.0.0',
+        outcome: 'blocked',
+        commit: 'a'.repeat(40),
+        decidedAt: '2026-01-01T00:00:00.000Z',
+        source: 'forgegate-export-evaluation',
+        authorization: 'blocked-no-approval-required',
+        notRealApproval: false,
+        evidenceIds: [],
+        blockingFindingIds: [],
+        limitations: [],
+      },
+      {
+        id: 'newer-decision',
+        decisionId: 'acme-button-release-decision-2',
+        componentVersionId: 'acme.design-system.acme-button',
+        policyId: 'up.baseline',
+        policyVersion: '1.0.0',
+        outcome: 'authorized-candidate',
+        commit: 'a'.repeat(40),
+        decidedAt: '2026-02-01T00:00:00.000Z',
+        source: 'forgegate-export-evaluation',
+        authorization: 'human-approved',
+        approver: 'reviewer@example.com',
+        notRealApproval: false,
+        evidenceIds: [],
+        blockingFindingIds: [],
+        limitations: [],
+      },
+      {
+        id: 'other-component-decision',
+        decisionId: 'other-component-release-decision',
+        componentVersionId: 'some-other-component',
+        policyId: 'up.baseline',
+        policyVersion: '1.0.0',
+        outcome: 'blocked',
+        commit: 'a'.repeat(40),
+        decidedAt: '2026-03-01T00:00:00.000Z',
+        source: 'forgegate-export-evaluation',
+        authorization: 'blocked-no-approval-required',
+        notRealApproval: false,
+        evidenceIds: [],
+        blockingFindingIds: [],
+        limitations: [],
+      },
+    ]);
+
+    const discovery = inventory.result().discoveries[0];
+
+    expect(discovery?.latestDecisionOutcome).toBe('authorized-candidate');
+  });
+
+  it('reports a null latestDecisionOutcome when no release decision is connected', () => {
+    workspace.angularComponents.set([angularDeclaration()]);
+
+    const discovery = inventory.result().discoveries[0];
+
+    expect(discovery?.latestDecisionOutcome).toBeNull();
+  });
+
   it('persists an enriched scan snapshot after the inventory is complete', async () => {
     invokeMock.mockResolvedValue(null);
     workspace.workspacePath.set('D:/repos/ForgeGate');
@@ -386,6 +457,7 @@ describe('ComponentInventoryService', () => {
                 reason: null,
               },
               latestReviewStatus: null,
+              latestDecisionOutcome: null,
             },
           ],
         },

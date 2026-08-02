@@ -18,6 +18,7 @@ import type {
 } from './angular-components';
 import { createStoryIndexLookup } from '@forgegate/adapter-storybook';
 import type { ManualReview } from '@forgegate/core-evidence';
+import type { ReleaseDecisionWorkflowRecord } from './release-decision-export';
 import { WorkspaceService } from './workspace.service';
 import {
   componentVersionId,
@@ -42,6 +43,10 @@ export interface ComponentDiscovery {
    * `null` when none is connected — feeds the `review-recorded`
    * evidence-history event kind. */
   readonly latestReviewStatus: string | null;
+  /** This component's most recently connected release-decision workflow
+   * record's `outcome`, or `null` when none is connected — feeds the
+   * `decision-recorded` evidence-history event kind. */
+  readonly latestDecisionOutcome: string | null;
 }
 
 export interface ComponentInventoryResult extends MapCemResult {
@@ -136,6 +141,7 @@ export class ComponentInventoryService {
     const currentCommit = this.workspace.gitStatus()?.commit ?? null;
     const testExecutions = this.workspace.testExecutions();
     const manualReviews = this.workspace.manualReviews();
+    const releaseDecisions = this.workspace.releaseDecisionRecords();
     const findings = this.workspace.findings();
     const storybookIndexError = this.workspace.storybookIndexError();
     const starlightProjects = scan?.starlightProjects ?? [];
@@ -160,6 +166,10 @@ export class ComponentInventoryService {
       );
       const matchingReviews = manualReviews.filter(
         (review) => review.componentVersionId === componentVersionId(manifest),
+      );
+      const matchingDecisions = releaseDecisions.filter(
+        (decision) =>
+          decision.componentVersionId === componentVersionId(manifest),
       );
       return {
         manifest,
@@ -189,6 +199,7 @@ export class ComponentInventoryService {
         declarationCount: declarations.length,
         sourceFiles,
         latestReviewStatus: latestManualReviewStatus(matchingReviews),
+        latestDecisionOutcome: latestReleaseDecisionOutcome(matchingDecisions),
       };
     });
     return {
@@ -241,7 +252,12 @@ export class ComponentInventoryService {
         })),
       },
       components: inventory.discoveries.map(
-        ({ manifest, readiness, latestReviewStatus }) => ({
+        ({
+          manifest,
+          readiness,
+          latestReviewStatus,
+          latestDecisionOutcome,
+        }) => ({
           componentId: manifest.id,
           componentVersion: manifest.componentVersion ?? null,
           framework: manifest.framework,
@@ -251,6 +267,7 @@ export class ComponentInventoryService {
           readiness: readiness.readiness,
           findingSummary: readiness.findingSummary,
           latestReviewStatus,
+          latestDecisionOutcome,
         }),
       ),
     };
@@ -434,4 +451,17 @@ function latestManualReviewStatus(
   return reviews.reduce((latest, review) =>
     review.date > latest.date ? review : latest,
   ).status;
+}
+
+/** Most recent release decision's outcome by real `decidedAt`, or `null`
+ * when none is connected — feeds `EnrichedComponentSnapshot.latestDecisionOutcome`. */
+function latestReleaseDecisionOutcome(
+  decisions: readonly ReleaseDecisionWorkflowRecord[],
+): string | null {
+  if (decisions.length === 0) {
+    return null;
+  }
+  return decisions.reduce((latest, decision) =>
+    decision.decidedAt > latest.decidedAt ? decision : latest,
+  ).outcome;
 }

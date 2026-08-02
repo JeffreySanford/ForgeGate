@@ -1,41 +1,52 @@
-<section class="adapter-constellation-view fg-panel" aria-labelledby="adapter-constellation-title">
+<section
+  class="adapter-constellation-view fg-panel"
+  aria-labelledby="adapter-constellation-title"
+>
   <h2 id="adapter-constellation-title">Adapter constellation</h2>
 
   @if (!workspace.workspacePath()) {
-    <p class="fg-empty-state">Open a workspace to see which adapters are active.</p>
+  <p class="fg-empty-state">
+    Open a workspace to see which adapters are active.
+  </p>
   } @else if (entries().length === 0) {
-    <p class="fg-empty-state">No adapter has reported a status yet.</p>
+  <p class="fg-empty-state">No adapter has reported a status yet.</p>
   } @else {
-    <table>
-      <caption class="sr-only">Detected adapters and their capability status</caption>
-      <thead>
-        <tr>
-          <th scope="col">Adapter</th>
-          <th scope="col">Status</th>
-          <th scope="col">Sources</th>
-          <th scope="col">Errors</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (entry of entries(); track entry.adapter) {
-          <tr [class]="'status-' + entry.status">
-            <th scope="row">{{ entry.adapter }}</th>
-            <td>{{ statusLabel(entry.status) }}</td>
-            <td>{{ entry.sourceCount }}</td>
-            <td>
-              @if (entry.errors.length) {
-                {{ entry.errors.length }} error{{ entry.errors.length === 1 ? '' : 's' }}
-              } @else {
-                None
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-    <p class="adapter-constellation-view__caveat">
-      See <a href="#adapter-diagnostics-heading">adapter diagnostics</a> below for raw source output and exact
-      failure messages.
-    </p>
+  <table>
+    <caption class="sr-only">
+      Detected adapters and their capability status
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Adapter</th>
+        <th scope="col">Status</th>
+        <th scope="col">Sources</th>
+        <th scope="col">Errors</th>
+        <th scope="col">Setup guidance</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (entry of entries(); track entry.adapter) {
+      <tr [class]="'status-' + entry.status">
+        <th scope="row">{{ entry.adapter }}</th>
+        <td>{{ statusLabel(entry.status) }}</td>
+        <td>{{ entry.sourceCount }}</td>
+        <td>
+          @if (entry.errors.length) { {{ entry.errors.length }} error{{
+          entry.errors.length === 1 ? '' : 's' }} } @else { None }
+        </td>
+        <td>
+          @if (entry.status !== 'loaded' && setupGuidance(entry.adapter); as
+          guidance) { {{ guidance }} } @else {
+          <span class="adapter-constellation-view__no-guidance">&mdash;</span>
+          }
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  <p class="adapter-constellation-view__caveat">
+    See <a href="#adapter-diagnostics-heading">adapter diagnostics</a> below for
+    raw source output and exact failure messages.
+  </p>
   }
 </section>

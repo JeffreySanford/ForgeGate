@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import {
   computeAdapterConstellation,
+  setupGuidanceFor,
   type AdapterCapabilityStatus,
 } from '../adapter-constellation';
 import { WorkspaceService } from '../workspace.service';
@@ -35,5 +36,9 @@ export class AdapterConstellationView {
 
   protected statusLabel(status: AdapterCapabilityStatus): string {
     return STATUS_LABEL[status];
+  }
+
+  protected setupGuidance(adapter: string): string | null {
+    return setupGuidanceFor(adapter);
   }
 }

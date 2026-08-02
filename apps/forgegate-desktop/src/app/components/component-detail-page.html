@@ -477,15 +477,16 @@
     } @else if (!workspace.componentEvidenceEvents()?.configured) {
     <p class="component-detail__unavailable">
       Persistence is not configured. Set FORGEGATE_DATABASE_URL to record and
-      explain readiness changes and manual reviews over time.
+      explain readiness changes, manual reviews, and release decisions over
+      time.
     </p>
     } @else if (!workspace.componentEvidenceEvents()?.connected) {
     <p role="alert">{{ workspace.componentEvidenceEvents()?.error }}</p>
     } @else if ((workspace.componentEvidenceEvents()?.events?.length ?? 0) ===
     0) {
     <p class="component-detail__unavailable">
-      No recorded readiness changes or reviews yet for this component. This
-      fills in as the workspace is rescanned over time.
+      No recorded readiness changes, reviews, or release decisions yet for this
+      component. This fills in as the workspace is rescanned over time.
     </p>
     } @else {
     <ul class="component-detail__evidence-events">
@@ -496,6 +497,11 @@
         <strong
           >Review recorded: {{ event.previousReviewStatus ?? 'none' }} &rarr; {{
           event.nextReviewStatus }}</strong
+        >
+        } @else if (event.eventKind === 'decision-recorded') {
+        <strong
+          >Release decision recorded: {{ event.previousDecisionOutcome ?? 'none'
+          }} &rarr; {{ event.nextDecisionOutcome }}</strong
         >
         } @else {
         <strong

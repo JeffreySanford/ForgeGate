@@ -34,6 +34,10 @@
   color: var(--fg-color-text-subtle);
 }
 
+.adapter-constellation-view__no-guidance {
+  color: var(--fg-color-text-subtle);
+}
+
 .adapter-constellation-view__caveat {
   font-size: var(--fg-type-size-sm);
   color: var(--fg-color-text-subtle);

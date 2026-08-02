@@ -1,4 +1,7 @@
-import { computeAdapterConstellation } from './adapter-constellation';
+import {
+  computeAdapterConstellation,
+  setupGuidanceFor,
+} from './adapter-constellation';
 import type { AdapterDiagnostic } from './workspace.service';
 
 function diagnostic(overrides: Partial<AdapterDiagnostic>): AdapterDiagnostic {
@@ -20,8 +23,16 @@ describe('computeAdapterConstellation', () => {
 
   it('groups multiple diagnostic entries from the same adapter into one row', () => {
     const result = computeAdapterConstellation([
-      diagnostic({ id: 'test-evidence:a.json', adapter: 'test evidence adapter', status: 'loaded' }),
-      diagnostic({ id: 'test-evidence:b.json', adapter: 'test evidence adapter', status: 'loaded' }),
+      diagnostic({
+        id: 'test-evidence:a.json',
+        adapter: 'test evidence adapter',
+        status: 'loaded',
+      }),
+      diagnostic({
+        id: 'test-evidence:b.json',
+        adapter: 'test evidence adapter',
+        status: 'loaded',
+      }),
     ]);
 
     expect(result).toEqual([
@@ -36,8 +47,17 @@ describe('computeAdapterConstellation', () => {
 
   it('reports the worst status across an adapter group rather than the first or last entry', () => {
     const result = computeAdapterConstellation([
-      diagnostic({ id: 'a', adapter: 'component manifest adapter', status: 'loaded' }),
-      diagnostic({ id: 'b', adapter: 'component manifest adapter', status: 'failed', error: 'boom' }),
+      diagnostic({
+        id: 'a',
+        adapter: 'component manifest adapter',
+        status: 'loaded',
+      }),
+      diagnostic({
+        id: 'b',
+        adapter: 'component manifest adapter',
+        status: 'failed',
+        error: 'boom',
+      }),
     ]);
 
     expect(result).toEqual([
@@ -60,5 +80,24 @@ describe('computeAdapterConstellation', () => {
       'Git workspace adapter',
       'Web Components adapter',
     ]);
+  });
+});
+
+describe('setupGuidanceFor', () => {
+  it('returns real, specific guidance for an adapter backed by external tooling', () => {
+    expect(setupGuidanceFor('Storybook adapter')).toContain(
+      'storybook-static/index.json',
+    );
+  });
+
+  it("returns null for ForgeGate's own internal data sources, which have nothing external to set up", () => {
+    expect(setupGuidanceFor('workspace scanner')).toBeNull();
+    expect(setupGuidanceFor('manual review evidence')).toBeNull();
+  });
+
+  it('returns null for an unrecognized adapter name rather than guessing', () => {
+    expect(
+      setupGuidanceFor('some future adapter nobody has named yet'),
+    ).toBeNull();
   });
 });

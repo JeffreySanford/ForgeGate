@@ -27,6 +27,10 @@ const MIGRATIONS: &[Migration] = &[
         version: "0004_review_events",
         sql: include_str!("../migrations/0004_review_events.sql"),
     },
+    Migration {
+        version: "0005_decision_events",
+        sql: include_str!("../migrations/0005_decision_events.sql"),
+    },
 ];
 
 #[cfg(test)]
@@ -70,6 +74,11 @@ pub struct EnrichedComponentSnapshot {
     /// review's presence/staleness into a broader blocking decision — this
     /// is the review signal on its own, for `diff_component_review_status`.
     pub latest_review_status: Option<String>,
+    /// The outcome of this component's most recently connected real
+    /// release-decision workflow record (`.forgegate/release-decisions/*.json`),
+    /// or `None` when none is connected yet. Feeds
+    /// `diff_component_decision_outcome`.
+    pub latest_decision_outcome: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -105,6 +114,8 @@ pub struct ComponentEvidenceEvent {
     pub next_readiness: Option<String>,
     pub previous_review_status: Option<String>,
     pub next_review_status: Option<String>,
+    pub previous_decision_outcome: Option<String>,
+    pub next_decision_outcome: Option<String>,
     pub previous_commit: Option<String>,
     pub next_commit: Option<String>,
 }
@@ -196,6 +207,38 @@ fn diff_component_review_status(
         .collect()
 }
 
+/// A component whose most recently connected release-decision workflow
+/// record's outcome differs between two consecutive enriched scans — the
+/// third real event kind. Mirrors `ComponentReviewChange` exactly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ComponentDecisionChange {
+    pub component_id: String,
+    pub previous_decision_outcome: Option<String>,
+    pub next_decision_outcome: String,
+}
+
+/// Pure diff, same shape and rules as `diff_component_review_status`.
+fn diff_component_decision_outcome(
+    previous_decision_outcome_by_component: &std::collections::HashMap<String, String>,
+    next: &[EnrichedComponentSnapshot],
+) -> Vec<ComponentDecisionChange> {
+    next.iter()
+        .filter_map(|component| {
+            let next_decision_outcome = component.latest_decision_outcome.clone()?;
+            let previous_decision_outcome =
+                previous_decision_outcome_by_component.get(&component.component_id);
+            if previous_decision_outcome == Some(&next_decision_outcome) {
+                return None;
+            }
+            Some(ComponentDecisionChange {
+                component_id: component.component_id.clone(),
+                previous_decision_outcome: previous_decision_outcome.cloned(),
+                next_decision_outcome,
+            })
+        })
+        .collect()
+}
+
 pub fn component_evidence_events_from_env(
     workspace_path: &str,
     component_id: &str,
@@ -243,6 +286,8 @@ fn component_evidence_events(
                 evidence_events.next_readiness,
                 evidence_events.previous_review_status,
                 evidence_events.next_review_status,
+                evidence_events.previous_decision_outcome,
+                evidence_events.next_decision_outcome,
                 evidence_events.previous_commit,
                 evidence_events.next_commit
             FROM evidence_events
@@ -262,8 +307,10 @@ fn component_evidence_events(
                     next_readiness: row.get(3),
                     previous_review_status: row.get(4),
                     next_review_status: row.get(5),
-                    previous_commit: row.get(6),
-                    next_commit: row.get(7),
+                    previous_decision_outcome: row.get(6),
+                    next_decision_outcome: row.get(7),
+                    previous_commit: row.get(8),
+                    next_commit: row.get(9),
                 })
                 .collect()
         })
@@ -422,6 +469,22 @@ pub fn enrich_latest_scan_snapshot_if_configured(
         std::collections::HashMap::new()
     };
 
+    let previous_decision_outcome_by_component = if let Some(previous_scan) = &previous_scan {
+        let previous_scan_id: i64 = previous_scan.get(0);
+        transaction
+            .query(
+                "SELECT component_id, latest_decision_outcome FROM component_snapshots
+                WHERE scan_snapshot_id = $1 AND latest_decision_outcome IS NOT NULL",
+                &[&previous_scan_id],
+            )
+            .map_err(|error| format!("Failed to read previous component decision outcome: {error}"))?
+            .into_iter()
+            .map(|row| (row.get::<_, String>(0), row.get::<_, String>(1)))
+            .collect::<std::collections::HashMap<String, String>>()
+    } else {
+        std::collections::HashMap::new()
+    };
+
     transaction
         .execute(
             "DELETE FROM component_snapshots WHERE scan_snapshot_id = $1",
@@ -444,9 +507,10 @@ pub fn enrich_latest_scan_snapshot_if_configured(
                     source_files,
                     readiness,
                     finding_summary,
-                    latest_review_status
+                    latest_review_status,
+                    latest_decision_outcome
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
                 &[
                     &snapshot_id,
                     &component.component_id,
@@ -458,6 +522,7 @@ pub fn enrich_latest_scan_snapshot_if_configured(
                     &component.readiness,
                     &component.finding_summary,
                     &component.latest_review_status,
+                    &component.latest_decision_outcome,
                 ],
             )
             .map_err(|error| format!("Failed to insert component snapshot: {error}"))?;
@@ -524,6 +589,40 @@ pub fn enrich_latest_scan_snapshot_if_configured(
                     &previous_scan_id,
                     &change.previous_review_status,
                     &change.next_review_status,
+                    &previous_commit,
+                    &snapshot.source_commit,
+                ],
+            )
+            .map_err(|error| format!("Failed to record evidence event: {error}"))?;
+    }
+
+    let decision_changes = diff_component_decision_outcome(
+        &previous_decision_outcome_by_component,
+        &snapshot.components,
+    );
+
+    for change in &decision_changes {
+        transaction
+            .execute(
+                "INSERT INTO evidence_events (
+                    workspace_id,
+                    component_id,
+                    scan_snapshot_id,
+                    previous_scan_snapshot_id,
+                    event_kind,
+                    previous_decision_outcome,
+                    next_decision_outcome,
+                    previous_commit,
+                    next_commit
+                )
+                VALUES ($1, $2, $3, $4, 'decision-recorded', $5, $6, $7, $8)",
+                &[
+                    &workspace_id,
+                    &change.component_id,
+                    &snapshot_id,
+                    &previous_scan_id,
+                    &change.previous_decision_outcome,
+                    &change.next_decision_outcome,
                     &previous_commit,
                     &snapshot.source_commit,
                 ],
@@ -825,6 +924,7 @@ mod tests {
                 readiness: "stale".to_string(),
                 finding_summary: serde_json::json!({}),
                 latest_review_status: None,
+                latest_decision_outcome: None,
             },
             EnrichedComponentSnapshot {
                 component_id: "acme.card".to_string(),
@@ -836,6 +936,7 @@ mod tests {
                 readiness: "warning".to_string(),
                 finding_summary: serde_json::json!({}),
                 latest_review_status: None,
+                latest_decision_outcome: None,
             },
         ];
 
@@ -864,6 +965,7 @@ mod tests {
             readiness: "unknown".to_string(),
             finding_summary: serde_json::json!({}),
             latest_review_status: None,
+            latest_decision_outcome: None,
         }];
 
         assert!(diff_component_readiness(&previous, &next).is_empty());
@@ -883,7 +985,18 @@ mod tests {
             readiness: "unknown".to_string(),
             finding_summary: serde_json::json!({}),
             latest_review_status: latest_review_status.map(|status| status.to_string()),
+            latest_decision_outcome: None,
         }
+    }
+
+    fn decision_snapshot(
+        component_id: &str,
+        latest_decision_outcome: Option<&str>,
+    ) -> EnrichedComponentSnapshot {
+        let mut snapshot = review_snapshot(component_id, None);
+        snapshot.latest_decision_outcome =
+            latest_decision_outcome.map(|outcome| outcome.to_string());
+        snapshot
     }
 
     #[test]
@@ -936,6 +1049,68 @@ mod tests {
         let next = vec![review_snapshot("acme.newly-scanned", None)];
 
         assert!(diff_component_review_status(&previous, &next).is_empty());
+    }
+
+    #[test]
+    fn diff_component_decision_outcome_reports_a_component_moving_from_no_decision_to_decided() {
+        let previous = std::collections::HashMap::new();
+        let next = vec![decision_snapshot("acme.button", Some("authorized-candidate"))];
+
+        let changes = diff_component_decision_outcome(&previous, &next);
+
+        assert_eq!(
+            changes,
+            vec![ComponentDecisionChange {
+                component_id: "acme.button".to_string(),
+                previous_decision_outcome: None,
+                next_decision_outcome: "authorized-candidate".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn diff_component_decision_outcome_reports_a_changed_outcome() {
+        let mut previous = std::collections::HashMap::new();
+        previous.insert("acme.button".to_string(), "blocked".to_string());
+        let next = vec![decision_snapshot("acme.button", Some("authorized-candidate"))];
+
+        let changes = diff_component_decision_outcome(&previous, &next);
+
+        assert_eq!(
+            changes,
+            vec![ComponentDecisionChange {
+                component_id: "acme.button".to_string(),
+                previous_decision_outcome: Some("blocked".to_string()),
+                next_decision_outcome: "authorized-candidate".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn diff_component_decision_outcome_reports_nothing_when_outcome_is_unchanged() {
+        let mut previous = std::collections::HashMap::new();
+        previous.insert("acme.button".to_string(), "authorized-candidate".to_string());
+        let next = vec![decision_snapshot("acme.button", Some("authorized-candidate"))];
+
+        assert!(diff_component_decision_outcome(&previous, &next).is_empty());
+    }
+
+    #[test]
+    fn diff_component_decision_outcome_reports_nothing_for_a_component_with_no_decision_connected() {
+        let previous = std::collections::HashMap::new();
+        let next = vec![decision_snapshot("acme.newly-scanned", None)];
+
+        assert!(diff_component_decision_outcome(&previous, &next).is_empty());
+    }
+
+    #[test]
+    fn migration_sql_adds_the_decision_recorded_event_kind_and_its_own_columns() {
+        let sql = MIGRATIONS[4].sql;
+
+        assert!(sql.contains("ADD COLUMN latest_decision_outcome text"));
+        assert!(sql.contains("ADD COLUMN previous_decision_outcome text"));
+        assert!(sql.contains("ADD COLUMN next_decision_outcome text"));
+        assert!(sql.contains("'readiness-changed', 'review-recorded', 'decision-recorded'"));
     }
 
     #[test]
@@ -1090,6 +1265,7 @@ mod tests {
                         "reason": "ForgeGate has not derived per-component readiness findings yet."
                     }),
                     latest_review_status: None,
+                    latest_decision_outcome: None,
                 },
                 EnrichedComponentSnapshot {
                     component_id: "acme.design-system.card".to_string(),
@@ -1104,6 +1280,7 @@ mod tests {
                         "findings": []
                     }),
                     latest_review_status: None,
+                    latest_decision_outcome: None,
                 },
             ],
         };
@@ -1199,6 +1376,7 @@ mod tests {
             readiness: readiness.to_string(),
             finding_summary: serde_json::json!({}),
             latest_review_status: None,
+            latest_decision_outcome: None,
         };
 
         record_scan_snapshot_if_configured("D:/repos/acme", &scan)

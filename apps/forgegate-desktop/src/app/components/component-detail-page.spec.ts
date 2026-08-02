@@ -1161,6 +1161,8 @@ describe('ComponentDetailPage', () => {
             nextReadiness: 'stale',
             previousReviewStatus: null,
             nextReviewStatus: null,
+            previousDecisionOutcome: null,
+            nextDecisionOutcome: null,
             previousCommit: 'a'.repeat(40),
             nextCommit: 'b'.repeat(40),
           },
@@ -1204,6 +1206,8 @@ describe('ComponentDetailPage', () => {
             nextReadiness: null,
             previousReviewStatus: null,
             nextReviewStatus: 'passed',
+            previousDecisionOutcome: null,
+            nextDecisionOutcome: null,
             previousCommit: null,
             nextCommit: 'a'.repeat(40),
           },
@@ -1220,6 +1224,51 @@ describe('ComponentDetailPage', () => {
       expect(item?.textContent).toContain('none');
       expect(item?.textContent).toContain('passed');
       expect(item?.textContent).not.toContain('Readiness changed');
+
+      await expectNoAccessibilityViolations(compiled);
+    });
+
+    it('renders a real recorded decision-recorded event distinctly from a review or readiness change', async () => {
+      workspaceService.workspacePath.set('/repos/example');
+      workspaceService.workspaceScan.set(scan);
+      workspaceService.customElementsManifest.set(richManifest);
+
+      const fixture = TestBed.createComponent(HostComponent);
+      fixture.detectChanges();
+      await router.navigateByUrl('/components/acme.design-system.acme-button');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      workspaceService.componentEvidenceEvents.set({
+        configured: true,
+        connected: true,
+        events: [
+          {
+            occurredAt: '2026-08-02T21:00:00Z',
+            eventKind: 'decision-recorded',
+            previousReadiness: null,
+            nextReadiness: null,
+            previousReviewStatus: null,
+            nextReviewStatus: null,
+            previousDecisionOutcome: null,
+            nextDecisionOutcome: 'authorized-candidate',
+            previousCommit: null,
+            nextCommit: 'a'.repeat(40),
+          },
+        ],
+        error: null,
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const item = compiled.querySelector(
+        '.component-detail__evidence-events li',
+      );
+      expect(item?.textContent).toContain('Release decision recorded');
+      expect(item?.textContent).toContain('none');
+      expect(item?.textContent).toContain('authorized-candidate');
+      expect(item?.textContent).not.toContain('Readiness changed');
+      expect(item?.textContent).not.toContain('Review recorded');
 
       await expectNoAccessibilityViolations(compiled);
     });
