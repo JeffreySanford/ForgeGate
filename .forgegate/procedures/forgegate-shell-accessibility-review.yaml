@@ -1,0 +1,23 @@
+id: forgegate-shell-accessibility-review
+version: 1.0.0
+appliesTo:
+  - forgegate.desktop.shell
+environment:
+  operatingSystem: Windows 11
+  assistiveTechnology:
+    - NVDA
+    - JAWS
+    - VoiceOver
+requiredReviewerRole: accessibility-reviewer
+expirationDays: 90
+steps:
+  - action: Tab from the start of the page through the persistent shell navigation and workspace context bar.
+    expected: Every navigation link and workspace action receives visible focus in a logical order and announces a meaningful accessible name.
+  - action: Navigate between Workspace, Components, Starlight, and Accessibility self-review using only the keyboard.
+    expected: Focus moves to the main content landmark after each route change and the destination page is announced.
+  - action: Open a real workspace and review the workspace command center panels with a screen reader.
+    expected: System map relationships, timeline status, adapter diagnostics, and change-impact data are available as accessible text, tables, or disclosures without relying only on graphics.
+  - action: Review the component inventory readiness controls and table with keyboard and table-navigation shortcuts.
+    expected: Lifecycle controls announce pressed state, filtering updates are understandable, and table cells announce with their headers.
+  - action: Open at least one component assurance record and move through preview, readiness, states, anatomy, contract, evidence, and Starlight generation sections.
+    expected: Each section has a meaningful heading, interactive controls announce role and state, and focus is never trapped in the Storybook preview.

@@ -1,7 +1,19 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseComponentManifest } from '@forgegate/core-manifest';
+import { parseManualProcedure } from '@forgegate/core-evidence';
 import { buildEvidenceExport } from './evidence-export';
+
+const repositoryRoot = [
+  resolve(process.cwd()),
+  resolve(process.cwd(), '../..'),
+].find((candidate) =>
+  existsSync(`${candidate}/.forgegate/components/forgegate.desktop.shell.yaml`),
+);
+
+if (!repositoryRoot) {
+  throw new Error('Unable to locate the ForgeGate repository root');
+}
 
 const fixtureRoot = [
   resolve(process.cwd(), 'fixtures/acme-button-library'),
@@ -13,6 +25,8 @@ if (!fixtureRoot) {
 }
 
 const manifestPath = `${fixtureRoot}/.forgegate/components/acme.button-library.acme-button.yaml`;
+const shellManifestPath = `${repositoryRoot}/.forgegate/components/forgegate.desktop.shell.yaml`;
+const shellProcedurePath = `${repositoryRoot}/.forgegate/procedures/forgegate-shell-accessibility-review.yaml`;
 
 /**
  * Exercises the release-decision path against the real checked-in fixture
@@ -72,5 +86,25 @@ describe('evidence export against the acme-button fixture', () => {
     expect(decision.outcome).toBe('authorized-candidate');
     expect(decision.notRealApproval).toBe(true);
     expect(result.files['report.html']).toContain('NOT A REAL APPROVAL');
+  });
+});
+
+describe('ForgeGate dogfood shell identity', () => {
+  it('keeps the checked-in shell manifest and manual procedure schema-valid and linked', () => {
+    const manifest = parseComponentManifest(
+      readFileSync(shellManifestPath, 'utf8'),
+    );
+    const procedure = parseManualProcedure(
+      readFileSync(shellProcedurePath, 'utf8'),
+    );
+
+    expect(manifest.id).toBe('forgegate.desktop.shell');
+    expect(manifest.manualReviewProcedureIds).toContain(procedure.id);
+    expect(procedure.appliesTo).toContain(manifest.id);
+    expect(manifest.documentationTargets).toContainEqual({
+      adapter: 'starlight',
+      pathOrPageId: 'documentation/dogfooding/forgegate-shell.md',
+      publishedVersion: '0.1.0',
+    });
   });
 });

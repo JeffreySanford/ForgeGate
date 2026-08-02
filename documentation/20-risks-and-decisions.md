@@ -169,7 +169,7 @@ Mitigation:
 - Build accessibility into the desktop UI.
 - Add automated and manual testing.
 - Support keyboard, screen readers, forced colors, zoom, and reduced motion.
-- Dogfood ForgeGate. **Real as of the accessibility axis**: `/accessibility-review` guides and records a real manual screen-reader pass against ForgeGate's own shell, and the same view now reports whether that self-review evidence is current or stale against the workspace commit (see documentation/01 principle 16, documentation/09). The pass itself still has not been performed by anyone — the mechanism exists, but the human evidence does not yet. Documentation and release gates for ForgeGate's own shell still need a real shell component identity before they can be honestly evaluated.
+- Dogfood ForgeGate. **Real as of the accessibility axis**: `/accessibility-review` guides and records a real manual screen-reader pass against ForgeGate's own shell, and the same view now reports whether that self-review evidence is current or stale against the workspace commit (see documentation/01 principle 16, documentation/09). The shell now has a repository-owned manifest, procedure, and documentation target under `.forgegate/`, so documentation and release gates have a real identity to attach to. The pass itself still has not been performed by anyone — the mechanism and identity exist, but the human evidence does not yet.
 
 ## Federal and regulated-buyer risks
 

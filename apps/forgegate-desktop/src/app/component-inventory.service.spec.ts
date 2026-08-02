@@ -136,6 +136,49 @@ describe('ComponentInventoryService', () => {
     expect(manifest?.contract.inputs).toHaveLength(1);
   });
 
+  it('includes repository-authored manifests even when no source adapter discovered the component', () => {
+    workspace.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'forgegate.desktop.shell',
+        framework: 'angular',
+        adapter: 'repository.manifest',
+        packagePath: 'apps/forgegate-desktop',
+        componentVersion: '0.1.0',
+        lifecycle: 'candidate',
+        sourceFiles: ['apps/forgegate-desktop/src/app/app.ts'],
+        states: [
+          {
+            name: 'workspace-closed',
+            required: true,
+            description: 'No target workspace is open yet.',
+          },
+        ],
+        manualReviewProcedureIds: ['forgegate-shell-accessibility-review'],
+        documentationTargets: [
+          {
+            adapter: 'starlight',
+            pathOrPageId: 'documentation/dogfooding/forgegate-shell.md',
+            publishedVersion: '0.1.0',
+          },
+        ],
+      }),
+    ]);
+
+    const result = inventory.result();
+
+    expect(result.manifests).toHaveLength(1);
+    expect(result.discoveries[0]).toMatchObject({
+      classification: 'workspace',
+      canonicalSource: 'apps/forgegate-desktop/src/app/app.ts',
+      declarationCount: 1,
+      manifest: {
+        id: 'forgegate.desktop.shell',
+        adapter: 'repository.manifest',
+        manualReviewProcedureIds: ['forgegate-shell-accessibility-review'],
+      },
+    });
+  });
+
   it('groups duplicate Angular declarations by component id and preserves every source file', () => {
     workspace.angularComponents.set([
       angularDeclaration({

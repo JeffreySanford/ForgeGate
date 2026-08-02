@@ -223,7 +223,7 @@ describe('AccessibilityReviewPage', () => {
     ).toBeNull();
   });
 
-  it('saves a real ManualReview with a disclosed synthetic component id and every flattened step', () => {
+  it('saves a real ManualReview with the repository-owned shell component id and every flattened step', () => {
     workspace.workspacePath.set('/repos/ForgeGate');
     workspace.gitStatus.set({
       branch: 'main',

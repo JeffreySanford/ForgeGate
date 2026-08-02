@@ -1,0 +1,90 @@
+schemaVersion: 0.2.0
+id: forgegate.desktop.shell
+componentVersion: 0.1.0
+framework: angular
+adapter: repository.manifest
+packagePath: apps/forgegate-desktop
+sourceFiles:
+  - apps/forgegate-desktop/src/app/app.ts
+  - apps/forgegate-desktop/src/app/app.html
+  - apps/forgegate-desktop/src/app/app.css
+  - apps/forgegate-desktop/src/app/workspace/workspace-page.ts
+  - apps/forgegate-desktop/src/app/components/components-page.ts
+  - apps/forgegate-desktop/src/app/accessibility-review/accessibility-review-page.ts
+lifecycle: candidate
+owner: ForgeGate
+reviewers:
+  - accessibility-reviewer
+contract:
+  inputs: []
+  outputs: []
+  content:
+    - name: primary-navigation
+      type: landmark
+      required: true
+      description: Persistent navigation for Workspace, Components, Starlight, Accessibility self-review, and planned routes.
+    - name: workspace-context
+      type: status region
+      required: true
+      description: Current workspace identity, Git status, and primary workspace actions.
+    - name: routed-main-content
+      type: main landmark
+      required: true
+      description: Route content for workspace command center, component inventory, component records, and self-review.
+  publicMethods: []
+  styleParts:
+    - name: focus-ring
+      type: visual affordance
+      required: true
+      description: Visible keyboard focus treatment for shell navigation and actions.
+states:
+  - name: workspace-closed
+    required: true
+    description: No target workspace is open; shell still exposes navigation and empty states.
+  - name: workspace-open
+    required: true
+    description: A target workspace is selected and scan-derived context is visible.
+  - name: command-running
+    required: true
+    description: Long-running workspace commands stream status and can be reviewed without losing context.
+  - name: review-staged
+    required: true
+    description: A generated or review artifact has been staged and awaits explicit approve/discard action.
+themes:
+  - light
+  - dark
+densities: []
+viewports:
+  - 320px
+  - 375px
+  - desktop
+environments:
+  - Windows 11
+  - Chromium WebView2
+tokenMappings: []
+storyMappings: []
+testRequirements:
+  - gate: unit
+    scope: application-context
+    required: true
+  - gate: lint
+    scope: application-context
+    required: true
+  - gate: build
+    scope: application-context
+    required: true
+  - gate: manual-keyboard
+    scope: application-context
+    required: true
+  - gate: manual-screen-reader
+    scope: application-context
+    required: true
+manualReviewProcedureIds:
+  - forgegate-shell-accessibility-review
+documentationTargets:
+  - adapter: starlight
+    pathOrPageId: documentation/dogfooding/forgegate-shell.md
+    publishedVersion: 0.1.0
+consumerApplicationIds: []
+policyId: forgegate.mvp.shell
+policyVersion: 0.1.0

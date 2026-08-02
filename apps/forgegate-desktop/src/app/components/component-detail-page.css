@@ -17,7 +17,9 @@
   color: var(--fg-color-text);
 }
 
-.component-detail__empty {
+.component-detail__empty,
+.component-detail__unavailable,
+.component-detail__blocking-reasons {
   color: var(--fg-color-text-muted);
 }
 
@@ -39,19 +41,26 @@
   gap: var(--fg-space-1) var(--fg-space-3);
 }
 
-.component-detail__identity dt {
+.component-detail__identity dt,
+.component-detail__preview-provenance dt,
+.component-detail__remediation dt {
   color: var(--fg-color-text-muted);
+}
+
+.component-detail__identity dt {
   font-size: var(--fg-type-size-sm);
 }
 
-.component-detail__identity dd {
+.component-detail__identity dd,
+.component-detail__preview-provenance dd,
+.component-detail__remediation dd {
   margin: 0;
 }
 
-/* Visual container properties (background/border/radius/padding/shadow)
- * live in the shared .fg-panel primitive (styles/primitives.css), applied
- * alongside this class in the template. This selector now only carries
- * this component's own child-selector rules. */
+.component-detail__preview-provenance dd {
+  font-family: var(--fg-type-family-mono);
+}
+
 .component-detail__panel h2 {
   font-size: var(--fg-type-size-lg);
   margin: 0 0 var(--fg-space-3);
@@ -60,11 +69,6 @@
 .component-detail__panel h3 {
   font-size: var(--fg-type-size-md);
   margin: var(--fg-space-3) 0 var(--fg-space-2);
-}
-
-.component-detail__unavailable {
-  margin: 0;
-  color: var(--fg-color-text-muted);
 }
 
 .component-detail__story-picker {
@@ -92,20 +96,6 @@
   grid-template-columns: max-content 1fr;
   gap: var(--fg-space-1) var(--fg-space-3);
   margin: var(--fg-space-3) 0 0;
-  font-size: var(--fg-type-size-sm);
-}
-
-.component-detail__preview-provenance dt {
-  color: var(--fg-color-text-muted);
-}
-
-.component-detail__preview-provenance dd {
-  margin: 0;
-  font-family: var(--fg-type-family-mono);
-}
-
-.component-detail__preview-note {
-  color: var(--fg-color-text-muted);
   font-size: var(--fg-type-size-sm);
 }
 
@@ -154,7 +144,6 @@
 .component-detail__blocking-reasons {
   margin: 0;
   padding-left: var(--fg-space-4);
-  color: var(--fg-color-text-muted);
 }
 
 .component-detail__next-action {
@@ -202,14 +191,6 @@
   gap: var(--fg-space-1) var(--fg-space-3);
   margin: 0;
   font-size: var(--fg-type-size-sm);
-}
-
-.component-detail__remediation dt {
-  color: var(--fg-color-text-muted);
-}
-
-.component-detail__remediation dd {
-  margin: 0;
 }
 
 .component-detail__anatomy {
@@ -262,9 +243,13 @@
   font-size: var(--fg-type-size-sm);
 }
 
+.component-detail__preview-note,
 .component-detail__caveat {
   color: var(--fg-color-text-muted);
   font-size: var(--fg-type-size-sm);
+}
+
+.component-detail__caveat {
   margin: 0 0 var(--fg-space-2);
 }
 

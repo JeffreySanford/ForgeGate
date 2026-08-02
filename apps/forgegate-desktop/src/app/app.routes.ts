@@ -1,19 +1,35 @@
 import { Route } from '@angular/router';
-import { AccessibilityReviewPage } from './accessibility-review/accessibility-review-page';
-import { ComingSoonPage } from './coming-soon-page';
-import { ComponentDetailPage } from './components/component-detail-page';
-import { ComponentsPage } from './components/components-page';
-import { WorkspacePage } from './workspace/workspace-page';
 
 export const appRoutes: Route[] = [
   { path: '', pathMatch: 'full', redirectTo: 'workspace' },
-  { path: 'workspace', component: WorkspacePage },
-  { path: 'components', component: ComponentsPage },
-  { path: 'components/:componentId', component: ComponentDetailPage },
-  { path: 'accessibility-review', component: AccessibilityReviewPage },
+  {
+    path: 'workspace',
+    loadComponent: () =>
+      import('./workspace/workspace-page').then((m) => m.WorkspacePage),
+  },
+  {
+    path: 'components',
+    loadComponent: () =>
+      import('./components/components-page').then((m) => m.ComponentsPage),
+  },
+  {
+    path: 'components/:componentId',
+    loadComponent: () =>
+      import('./components/component-detail-page').then(
+        (m) => m.ComponentDetailPage,
+      ),
+  },
+  {
+    path: 'accessibility-review',
+    loadComponent: () =>
+      import('./accessibility-review/accessibility-review-page').then(
+        (m) => m.AccessibilityReviewPage,
+      ),
+  },
   {
     path: 'tests',
-    component: ComingSoonPage,
+    loadComponent: () =>
+      import('./coming-soon-page').then((m) => m.ComingSoonPage),
     data: {
       title: 'Tests',
       description:
@@ -22,7 +38,8 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'reviews',
-    component: ComingSoonPage,
+    loadComponent: () =>
+      import('./coming-soon-page').then((m) => m.ComingSoonPage),
     data: {
       title: 'Reviews',
       description:
@@ -31,7 +48,8 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'documentation',
-    component: ComingSoonPage,
+    loadComponent: () =>
+      import('./coming-soon-page').then((m) => m.ComingSoonPage),
     data: {
       title: 'Documentation',
       description:
@@ -40,7 +58,8 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'releases',
-    component: ComingSoonPage,
+    loadComponent: () =>
+      import('./coming-soon-page').then((m) => m.ComingSoonPage),
     data: {
       title: 'Releases',
       description:

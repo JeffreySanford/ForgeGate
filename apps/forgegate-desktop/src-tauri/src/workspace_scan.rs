@@ -772,6 +772,14 @@ mod tests {
             scan.custom_elements_manifests.is_empty(),
             "ForgeGate does not publish a CEM on itself"
         );
+        assert_eq!(
+            scan.component_manifests,
+            vec![".forgegate/components/forgegate.desktop.shell.yaml".to_string()]
+        );
+        assert_eq!(
+            scan.procedure_files,
+            vec![".forgegate/procedures/forgegate-shell-accessibility-review.yaml".to_string()]
+        );
         assert!(
             scan.ui_technologies.is_empty(),
             "Angular itself is a framework, not a detected UI library"

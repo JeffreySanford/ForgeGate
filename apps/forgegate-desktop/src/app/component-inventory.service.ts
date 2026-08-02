@@ -91,7 +91,9 @@ export class ComponentInventoryService {
         .componentManifestOverrides()
         .map((item) => [item.id, item]),
     );
-    const enriched = [...mapped.manifests, ...angularMapped.manifests].map(
+    const discoveredManifests = [...mapped.manifests, ...angularMapped.manifests];
+    const discoveredIds = new Set(discoveredManifests.map((manifest) => manifest.id));
+    const enriched = discoveredManifests.map(
       (componentManifest) => {
         const discoveredStories = lookupStories
           ? lookupStories(componentManifest.sourceFiles)
@@ -106,6 +108,10 @@ export class ComponentInventoryService {
           : { ...componentManifest, storyMappings: discoveredStories };
       },
     );
+    const manifestOnly = [...overrides.values()].filter(
+      (manifest) => !discoveredIds.has(manifest.id),
+    );
+    enriched.push(...manifestOnly);
     const groups = new Map<string, (typeof enriched)[number][]>();
     for (const componentManifest of enriched) {
       const group = groups.get(componentManifest.id) ?? [];

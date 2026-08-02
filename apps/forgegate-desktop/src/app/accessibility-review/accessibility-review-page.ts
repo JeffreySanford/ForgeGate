@@ -54,12 +54,12 @@ const CHECKS_PER_COMPONENT = COMPONENT_RECORD_CHECK_TEMPLATES.length;
  * reviewer's limited time is spent where it's actually missing. Nothing is
  * hidden, only reordered: a large repo still shows every component.
  *
- * Because reviewing ForgeGate's own shell itself isn't about any one
- * component, the overall review records a synthetic, real, disclosed
- * `componentVersionId` (`FORGEGATE_SHELL_COMPONENT_ID`) — but each
- * component-record step carries its own real `componentId`, so a failed
- * check is attributed to the actual component reviewed, not lumped onto
- * the shell (`manual-review-findings.ts`). Saving still requires a
+ * The overall review records ForgeGate's repository-owned shell
+ * `componentVersionId` (`FORGEGATE_SHELL_COMPONENT_ID`), backed by
+ * `.forgegate/components/forgegate.desktop.shell.yaml`. Each
+ * component-record step still carries its own real `componentId`, so a
+ * failed check is attributed to the actual component reviewed, not lumped
+ * onto the shell (`manual-review-findings.ts`). Saving still requires a
  * workspace to be open, since staging writes into `.forgegate/` under
  * whatever workspace path is current — the intended flow is to open
  * ForgeGate's own repository as that workspace, so the resulting evidence

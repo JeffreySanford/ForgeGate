@@ -29,10 +29,11 @@ export interface SelfReviewArea {
 }
 
 /**
- * A synthetic, disclosed identifier — this reviews ForgeGate's own shell,
- * not a component discovered in any workspace's inventory. Recorded as the
- * `ManualReview.componentVersionId` so the record is honest about what it
- * actually covers rather than borrowing a real component's identity.
+ * Repository-owned dogfood component identity for ForgeGate's own shell.
+ * The matching manifest lives at
+ * `.forgegate/components/forgegate.desktop.shell.yaml`, so self-review
+ * evidence can now attach to a real shell record rather than borrowing a
+ * target repository component's identity.
  */
 export const FORGEGATE_SHELL_COMPONENT_ID = 'forgegate.desktop.shell';
 export const FORGEGATE_SHELL_PROCEDURE_ID =
