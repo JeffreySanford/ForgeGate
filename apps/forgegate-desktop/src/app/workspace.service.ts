@@ -35,6 +35,12 @@ import {
   buildStorybookGateExecution,
 } from './storybook-gate';
 import {
+  PLAYWRIGHT_COMMAND_MAPPING_KEY,
+  PLAYWRIGHT_GATE_TIMEOUT_SECONDS,
+  PLAYWRIGHT_REPORT_PATH_MAPPING_KEY,
+  buildPlaywrightGateExecution,
+} from './playwright-gate';
+import {
   extractProtectedOverview,
   generateStarlightComponentReportData,
   generateStarlightComponentPage,
@@ -721,6 +727,13 @@ export class WorkspaceService {
   readonly storybookGateResult = signal<CommandResult | null>(null);
   readonly storybookGateError = signal<string | null>(null);
   readonly storybookGateSkipped = signal<string | null>(null);
+
+  /** Playwright gate — same rationale as the axe signals above. */
+  readonly playwrightGateRunning = signal(false);
+  readonly playwrightGateLiveOutput = signal('');
+  readonly playwrightGateResult = signal<CommandResult | null>(null);
+  readonly playwrightGateError = signal<string | null>(null);
+  readonly playwrightGateSkipped = signal<string | null>(null);
 
   readonly stagedTestExecution = signal<{
     readonly execution: TestExecution;
@@ -3114,6 +3127,121 @@ export class WorkspaceService {
     } finally {
       unlisten();
       this.storybookGateRunning.set(false);
+    }
+  }
+
+  /**
+   * The Playwright half of the axe-proved run pattern: runs the workspace's
+   * own configured `playwright` command, then reads the JSON report it
+   * produces at `playwrightReportPath` and hands it to the existing
+   * `playwright-json` envelope parser (`buildPlaywrightGateExecution`). See
+   * `playwright-gate.ts` for why `toolVersion` is honestly `'unknown'` here
+   * rather than guessed.
+   */
+  async runPlaywrightGate(manifest: ComponentManifest): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.playwrightGateRunning()) {
+      return;
+    }
+    const commandText =
+      this.repositoryConfig()?.commandMappings[PLAYWRIGHT_COMMAND_MAPPING_KEY];
+    const reportPath =
+      this.repositoryConfig()?.commandMappings[
+        PLAYWRIGHT_REPORT_PATH_MAPPING_KEY
+      ];
+    if (!commandText) {
+      this.playwrightGateSkipped.set(
+        `No ${PLAYWRIGHT_COMMAND_MAPPING_KEY} command is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+    if (!reportPath) {
+      this.playwrightGateSkipped.set(
+        `No ${PLAYWRIGHT_REPORT_PATH_MAPPING_KEY} is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+
+    let plan: WorkspaceCommandPlan;
+    try {
+      plan = parseWorkspaceCommandMapping(commandText);
+    } catch (error) {
+      this.playwrightGateError.set(String(error));
+      return;
+    }
+
+    this.playwrightGateRunning.set(true);
+    this.playwrightGateError.set(null);
+    this.playwrightGateResult.set(null);
+    this.playwrightGateLiveOutput.set('');
+    this.playwrightGateSkipped.set(null);
+    const startedAt = new Date().toISOString();
+    const unlisten = await this.listen<CommandOutputLine>(
+      'workspace-command-output',
+      (event) => {
+        this.playwrightGateLiveOutput.update(
+          (current) => current + event.payload.line + '\n',
+        );
+      },
+    );
+    try {
+      const result = await this.invoke<CommandResult>('run_workspace_command', {
+        workspacePath: path,
+        relativeCwd: manifest.packagePath,
+        command: plan.command,
+        args: [...plan.args],
+        timeoutSeconds: PLAYWRIGHT_GATE_TIMEOUT_SECONDS,
+      });
+      this.playwrightGateResult.set(result);
+      this.setAdapterDiagnostic({
+        id: 'playwright-gate-command',
+        adapter: 'Playwright gate',
+        source: `${manifest.packagePath}: ${plan.commandText}`,
+        status: result.exitCode === 0 ? 'loaded' : 'failed',
+        rawOutput: JSON.stringify(result, null, 2),
+        error:
+          result.exitCode === 0
+            ? null
+            : result.cancelled
+              ? 'Cancelled by user'
+              : result.stderr || 'Playwright command failed',
+      });
+      if (result.exitCode !== 0) {
+        return;
+      }
+      const relativeReportPath = [
+        manifest.packagePath === '.' ? '' : manifest.packagePath,
+        reportPath,
+      ]
+        .filter(Boolean)
+        .join('/');
+      let reportText: string;
+      try {
+        reportText = await this.invoke<string>('read_text_file', {
+          workspacePath: path,
+          relativePath: relativeReportPath,
+        });
+      } catch {
+        this.playwrightGateError.set(
+          `The Playwright command exited successfully, but no report was found at ${relativeReportPath}.`,
+        );
+        return;
+      }
+      const report: unknown = JSON.parse(reportText);
+      const execution = buildPlaywrightGateExecution(
+        manifest,
+        report,
+        startedAt,
+        this.gitStatus()?.commit ?? 'unknown',
+        relativeReportPath,
+        result.durationMs ?? null,
+      );
+      await this.stageTestExecution(execution, manifest.id);
+    } catch (error) {
+      this.playwrightGateError.set(String(error));
+    } finally {
+      unlisten();
+      this.playwrightGateRunning.set(false);
     }
   }
 

@@ -154,16 +154,16 @@ for a narrow, provenance-safe subset:
   reporter is explicitly modeled on Jest's.
 
 These adapters normalize a single `TestExecution` and preserve the raw report
-for evidence export. ForgeGate now runs five target-repository commands
+for evidence export. ForgeGate now runs all six target-repository commands
 itself — `commandMappings.unitTest`, `lint`, and `build` read only a real
 process exit code, not any structured report format (see "Safe command
 configuration" above and the "Acceptance requirements" implementation-status
-note below); `commandMappings.axe` and `commandMappings.storybookTest` are
+note below); `commandMappings.axe`, `storybookTest`, and `playwright` are
 different — each runs its command, then reads the real JSON report at
-`commandMappings.axeReportPath`/`storybookTestReportPath` and reuses the
-`axe-json`/`storybook-interactions-json` envelope parsers above, so the run
-path and the import path share one normalizer and can never disagree on
-status.
+`commandMappings.axeReportPath`/`storybookTestReportPath`/`playwrightReportPath`
+and reuses the `axe-json`/`storybook-interactions-json`/`playwright-json`
+envelope parsers above, so the run path and the import path share one
+normalizer and can never disagree on status.
 
 ## Normalized evidence
 
@@ -332,7 +332,7 @@ It must preserve raw results and mark evidence stale after a relevant source cha
 Implementation status: imported Storybook interaction, axe, Playwright, Jest,
 and Vitest results are all normalized and raw reports are preserved (one unit
 test runner and more). ForgeGate-triggered target-repository command
-execution is now real for five gates. `WorkspaceService.runGate` actually
+execution is now real for all six gates. `WorkspaceService.runGate` actually
 runs a repository's own configured command for `unit`, `lint`, or `build`
 (`process-gate.ts`'s `PROCESS_GATE_DEFINITIONS`), scoped to a component's
 package, and turns the real exit code into a staged/approved `TestExecution`
@@ -340,26 +340,25 @@ package, and turns the real exit code into a staged/approved `TestExecution`
 structured report format, so it produces the same `TestExecution` shape the
 imported adapters above do, but with no per-test detail and an honest
 `toolVersion: 'unknown'`. `WorkspaceService.runAxeGate`
-(`apps/forgegate-desktop/src/app/axe-gate.ts`) and
+(`apps/forgegate-desktop/src/app/axe-gate.ts`),
 `WorkspaceService.runStorybookGate`
-(`apps/forgegate-desktop/src/app/storybook-gate.ts`) are different on
+(`apps/forgegate-desktop/src/app/storybook-gate.ts`), and
+`WorkspaceService.runPlaywrightGate`
+(`apps/forgegate-desktop/src/app/playwright-gate.ts`) are different on
 purpose: each runs its configured command (`commandMappings.axe` /
-`commandMappings.storybookTest`), then reads the JSON report it produces
-(`commandMappings.axeReportPath` / `commandMappings.storybookTestReportPath`)
-and hands it to the same `axe-json` / `storybook-interactions-json` envelope
-parser the ingest path already uses (`parseTestEvidenceFile`), so a "run"
-result and an "imported" result of the same tool can never silently disagree
-on what counts as a pass. Axe's `toolVersion` comes from the report's own
-`report.testEngine.version`, never guessed; Storybook reports don't
-self-report a version the same way, so its `toolVersion` is honestly
+`storybookTest` / `playwright`), then reads the JSON report it produces
+(`commandMappings.axeReportPath` / `storybookTestReportPath` /
+`playwrightReportPath`) and hands it to the same `axe-json` /
+`storybook-interactions-json` / `playwright-json` envelope parser the ingest
+path already uses (`parseTestEvidenceFile`), so a "run" result and an
+"imported" result of the same tool can never silently disagree on what
+counts as a pass. Axe's `toolVersion` comes from the report's own
+`report.testEngine.version`, never guessed; Storybook and Playwright reports
+don't self-report a version the same way, so their `toolVersion` is honestly
 `'unknown'` rather than guessed. A command that exits 0 but never writes the
 configured report path surfaces its own distinct, named error rather than
 being treated as "not configured" or silently falling back to
-exit-code-only. Playwright gates are still not ForgeGate-triggered — only
-ingested when a target repository already produced the evidence file itself;
-axe and Storybook proved the "run command → read configured report path →
-reuse the existing envelope parser" pattern end to end, and Playwright is
-expected to follow the identical shape.
+exit-code-only.
 Source-change stale-evidence detection is real for a specific commit
 comparison (a stale `TestExecution`'s recorded commit against the workspace's
 current one, with a real "show changed files" explanation — see

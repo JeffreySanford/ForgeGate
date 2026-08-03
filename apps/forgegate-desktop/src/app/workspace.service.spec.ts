@@ -4239,6 +4239,208 @@ describe('WorkspaceService', () => {
     });
   });
 
+  describe('runPlaywrightGate', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.design-system.acme-button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: 'packages/acme-button',
+      componentVersion: '1.0.0',
+      lifecycle: 'candidate',
+    });
+
+    it('skips honestly when no playwright command is configured', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {},
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runPlaywrightGate(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.playwrightGateSkipped()).toBe(
+        'No playwright command is configured in .forgegate/config.yaml.',
+      );
+    });
+
+    it('skips honestly when the command is configured but no report path is', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { playwright: 'npx playwright test' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runPlaywrightGate(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.playwrightGateSkipped()).toBe(
+        'No playwrightReportPath is configured in .forgegate/config.yaml.',
+      );
+    });
+
+    it('runs the configured Playwright command, reads the real report, and stages a normalized failing result', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.gitStatus.set({
+        branch: 'main',
+        commit: 'a'.repeat(40),
+        dirty: false,
+        changedFiles: [],
+      });
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          playwright: 'npx playwright test',
+          playwrightReportPath: 'playwright-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 1200,
+        artifactPath: null,
+      };
+      const reportText = JSON.stringify({
+        stats: { unexpected: 1, expected: 3 },
+      });
+      const stagedWrite = {
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      };
+      invokeMock
+        .mockResolvedValueOnce(runResult)
+        .mockResolvedValueOnce(reportText)
+        .mockResolvedValueOnce(stagedWrite);
+
+      await service.runPlaywrightGate(manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativeCwd: 'packages/acme-button',
+        command: 'npx',
+        args: ['playwright', 'test'],
+        timeoutSeconds: 300,
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'read_text_file', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath: 'packages/acme-button/playwright-report.json',
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        3,
+        'stage_test_execution',
+        expect.objectContaining({ workspacePath: 'D:/repos/ForgeGate' }),
+      );
+      expect(service.playwrightGateResult()).toEqual(runResult);
+      expect(service.playwrightGateError()).toBeNull();
+      const staged = service.stagedTestExecution();
+      expect(staged?.execution.gate).toBe('interaction');
+      expect(staged?.execution.tool).toBe('playwright');
+      expect(staged?.execution.toolVersion).toBe('unknown');
+      expect(staged?.execution.status).toBe('failed');
+      expect(staged?.execution.durationMs).toBe(1200);
+      expect(staged?.execution.rawArtifactRef).toBe(
+        'packages/acme-button/playwright-report.json',
+      );
+    });
+
+    it('does not attempt to read a report when the Playwright command itself fails', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          playwright: 'npx playwright test',
+          playwrightReportPath: 'playwright-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 1,
+        stdout: '',
+        stderr: 'playwright crashed',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 200,
+        artifactPath: null,
+      };
+      invokeMock.mockResolvedValueOnce(runResult);
+
+      await service.runPlaywrightGate(manifest);
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(service.stagedTestExecution()).toBeNull();
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'playwright-gate-command'),
+      ).toMatchObject({ status: 'failed', error: 'playwright crashed' });
+    });
+
+    it('surfaces a distinct, named error when the command succeeds but produces no report', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          playwright: 'npx playwright test',
+          playwrightReportPath: 'playwright-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 200,
+        artifactPath: null,
+      };
+      invokeMock
+        .mockResolvedValueOnce(runResult)
+        .mockRejectedValueOnce(new Error('file not found'));
+
+      await service.runPlaywrightGate(manifest);
+
+      expect(service.playwrightGateError()).toBe(
+        'The Playwright command exited successfully, but no report was found at packages/acme-button/playwright-report.json.',
+      );
+      expect(service.stagedTestExecution()).toBeNull();
+    });
+  });
+
   describe('queryLiveStorybookIndex', () => {
     it('fetches a real live index via the Rust-mediated command and replaces storybookIndex', async () => {
       const liveIndexJson = JSON.stringify({

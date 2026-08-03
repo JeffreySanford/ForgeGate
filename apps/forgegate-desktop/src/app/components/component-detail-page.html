@@ -391,7 +391,7 @@
       @for (gate of gateDefinitions; track gate.id) {
       <button
         type="button"
-        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || !!workspace.stagedTestExecution()"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || workspace.playwrightGateRunning() || !!workspace.stagedTestExecution()"
         (click)="runGate(gate.id)"
       >
         {{ workspace.runningGate() === gate.id ? 'Running…' : 'Run ' +
@@ -400,7 +400,7 @@
       }
       <button
         type="button"
-        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || !!workspace.stagedTestExecution()"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || workspace.playwrightGateRunning() || !!workspace.stagedTestExecution()"
         (click)="runAxeGate()"
       >
         {{ workspace.axeGateRunning() ? 'Running…' : 'Run Accessibility (axe)'
@@ -408,11 +408,18 @@
       </button>
       <button
         type="button"
-        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || !!workspace.stagedTestExecution()"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || workspace.playwrightGateRunning() || !!workspace.stagedTestExecution()"
         (click)="runStorybookGate()"
       >
         {{ workspace.storybookGateRunning() ? 'Running…' : 'Run Storybook
         interactions' }}
+      </button>
+      <button
+        type="button"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || workspace.playwrightGateRunning() || !!workspace.stagedTestExecution()"
+        (click)="runPlaywrightGate()"
+      >
+        {{ workspace.playwrightGateRunning() ? 'Running…' : 'Run Playwright' }}
       </button>
     </div>
     @if (workspace.gateSkipped(); as skipped) {
@@ -451,6 +458,18 @@
     </details>
     } @if (workspace.storybookGateError(); as storybookGateError) {
     <p role="alert">{{ storybookGateError }}</p>
+    } @if (workspace.playwrightGateSkipped(); as playwrightSkipped) {
+    <p role="status">{{ playwrightSkipped }}</p>
+    } @if (workspace.playwrightGateLiveOutput()) {
+    <details open>
+      <summary>Live output</summary>
+      <pre class="component-detail__live-output">
+{{
+        workspace.playwrightGateLiveOutput()
+      }}</pre>
+    </details>
+    } @if (workspace.playwrightGateError(); as playwrightGateError) {
+    <p role="alert">{{ playwrightGateError }}</p>
     } @if (workspace.stageTestExecutionError(); as stageError) {
     <p role="alert">Failed to stage the test result: {{ stageError }}</p>
     } @if (workspace.stagedTestExecution(); as staged) {

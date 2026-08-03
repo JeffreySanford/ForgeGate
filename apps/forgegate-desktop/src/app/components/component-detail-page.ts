@@ -671,6 +671,14 @@ export class ComponentDetailPage {
     void this.workspace.runStorybookGate(manifest);
   }
 
+  protected runPlaywrightGate(): void {
+    const manifest = this.manifest();
+    if (!manifest) {
+      return;
+    }
+    void this.workspace.runPlaywrightGate(manifest);
+  }
+
   protected approveTestExecution(): void {
     void this.workspace.approveStagedTestExecution();
   }
