@@ -325,6 +325,91 @@ describe('ComponentDetailPage', () => {
     );
   });
 
+  it('shows real evidence freshness for release-decision records and loads changed files when stale', async () => {
+    const decisionCommit = 'a'.repeat(40);
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '1.0.0',
+        lifecycle: 'candidate',
+        policyId: 'acme.baseline',
+        policyVersion: '1.0.0',
+      }),
+    ]);
+    workspaceService.gitStatus.set({
+      branch: 'main',
+      commit: 'b'.repeat(40),
+      dirty: false,
+      changedFiles: [],
+    });
+    workspaceService.releaseDecisionRecords.set([
+      {
+        id: 'acme-button-release-decision-workflow-record',
+        decisionId: 'acme-button-release-decision',
+        componentVersionId: 'acme.design-system.acme-button@1.0.0',
+        policyId: 'acme.baseline',
+        policyVersion: '1.0.0',
+        outcome: 'blocked',
+        commit: decisionCommit,
+        decidedAt: '2026-08-02T16:00:00.000Z',
+        source: 'forgegate-export-evaluation',
+        authorization: 'blocked-no-approval-required',
+        notRealApproval: false,
+        evidenceIds: [],
+        blockingFindingIds: ['acme-button-blocking-0'],
+        limitations: [],
+      },
+    ]);
+    const loadSpy = vi
+      .spyOn(workspaceService, 'loadStaleReviewChangedFiles')
+      .mockImplementation(async (fromCommit) => {
+        workspaceService.staleReviewChangedFiles.set({
+          [fromCommit]: {
+            files: ['button.component.html'],
+            error: null,
+          },
+        });
+      });
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Stale — recorded at aaaaaaaa');
+
+    const showButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Show changed files'),
+    );
+    expect(showButton).toBeDefined();
+    showButton?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(loadSpy).toHaveBeenCalledWith(decisionCommit);
+    expect(compiled.textContent).toContain('button.component.html');
+
+    workspaceService.gitStatus.set({
+      branch: 'main',
+      commit: decisionCommit,
+      dirty: false,
+      changedFiles: [],
+    });
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('Current');
+  });
+
   it('captures a real human approver identity and passes it to both export and release-decision staging', async () => {
     workspaceService.workspacePath.set('/repos/example');
     workspaceService.workspaceScan.set(scan);

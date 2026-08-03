@@ -16,7 +16,10 @@ import {
   isStaleAgainstCommit,
 } from '../evidence-freshness';
 import { PROCESS_GATE_DEFINITIONS, type ProcessGateId } from '../process-gate';
-import type { EvidenceApprover } from '../release-decision-export';
+import type {
+  EvidenceApprover,
+  ReleaseDecisionWorkflowRecord,
+} from '../release-decision-export';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '@forgegate/adapter-storybook';
 import { computeDocumentationDriftState } from '../documentation-drift';
@@ -577,6 +580,27 @@ export class ComponentDetailPage {
 
   protected showStaleReviewChangedFiles(review: ManualReview): void {
     void this.workspace.loadStaleReviewChangedFiles(review.commitOrFingerprint);
+  }
+
+  protected releaseDecisionFreshness(
+    record: ReleaseDecisionWorkflowRecord,
+  ): string {
+    return freshnessLabel(record.commit, this.workspace.gitStatus()?.commit);
+  }
+
+  protected releaseDecisionIsStale(
+    record: ReleaseDecisionWorkflowRecord,
+  ): boolean {
+    return isStaleAgainstCommit(
+      record.commit,
+      this.workspace.gitStatus()?.commit,
+    );
+  }
+
+  protected showStaleReleaseDecisionChangedFiles(
+    record: ReleaseDecisionWorkflowRecord,
+  ): void {
+    void this.workspace.loadStaleReviewChangedFiles(record.commit);
   }
 
   protected componentName(id: string): string {

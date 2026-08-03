@@ -268,6 +268,7 @@
           <th scope="col">Policy</th>
           <th scope="col">Commit</th>
           <th scope="col">Decided</th>
+          <th scope="col">Freshness</th>
         </tr>
       </thead>
       <tbody>
@@ -278,6 +279,28 @@
           <td>{{ record.policyId }} &#64; {{ record.policyVersion }}</td>
           <td><code>{{ record.commit }}</code></td>
           <td>{{ record.decidedAt }}</td>
+          <td>
+            {{ releaseDecisionFreshness(record) }} @if
+            (releaseDecisionIsStale(record)) {
+            <button
+              type="button"
+              (click)="showStaleReleaseDecisionChangedFiles(record)"
+            >
+              Show changed files
+            </button>
+            @if (workspace.staleReviewChangedFiles()[record.commit]; as diff) {
+            @if (diff.error) {
+            <p role="alert">{{ diff.error }}</p>
+            } @else if (diff.files.length === 0) {
+            <p>No file differences were detected.</p>
+            } @else {
+            <ul class="component-detail__stale-review-changed-files">
+              @for (file of diff.files; track file) {
+              <li><code>{{ file }}</code></li>
+              }
+            </ul>
+            } } }
+          </td>
         </tr>
         }
       </tbody>
