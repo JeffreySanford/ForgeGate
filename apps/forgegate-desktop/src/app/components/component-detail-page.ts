@@ -663,6 +663,14 @@ export class ComponentDetailPage {
     void this.workspace.runAxeGate(manifest);
   }
 
+  protected runStorybookGate(): void {
+    const manifest = this.manifest();
+    if (!manifest) {
+      return;
+    }
+    void this.workspace.runStorybookGate(manifest);
+  }
+
   protected approveTestExecution(): void {
     void this.workspace.approveStagedTestExecution();
   }

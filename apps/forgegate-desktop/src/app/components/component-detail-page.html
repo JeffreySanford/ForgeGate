@@ -391,7 +391,7 @@
       @for (gate of gateDefinitions; track gate.id) {
       <button
         type="button"
-        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || !!workspace.stagedTestExecution()"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || !!workspace.stagedTestExecution()"
         (click)="runGate(gate.id)"
       >
         {{ workspace.runningGate() === gate.id ? 'Running…' : 'Run ' +
@@ -400,11 +400,19 @@
       }
       <button
         type="button"
-        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || !!workspace.stagedTestExecution()"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || !!workspace.stagedTestExecution()"
         (click)="runAxeGate()"
       >
         {{ workspace.axeGateRunning() ? 'Running…' : 'Run Accessibility (axe)'
         }}
+      </button>
+      <button
+        type="button"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || workspace.storybookGateRunning() || !!workspace.stagedTestExecution()"
+        (click)="runStorybookGate()"
+      >
+        {{ workspace.storybookGateRunning() ? 'Running…' : 'Run Storybook
+        interactions' }}
       </button>
     </div>
     @if (workspace.gateSkipped(); as skipped) {
@@ -431,6 +439,18 @@
     </details>
     } @if (workspace.axeGateError(); as axeGateError) {
     <p role="alert">{{ axeGateError }}</p>
+    } @if (workspace.storybookGateSkipped(); as storybookSkipped) {
+    <p role="status">{{ storybookSkipped }}</p>
+    } @if (workspace.storybookGateLiveOutput()) {
+    <details open>
+      <summary>Live output</summary>
+      <pre class="component-detail__live-output">
+{{
+        workspace.storybookGateLiveOutput()
+      }}</pre>
+    </details>
+    } @if (workspace.storybookGateError(); as storybookGateError) {
+    <p role="alert">{{ storybookGateError }}</p>
     } @if (workspace.stageTestExecutionError(); as stageError) {
     <p role="alert">Failed to stage the test result: {{ stageError }}</p>
     } @if (workspace.stagedTestExecution(); as staged) {

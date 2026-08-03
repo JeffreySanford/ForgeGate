@@ -4037,6 +4037,208 @@ describe('WorkspaceService', () => {
     });
   });
 
+  describe('runStorybookGate', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.design-system.acme-button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: 'packages/acme-button',
+      componentVersion: '1.0.0',
+      lifecycle: 'candidate',
+    });
+
+    it('skips honestly when no storybookTest command is configured', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {},
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runStorybookGate(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.storybookGateSkipped()).toBe(
+        'No storybookTest command is configured in .forgegate/config.yaml.',
+      );
+    });
+
+    it('skips honestly when the command is configured but no report path is', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { storybookTest: 'npm run test-storybook' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runStorybookGate(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.storybookGateSkipped()).toBe(
+        'No storybookTestReportPath is configured in .forgegate/config.yaml.',
+      );
+    });
+
+    it('runs the configured Storybook command, reads the real report, and stages a normalized failing result', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.gitStatus.set({
+        branch: 'main',
+        commit: 'a'.repeat(40),
+        dirty: false,
+        changedFiles: [],
+      });
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          storybookTest: 'npm run test-storybook',
+          storybookTestReportPath: 'storybook-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 900,
+        artifactPath: null,
+      };
+      const reportText = JSON.stringify({
+        stories: [{ id: 'button--primary', status: 'failed' }],
+      });
+      const stagedWrite = {
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      };
+      invokeMock
+        .mockResolvedValueOnce(runResult)
+        .mockResolvedValueOnce(reportText)
+        .mockResolvedValueOnce(stagedWrite);
+
+      await service.runStorybookGate(manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativeCwd: 'packages/acme-button',
+        command: 'npm',
+        args: ['run', 'test-storybook'],
+        timeoutSeconds: 300,
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'read_text_file', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath: 'packages/acme-button/storybook-report.json',
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        3,
+        'stage_test_execution',
+        expect.objectContaining({ workspacePath: 'D:/repos/ForgeGate' }),
+      );
+      expect(service.storybookGateResult()).toEqual(runResult);
+      expect(service.storybookGateError()).toBeNull();
+      const staged = service.stagedTestExecution();
+      expect(staged?.execution.gate).toBe('storybook-interaction');
+      expect(staged?.execution.tool).toBe('storybook/test-runner');
+      expect(staged?.execution.toolVersion).toBe('unknown');
+      expect(staged?.execution.status).toBe('failed');
+      expect(staged?.execution.durationMs).toBe(900);
+      expect(staged?.execution.rawArtifactRef).toBe(
+        'packages/acme-button/storybook-report.json',
+      );
+    });
+
+    it('does not attempt to read a report when the Storybook command itself fails', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          storybookTest: 'npm run test-storybook',
+          storybookTestReportPath: 'storybook-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 1,
+        stdout: '',
+        stderr: 'test-storybook crashed',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 200,
+        artifactPath: null,
+      };
+      invokeMock.mockResolvedValueOnce(runResult);
+
+      await service.runStorybookGate(manifest);
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(service.stagedTestExecution()).toBeNull();
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'storybook-gate-command'),
+      ).toMatchObject({ status: 'failed', error: 'test-storybook crashed' });
+    });
+
+    it('surfaces a distinct, named error when the command succeeds but produces no report', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          storybookTest: 'npm run test-storybook',
+          storybookTestReportPath: 'storybook-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 200,
+        artifactPath: null,
+      };
+      invokeMock
+        .mockResolvedValueOnce(runResult)
+        .mockRejectedValueOnce(new Error('file not found'));
+
+      await service.runStorybookGate(manifest);
+
+      expect(service.storybookGateError()).toBe(
+        'The Storybook interaction command exited successfully, but no report was found at packages/acme-button/storybook-report.json.',
+      );
+      expect(service.stagedTestExecution()).toBeNull();
+    });
+  });
+
   describe('queryLiveStorybookIndex', () => {
     it('fetches a real live index via the Rust-mediated command and replaces storybookIndex', async () => {
       const liveIndexJson = JSON.stringify({

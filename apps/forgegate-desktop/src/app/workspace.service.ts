@@ -29,6 +29,12 @@ import {
   buildAxeGateExecution,
 } from './axe-gate';
 import {
+  STORYBOOK_COMMAND_MAPPING_KEY,
+  STORYBOOK_GATE_TIMEOUT_SECONDS,
+  STORYBOOK_REPORT_PATH_MAPPING_KEY,
+  buildStorybookGateExecution,
+} from './storybook-gate';
+import {
   extractProtectedOverview,
   generateStarlightComponentReportData,
   generateStarlightComponentPage,
@@ -708,6 +714,13 @@ export class WorkspaceService {
   readonly axeGateResult = signal<CommandResult | null>(null);
   readonly axeGateError = signal<string | null>(null);
   readonly axeGateSkipped = signal<string | null>(null);
+
+  /** Storybook interaction-test gate — same rationale as the axe signals above. */
+  readonly storybookGateRunning = signal(false);
+  readonly storybookGateLiveOutput = signal('');
+  readonly storybookGateResult = signal<CommandResult | null>(null);
+  readonly storybookGateError = signal<string | null>(null);
+  readonly storybookGateSkipped = signal<string | null>(null);
 
   readonly stagedTestExecution = signal<{
     readonly execution: TestExecution;
@@ -2986,6 +2999,121 @@ export class WorkspaceService {
     } finally {
       unlisten();
       this.axeGateRunning.set(false);
+    }
+  }
+
+  /**
+   * The Storybook half of the axe-proved run pattern: runs the workspace's
+   * own configured `storybookTest` command, then reads the JSON report it
+   * produces at `storybookTestReportPath` and hands it to the existing
+   * `storybook-interactions-json` envelope parser
+   * (`buildStorybookGateExecution`). See `storybook-gate.ts` for why
+   * `toolVersion` is honestly `'unknown'` here rather than guessed.
+   */
+  async runStorybookGate(manifest: ComponentManifest): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.storybookGateRunning()) {
+      return;
+    }
+    const commandText =
+      this.repositoryConfig()?.commandMappings[STORYBOOK_COMMAND_MAPPING_KEY];
+    const reportPath =
+      this.repositoryConfig()?.commandMappings[
+        STORYBOOK_REPORT_PATH_MAPPING_KEY
+      ];
+    if (!commandText) {
+      this.storybookGateSkipped.set(
+        `No ${STORYBOOK_COMMAND_MAPPING_KEY} command is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+    if (!reportPath) {
+      this.storybookGateSkipped.set(
+        `No ${STORYBOOK_REPORT_PATH_MAPPING_KEY} is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+
+    let plan: WorkspaceCommandPlan;
+    try {
+      plan = parseWorkspaceCommandMapping(commandText);
+    } catch (error) {
+      this.storybookGateError.set(String(error));
+      return;
+    }
+
+    this.storybookGateRunning.set(true);
+    this.storybookGateError.set(null);
+    this.storybookGateResult.set(null);
+    this.storybookGateLiveOutput.set('');
+    this.storybookGateSkipped.set(null);
+    const startedAt = new Date().toISOString();
+    const unlisten = await this.listen<CommandOutputLine>(
+      'workspace-command-output',
+      (event) => {
+        this.storybookGateLiveOutput.update(
+          (current) => current + event.payload.line + '\n',
+        );
+      },
+    );
+    try {
+      const result = await this.invoke<CommandResult>('run_workspace_command', {
+        workspacePath: path,
+        relativeCwd: manifest.packagePath,
+        command: plan.command,
+        args: [...plan.args],
+        timeoutSeconds: STORYBOOK_GATE_TIMEOUT_SECONDS,
+      });
+      this.storybookGateResult.set(result);
+      this.setAdapterDiagnostic({
+        id: 'storybook-gate-command',
+        adapter: 'Storybook interaction gate',
+        source: `${manifest.packagePath}: ${plan.commandText}`,
+        status: result.exitCode === 0 ? 'loaded' : 'failed',
+        rawOutput: JSON.stringify(result, null, 2),
+        error:
+          result.exitCode === 0
+            ? null
+            : result.cancelled
+              ? 'Cancelled by user'
+              : result.stderr || 'Storybook interaction command failed',
+      });
+      if (result.exitCode !== 0) {
+        return;
+      }
+      const relativeReportPath = [
+        manifest.packagePath === '.' ? '' : manifest.packagePath,
+        reportPath,
+      ]
+        .filter(Boolean)
+        .join('/');
+      let reportText: string;
+      try {
+        reportText = await this.invoke<string>('read_text_file', {
+          workspacePath: path,
+          relativePath: relativeReportPath,
+        });
+      } catch {
+        this.storybookGateError.set(
+          `The Storybook interaction command exited successfully, but no report was found at ${relativeReportPath}.`,
+        );
+        return;
+      }
+      const report: unknown = JSON.parse(reportText);
+      const execution = buildStorybookGateExecution(
+        manifest,
+        report,
+        startedAt,
+        this.gitStatus()?.commit ?? 'unknown',
+        relativeReportPath,
+        result.durationMs ?? null,
+      );
+      await this.stageTestExecution(execution, manifest.id);
+    } catch (error) {
+      this.storybookGateError.set(String(error));
+    } finally {
+      unlisten();
+      this.storybookGateRunning.set(false);
     }
   }
 
