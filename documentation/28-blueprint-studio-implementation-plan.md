@@ -82,7 +82,7 @@ Local drafts may be cached in the optional PostgreSQL-backed history/workflow st
 - Proposal state is distinguishable from component manifest state.
 - No repository implementation files are created.
 
-**Implementation status**: a real, narrower first slice of `ComponentProposal` exists (`packages/core/manifest/src/lib/component-proposal.ts`), covering proposal identity/lifecycle, blueprint reference, target definition, purpose, native semantic confirmation, contract draft, required states, variant selections, anatomy parts, and token-slot mappings — staged/approved into `.forgegate/proposals/<proposal-id>.yaml` through the same discipline every other domain write uses. Content fixtures, coverage requirements, findings, exceptions, generation plan metadata, and revision history are real, named gaps, not yet built.
+**Implementation status**: a real, narrower first slice of `ComponentProposal` exists (`packages/core/manifest/src/lib/component-proposal.ts`), covering proposal identity/lifecycle, blueprint reference, target definition, purpose, native semantic confirmation, contract draft, required states, variant selections, anatomy parts, token-slot mappings, behavior decisions, and a real, named content-fixture list (id/label/value) — staged/approved into `.forgegate/proposals/<proposal-id>.yaml` through the same discipline every other domain write uses. Coverage requirements, findings, exceptions, generation plan metadata, and revision history remain real, named gaps, not yet built.
 
 ## Workstream 2 — Blueprint authoring metadata
 

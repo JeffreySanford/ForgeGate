@@ -437,6 +437,54 @@
         }
       </fieldset>
 
+      <fieldset class="studio-page__fixtures">
+        <legend>Define content fixtures</legend>
+        <p>
+          Real, named example content for previewing this proposal — e.g. a
+          "label" fixture of "Submit". Shown in the reference preview below.
+        </p>
+        @for (fixture of contentFixturesInput(); track $index) {
+        <div class="studio-page__fixture">
+          <label [attr.for]="'fixture-id-' + $index"
+            >Fixture id <span aria-hidden="true">*</span></label
+          >
+          <input
+            [id]="'fixture-id-' + $index"
+            type="text"
+            [value]="fixture.id"
+            (input)="
+              updateContentFixture($index, 'id', $any($event.target).value)
+            "
+          />
+          <label [attr.for]="'fixture-label-' + $index">Label</label>
+          <input
+            [id]="'fixture-label-' + $index"
+            type="text"
+            [value]="fixture.label"
+            (input)="
+              updateContentFixture($index, 'label', $any($event.target).value)
+            "
+          />
+          <label [attr.for]="'fixture-value-' + $index">Value</label>
+          <input
+            [id]="'fixture-value-' + $index"
+            type="text"
+            placeholder="Submit"
+            [value]="fixture.value"
+            (input)="
+              updateContentFixture($index, 'value', $any($event.target).value)
+            "
+          />
+          <button type="button" (click)="removeContentFixture($index)">
+            Remove
+          </button>
+        </div>
+        }
+        <button type="button" (click)="addContentFixture()">
+          Add content fixture
+        </button>
+      </fieldset>
+
       <section
         class="studio-page__reference-preview fg-panel"
         aria-labelledby="reference-preview-title"
@@ -468,7 +516,7 @@
           [attr.data-state]="previewedStateInput()"
           [style]="previewSurfaceStyle()"
         >
-          {{ componentNameInput() || blueprint.name }}
+          {{ previewDisplayText() || blueprint.name }}
         </div>
         @if (previewedStateInput()) {
         <p class="studio-page__preview-state-note">

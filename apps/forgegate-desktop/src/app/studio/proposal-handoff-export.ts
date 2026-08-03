@@ -59,6 +59,7 @@ export async function buildProposalHandoffExport(
       proposal.contract.styleParts.length,
     anatomyPartCount: proposal.anatomyParts.length,
     tokenMappingCount: proposal.tokenMappings.length,
+    contentFixtureCount: proposal.contentFixtures.length,
     exportedAt,
     checksums,
     contents: Object.keys(contentFiles),

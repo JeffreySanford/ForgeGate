@@ -247,6 +247,52 @@ describe('StudioPage', () => {
     expect(compiled.querySelector('#anatomy-id-0')).toBeNull();
   });
 
+  it('adds, edits, and removes a content fixture, and reflects it in the reference preview', async () => {
+    workspace.workspacePath.set('/repos/example');
+    workspace.blueprints.set([buttonBlueprint]);
+    fixture = TestBed.createComponent(StudioPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        '.studio-page__catalog button',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    (
+      Array.from(compiled.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Add content fixture'),
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const idInput = compiled.querySelector('#fixture-id-0') as HTMLInputElement;
+    expect(idInput).not.toBeNull();
+    idInput.value = 'default-label';
+    idInput.dispatchEvent(new Event('input'));
+    const valueInput = compiled.querySelector(
+      '#fixture-value-0',
+    ) as HTMLInputElement;
+    valueInput.value = 'Submit order';
+    valueInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(idInput.value).toBe('default-label');
+    const surface = compiled.querySelector(
+      '.studio-page__preview-surface',
+    ) as HTMLElement;
+    expect(surface.textContent?.trim()).toBe('Submit order');
+
+    const removeButton = compiled.querySelector(
+      '.studio-page__fixture button',
+    ) as HTMLButtonElement;
+    removeButton.click();
+    fixture.detectChanges();
+    expect(compiled.querySelector('#fixture-id-0')).toBeNull();
+  });
+
   it('maps a blueprint token slot to a discovered DTCG token', async () => {
     workspace.workspacePath.set('/repos/example');
     workspace.blueprints.set([buttonBlueprint]);

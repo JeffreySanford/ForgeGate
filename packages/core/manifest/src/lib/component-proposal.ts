@@ -10,10 +10,11 @@
  * Deliberately still a narrow slice of that workstream's full illustrative
  * shape — covering "choose a blueprint", "define purpose and native
  * semantics", "configure the portable public contract", "compose variants
- * and required states", and "define anatomy, slots, parts, token slots,
- * behavior, and fixtures" except fixtures, from P2's first-slice checklist,
- * not the entire eventual coverage/finding/exception/generation-plan/
- * revision model. Those remain real, named gaps, not fabricated here.
+ * and required states", and the entire "define anatomy, slots, parts,
+ * token slots, behavior, and fixtures" checklist item, from P2's
+ * first-slice checklist, not the entire eventual coverage/finding/
+ * exception/generation-plan/revision model. Those remain real, named
+ * gaps, not fabricated here.
  */
 
 import type { ContractMember } from './contract';
@@ -115,6 +116,20 @@ export interface ProposalBehaviorDecisions {
   readonly announcementStrategy: string;
 }
 
+/**
+ * One real, named example content value for previewing this proposal —
+ * e.g. a "label" fixture of `"Submit"`, or an "icon" fixture of `"check"`.
+ * The "fixtures" half of "define anatomy, slots, parts, token slots,
+ * behavior, and fixtures" — a real, portable key-value list, not yet
+ * Workstream 1's full `ContentFixture` shape (per-variant fixture sets,
+ * long-content/empty-content/overflow scenarios, locale variants).
+ */
+export interface ProposalContentFixture {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+}
+
 export interface ComponentProposal {
   readonly identity: ProposalIdentity;
   readonly blueprint: BlueprintReference;
@@ -156,4 +171,7 @@ export interface ComponentProposal {
   /** The "behavior" half of that same checklist item — Workstream 8's
    * guided behavior and accessibility decisions. */
   readonly behavior: ProposalBehaviorDecisions;
+  /** The "fixtures" half of that same checklist item — real, named
+   * example content for previewing this proposal. */
+  readonly contentFixtures: readonly ProposalContentFixture[];
 }

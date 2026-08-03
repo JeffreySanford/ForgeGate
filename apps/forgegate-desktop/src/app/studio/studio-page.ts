@@ -5,6 +5,7 @@ import type {
   ContractMember,
   ProposalAnatomyPart,
   ProposalBehaviorDecisions,
+  ProposalContentFixture,
   ProposalContractDraft,
   ProposalTokenMapping,
   ProposalVariantSelection,
@@ -166,6 +167,9 @@ export class StudioPage {
     emptyBehaviorDecisions(),
   );
   protected readonly behaviorFields = BEHAVIOR_DECISION_FIELDS;
+  protected readonly contentFixturesInput = signal<
+    readonly ProposalContentFixture[]
+  >([]);
 
   protected readonly previewedStateInput = signal<string | null>(null);
 
@@ -185,6 +189,22 @@ export class StudioPage {
   protected readonly previewSurfaceStyle = computed(() =>
     previewSurfaceStyle(this.previewTokenValues()),
   );
+
+  /** Real fixture content takes priority in the reference preview when
+   * one exists — the whole point of a fixture is to be the example
+   * content shown, not the raw component name. Falls back honestly when
+   * no fixture has a real value yet. */
+  protected readonly previewDisplayText = computed(() => {
+    const fixtureWithValue = this.contentFixturesInput().find(
+      (fixture) => fixture.value.trim().length > 0,
+    );
+    return (
+      fixtureWithValue?.value ||
+      this.componentNameInput() ||
+      this.selectedBlueprint()?.name ||
+      ''
+    );
+  });
 
   protected readonly totalContractMemberCount = computed(() => {
     const draft = this.contractDraft();
@@ -220,6 +240,7 @@ export class StudioPage {
     this.anatomyPartsInput.set([]);
     this.tokenMappingsInput.set([]);
     this.behaviorInput.set(emptyBehaviorDecisions());
+    this.contentFixturesInput.set([]);
     this.previewedStateInput.set(null);
     this.approvedProposalForHandoff.set(null);
   }
@@ -298,6 +319,29 @@ export class StudioPage {
     this.anatomyPartsInput.update((parts) =>
       parts.map((part, i) =>
         i === index ? { ...part, [field]: value } : part,
+      ),
+    );
+  }
+
+  protected addContentFixture(): void {
+    const fixture: ProposalContentFixture = { id: '', label: '', value: '' };
+    this.contentFixturesInput.update((fixtures) => [...fixtures, fixture]);
+  }
+
+  protected removeContentFixture(index: number): void {
+    this.contentFixturesInput.update((fixtures) =>
+      fixtures.filter((_, i) => i !== index),
+    );
+  }
+
+  protected updateContentFixture(
+    index: number,
+    field: keyof ProposalContentFixture,
+    value: string,
+  ): void {
+    this.contentFixturesInput.update((fixtures) =>
+      fixtures.map((fixture, i) =>
+        i === index ? { ...fixture, [field]: value } : fixture,
       ),
     );
   }
@@ -381,6 +425,7 @@ export class StudioPage {
       anatomyParts: this.anatomyPartsInput(),
       tokenMappings: this.tokenMappingsInput(),
       behavior: this.behaviorInput(),
+      contentFixtures: this.contentFixturesInput(),
     };
     await this.workspace.stageProposal(proposal);
   }

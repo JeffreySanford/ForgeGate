@@ -44,6 +44,10 @@ behavior:
   focusBehavior: Receives a visible focus ring; no focus trapping.
   loadingBehavior: Disables activation and shows a spinner in place of the icon.
   announcementStrategy: The loading state change is announced via a polite live region.
+contentFixtures:
+  - id: default-icon
+    label: Default icon
+    value: check
 `;
 
 describe('parseComponentProposal', () => {
@@ -93,10 +97,20 @@ describe('parseComponentProposal', () => {
       announcementStrategy:
         'The loading state change is announced via a polite live region.',
     });
+    expect(proposal.contentFixtures).toEqual([
+      { id: 'default-icon', label: 'Default icon', value: 'check' },
+    ]);
   });
 
   it('rejects a proposal missing the required behavior field', () => {
     const invalid = validYaml.replace(/behavior:[\s\S]*$/, '');
+    expect(() => parseComponentProposal(invalid)).toThrow(
+      'does not match the schema',
+    );
+  });
+
+  it('rejects a proposal missing the required contentFixtures field', () => {
+    const invalid = validYaml.replace(/contentFixtures:[\s\S]*$/, '');
     expect(() => parseComponentProposal(invalid)).toThrow(
       'does not match the schema',
     );

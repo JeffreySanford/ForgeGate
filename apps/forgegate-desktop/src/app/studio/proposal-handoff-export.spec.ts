@@ -63,6 +63,9 @@ const proposal: ComponentProposal = {
     loadingBehavior: 'Disables activation while loading.',
     announcementStrategy: 'State changes announce via a polite live region.',
   },
+  contentFixtures: [
+    { id: 'default-icon', label: 'Default icon', value: 'check' },
+  ],
 };
 
 describe('buildProposalHandoffExport', () => {
@@ -105,6 +108,7 @@ describe('buildProposalHandoffExport', () => {
     expect(manifest.contractMemberCount).toBe(1);
     expect(manifest.anatomyPartCount).toBe(1);
     expect(manifest.tokenMappingCount).toBe(1);
+    expect(manifest.contentFixtureCount).toBe(1);
     expect(manifest.generationStatus).toContain('not-generated');
   });
 

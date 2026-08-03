@@ -276,6 +276,17 @@ const proposalTokenMappingSchema = {
   additionalProperties: false,
 } as const;
 
+const proposalContentFixtureSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', minLength: 1 },
+    label: { type: 'string', minLength: 1 },
+    value: { type: 'string' },
+  },
+  required: ['id', 'label', 'value'],
+  additionalProperties: false,
+} as const;
+
 const proposalBehaviorDecisionsSchema = {
   type: 'object',
   properties: {
@@ -313,6 +324,7 @@ export const componentProposalSchema = {
     anatomyParts: { type: 'array', items: proposalAnatomyPartSchema },
     tokenMappings: { type: 'array', items: proposalTokenMappingSchema },
     behavior: proposalBehaviorDecisionsSchema,
+    contentFixtures: { type: 'array', items: proposalContentFixtureSchema },
   },
   required: [
     'identity',
@@ -326,6 +338,7 @@ export const componentProposalSchema = {
     'anatomyParts',
     'tokenMappings',
     'behavior',
+    'contentFixtures',
   ],
   additionalProperties: false,
 } as const;

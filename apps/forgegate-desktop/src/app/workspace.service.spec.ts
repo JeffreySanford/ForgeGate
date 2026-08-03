@@ -648,6 +648,7 @@ describe('WorkspaceService', () => {
       '  focusBehavior: Receives a visible focus ring.',
       '  loadingBehavior: Disables activation while loading.',
       '  announcementStrategy: State changes announce via a polite live region.',
+      'contentFixtures: []',
     ].join('\n');
     invokeMock
       .mockResolvedValueOnce('D:/repos/ForgeGate')
@@ -708,6 +709,7 @@ describe('WorkspaceService', () => {
           announcementStrategy:
             'State changes announce via a polite live region.',
         },
+        contentFixtures: [],
       },
     ]);
     expect(service.proposalError()).toContain(
@@ -1915,6 +1917,7 @@ describe('WorkspaceService', () => {
         loadingBehavior: '',
         announcementStrategy: '',
       },
+      contentFixtures: [],
     };
 
     it('does nothing if an export is already running', async () => {
