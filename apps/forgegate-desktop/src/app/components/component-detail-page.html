@@ -391,13 +391,21 @@
       @for (gate of gateDefinitions; track gate.id) {
       <button
         type="button"
-        [disabled]="!!workspace.runningGate() || !!workspace.stagedTestExecution()"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || !!workspace.stagedTestExecution()"
         (click)="runGate(gate.id)"
       >
         {{ workspace.runningGate() === gate.id ? 'Running…' : 'Run ' +
         gate.label }}
       </button>
       }
+      <button
+        type="button"
+        [disabled]="!!workspace.runningGate() || workspace.axeGateRunning() || !!workspace.stagedTestExecution()"
+        (click)="runAxeGate()"
+      >
+        {{ workspace.axeGateRunning() ? 'Running…' : 'Run Accessibility (axe)'
+        }}
+      </button>
     </div>
     @if (workspace.gateSkipped(); as skipped) {
     <p role="status">{{ skipped }}</p>
@@ -411,6 +419,18 @@
     </details>
     } @if (workspace.gateError(); as gateError) {
     <p role="alert">{{ gateError }}</p>
+    } @if (workspace.axeGateSkipped(); as axeSkipped) {
+    <p role="status">{{ axeSkipped }}</p>
+    } @if (workspace.axeGateLiveOutput()) {
+    <details open>
+      <summary>Live output</summary>
+      <pre class="component-detail__live-output">
+{{
+        workspace.axeGateLiveOutput()
+      }}</pre>
+    </details>
+    } @if (workspace.axeGateError(); as axeGateError) {
+    <p role="alert">{{ axeGateError }}</p>
     } @if (workspace.stageTestExecutionError(); as stageError) {
     <p role="alert">Failed to stage the test result: {{ stageError }}</p>
     } @if (workspace.stagedTestExecution(); as staged) {

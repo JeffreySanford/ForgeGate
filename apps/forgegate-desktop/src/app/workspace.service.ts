@@ -23,6 +23,12 @@ import {
   type ProcessGateId,
 } from './process-gate';
 import {
+  AXE_COMMAND_MAPPING_KEY,
+  AXE_GATE_TIMEOUT_SECONDS,
+  AXE_REPORT_PATH_MAPPING_KEY,
+  buildAxeGateExecution,
+} from './axe-gate';
+import {
   extractProtectedOverview,
   generateStarlightComponentReportData,
   generateStarlightComponentPage,
@@ -690,6 +696,18 @@ export class WorkspaceService {
   readonly gateResult = signal<CommandResult | null>(null);
   readonly gateError = signal<string | null>(null);
   readonly gateSkipped = signal<string | null>(null);
+
+  /**
+   * Separate from `runningGate`/`gateResult` above because axe reuses the
+   * real `axe-json` envelope parser instead of the exit-code-only shape —
+   * see `axe-gate.ts` for why that makes it a genuinely different flow, not
+   * a fourth entry in `PROCESS_GATE_DEFINITIONS`.
+   */
+  readonly axeGateRunning = signal(false);
+  readonly axeGateLiveOutput = signal('');
+  readonly axeGateResult = signal<CommandResult | null>(null);
+  readonly axeGateError = signal<string | null>(null);
+  readonly axeGateSkipped = signal<string | null>(null);
 
   readonly stagedTestExecution = signal<{
     readonly execution: TestExecution;
@@ -2852,6 +2870,122 @@ export class WorkspaceService {
     } finally {
       unlisten();
       this.runningGate.set(null);
+    }
+  }
+
+  /**
+   * Actually runs the workspace's own configured `axe` command
+   * (`commandMappings.axe`), scoped to `manifest.packagePath`, then reads
+   * the JSON report it produces at `commandMappings.axeReportPath` and
+   * hands it to the existing `axe-json` envelope parser
+   * (`buildAxeGateExecution`) rather than deriving pass/fail from the exit
+   * code alone. Skips honestly (`axeGateSkipped`) when either command
+   * mapping key is missing. A command that exits 0 but never writes the
+   * configured report path is a distinct, named error — not silently
+   * treated as "not configured" or downgraded to exit-code-only.
+   */
+  async runAxeGate(manifest: ComponentManifest): Promise<void> {
+    const path = this.workspacePath();
+    if (!path || this.axeGateRunning()) {
+      return;
+    }
+    const commandText =
+      this.repositoryConfig()?.commandMappings[AXE_COMMAND_MAPPING_KEY];
+    const reportPath =
+      this.repositoryConfig()?.commandMappings[AXE_REPORT_PATH_MAPPING_KEY];
+    if (!commandText) {
+      this.axeGateSkipped.set(
+        `No ${AXE_COMMAND_MAPPING_KEY} command is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+    if (!reportPath) {
+      this.axeGateSkipped.set(
+        `No ${AXE_REPORT_PATH_MAPPING_KEY} is configured in .forgegate/config.yaml.`,
+      );
+      return;
+    }
+
+    let plan: WorkspaceCommandPlan;
+    try {
+      plan = parseWorkspaceCommandMapping(commandText);
+    } catch (error) {
+      this.axeGateError.set(String(error));
+      return;
+    }
+
+    this.axeGateRunning.set(true);
+    this.axeGateError.set(null);
+    this.axeGateResult.set(null);
+    this.axeGateLiveOutput.set('');
+    this.axeGateSkipped.set(null);
+    const startedAt = new Date().toISOString();
+    const unlisten = await this.listen<CommandOutputLine>(
+      'workspace-command-output',
+      (event) => {
+        this.axeGateLiveOutput.update(
+          (current) => current + event.payload.line + '\n',
+        );
+      },
+    );
+    try {
+      const result = await this.invoke<CommandResult>('run_workspace_command', {
+        workspacePath: path,
+        relativeCwd: manifest.packagePath,
+        command: plan.command,
+        args: [...plan.args],
+        timeoutSeconds: AXE_GATE_TIMEOUT_SECONDS,
+      });
+      this.axeGateResult.set(result);
+      this.setAdapterDiagnostic({
+        id: 'axe-gate-command',
+        adapter: 'axe gate',
+        source: `${manifest.packagePath}: ${plan.commandText}`,
+        status: result.exitCode === 0 ? 'loaded' : 'failed',
+        rawOutput: JSON.stringify(result, null, 2),
+        error:
+          result.exitCode === 0
+            ? null
+            : result.cancelled
+              ? 'Cancelled by user'
+              : result.stderr || 'axe command failed',
+      });
+      if (result.exitCode !== 0) {
+        return;
+      }
+      const relativeReportPath = [
+        manifest.packagePath === '.' ? '' : manifest.packagePath,
+        reportPath,
+      ]
+        .filter(Boolean)
+        .join('/');
+      let reportText: string;
+      try {
+        reportText = await this.invoke<string>('read_text_file', {
+          workspacePath: path,
+          relativePath: relativeReportPath,
+        });
+      } catch {
+        this.axeGateError.set(
+          `The axe command exited successfully, but no report was found at ${relativeReportPath}.`,
+        );
+        return;
+      }
+      const report: unknown = JSON.parse(reportText);
+      const execution = buildAxeGateExecution(
+        manifest,
+        report,
+        startedAt,
+        this.gitStatus()?.commit ?? 'unknown',
+        relativeReportPath,
+        result.durationMs ?? null,
+      );
+      await this.stageTestExecution(execution, manifest.id);
+    } catch (error) {
+      this.axeGateError.set(String(error));
+    } finally {
+      unlisten();
+      this.axeGateRunning.set(false);
     }
   }
 

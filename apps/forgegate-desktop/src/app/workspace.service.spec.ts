@@ -3832,6 +3832,211 @@ describe('WorkspaceService', () => {
     });
   });
 
+  describe('runAxeGate', () => {
+    const manifest = createComponentManifest({
+      id: 'acme.design-system.acme-button',
+      framework: 'web-components',
+      adapter: 'framework.web-components',
+      packagePath: 'packages/acme-button',
+      componentVersion: '1.0.0',
+      lifecycle: 'candidate',
+    });
+
+    it('skips honestly when no axe command is configured', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {},
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runAxeGate(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.axeGateSkipped()).toBe(
+        'No axe command is configured in .forgegate/config.yaml.',
+      );
+    });
+
+    it('skips honestly when the command is configured but no report path is', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: { axe: 'npm run axe' },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+
+      await service.runAxeGate(manifest);
+
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(service.axeGateSkipped()).toBe(
+        'No axeReportPath is configured in .forgegate/config.yaml.',
+      );
+    });
+
+    it('runs the configured axe command, reads the real report, and stages a normalized failing result', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.gitStatus.set({
+        branch: 'main',
+        commit: 'a'.repeat(40),
+        dirty: false,
+        changedFiles: [],
+      });
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          axe: 'npm run axe',
+          axeReportPath: 'axe-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 800,
+        artifactPath: null,
+      };
+      const reportText = JSON.stringify({
+        violations: [{ id: 'color-contrast' }],
+        passes: [],
+        incomplete: [],
+        testEngine: { name: 'axe-core', version: '4.9.1' },
+      });
+      const stagedWrite = {
+        stagingId: 'stg-1',
+        subdirectory: 'evidence',
+        filename: 'x.json',
+        previousContent: null,
+        newContent: '{}',
+      };
+      invokeMock
+        .mockResolvedValueOnce(runResult)
+        .mockResolvedValueOnce(reportText)
+        .mockResolvedValueOnce(stagedWrite);
+
+      await service.runAxeGate(manifest);
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, 'run_workspace_command', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativeCwd: 'packages/acme-button',
+        command: 'npm',
+        args: ['run', 'axe'],
+        timeoutSeconds: 180,
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(2, 'read_text_file', {
+        workspacePath: 'D:/repos/ForgeGate',
+        relativePath: 'packages/acme-button/axe-report.json',
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(
+        3,
+        'stage_test_execution',
+        expect.objectContaining({ workspacePath: 'D:/repos/ForgeGate' }),
+      );
+      expect(service.axeGateResult()).toEqual(runResult);
+      expect(service.axeGateError()).toBeNull();
+      const staged = service.stagedTestExecution();
+      expect(staged?.execution.gate).toBe('axe');
+      expect(staged?.execution.tool).toBe('axe-core');
+      expect(staged?.execution.toolVersion).toBe('4.9.1');
+      expect(staged?.execution.status).toBe('failed');
+      expect(staged?.execution.durationMs).toBe(800);
+      expect(staged?.execution.rawArtifactRef).toBe(
+        'packages/acme-button/axe-report.json',
+      );
+    });
+
+    it('does not attempt to read a report when the axe command itself fails', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          axe: 'npm run axe',
+          axeReportPath: 'axe-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 1,
+        stdout: '',
+        stderr: 'axe crashed',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 200,
+        artifactPath: null,
+      };
+      invokeMock.mockResolvedValueOnce(runResult);
+
+      await service.runAxeGate(manifest);
+
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(service.stagedTestExecution()).toBeNull();
+      expect(
+        service
+          .adapterDiagnostics()
+          .find((diagnostic) => diagnostic.id === 'axe-gate-command'),
+      ).toMatchObject({ status: 'failed', error: 'axe crashed' });
+    });
+
+    it('surfaces a distinct, named error when the command succeeds but produces no report', async () => {
+      service.workspacePath.set('D:/repos/ForgeGate');
+      service.repositoryConfig.set({
+        configVersion: '0.1.0',
+        projectMappings: [],
+        packageMappings: [],
+        commandMappings: {
+          axe: 'npm run axe',
+          axeReportPath: 'axe-report.json',
+        },
+        documentationMappings: {},
+        adapterConfiguration: {},
+        ignorePatterns: [],
+        safeWriteLocations: [],
+      });
+      const runResult = {
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        cancelled: false,
+        durationMs: 200,
+        artifactPath: null,
+      };
+      invokeMock
+        .mockResolvedValueOnce(runResult)
+        .mockRejectedValueOnce(new Error('file not found'));
+
+      await service.runAxeGate(manifest);
+
+      expect(service.axeGateError()).toBe(
+        'The axe command exited successfully, but no report was found at packages/acme-button/axe-report.json.',
+      );
+      expect(service.stagedTestExecution()).toBeNull();
+    });
+  });
+
   describe('queryLiveStorybookIndex', () => {
     it('fetches a real live index via the Rust-mediated command and replaces storybookIndex', async () => {
       const liveIndexJson = JSON.stringify({

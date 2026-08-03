@@ -655,6 +655,14 @@ export class ComponentDetailPage {
     void this.workspace.runGate(gate, manifest);
   }
 
+  protected runAxeGate(): void {
+    const manifest = this.manifest();
+    if (!manifest) {
+      return;
+    }
+    void this.workspace.runAxeGate(manifest);
+  }
+
   protected approveTestExecution(): void {
     void this.workspace.approveStagedTestExecution();
   }

@@ -154,12 +154,14 @@ for a narrow, provenance-safe subset:
   reporter is explicitly modeled on Jest's.
 
 These adapters normalize a single `TestExecution` and preserve the raw report
-for evidence export. ForgeGate now runs three target-repository commands
-itself — `commandMappings.unitTest`, `lint`, and `build` (see "Safe command
+for evidence export. ForgeGate now runs four target-repository commands
+itself — `commandMappings.unitTest`, `lint`, and `build` read only a real
+process exit code, not any structured report format (see "Safe command
 configuration" above and the "Acceptance requirements" implementation-status
-note below) — but that path reads only a real process exit code, not any of
-the structured report formats these import-based adapters parse; the two are
-complementary, not overlapping.
+note below); `commandMappings.axe` is different — it runs the command, then
+reads the real JSON report at `commandMappings.axeReportPath` and reuses the
+`axe-json` envelope parser above, so the run path and the import path share
+one normalizer and can never disagree on status.
 
 ## Normalized evidence
 
@@ -328,22 +330,30 @@ It must preserve raw results and mark evidence stale after a relevant source cha
 Implementation status: imported Storybook interaction, axe, Playwright, Jest,
 and Vitest results are all normalized and raw reports are preserved (one unit
 test runner and more). ForgeGate-triggered target-repository command
-execution is now real for three gates: `WorkspaceService.runGate` actually
+execution is now real for four gates. `WorkspaceService.runGate` actually
 runs a repository's own configured command for `unit`, `lint`, or `build`
 (`process-gate.ts`'s `PROCESS_GATE_DEFINITIONS`), scoped to a component's
 package, and turns the real exit code into a staged/approved `TestExecution`
 (`buildProcessGateExecution`). It reads only the process exit code, not any
 structured report format, so it produces the same `TestExecution` shape the
 imported adapters above do, but with no per-test detail and an honest
-`toolVersion: 'unknown'`. Storybook, axe, and Playwright gates are still not
-ForgeGate-triggered — only ingested when a target repository already
-produced the evidence file itself; running them for real is a deliberately
-separate design question, not a mechanical extension of unit/lint/build,
-since ForgeGate already has real structured-report parsers for these three
-on the ingest path (see "Output parsing" above) that an exit-code-only run
-path would bypass. Source-change
-stale-evidence detection is real for a specific commit comparison (a stale
-`TestExecution`'s recorded commit against the workspace's current one, with a
-real "show changed files" explanation — see
+`toolVersion: 'unknown'`. `WorkspaceService.runAxeGate`
+(`apps/forgegate-desktop/src/app/axe-gate.ts`) is different on purpose: it
+runs the configured `commandMappings.axe` command, then reads the JSON
+report it produces at `commandMappings.axeReportPath` and hands it to the
+same `axe-json` envelope parser the ingest path already uses
+(`parseTestEvidenceFile`), so a "run" result and an "imported" result of the
+same tool can never silently disagree on what counts as a pass. `toolVersion`
+comes from the report's own `report.testEngine.version`, never guessed, and
+a command that exits 0 but never writes the configured report path surfaces
+its own distinct, named error rather than being treated as "not configured"
+or silently falling back to exit-code-only. Storybook and Playwright gates
+are still not ForgeGate-triggered — only ingested when a target repository
+already produced the evidence file itself; axe proved the "run command → read
+configured report path → reuse the existing envelope parser" pattern end to
+end, and Storybook/Playwright are expected to follow the identical shape.
+Source-change stale-evidence detection is real for a specific commit
+comparison (a stale `TestExecution`'s recorded commit against the workspace's
+current one, with a real "show changed files" explanation — see
 [`26-workspace-visualization-and-motion.md`](26-workspace-visualization-and-motion.md)'s
 evidence freshness timeline), not yet for a general durable staleness store.
