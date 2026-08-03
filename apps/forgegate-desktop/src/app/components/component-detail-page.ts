@@ -16,6 +16,7 @@ import {
   isStaleAgainstCommit,
 } from '../evidence-freshness';
 import { PROCESS_GATE_DEFINITIONS, type ProcessGateId } from '../process-gate';
+import type { EvidenceApprover } from '../release-decision-export';
 import { WorkspaceService } from '../workspace.service';
 import type { StorybookIndexEntry } from '@forgegate/adapter-storybook';
 import { computeDocumentationDriftState } from '../documentation-drift';
@@ -587,6 +588,23 @@ export class ComponentDetailPage {
     void this.workspace.queryLiveStorybookIndex(LOCAL_STORYBOOK_ORIGIN);
   }
 
+  /**
+   * A real human approver's self-attested identity (name or email), typed
+   * into the "Tests and evidence" panel before exporting or staging a
+   * release decision — the desktop human-approver capture named as open in
+   * TODO.md. Self-attested, not a cryptographic/SSO identity: matches the
+   * same trust level `ManualReview.reviewerIdentity` already uses. Left
+   * blank, both actions still work exactly as before (no approver, honest
+   * `blocked-no-approval-required` or unavailable outcome for a clean
+   * component) — this never silently fabricates an approval.
+   */
+  protected readonly releaseApproverIdentityInput = signal('');
+
+  private currentApprover(): EvidenceApprover | undefined {
+    const identity = this.releaseApproverIdentityInput().trim();
+    return identity ? { identity, provenance: 'human' } : undefined;
+  }
+
   protected exportEvidencePackage(): void {
     const manifest = this.manifest();
     if (!manifest) {
@@ -596,7 +614,7 @@ export class ComponentDetailPage {
       manifest,
       this.testExecutions(),
       this.blockingReasons(),
-      undefined,
+      this.currentApprover(),
       this.manualReviews(),
       this.workspace.exceptions(),
       this.workspace.findings(),
@@ -629,6 +647,7 @@ export class ComponentDetailPage {
     void this.workspace.stageReleaseDecisionHistory(
       manifest,
       this.blockingReasons(),
+      this.currentApprover(),
     );
   }
 

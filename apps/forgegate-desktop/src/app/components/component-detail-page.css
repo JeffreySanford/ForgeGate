@@ -253,6 +253,26 @@
   margin: 0 0 var(--fg-space-2);
 }
 
+.component-detail__field {
+  display: grid;
+  gap: var(--fg-space-1);
+  margin: var(--fg-space-2) 0;
+}
+
+.component-detail__field label {
+  font-size: var(--fg-type-size-sm);
+}
+
+.component-detail__field input[type='text'] {
+  padding: var(--fg-space-2);
+  border: 1px solid var(--fg-color-border);
+  border-radius: var(--fg-radius-md);
+  background: var(--fg-color-surface);
+  color: var(--fg-color-text);
+  font: inherit;
+  max-width: 24rem;
+}
+
 .component-detail__gate-buttons {
   display: flex;
   flex-wrap: wrap;

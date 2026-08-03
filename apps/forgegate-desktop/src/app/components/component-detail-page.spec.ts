@@ -321,7 +321,94 @@ describe('ComponentDetailPage', () => {
       expect.arrayContaining([
         expect.stringContaining('No automated test requirements declared'),
       ]),
+      undefined,
     );
+  });
+
+  it('captures a real human approver identity and passes it to both export and release-decision staging', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    workspaceService.componentManifestOverrides.set([
+      createComponentManifest({
+        id: 'acme.design-system.acme-button',
+        framework: 'web-components',
+        adapter: 'framework.web-components',
+        packagePath: '.',
+        componentVersion: '1.0.0',
+        lifecycle: 'candidate',
+        policyId: 'acme.baseline',
+        policyVersion: '1.0.0',
+      }),
+    ]);
+    const stageSpy = vi
+      .spyOn(workspaceService, 'stageReleaseDecisionHistory')
+      .mockResolvedValue();
+    const exportSpy = vi
+      .spyOn(workspaceService, 'exportEvidencePackage')
+      .mockResolvedValue();
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const approverInput = compiled.querySelector(
+      '#release-approver-identity',
+    ) as HTMLInputElement;
+    expect(approverInput).not.toBeNull();
+    approverInput.value = 'jane@example.com';
+    approverInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const stageButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) =>
+        button.textContent?.includes('Stage release decision history'),
+    );
+    stageButton?.click();
+
+    expect(stageSpy.mock.calls[0]?.[2]).toEqual({
+      identity: 'jane@example.com',
+      provenance: 'human',
+    });
+
+    const exportButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Export evidence package'),
+    );
+    exportButton?.click();
+
+    expect(exportSpy.mock.calls[0]?.[3]).toEqual({
+      identity: 'jane@example.com',
+      provenance: 'human',
+    });
+  });
+
+  it('leaves the approver undefined, never fabricating one, when the identity field is left blank', async () => {
+    workspaceService.workspacePath.set('/repos/example');
+    workspaceService.workspaceScan.set(scan);
+    workspaceService.customElementsManifest.set(richManifest);
+    const stageSpy = vi
+      .spyOn(workspaceService, 'stageReleaseDecisionHistory')
+      .mockResolvedValue();
+
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/components/acme.design-system.acme-button');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const stageButton = Array.from(compiled.querySelectorAll('button')).find(
+      (button) =>
+        button.textContent?.includes('Stage release decision history'),
+    );
+    stageButton?.click();
+
+    expect(stageSpy.mock.calls[0]?.[2]).toBeUndefined();
   });
 
   it('updates to show the newly navigated component when moving directly between two detail routes', async () => {

@@ -58,7 +58,7 @@ The next implementation work should continue against [`TODO.md`](../TODO.md). Bl
 
 As engineering proceeds, these documents should be refined into validated contracts, schemas, prototypes, examples, and acceptance evidence.
 
-Current P2 status: the Starlight/reporting lane has real slices for external policy-document provenance, curated automated-evidence details, plugin discovery/registration/route injection, target-repo build diagnostics, verified evidence-package reload, copied-attachment review/exclusion records, release-decision workflow records, and staged repository release-decision history write-back. Remaining work is post-P2 hardening: full external policy-rule evaluation, approved copied-content consumption, real desktop human-approver capture, package signing/trust policy, and broader real-repository validation.
+Current P2 status: the Starlight/reporting lane has real slices for external policy-document provenance, curated automated-evidence details, plugin discovery/registration/route injection, target-repo build diagnostics, verified evidence-package reload, copied-attachment review/exclusion records, release-decision workflow records, staged repository release-decision history write-back, and real desktop human-approver capture for authorized release decisions. Remaining work is post-P2 hardening: full external policy-rule evaluation, approved copied-content consumption, package signing/trust policy, and broader real-repository validation.
 
 ## Current implementation truth
 

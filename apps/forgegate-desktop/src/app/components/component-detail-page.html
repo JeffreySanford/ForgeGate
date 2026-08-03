@@ -198,6 +198,24 @@
     aria-labelledby="evidence-title"
   >
     <h2 id="evidence-title">Tests and evidence</h2>
+
+    <div class="component-detail__field">
+      <label for="release-approver-identity">
+        Approver name or email
+        <span class="component-detail__caveat"
+          >— required to authorize a clean component as a release candidate.
+          Leave blank to record without human approval (blocked components never
+          need one).</span
+        >
+      </label>
+      <input
+        id="release-approver-identity"
+        type="text"
+        [value]="releaseApproverIdentityInput()"
+        (input)="releaseApproverIdentityInput.set($any($event.target).value)"
+      />
+    </div>
+
     <button
       type="button"
       [disabled]="workspace.evidenceExportRunning()"
@@ -218,8 +236,9 @@
     <h3 id="release-history-title">Release history</h3>
     <p class="component-detail__caveat">
       Stages the current release-decision workflow record into
-      <code>.forgegate/release-decisions/</code>. Clean authorization still
-      requires a named human approver; blocked evaluations can be recorded now.
+      <code>.forgegate/release-decisions/</code>. Enter a real approver name or
+      email above to authorize a clean component as a release candidate; blocked
+      evaluations can be recorded without one.
     </p>
     <button
       type="button"
